@@ -1110,7 +1110,7 @@ function renderGameScreen() {
                 <div style="margin-top: 6px; padding: 6px; background: rgba(234, 179, 8, 0.2); border: 1px solid rgba(234, 179, 8, 0.4); border-radius: 6px; font-size: 0.75rem; color: #FACC15; text-align: center; font-weight: 600;">
                   🏃 Momentum Activated! Roll to move manually.
                 </div>
-              ` : (currentPlayer.activeCooldown === 0 && currentPlayer.energy >= 1 ? `
+              ` : (currentPlayer.activeCooldown === 0 && !currentPlayer.usedAbilityThisTurn && currentPlayer.energy >= 1 ? `
                 <button id="btn-pre-momentum" class="btn btn-accent" style="width: 100%; margin-top: 6px; padding: 6px; font-size: 0.75rem;">
                   🏃 Activate Momentum First (-1 Energy, Manual Move)
                 </button>
@@ -1150,7 +1150,7 @@ function renderGameScreen() {
                   <span>Auto-Moving... (${state.movesRemaining} left)</span>
                 </div>
                 
-                ${currentPlayer.roleKey === 'EXPLORER' && currentPlayer.activeCooldown === 0 && currentPlayer.energy >= 1 && isMyTurn ? `
+                ${currentPlayer.roleKey === 'EXPLORER' && currentPlayer.activeCooldown === 0 && !currentPlayer.usedAbilityThisTurn && currentPlayer.energy >= 1 && isMyTurn ? `
                   <button id="btn-pause-momentum" class="btn btn-accent" style="width: 100%; margin-top: 8px; padding: 6px 8px; font-size: 0.75rem;">
                     ⚡ Pause & Activate Momentum (-1 En)
                   </button>
@@ -1168,12 +1168,19 @@ function renderGameScreen() {
         <div class="panel-section">
           <div class="panel-section-title">Temporal Actions</div>
           <div class="action-buttons">
-            <!-- Time Warp -->
-            <button id="btn-act-warp" class="action-btn" ${!isMyTurn || currentPlayer.energy < GAME_CONSTANTS.TIME_WARP_COST || state.phase !== 'action' ? 'disabled' : ''} title="Spend 2 Energy to re-roll and move again">
-              <span class="action-btn-icon">⚡</span>
-              <span>Time Warp</span>
-              <span class="action-btn-cost">-2 Energy</span>
-            </button>
+            <!-- Time Warp (Era Travel via Time Gate) -->
+            ${(() => {
+              const currentTile = state.board[currentPlayer.currentEra][currentPlayer.tileIndex];
+              const isOnTimeGate = currentTile?.type === TILE_TYPES.TIMEGATE;
+              const warpCost = currentPlayer.roleKey === 'EXPLORER' ? GAME_CONSTANTS.TIME_GATE_COST_EXPLORER : GAME_CONSTANTS.TIME_GATE_COST;
+              return `
+                <button id="btn-act-warp" class="action-btn" ${!isMyTurn || !isOnTimeGate || currentPlayer.energy < warpCost || state.phase !== 'action' ? 'disabled' : ''} title="${isOnTimeGate ? `Warp through the Time Gate to travel to another era (Cost: ${warpCost} Energy)` : 'You must be on a Time Gate tile to use Time Warp'}">
+                  <span class="action-btn-icon">🌀</span>
+                  <span>Time Warp</span>
+                  <span class="action-btn-cost">-${warpCost} Energy</span>
+                </button>
+              `;
+            })()}
 
             <!-- Reverse Time -->
             <button id="btn-act-reverse" class="action-btn" ${!isMyTurn || currentPlayer.energy < GAME_CONSTANTS.REVERSE_TIME_COST || state.phase !== 'action' ? 'disabled' : ''} title="Spend 3 Energy to roll and move backwards">
@@ -1189,26 +1196,12 @@ function renderGameScreen() {
               <span class="action-btn-cost">+3 Energy</span>
             </button>
 
-            <!-- Time Gate -->
-            ${(() => {
-              const currentTile = state.board[currentPlayer.currentEra][currentPlayer.tileIndex];
-              const isOnTimeGate = currentTile?.type === TILE_TYPES.TIMEGATE;
-              const tgCost = currentPlayer.roleKey === 'EXPLORER' ? 1 : 2;
-              return `
-                <button id="btn-act-timegate" class="action-btn" ${!isMyTurn || !isOnTimeGate || currentPlayer.energy < tgCost ? 'disabled' : ''} title="Enter the Time Gate to travel across eras">
-                  <span class="action-btn-icon">🌀</span>
-                  <span>Time Gate</span>
-                  <span class="action-btn-cost">-${tgCost} Energy</span>
-                </button>
-              `;
-            })()}
-
             <!-- Role Skill -->
-            <button id="btn-act-skill" class="action-btn" ${!isMyTurn || currentPlayer.activeCooldown > 0 || currentPlayer.energy < (currentPlayer.role.active.energyCost || 0) ? 'disabled' : ''} title="${currentPlayer.role.active.description}">
+            <button id="btn-act-skill" class="action-btn" ${!isMyTurn || currentPlayer.usedAbilityThisTurn || currentPlayer.activeCooldown > 0 || currentPlayer.energy < (currentPlayer.role.active.energyCost || 0) ? 'disabled' : ''} title="${currentPlayer.role.active.description}">
               <span class="action-btn-icon">✨</span>
               <span>${currentPlayer.role.active.name}</span>
               <span class="action-btn-cost">
-                ${currentPlayer.activeCooldown > 0 ? `CD: ${currentPlayer.activeCooldown}T` : `-${currentPlayer.role.active.energyCost || 0} En`}
+                ${currentPlayer.usedAbilityThisTurn ? 'Used this turn' : (currentPlayer.activeCooldown > 0 ? `CD: ${currentPlayer.activeCooldown}T` : `-${currentPlayer.role.active.energyCost || 0} En`)}
               </span>
             </button>
 
@@ -1580,15 +1573,6 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
     network.sendAction({ type: 'REST', playerIdx: state.currentPlayerIndex });
   });
 
-  document.querySelector('#btn-act-timegate')?.addEventListener('click', (e) => {
-    if (state.phase !== 'action' || !isMyTurn) return;
-    const btn = e.currentTarget;
-    if (btn.disabled) return;
-    btn.disabled = true;
-    sounds.portal();
-    engine.handleTimeGate(currentPlayer);
-  });
-
   document.querySelector('#btn-act-skill')?.addEventListener('click', (e) => {
     if (state.phase !== 'action' || !isMyTurn) return;
     const btn = e.currentTarget;
@@ -1740,16 +1724,24 @@ function renderChoiceModal(choice) {
   const existing = document.querySelector('#active-modal');
   if (existing) existing.remove();
 
+  const isMyTurn = network.isMyTurn(engine.state.currentPlayerIndex);
+  const activePlayer = engine.getCurrentPlayer();
+
   const modalHtml = `
     <div class="modal-overlay" id="active-modal">
       <div class="modal">
         <div class="modal-title">${choice.title}</div>
         <div class="modal-body" style="text-align: center; margin-bottom: var(--space-lg);">
           <p>${choice.message}</p>
+          ${!isMyTurn && network.mode === 'online' ? `
+            <div style="font-size: 0.85rem; color: #60A5FA; margin-top: 10px; font-weight: 600;">
+              ⏳ Waiting for ${activePlayer.name} to choose...
+            </div>
+          ` : ''}
         </div>
         <div class="modal-actions" style="display: flex; flex-direction: column; gap: var(--space-sm);">
           ${choice.options.map(opt => `
-            <button class="btn btn-secondary choice-btn" data-action="${opt.action}" style="width: 100%;">
+            <button class="btn btn-secondary choice-btn" data-action="${opt.action}" style="width: 100%;" ${!isMyTurn && network.mode === 'online' ? 'disabled' : ''}>
               ${opt.label}
             </button>
           `).join('')}
@@ -1759,6 +1751,10 @@ function renderChoiceModal(choice) {
   `;
 
   document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+  if (!isMyTurn && network.mode === 'online') {
+    return;
+  }
 
   let choiceHandled = false;
   document.querySelectorAll('.choice-btn').forEach(btn => {
@@ -1771,6 +1767,9 @@ function renderChoiceModal(choice) {
       });
       sounds.btnClick();
       const action = btn.dataset.action;
+      if (action && (action.startsWith('warp_') || ['spanish', 'american', 'japanese', 'myth'].includes(action))) {
+        sounds.portal();
+      }
       engine.resolveChoice(action);
       network.sendAction({ type: 'RESOLVE_CHOICE', action });
       document.querySelector('#active-modal')?.remove();

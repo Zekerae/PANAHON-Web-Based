@@ -116,6 +116,7 @@ export class GameEngine {
         // Skill cooldowns (turns remaining)
         passiveCooldown: 0,
         activeCooldown: 0,
+        usedAbilityThisTurn: false,
 
         // Clue tracking: how many clues collected per artifact
         clueProgress: {} // artifactId -> count
@@ -296,6 +297,29 @@ export class GameEngine {
       return true;
     }
 
+    // If time gate tile, player can choose to travel or continue
+    if (tile.type === TILE_TYPES.TIMEGATE && this.state.movesRemaining > 0) {
+      const cost = player.roleKey === 'EXPLORER' ? GAME_CONSTANTS.TIME_GATE_COST_EXPLORER : GAME_CONSTANTS.TIME_GATE_COST;
+      const otherEras = ERA_ORDER.filter(e => e !== player.currentEra);
+      const options = [];
+      if (player.energy >= cost) {
+        otherEras.forEach(era => {
+          options.push({ label: `🌀 Warp to ${ERA_NAMES[era]} (-${cost} Energy)`, action: `warp_${era}` });
+        });
+      }
+      options.push({ label: `➡️ Continue Moving (${this.state.movesRemaining} spaces left)`, action: 'continueMoving' });
+      this.state.pendingChoice = {
+        type: 'timeGatePass',
+        title: 'Time Gate Portal!',
+        message: player.energy >= cost
+          ? `You came across a Time Gate! Warp to another era (Cost: ${cost} Energy) or continue with your remaining moves?`
+          : `You came across a Time Gate, but need ${cost} Energy to warp (you have ${player.energy} Energy).`,
+        options
+      };
+      this.notify();
+      return true;
+    }
+
     // If no more moves, resolve tile and reset direction
     if (this.state.movesRemaining <= 0) {
       this.state.movementDirection = 'forward';
@@ -351,6 +375,29 @@ export class GameEngine {
       return true;
     }
 
+    // Time Gate passing option
+    if (tile.type === TILE_TYPES.TIMEGATE && this.state.movesRemaining > 0) {
+      const cost = player.roleKey === 'EXPLORER' ? GAME_CONSTANTS.TIME_GATE_COST_EXPLORER : GAME_CONSTANTS.TIME_GATE_COST;
+      const otherEras = ERA_ORDER.filter(e => e !== player.currentEra);
+      const options = [];
+      if (player.energy >= cost) {
+        otherEras.forEach(era => {
+          options.push({ label: `🌀 Warp to ${ERA_NAMES[era]} (-${cost} Energy)`, action: `warp_${era}` });
+        });
+      }
+      options.push({ label: `➡️ Continue Moving (${this.state.movesRemaining} spaces left)`, action: 'continueMoving' });
+      this.state.pendingChoice = {
+        type: 'timeGatePass',
+        title: 'Time Gate Portal!',
+        message: player.energy >= cost
+          ? `You came across a Time Gate! Warp to another era (Cost: ${cost} Energy) or continue with your remaining moves?`
+          : `You came across a Time Gate, but need ${cost} Energy to warp (you have ${player.energy} Energy).`,
+        options
+      };
+      this.notify();
+      return true;
+    }
+
     // If no more moves, resolve
     if (this.state.movesRemaining <= 0) {
       this.state.movementDirection = 'forward';
@@ -381,6 +428,18 @@ export class GameEngine {
         this.resolveTile(player, tile);
       }
       // else continue moving
+    } else if (choiceType === 'timeGatePass') {
+      if (action && action.startsWith('warp_')) {
+        const targetEra = action.replace('warp_', '');
+        this.state.movesRemaining = 0;
+        this.state.movementDirection = 'forward';
+        this.state.momentumActive = false;
+        this.state.momentumUsedMidTile = false;
+        this.travelToEra(player, targetEra);
+      } else {
+        // Continue moving with remaining moves
+        this.state.phase = 'moving';
+      }
     } else if (choiceType === 'eventChoice') {
       if (action === 'drawClue') {
         this.drawClueCard(player);
@@ -402,9 +461,15 @@ export class GameEngine {
         this.modifyEnergy(player, 1);
         this.addLog('ability', `${player.name} used Temporal Repair: -1 Paradox, +1 Energy`);
       }
-      player.activeCooldown = player.role.active.cooldown;
+      player.usedAbilityThisTurn = true;
+      player.activeCooldown = ROLES.GUARDIAN.active.cooldown;
+      this.state.phase = 'action';
     } else if (choiceType === 'timeGateTravel') {
-      this.travelToEra(player, action);
+      if (action && action !== 'stay') {
+        this.travelToEra(player, action);
+      } else {
+        this.state.phase = 'action';
+      }
     }
 
     this.notify();
@@ -657,10 +722,13 @@ export class GameEngine {
       type: 'timeGateTravel',
       title: 'Time Gate Travel',
       message: `Choose a timeline to travel to (Cost: ${cost} Energy)`,
-      options: otherEras.map(era => ({
-        label: ERA_NAMES[era],
-        action: era
-      }))
+      options: [
+        ...otherEras.map(era => ({
+          label: `🌀 Warp to ${ERA_NAMES[era]}`,
+          action: era
+        })),
+        { label: 'Stay in Current Era', action: 'stay' }
+      ]
     };
 
     this.notify();
@@ -772,8 +840,12 @@ export class GameEngine {
   // --- Abilities ---
   useActiveAbility(playerIdx) {
     const player = this.state.players[playerIdx];
-    if (player.activeCooldown > 0) return false;
     if (this.state.currentPlayerIndex !== playerIdx) return false;
+    if (player.usedAbilityThisTurn) {
+      this.addLog('warning', `${player.name} has already used an ability this turn!`);
+      return false;
+    }
+    if (player.activeCooldown > 0) return false;
 
     switch (player.roleKey) {
       case 'HISTORIAN':
@@ -784,6 +856,7 @@ export class GameEngine {
         }
         this.modifyEnergy(player, -2);
         this.peekClueCards(player, 3);
+        player.usedAbilityThisTurn = true;
         player.activeCooldown = ROLES.HISTORIAN.active.cooldown;
         this.addLog('ability', `${player.name} used Clue Decipher!`);
         break;
@@ -795,6 +868,7 @@ export class GameEngine {
           return false;
         }
         this.modifyEnergy(player, -1);
+        player.usedAbilityThisTurn = true;
         player.activeCooldown = ROLES.EXPLORER.active.cooldown;
         this.state.momentumActive = true;
         this.state.momentumUsedMidTile = false;
@@ -803,14 +877,18 @@ export class GameEngine {
 
       case 'GUARDIAN':
         // Temporal Repair
+        player.usedAbilityThisTurn = true;
+        player.activeCooldown = ROLES.GUARDIAN.active.cooldown;
+        const guardianOptions = [];
+        if (player.energy >= 2) {
+          guardianOptions.push({ label: 'Reduce Paradox -1 & Spend 2 Energy', action: 'reduceEnergy' });
+        }
+        guardianOptions.push({ label: 'Reduce Paradox -1 & Restore 1 Energy', action: 'restoreEnergy' });
         this.state.pendingChoice = {
           type: 'guardianRepair',
           title: 'Temporal Repair',
           message: 'Choose your Temporal Repair mode:',
-          options: [
-            { label: 'Reduce Paradox -1 & Spend 2 Energy', action: 'reduceEnergy' },
-            { label: 'Reduce Paradox -1 & Restore 1 Energy', action: 'restoreEnergy' }
-          ]
+          options: guardianOptions
         };
         break;
 
@@ -823,6 +901,7 @@ export class GameEngine {
         this.modifyEnergy(player, -2);
         const currentTile = this.state.board[player.currentEra][player.tileIndex];
         currentTile.trap = { ownerId: player.id };
+        player.usedAbilityThisTurn = true;
         player.activeCooldown = ROLES.STRATEGIST.active.cooldown;
         this.addLog('ability', `${player.name} planted a Temporal Trap!`);
         break;
@@ -835,17 +914,28 @@ export class GameEngine {
   // --- Special Actions ---
   timeWarp(playerIdx) {
     const player = this.state.players[playerIdx];
-    if (player.energy < GAME_CONSTANTS.TIME_WARP_COST) return false;
     if (this.state.currentPlayerIndex !== playerIdx) return false;
 
-    this.modifyEnergy(player, -GAME_CONSTANTS.TIME_WARP_COST);
-    const roll = rollDie();
-    this.state.diceResult = roll;
-    this.state.movesRemaining = roll;
-    this.state.movementDirection = 'forward';
-    this.state.phase = 'moving';
-    this.addLog('action', `${player.name} used Time Warp! (-2 Energy, rolled ${roll} forward)`);
-    this.notify();
+    const currentTile = this.state.board[player.currentEra][player.tileIndex];
+    if (currentTile.type !== TILE_TYPES.TIMEGATE) {
+      this.addLog('warning', 'Time Warp can only be used on a Time Gate tile!');
+      return false;
+    }
+
+    const cost = player.roleKey === 'EXPLORER' ? GAME_CONSTANTS.TIME_GATE_COST_EXPLORER : GAME_CONSTANTS.TIME_GATE_COST;
+    if (player.energy < cost) {
+      this.state.pendingModal = {
+        type: 'info',
+        title: 'Time Warp',
+        description: `Not enough Energy to warp! Need ${cost} Energy (you have ${player.energy}).`,
+        image: null
+      };
+      this.state.phase = 'action';
+      this.notify();
+      return false;
+    }
+
+    this.handleTimeGate(player);
     return true;
   }
 
@@ -1008,10 +1098,6 @@ export class GameEngine {
   endTurn() {
     if (this.state.gameOver) return;
     const player = this.getCurrentPlayer();
-    
-    // Decrease cooldowns
-    if (player.passiveCooldown > 0) player.passiveCooldown--;
-    if (player.activeCooldown > 0) player.activeCooldown--;
 
     // Decrease temporal occurrence
     if (this.state.temporalOccurrence > 0) {
@@ -1034,6 +1120,11 @@ export class GameEngine {
       this.state.turnNumber++;
     }
 
+    const nextPlayer = this.getCurrentPlayer();
+    nextPlayer.usedAbilityThisTurn = false;
+    if (nextPlayer.passiveCooldown > 0) nextPlayer.passiveCooldown--;
+    if (nextPlayer.activeCooldown > 0) nextPlayer.activeCooldown--;
+
     this.state.phase = 'rolling';
     this.state.diceResult = null;
     this.state.movesRemaining = 0;
@@ -1043,7 +1134,7 @@ export class GameEngine {
     this.state.pendingModal = null;
     this.state.pendingChoice = null;
 
-    this.addLog('turn', `--- ${this.getCurrentPlayer().name}'s turn ---`);
+    this.addLog('turn', `--- ${nextPlayer.name}'s turn ---`);
     this.notify();
   }
 

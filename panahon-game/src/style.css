@@ -1360,6 +1360,61 @@ html, body {
 .hand-card.artifact-card { border-color: rgba(155, 89, 182, 0.5); }
 .hand-card.mission-card { border-color: rgba(232, 197, 71, 0.5); }
 
+/* Secret Clue Card & Hand Display for Multiplayer */
+.hand-card.clue-card-secret {
+  background: linear-gradient(135deg, #121829 0%, #0a0d18 100%);
+  border: 2px dashed rgba(52, 152, 219, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  user-select: none;
+}
+
+.card-secret-back {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: radial-gradient(circle at center, rgba(52, 152, 219, 0.18) 0%, transparent 70%);
+}
+
+.card-secret-icon {
+  font-size: 1.6rem;
+  filter: drop-shadow(0 0 8px rgba(52, 152, 219, 0.6));
+}
+
+.card-secret-label {
+  font-size: 0.62rem;
+  color: var(--tile-clue);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.card-back-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  background: linear-gradient(135deg, rgba(20, 30, 50, 0.95) 0%, rgba(10, 15, 25, 0.98) 100%);
+  border: 1px solid rgba(52, 152, 219, 0.4);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.card-back-icon {
+  font-size: 3.2rem;
+  margin-bottom: var(--space-sm);
+  filter: drop-shadow(0 0 16px rgba(52, 152, 219, 0.7));
+  animation: pulse 2s infinite ease-in-out;
+}
+
 /* --- Modal / Overlay --- */
 .modal-overlay {
   position: fixed;

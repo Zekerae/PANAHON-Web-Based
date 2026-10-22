@@ -40,6 +40,7 @@ let isConnectingOnline = false;
 let showServerSettings = false;
 let unreadChatCount = 0;
 let isGameChatOpen = false;
+let inspectedPlayerId = null; // null = viewing self / current turn player
 
 // Spam prevention flags
 let isRollingDice = false;
@@ -832,6 +833,18 @@ function renderGameScreen() {
   const isOnline = network.mode === 'online';
   const isMyTurn = !isOnline || currentPlayer.id === network.playerId;
 
+  // Local user in multiplayer, or active turn player in Pass & Play
+  const myPlayer = isOnline
+    ? (state.players.find(p => p.id === network.playerId) || currentPlayer)
+    : currentPlayer;
+
+  // Inspected player (defaults to myPlayer in online mode, currentPlayer in Pass & Play)
+  const viewedPlayer = (inspectedPlayerId !== null
+    ? state.players.find(p => p.id === inspectedPlayerId)
+    : null) || myPlayer;
+
+  const isViewingSelf = viewedPlayer.id === myPlayer.id || !isOnline;
+
   // Header timeline color
   let timelineClass = 'safe';
   if (timelineLevel >= 8) timelineClass = 'danger';
@@ -894,18 +907,22 @@ function renderGameScreen() {
 
         ${state.players.map((p, idx) => {
           const isActive = idx === state.currentPlayerIndex;
+          const isMe = isOnline && p.id === network.playerId;
+          const isInspected = viewedPlayer.id === p.id;
           const paradoxPercent = Math.min(100, (p.paradox / 5) * 100);
           let paradoxClass = 'paradox-fill-low';
           if (p.paradox >= 4) paradoxClass = 'paradox-fill-high';
           else if (p.paradox >= 2) paradoxClass = 'paradox-fill-mid';
 
           return `
-            <div class="player-card ${isActive ? 'active-turn' : ''}" style="border-left: 4px solid ${p.color};">
+            <div class="player-card ${isActive ? 'active-turn' : ''} ${isInspected ? 'inspected-player' : ''}" data-player-id="${p.id}" style="border-left: 4px solid ${p.color}; cursor: pointer;" title="Click to view ${p.name}'s hand/clues">
               ${isActive ? `<div class="turn-indicator">▶</div>` : ''}
               <div class="player-card-header">
                 <img src="${p.role.avatar}" class="player-avatar-small" alt="${p.name}">
                 <div style="flex: 1;">
-                  <div class="player-card-name" style="color: ${p.color};">${p.name}</div>
+                  <div class="player-card-name" style="color: ${p.color};">
+                    ${p.name}${isMe ? ' <span style="font-size: 0.65rem; color: var(--accent-gold); font-weight: normal;">(You)</span>' : ''}
+                  </div>
                   <div class="player-card-role">${p.role.name}</div>
                 </div>
                 <div class="player-points">${p.points} PTS</div>
@@ -936,7 +953,7 @@ function renderGameScreen() {
 
                 <div class="stat-row" style="margin-top: 4px; font-size: 0.7rem; color: var(--text-secondary);">
                   <span>Era: <strong>${ERA_NAMES[p.currentEra].replace(' Era', '')}</strong></span>
-                  <span>Clues: <strong>${p.clueCards.filter(c => !c.isDecoy).length}</strong></span>
+                  <span>Clues: <strong>${(!isOnline || isMe) ? p.clueCards.filter(c => !c.isDecoy).length : p.clueCards.length}</strong></span>
                 </div>
               </div>
             </div>
@@ -1228,47 +1245,62 @@ function renderGameScreen() {
 
       <!-- BOTTOM PANEL: HAND & DOSSIER -->
       <section class="bottom-panel">
-        <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
           <div class="tab-nav" style="margin: 0;">
             <button class="tab-btn ${activeHandTab === 'mission' ? 'active' : ''}" id="tab-hand-mission">
               📜 Mission Dossier
             </button>
             <button class="tab-btn ${activeHandTab === 'clues' ? 'active' : ''}" id="tab-hand-clues">
-              🔍 Clues (${currentPlayer.clueCards.length})
+              🔍 Clues (${viewedPlayer.clueCards.length})
             </button>
             <button class="tab-btn ${activeHandTab === 'artifacts' ? 'active' : ''}" id="tab-hand-artifacts">
-              🏆 Relics (${currentPlayer.artifactCards.length})
+              🏆 Relics (${viewedPlayer.artifactCards.length})
             </button>
           </div>
-          <div style="font-size: 0.7rem; color: var(--text-secondary);">
-            Viewing: <strong style="color: ${currentPlayer.color};">${currentPlayer.name}</strong>'s Hand
+          <div style="font-size: 0.7rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px;">
+            <span>Viewing: <strong style="color: ${viewedPlayer.color};">${viewedPlayer.name}${isViewingSelf && isOnline ? ' (You)' : ''}</strong>'s Hand</span>
+            ${!isViewingSelf ? `
+              <button id="btn-view-own-hand" class="btn" style="padding: 2px 8px; font-size: 0.65rem; background: var(--accent-gold); color: #000; border-radius: 4px; font-weight: 700; cursor: pointer;">
+                👁️ View My Hand
+              </button>
+            ` : ''}
           </div>
         </div>
 
         <!-- Tab Contents -->
         <div style="flex: 1; overflow-y: auto;">
-          ${activeHandTab === 'mission' && currentPlayer.mission ? `
+          ${activeHandTab === 'mission' && viewedPlayer.mission ? `
             <div class="mission-display">
               <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
-                  <div class="mission-title">Mission: Retrieve ${currentPlayer.mission.targetArtifact}</div>
-                  <div class="mission-objective">${currentPlayer.mission.description}</div>
+                  <div class="mission-title">
+                    ${isViewingSelf
+                      ? `Mission: Retrieve ${viewedPlayer.mission.targetArtifact}`
+                      : `Mission: Classified Objective (${viewedPlayer.name})`}
+                  </div>
+                  <div class="mission-objective">
+                    ${isViewingSelf
+                      ? viewedPlayer.mission.description
+                      : `Historical mission details and clues are classified to ${viewedPlayer.name}.`}
+                  </div>
                 </div>
                 <div style="text-align: right;">
                   <span style="font-size: 0.7rem; background: var(--bg-glass); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-glass);">
-                    Target Era: <strong>${ERA_NAMES[currentPlayer.mission.targetEra]}</strong>
+                    Target Era: <strong>${ERA_NAMES[viewedPlayer.mission.targetEra]}</strong>
                   </span>
                 </div>
               </div>
 
-              <!-- Clue requirement progress (requires 3 clues!) -->
+              <!-- Clue requirement progress -->
               <div class="mission-progress">
-                <span class="mission-progress-text">Clue Requirement:</span>
+                <span class="mission-progress-text">Clue Progress:</span>
                 <div class="mission-progress-bar">
-                  <div class="mission-progress-fill" style="width: ${(Math.min(3, currentPlayer.clueProgress[currentPlayer.mission.artifactId] || 0) / 3) * 100}%;"></div>
+                  <div class="mission-progress-fill" style="width: ${(Math.min(3, isViewingSelf ? (viewedPlayer.clueProgress[viewedPlayer.mission.artifactId] || 0) : viewedPlayer.clueCards.length) / 3) * 100}%;"></div>
                 </div>
                 <span class="mission-progress-text">
-                  ${currentPlayer.clueProgress[currentPlayer.mission.artifactId] || 0}/3 Required Clues
+                  ${isViewingSelf
+                    ? `${viewedPlayer.clueProgress[viewedPlayer.mission.artifactId] || 0}/3 Required Clues`
+                    : `${viewedPlayer.clueCards.length} Clues Collected`}
                 </span>
               </div>
             </div>
@@ -1276,28 +1308,44 @@ function renderGameScreen() {
 
           ${activeHandTab === 'clues' ? `
             <div class="hand-cards">
-              ${currentPlayer.clueCards.length === 0 ? `
+              ${viewedPlayer.clueCards.length === 0 ? `
                 <div style="font-size: 0.8rem; color: var(--text-secondary); padding: 10px;">
                   No clues collected yet. Land on Clue Tiles (🔍) in different eras to discover hints.
                 </div>
-              ` : currentPlayer.clueCards.map(c => `
-                <div class="hand-card clue-card" title="${c.hint}">
-                  <img src="${c.cardImage}" alt="${c.hint}">
-                  <div class="hand-card-type" style="color: ${c.isDecoy ? 'var(--text-danger)' : 'var(--tile-clue)'};">
-                    ${c.isDecoy ? 'Decoy Hint' : `${ERA_NAMES[c.era].replace(' Era', '')}`}
-                  </div>
-                </div>
-              `).join('')}
+              ` : viewedPlayer.clueCards.map(c => {
+                if (isViewingSelf) {
+                  return `
+                    <div class="hand-card clue-card" title="${c.hint}">
+                      <img src="${c.cardImage}" alt="${c.hint}">
+                      <div class="hand-card-type" style="color: ${c.isDecoy ? 'var(--text-danger)' : 'var(--tile-clue)'};">
+                        ${c.isDecoy ? 'Decoy Hint' : `${ERA_NAMES[c.era].replace(' Era', '')}`}
+                      </div>
+                    </div>
+                  `;
+                } else {
+                  return `
+                    <div class="hand-card clue-card clue-card-secret" title="Secret Clue Card (${ERA_NAMES[c.era].replace(' Era', '')})">
+                      <div class="card-secret-back">
+                        <div class="card-secret-icon">🔒</div>
+                        <div class="card-secret-label">${ERA_NAMES[c.era].replace(' Era', '')}</div>
+                      </div>
+                      <div class="hand-card-type" style="color: var(--text-secondary);">
+                        Classified Clue
+                      </div>
+                    </div>
+                  `;
+                }
+              }).join('')}
             </div>
           ` : ''}
 
           ${activeHandTab === 'artifacts' ? `
             <div class="hand-cards">
-              ${currentPlayer.artifactCards.length === 0 ? `
+              ${viewedPlayer.artifactCards.length === 0 ? `
                 <div style="font-size: 0.8rem; color: var(--text-secondary); padding: 10px;">
                   No historical artifacts acquired yet. Reach an Artifact Tile with 3 clues to retrieve one!
                 </div>
-              ` : currentPlayer.artifactCards.map(a => `
+              ` : viewedPlayer.artifactCards.map(a => `
                 <div class="hand-card artifact-card" title="${a.name} (${a.nickname})">
                   <img src="${a.cardImage}" alt="${a.name}">
                   <div class="hand-card-type" style="color: var(--tile-artifact);">
@@ -1377,6 +1425,25 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
     sounds.btnClick();
     activeHandTab = 'artifacts';
     render();
+  });
+
+  // Switch back to own hand
+  document.querySelector('#btn-view-own-hand')?.addEventListener('click', () => {
+    sounds.btnClick();
+    inspectedPlayerId = null;
+    render();
+  });
+
+  // Inspect player from sidebar
+  document.querySelectorAll('.player-card[data-player-id]').forEach(card => {
+    card.addEventListener('click', () => {
+      const pId = parseInt(card.dataset.playerId, 10);
+      if (!isNaN(pId)) {
+        sounds.btnClick();
+        inspectedPlayerId = pId;
+        render();
+      }
+    });
   });
 
   if (!isMyTurn) return;
@@ -1577,8 +1644,39 @@ function renderCardModal(modal) {
   const isDanger = modal.type === 'danger';
   const isEvent = modal.type === 'event';
   const isArtifact = modal.type === 'artifact';
+  const isClue = modal.isClue || modal.cardType === 'Clue Card' || modal.cardType === 'Decoy Card';
 
-  const modalHtml = `
+  // In online multiplayer, hide other players' clue cards (only the player who drew it sees the card content)
+  const isSecretToMe = (network.mode === 'online') && isClue && (modal.playerId !== undefined) && (modal.playerId !== network.playerId);
+
+  const modalHtml = isSecretToMe ? `
+    <div class="modal-overlay" id="active-modal">
+      <div class="modal">
+        <button class="modal-close" id="modal-close-btn">&times;</button>
+        <div class="modal-title" style="color: var(--tile-clue);">
+          🔍 Clue Discovered
+        </div>
+
+        <div class="modal-body">
+          <div class="card-display card-back-display">
+            <div class="card-back-icon">⏳🔍</div>
+            <div class="card-display-title">Secret Clue Card</div>
+            <div class="card-display-desc">
+              <strong style="color: var(--text-accent);">${escapeHtml(modal.playerName || 'A Castaway')}</strong> excavated a secret Clue Card in <strong>${ERA_NAMES[modal.era] || 'the timeline'}</strong>.
+              <br><br>
+              <span style="color: var(--text-secondary); font-size: 0.8rem;">
+                Card details, hints, and authenticity are secret to ${escapeHtml(modal.playerName || 'the drawer')}.
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button id="modal-confirm-btn" class="btn btn-secondary">Understood</button>
+        </div>
+      </div>
+    </div>
+  ` : `
     <div class="modal-overlay" id="active-modal">
       <div class="modal">
         <button class="modal-close" id="modal-close-btn">&times;</button>
@@ -1627,8 +1725,10 @@ function renderCardModal(modal) {
     document.querySelector('#modal-confirm-btn')?.setAttribute('disabled', 'true');
     document.querySelector('#modal-close-btn')?.setAttribute('disabled', 'true');
     sounds.btnClick();
-    engine.dismissModal();
-    network.sendAction({ type: 'DISMISS_MODAL' });
+    if (network.mode !== 'online' || modal.playerId === undefined || modal.playerId === network.playerId) {
+      engine.dismissModal();
+      network.sendAction({ type: 'DISMISS_MODAL' });
+    }
     document.querySelector('#active-modal')?.remove();
   };
 

@@ -480,6 +480,9 @@ export class GameEngine {
 
     this.state.pendingModal = {
       type: 'card',
+      playerId: player.id,
+      playerName: player.name,
+      isClue: true,
       cardType: card.isDecoy ? 'Decoy Card' : 'Clue Card',
       title: card.isDecoy ? 'Decoy!' : 'Clue Found!',
       description: card.description,
@@ -487,7 +490,7 @@ export class GameEngine {
       era: era
     };
 
-    this.addLog('card', `${player.name} drew a ${card.isDecoy ? 'Decoy' : 'Clue'} Card from ${ERA_NAMES[era]}.`);
+    this.addLog('card', `${player.name} drew a Clue Card from ${ERA_NAMES[era]}.`);
     this.state.phase = 'action';
     this.notify();
   }

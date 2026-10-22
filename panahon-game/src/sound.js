@@ -4,6 +4,8 @@ class SoundManager {
   constructor() {
     this.ctx = null;
     this.muted = false;
+    this.bgMusic = null;
+    this.musicStarted = false;
   }
 
   init() {
@@ -16,10 +18,64 @@ class SoundManager {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    if (!this.musicStarted && !this.muted) {
+      this.initBgMusic();
+    }
+  }
+
+  initBgMusic() {
+    if (!this.bgMusic) {
+      try {
+        this.bgMusic = new Audio('/BgMusic.mp3');
+        this.bgMusic.loop = true;
+        this.bgMusic.volume = 0.3;
+      } catch (err) {
+        console.warn('Could not initialize BgMusic:', err);
+      }
+    }
+    if (this.bgMusic && !this.muted && !this.musicStarted) {
+      this.bgMusic.play().then(() => {
+        this.musicStarted = true;
+      }).catch(() => {
+        // Autoplay restrictions will be satisfied on next user gesture
+      });
+    }
+  }
+
+  startBgMusic() {
+    this.initBgMusic();
+    if (this.bgMusic && !this.muted) {
+      this.bgMusic.play().then(() => {
+        this.musicStarted = true;
+      }).catch(() => {});
+    }
+  }
+
+  stopBgMusic() {
+    if (this.bgMusic) {
+      this.bgMusic.pause();
+    }
+  }
+
+  setMusicVolume(vol) {
+    if (this.bgMusic) {
+      this.bgMusic.volume = Math.max(0, Math.min(1, vol));
+    }
   }
 
   toggleMute() {
     this.muted = !this.muted;
+    if (this.muted) {
+      if (this.bgMusic) {
+        this.bgMusic.pause();
+      }
+    } else {
+      if (this.bgMusic) {
+        this.bgMusic.play().catch(() => {});
+      } else {
+        this.startBgMusic();
+      }
+    }
     return this.muted;
   }
 

@@ -130,6 +130,7 @@ function setupNetworkListeners() {
       connectionId: p.id
     }));
     engine.initGame(configs);
+    sounds.startBgMusic();
     currentScreen = 'game';
     showToast('Chrono Shift Engaged', 'All timelines active. Protect the flow of history!', 'success');
     render();
@@ -744,6 +745,7 @@ function renderLobbyScreen() {
     }));
     network.setMode('local');
     engine.initGame(configs);
+    sounds.startBgMusic();
     currentScreen = 'game';
     showToast('Mission Commenced', 'Timeline localized. Travel through eras and collect clues!', 'success');
     render();
@@ -1984,6 +1986,7 @@ function renderEndGameScreen() {
       render();
     });
     engine.initGame(configs);
+    sounds.startBgMusic();
     currentScreen = 'game';
     render();
   });
@@ -1994,6 +1997,18 @@ function renderEndGameScreen() {
     render();
   });
 }
+
+// Background Music Auto-start on first user interaction (browser policy compliant)
+const initAudioOnGesture = () => {
+  sounds.init();
+  sounds.startBgMusic();
+  window.removeEventListener('click', initAudioOnGesture);
+  window.removeEventListener('keydown', initAudioOnGesture);
+  window.removeEventListener('touchstart', initAudioOnGesture);
+};
+window.addEventListener('click', initAudioOnGesture, { once: true });
+window.addEventListener('keydown', initAudioOnGesture, { once: true });
+window.addEventListener('touchstart', initAudioOnGesture, { once: true });
 
 // Initial Render
 render();

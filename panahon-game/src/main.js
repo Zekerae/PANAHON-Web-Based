@@ -536,7 +536,7 @@ function renderLobbyScreen() {
     // Online Multiplayer
     const isRoomActive = network.roomCode !== null;
     contentHtml = `
-      <div class="lobby-panel">
+      <div class="lobby-panel ${isRoomActive ? 'waiting-room-panel' : ''}">
         <div class="lobby-mode-tabs">
           <div class="mode-tab ${onlineSubMode === 'create' ? 'active' : ''}" id="tab-sub-create">Host Mission</div>
           <div class="mode-tab ${onlineSubMode === 'join' ? 'active' : ''}" id="tab-sub-join">Join Anomaly</div>
@@ -592,41 +592,30 @@ function renderLobbyScreen() {
           </div>
         ` : `
           <!-- Waiting Room -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: var(--space-md); align-items: start;">
+          <div class="waiting-room-grid">
             <!-- Left: Room Code & Crew Slots -->
-            <div>
-              <div class="room-code-display" style="padding: 12px; margin-bottom: var(--space-sm);">
+            <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+              <div class="room-code-display" style="padding: 16px;">
                 <div class="room-code-label">Anomaly Sync Code</div>
-                <div class="room-code" style="font-size: 2.1rem; letter-spacing: 5px;">${network.roomCode}</div>
-                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">Share this code with up to 3 allies to form your crew.</p>
+                <div class="room-code" style="font-size: 2.2rem; letter-spacing: 6px;">${network.roomCode}</div>
+                <p style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 6px;">Share this code with up to 3 allies to form your crew.</p>
               </div>
 
-              <div class="lobby-section-title" style="margin-bottom: 6px;">Connected Crew (${currentRoomPlayers.length}/4)</div>
-              <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-                ${currentRoomPlayers.map((p, idx) => `
-                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-glass); border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span class="online-status connected"></span>
-                      <span style="font-weight: 700; font-size: 0.85rem; color: ${PLAYER_COLORS[idx] || '#fff'};">${escapeHtml(p.name)}</span>
+              <div>
+                <div class="lobby-section-title" style="margin-bottom: 8px;">Connected Crew (${currentRoomPlayers.length}/4)</div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  ${currentRoomPlayers.map((p, idx) => `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-glass); border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
+                      <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="online-status connected"></span>
+                        <span style="font-weight: 700; font-size: 0.88rem; color: ${PLAYER_COLORS[idx] || '#fff'};">${escapeHtml(p.name)}</span>
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--text-accent); font-family: var(--font-display);">
+                        ${ROLES[p.roleKey]?.name || p.roleKey} ${p.isHost || p.id === 0 ? '★ Host' : ''}
+                      </div>
                     </div>
-                    <div style="font-size: 0.72rem; color: var(--text-accent); font-family: var(--font-display);">
-                      ${ROLES[p.roleKey]?.name || p.roleKey} ${p.isHost || p.id === 0 ? '★ Host' : ''}
-                    </div>
-                  </div>
-                `).join('')}
-              </div>
-
-              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-                <button id="btn-leave-room" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.78rem;">Leave Room</button>
-                ${network.isHost ? `
-                  <button id="btn-host-start" class="btn btn-primary" style="padding: 6px 16px; font-size: 0.82rem;" ${currentRoomPlayers.length < 1 ? 'disabled' : ''}>
-                    Launch Mission (${currentRoomPlayers.length} Players)
-                  </button>
-                ` : `
-                  <div style="font-size: 0.75rem; color: var(--text-secondary); font-style: italic;">
-                    Waiting for host to initiate Chrono Shift...
-                  </div>
-                `}
+                  `).join('')}
+                </div>
               </div>
             </div>
 
@@ -634,6 +623,20 @@ function renderLobbyScreen() {
             <div>
               ${renderChatBoxHtml('lobby-chat', false)}
             </div>
+          </div>
+
+          <!-- Bottom Full-Width Action Bar -->
+          <div class="waiting-room-actions">
+            <button id="btn-leave-room" class="btn btn-secondary">Leave Room</button>
+            ${network.isHost ? `
+              <button id="btn-host-start" class="btn btn-primary" ${currentRoomPlayers.length < 1 ? 'disabled' : ''}>
+                Launch Mission (${currentRoomPlayers.length} Players)
+              </button>
+            ` : `
+              <div style="font-size: 0.82rem; color: var(--text-secondary); font-style: italic;">
+                Waiting for host to initiate Chrono Shift...
+              </div>
+            `}
           </div>
         `}
       </div>
@@ -643,7 +646,7 @@ function renderLobbyScreen() {
   app.innerHTML = `
     <div class="lobby-screen">
       <div class="lobby-title">MISSION BRIEFING</div>
-      <div class="lobby-mode-tabs" style="max-width: 700px; width: 100%;">
+      <div class="lobby-mode-tabs" style="max-width: ${network.roomCode ? '880px' : '700px'}; width: 100%;">
         <div class="mode-tab ${lobbyMode === 'local' ? 'active' : ''}" id="tab-local">Pass & Play (Local)</div>
         <div class="mode-tab ${lobbyMode === 'online' ? 'active' : ''}" id="tab-online">Online Multiplayer</div>
       </div>

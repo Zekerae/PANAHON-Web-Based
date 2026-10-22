@@ -1861,6 +1861,38 @@ html, body {
 }
 
 /* ===== CREW COMMS / CHAT SYSTEM ===== */
+.lobby-panel.waiting-room-panel {
+  max-width: 880px;
+}
+
+.waiting-room-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: var(--space-lg);
+  align-items: stretch;
+}
+
+@media (max-width: 768px) {
+  .waiting-room-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.waiting-room-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-glass);
+}
+
+.waiting-room-actions .btn {
+  min-width: auto;
+  padding: 12px 28px;
+}
+
 .lobby-chat-panel {
   background: var(--bg-card);
   border: 1px solid var(--border-glass);

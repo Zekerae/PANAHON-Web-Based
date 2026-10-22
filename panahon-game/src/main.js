@@ -9,6 +9,7 @@ import {
   ERA_TILE_COORDINATES
 } from './gameData.js';
 import { sounds } from './sound.js';
+import { aiController } from './aiPlayer.js';
 
 // --- State Variables ---
 let engine = new GameEngine();
@@ -23,12 +24,12 @@ let guideTab = 'overview';
 let cameraMode = 'full'; // 'full' | 'focus-spanish' | 'focus-american' | 'focus-japanese' | 'focus-myth' | 'auto'
 let autoMoveTimer = null;
 
-// Local player setup defaults
+// Local player setup defaults (Warcraft III Style: Human / Bot / Closed)
 let localPlayers = [
-  { name: 'Historian', roleKey: 'HISTORIAN' },
-  { name: 'Explorer', roleKey: 'EXPLORER' },
-  { name: 'Guardian', roleKey: 'GUARDIAN' },
-  { name: 'Strategist', roleKey: 'STRATEGIST' }
+  { name: 'Player 1', roleKey: 'HISTORIAN', type: 'human', difficulty: 'normal' },
+  { name: 'Bot Explorer', roleKey: 'EXPLORER', type: 'ai', difficulty: 'normal' },
+  { name: 'Bot Guardian', roleKey: 'GUARDIAN', type: 'ai', difficulty: 'normal' },
+  { name: 'Bot Strategist', roleKey: 'STRATEGIST', type: 'ai', difficulty: 'normal' }
 ];
 
 // Online player setup state
@@ -439,7 +440,11 @@ engine.subscribe((state, eventType) => {
   if (state?.phase !== 'action') isEndingTurn = false;
 
   render();
-  checkAndTriggerAutoMove(380);
+  if (aiController.isAiTurn(engine, network)) {
+    aiController.scheduleAiStep(engine, network, 750);
+  } else {
+    checkAndTriggerAutoMove(380);
+  }
 
   if (activeInputId) {
     const restoredInput = document.querySelector(`#${activeInputId}`);
@@ -486,14 +491,17 @@ function renderTitleScreen() {
         <div class="title-subtitle">Chrono Shift</div>
         <div class="title-acronym">Portal Anomaly Navigation and Historical Origin Network</div>
         <div class="title-buttons">
-          <button id="btn-play-local" class="btn btn-primary">
-            Pass & Play (Local)
+          <button id="btn-play-ai-solo" class="btn btn-primary" style="background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); box-shadow: 0 0 20px rgba(124, 58, 237, 0.45); font-size: 0.95rem;">
+            ⚔️ Player vs. AI (Solo vs. Bots)
+          </button>
+          <button id="btn-play-local" class="btn btn-secondary">
+            🛡️ Custom Game (Warcraft III Lobby)
           </button>
           <button id="btn-play-online" class="btn btn-secondary">
-            Online Multiplayer
+            🌐 Online Multiplayer
           </button>
           <button id="btn-rules" class="btn btn-secondary">
-            Rules & Field Manual
+            📖 Rules & Field Manual
           </button>
           <button id="btn-sound-toggle" class="btn" style="padding: 8px 16px; font-size: 0.8rem; background: var(--bg-glass);">
             ${soundMuted ? '🔇 Audio Off' : '🔊 Audio On'}
@@ -505,6 +513,19 @@ function renderTitleScreen() {
       </div>
     </div>
   `;
+
+  document.querySelector('#btn-play-ai-solo')?.addEventListener('click', () => {
+    sounds.btnClick();
+    localPlayers = [
+      { name: 'Player 1', roleKey: 'HISTORIAN', type: 'human', difficulty: 'normal' },
+      { name: 'Bot Explorer', roleKey: 'EXPLORER', type: 'ai', difficulty: 'normal' },
+      { name: 'Bot Guardian', roleKey: 'GUARDIAN', type: 'ai', difficulty: 'normal' },
+      { name: 'Bot Strategist', roleKey: 'STRATEGIST', type: 'ai', difficulty: 'normal' }
+    ];
+    lobbyMode = 'local';
+    currentScreen = 'lobby';
+    render();
+  });
 
   document.querySelector('#btn-play-local')?.addEventListener('click', () => {
     sounds.btnClick();
@@ -541,22 +562,77 @@ function renderLobbyScreen() {
   let contentHtml = '';
 
   if (lobbyMode === 'local') {
+    const activeSlots = localPlayers.filter(p => p.type !== 'closed');
     contentHtml = `
       <div class="lobby-panel">
-        <div class="lobby-section-title">Configure 4 Temporal Castaways</div>
-        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: var(--space-md);">
-          Assign unique roles for all 4 players to maintain temporal stability across the four historical eras.
+        <div class="lobby-section-title">WARCRAFT III CUSTOM LOBBY: CONFIGURE SLOTS</div>
+        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: var(--space-sm);">
+          Configure each slot as <strong>👤 Human</strong>, <strong>🤖 Computer (AI)</strong>, or <strong>🚫 Closed</strong>. Pick a preset or customize roles and AI difficulties.
         </p>
+
+        <!-- Warcraft III Quick Preset Bar -->
+        <div class="wc3-preset-bar">
+          <button class="wc3-preset-btn" id="preset-1v3">⚔️ 1 Player vs 3 Bots</button>
+          <button class="wc3-preset-btn" id="preset-2v2">🤝 2 Players vs 2 Bots</button>
+          <button class="wc3-preset-btn" id="preset-4human">👥 4 Humans (Pass & Play)</button>
+          <button class="wc3-preset-btn" id="preset-random">🎲 Shuffle Roles</button>
+        </div>
 
         <div class="player-slots">
           ${localPlayers.map((player, idx) => {
-      const role = ROLES[player.roleKey];
-      return `
-              <div class="player-slot selected" style="border-left: 4px solid ${PLAYER_COLORS[idx]};">
+            const isClosed = player.type === 'closed';
+            const isAi = player.type === 'ai';
+            const role = ROLES[player.roleKey] || ROLES.HISTORIAN;
+            const color = PLAYER_COLORS[idx];
+
+            if (isClosed) {
+              return `
+                <div class="player-slot closed-slot wc3-slot-card" style="border-left: 4px solid #4b5563; min-height: 105px; display: flex; align-items: center; justify-content: space-between;">
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">🚫</div>
+                    <div>
+                      <div style="font-size: 0.75rem; color: #9ca3af; font-weight: 700;">SLOT ${idx + 1} &bull; CLOSED</div>
+                      <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">Slot deactivated (will not participate in game)</div>
+                    </div>
+                  </div>
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <select class="slot-type-select" data-idx="${idx}" style="background: rgba(0,0,0,0.6); color: #9ca3af; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 5px 8px; font-size: 0.75rem; font-weight: 600;">
+                      <option value="human">👤 Human</option>
+                      <option value="ai">🤖 Computer (AI)</option>
+                      <option value="closed" selected>🚫 Closed</option>
+                    </select>
+                  </div>
+                </div>
+              `;
+            }
+
+            return `
+              <div class="player-slot selected wc3-slot-card" style="border-left: 4px solid ${color};">
                 <img src="${role.avatar}" class="player-slot-avatar" alt="${role.name}">
-                <div class="player-slot-info">
-                  <div style="font-size: 0.7rem; color: ${PLAYER_COLORS[idx]}; font-weight: 700;">PLAYER ${idx + 1}</div>
-                  <input type="text" class="player-name-input" data-idx="${idx}" value="${player.name}" placeholder="Player Name" style="margin: 4px 0;">
+                <div class="player-slot-info" style="flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span style="font-size: 0.72rem; color: ${color}; font-weight: 800; letter-spacing: 0.5px;">SLOT ${idx + 1}</span>
+                      ${isAi ? `<span class="bot-badge">🤖 BOT</span>` : `<span class="human-badge">👤 HUMAN</span>`}
+                    </div>
+                    <select class="slot-type-select" data-idx="${idx}" style="background: rgba(0,0,0,0.6); color: ${isAi ? '#60A5FA' : '#34D399'}; border: 1px solid ${isAi ? 'rgba(96,165,250,0.4)' : 'rgba(52,211,153,0.4)'}; border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; font-weight: 600;">
+                      <option value="human" ${!isAi ? 'selected' : ''}>👤 Human</option>
+                      <option value="ai" ${isAi ? 'selected' : ''}>🤖 Computer (AI)</option>
+                      <option value="closed">🚫 Closed</option>
+                    </select>
+                  </div>
+
+                  <div style="display: flex; gap: 6px; margin: 4px 0;">
+                    <input type="text" class="player-name-input" data-idx="${idx}" value="${player.name}" placeholder="${isAi ? 'Bot Name' : 'Player Name'}" style="flex: 1; margin: 0; padding: 5px 8px; font-size: 0.8rem;">
+                    ${isAi ? `
+                      <select class="ai-difficulty-select" data-idx="${idx}" style="background: rgba(0,0,0,0.6); color: #60A5FA; border: 1px solid rgba(96,165,250,0.4); border-radius: 4px; padding: 4px 8px; font-size: 0.72rem;">
+                        <option value="easy" ${player.difficulty === 'easy' ? 'selected' : ''}>🟢 Easy</option>
+                        <option value="normal" ${player.difficulty === 'normal' || !player.difficulty ? 'selected' : ''}>🔵 Normal</option>
+                        <option value="hard" ${player.difficulty === 'hard' ? 'selected' : ''}>🔴 Hard</option>
+                      </select>
+                    ` : ''}
+                  </div>
+
                   <select class="role-select" data-idx="${idx}" style="background: rgba(0,0,0,0.5); color: var(--text-accent); border: 1px solid var(--border-glass); border-radius: 4px; padding: 4px; font-size: 0.75rem; width: 100%;">
                     ${roleKeys.map(rk => `
                       <option value="${rk}" ${rk === player.roleKey ? 'selected' : ''}>
@@ -564,18 +640,26 @@ function renderLobbyScreen() {
                       </option>
                     `).join('')}
                   </select>
+
                   <div class="player-slot-desc" style="margin-top: 4px;">
                     <strong>Active:</strong> ${role.active.name} | <strong>Passive:</strong> ${role.passive.name}
                   </div>
                 </div>
               </div>
             `;
-    }).join('')}
+          }).join('')}
         </div>
 
-        <div style="margin-top: var(--space-xl); display: flex; gap: var(--space-md); justify-content: flex-end;">
+        <div style="margin-top: var(--space-xl); display: flex; gap: var(--space-md); justify-content: space-between; align-items: center; flex-wrap: wrap;">
           <button id="btn-lobby-back" class="btn btn-secondary">Back</button>
-          <button id="btn-start-local" class="btn btn-primary">Launch Chrono Shift</button>
+          <div style="display: flex; align-items: center; gap: var(--space-md);">
+            <span style="font-size: 0.82rem; color: var(--text-secondary);">
+              Active Castaways: <strong style="color: var(--text-accent); font-size: 0.95rem;">${activeSlots.length} / 4</strong>
+            </span>
+            <button id="btn-start-local" class="btn btn-primary" ${activeSlots.length === 0 ? 'disabled' : ''}>
+              Launch Mission (${activeSlots.length} Castaway${activeSlots.length === 1 ? '' : 's'})
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -720,6 +804,77 @@ function renderLobbyScreen() {
     render();
   });
 
+  // Warcraft III Lobby Presets
+  document.querySelector('#preset-1v3')?.addEventListener('click', () => {
+    sounds.btnClick();
+    localPlayers[0] = { type: 'human', name: 'Player 1', roleKey: 'EXPLORER', difficulty: 'normal' };
+    localPlayers[1] = { type: 'ai', name: 'Bot Magellan', roleKey: 'HISTORIAN', difficulty: 'normal' };
+    localPlayers[2] = { type: 'ai', name: 'Bot Rizal', roleKey: 'GUARDIAN', difficulty: 'normal' };
+    localPlayers[3] = { type: 'ai', name: 'Bot Luna', roleKey: 'STRATEGIST', difficulty: 'normal' };
+    render();
+  });
+
+  document.querySelector('#preset-2v2')?.addEventListener('click', () => {
+    sounds.btnClick();
+    localPlayers[0] = { type: 'human', name: 'Player 1', roleKey: 'EXPLORER', difficulty: 'normal' };
+    localPlayers[1] = { type: 'human', name: 'Player 2', roleKey: 'HISTORIAN', difficulty: 'normal' };
+    localPlayers[2] = { type: 'ai', name: 'Bot Rizal', roleKey: 'GUARDIAN', difficulty: 'normal' };
+    localPlayers[3] = { type: 'ai', name: 'Bot Luna', roleKey: 'STRATEGIST', difficulty: 'normal' };
+    render();
+  });
+
+  document.querySelector('#preset-4human')?.addEventListener('click', () => {
+    sounds.btnClick();
+    localPlayers[0] = { type: 'human', name: 'Player 1', roleKey: 'EXPLORER', difficulty: 'normal' };
+    localPlayers[1] = { type: 'human', name: 'Player 2', roleKey: 'HISTORIAN', difficulty: 'normal' };
+    localPlayers[2] = { type: 'human', name: 'Player 3', roleKey: 'GUARDIAN', difficulty: 'normal' };
+    localPlayers[3] = { type: 'human', name: 'Player 4', roleKey: 'STRATEGIST', difficulty: 'normal' };
+    render();
+  });
+
+  document.querySelector('#preset-random')?.addEventListener('click', () => {
+    sounds.btnClick();
+    const shuffledRoles = [...ROLE_ORDER].sort(() => Math.random() - 0.5);
+    const botNames = ['Bot Magellan', 'Bot Rizal', 'Bot Luna', 'Bot Tandang Sora'];
+    localPlayers.forEach((p, i) => {
+      p.roleKey = shuffledRoles[i % shuffledRoles.length];
+      if (p.type === 'ai') {
+        p.name = botNames[i % botNames.length];
+      }
+    });
+    render();
+  });
+
+  // Slot Type selector (Human, AI, Closed)
+  document.querySelectorAll('.slot-type-select[data-idx]').forEach(select => {
+    select.addEventListener('change', (e) => {
+      sounds.btnClick();
+      const idx = parseInt(e.target.dataset.idx, 10);
+      const newType = e.target.value;
+      localPlayers[idx].type = newType;
+      const botNames = ['Bot Magellan', 'Bot Rizal', 'Bot Luna', 'Bot Tandang Sora'];
+      if (newType === 'ai') {
+        if (!localPlayers[idx].name || localPlayers[idx].name.startsWith('Player')) {
+          localPlayers[idx].name = botNames[idx % botNames.length];
+        }
+        if (!localPlayers[idx].difficulty) localPlayers[idx].difficulty = 'normal';
+      } else if (newType === 'human') {
+        if (!localPlayers[idx].name || localPlayers[idx].name.startsWith('Bot')) {
+          localPlayers[idx].name = `Player ${idx + 1}`;
+        }
+      }
+      render();
+    });
+  });
+
+  // AI Difficulty selector
+  document.querySelectorAll('.ai-difficulty-select[data-idx]').forEach(select => {
+    select.addEventListener('change', (e) => {
+      const idx = parseInt(e.target.dataset.idx, 10);
+      localPlayers[idx].difficulty = e.target.value;
+    });
+  });
+
   // Local inputs
   document.querySelectorAll('.player-name-input[data-idx]').forEach(input => {
     input.addEventListener('input', (e) => {
@@ -737,18 +892,30 @@ function renderLobbyScreen() {
   });
 
   document.querySelector('#btn-start-local')?.addEventListener('click', () => {
+    const activeSlots = localPlayers.filter(p => p.type !== 'closed');
+    if (activeSlots.length === 0) {
+      showToast('Empty Lobby', 'Open at least 1 Human or Bot slot to launch!', 'danger');
+      return;
+    }
+
     sounds.portal();
-    const configs = localPlayers.map(p => ({
-      name: p.name.trim() || ROLES[p.roleKey].name,
+    const configs = activeSlots.map((p, idx) => ({
+      name: p.name.trim() || (p.type === 'ai' ? `Bot ${idx + 1}` : `Player ${idx + 1}`),
       roleKey: p.roleKey,
-      isLocal: true
+      isLocal: true,
+      isAi: p.type === 'ai',
+      aiDifficulty: p.difficulty || 'normal'
     }));
     network.setMode('local');
     engine.initGame(configs);
     sounds.startBgMusic();
     currentScreen = 'game';
-    showToast('Mission Commenced', 'Timeline localized. Travel through eras and collect clues!', 'success');
+    showToast('Mission Commenced', `Timeline localized with ${configs.length} Castaway(s)!`, 'success');
     render();
+
+    if (aiController.isAiTurn(engine, network)) {
+      aiController.scheduleAiStep(engine, network, 1000);
+    }
   });
 
   // Online sub-mode tabs
@@ -833,7 +1000,8 @@ function renderGameScreen() {
   const currentPlayer = engine.getCurrentPlayer();
   const timelineLevel = state.timelineMeter;
   const isOnline = network.mode === 'online';
-  const isMyTurn = !isOnline || currentPlayer.id === network.playerId;
+  const isAiCurrent = currentPlayer?.isAi === true;
+  const isMyTurn = !isAiCurrent && (!isOnline || currentPlayer.id === network.playerId);
 
   // Local user in multiplayer, or active turn player in Pass & Play
   const myPlayer = isOnline
@@ -923,7 +1091,9 @@ function renderGameScreen() {
                 <img src="${p.role.avatar}" class="player-avatar-small" alt="${p.name}">
                 <div style="flex: 1;">
                   <div class="player-card-name" style="color: ${p.color};">
-                    ${p.name}${isMe ? ' <span style="font-size: 0.65rem; color: var(--accent-gold); font-weight: normal;">(You)</span>' : ''}
+                    ${p.name}
+                    ${p.isAi ? `<span class="bot-badge">🤖 BOT</span>` : `<span class="human-badge">👤</span>`}
+                    ${isMe ? ' <span style="font-size: 0.65rem; color: var(--accent-gold); font-weight: normal;">(You)</span>' : ''}
                   </div>
                   <div class="player-card-role">${p.role.name}</div>
                 </div>
@@ -1083,7 +1253,9 @@ function renderGameScreen() {
         <div class="panel-section" style="border-left: 3px solid ${currentPlayer.color};">
           <div style="display: flex; align-items: center; justify-content: space-between;">
             <div>
-              <div style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase;">Current Turn</div>
+              <div style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; display: flex; align-items: center; gap: 5px;">
+                Current Turn ${isAiCurrent ? '<span class="bot-badge">🤖 BOT</span>' : '<span class="human-badge">👤 HUMAN</span>'}
+              </div>
               <div style="font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: ${currentPlayer.color};">
                 ${currentPlayer.name}
               </div>
@@ -1093,6 +1265,12 @@ function renderGameScreen() {
           <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
             Location: <strong style="color: var(--text-primary);">${ERA_NAMES[currentPlayer.currentEra]}</strong> (Tile #${currentPlayer.tileIndex})
           </div>
+          ${isAiCurrent ? `
+            <div class="ai-turn-banner" style="margin-top: 8px;">
+              <span class="ai-pulse-dot"></span>
+              <span><strong>${currentPlayer.name}</strong> is calculating actions...</span>
+            </div>
+          ` : ''}
         </div>
 
         <!-- DICE & MOVEMENT SECTION -->
@@ -1746,8 +1924,9 @@ function renderChoiceModal(choice) {
   const existing = document.querySelector('#active-modal');
   if (existing) existing.remove();
 
-  const isMyTurn = network.isMyTurn(engine.state.currentPlayerIndex);
   const activePlayer = engine.getCurrentPlayer();
+  const isAi = activePlayer?.isAi === true;
+  const isMyTurn = !isAi && network.isMyTurn(engine.state.currentPlayerIndex);
   const isDecipher = choice.type === 'historianDecipher';
 
   const modalHtml = `
@@ -1759,7 +1938,7 @@ function renderChoiceModal(choice) {
           ${isDecipher && choice.drawnCards ? `
             <div class="mystery-cards-grid">
               ${choice.drawnCards.map((c, idx) => `
-                <div class="mystery-card choice-btn" data-action="pick_${idx}" title="Click to choose Mystery Card #${idx + 1}" ${!isMyTurn && network.mode === 'online' ? 'style="pointer-events: none; opacity: 0.6;"' : ''}>
+                <div class="mystery-card choice-btn" data-action="pick_${idx}" title="Click to choose Mystery Card #${idx + 1}" ${(!isMyTurn || isAi) ? 'style="pointer-events: none; opacity: 0.6;"' : ''}>
                   <div style="font-size: 2.2rem; filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.7));">📜</div>
                   <div style="font-size: 0.8rem; font-weight: 800; color: #60A5FA; letter-spacing: 0.5px;">CARD #${idx + 1}</div>
                   <div style="font-size: 0.62rem; color: #93C5FD; background: rgba(59, 130, 246, 0.2); padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.4);">
@@ -1772,15 +1951,20 @@ function renderChoiceModal(choice) {
               🔍 Click any face-down mystery card above to keep it!
             </div>
           ` : ''}
-          ${!isMyTurn && network.mode === 'online' ? `
+          ${isAi ? `
+            <div style="font-size: 0.85rem; color: #60A5FA; margin-top: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <span class="ai-pulse-dot"></span>
+              <span>🤖 <strong>${activePlayer.name}</strong> is making a tactical choice...</span>
+            </div>
+          ` : (!isMyTurn && network.mode === 'online' ? `
             <div style="font-size: 0.85rem; color: #60A5FA; margin-top: 10px; font-weight: 600;">
               ⏳ Waiting for ${activePlayer.name} to choose...
             </div>
-          ` : ''}
+          ` : '')}
         </div>
         <div class="modal-actions" style="display: flex; flex-direction: column; gap: var(--space-sm);">
           ${choice.options.map(opt => `
-            <button class="btn btn-secondary choice-btn" data-action="${opt.action}" style="width: 100%;" ${!isMyTurn && network.mode === 'online' ? 'disabled' : ''}>
+            <button class="btn btn-secondary choice-btn" data-action="${opt.action}" style="width: 100%;" ${(!isMyTurn || isAi) ? 'disabled' : ''}>
               ${opt.label}
             </button>
           `).join('')}
@@ -1791,7 +1975,7 @@ function renderChoiceModal(choice) {
 
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-  if (!isMyTurn && network.mode === 'online') {
+  if (!isMyTurn || isAi) {
     return;
   }
 

@@ -2464,3 +2464,126 @@ html, body {
   50% { box-shadow: 0 0 18px rgba(232, 197, 71, 0.8); }
 }
 
+/* ===== Warcraft III Style Lobby & AI Styles ===== */
+.wc3-preset-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: var(--space-md);
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  align-items: center;
+}
+
+.wc3-preset-btn {
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.wc3-preset-btn:hover {
+  border-color: var(--text-accent);
+  color: var(--text-accent);
+  background: rgba(232, 197, 71, 0.15);
+}
+
+.wc3-slot-card {
+  background: rgba(15, 20, 32, 0.75);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.wc3-slot-card.closed {
+  opacity: 0.45;
+  background: rgba(10, 12, 20, 0.4);
+  border-style: dashed;
+}
+
+.wc3-slot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.slot-type-select {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  background: #0f1422;
+  border: 1px solid var(--border-glass);
+  color: var(--text-accent);
+  cursor: pointer;
+  outline: none;
+}
+
+.slot-type-select:focus {
+  border-color: var(--text-accent);
+}
+
+.bot-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(168, 85, 247, 0.25);
+  border: 1px solid rgba(168, 85, 247, 0.5);
+  color: #C084FC;
+  letter-spacing: 0.5px;
+}
+
+.human-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.25);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  color: #34D399;
+  letter-spacing: 0.5px;
+}
+
+.ai-turn-banner {
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.18) 0%, rgba(59, 130, 246, 0.18) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-pulse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #C084FC;
+  box-shadow: 0 0 10px #C084FC;
+  animation: aiPulse 1s infinite alternate;
+}
+
+@keyframes aiPulse {
+  0% { transform: scale(0.85); opacity: 0.6; }
+  100% { transform: scale(1.25); opacity: 1; box-shadow: 0 0 14px #E879F9; }
+}
+
+

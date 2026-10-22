@@ -94,6 +94,8 @@ export class GameEngine {
         role: role,
         color: PLAYER_COLORS[idx],
         isLocal: config.isLocal !== false,
+        isAi: config.isAi === true,
+        aiDifficulty: config.aiDifficulty || 'normal',
         connectionId: config.connectionId || null,
 
         // Position

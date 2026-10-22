@@ -24,7 +24,7 @@ let guideTab = 'overview';
 let cameraMode = 'full'; // 'full' | 'focus-spanish' | 'focus-american' | 'focus-japanese' | 'focus-myth' | 'auto'
 let autoMoveTimer = null;
 
-// Local player setup defaults (Warcraft III Style: Human / Bot / Closed)
+// Local player setup defaults (Human / Bot / Closed)
 let localPlayers = [
   { name: 'Player 1', roleKey: 'HISTORIAN', type: 'human', difficulty: 'normal' },
   { name: 'Bot Explorer', roleKey: 'EXPLORER', type: 'ai', difficulty: 'normal' },
@@ -495,7 +495,7 @@ function renderTitleScreen() {
             ⚔️ Player vs. AI (Solo vs. Bots)
           </button>
           <button id="btn-play-local" class="btn btn-secondary">
-            🛡️ Custom Game (Warcraft III Lobby)
+            🛡️ Custom Game
           </button>
           <button id="btn-play-online" class="btn btn-secondary">
             🌐 Online Multiplayer
@@ -580,13 +580,13 @@ function renderLobbyScreen() {
 
         <div class="player-slots">
           ${localPlayers.map((player, idx) => {
-            const isClosed = player.type === 'closed';
-            const isAi = player.type === 'ai';
-            const role = ROLES[player.roleKey] || ROLES.HISTORIAN;
-            const color = PLAYER_COLORS[idx];
+      const isClosed = player.type === 'closed';
+      const isAi = player.type === 'ai';
+      const role = ROLES[player.roleKey] || ROLES.HISTORIAN;
+      const color = PLAYER_COLORS[idx];
 
-            if (isClosed) {
-              return `
+      if (isClosed) {
+        return `
                 <div class="player-slot closed-slot wc3-slot-card" style="border-left: 4px solid #4b5563; min-height: 105px; display: flex; align-items: center; justify-content: space-between;">
                   <div style="display: flex; align-items: center; gap: 12px;">
                     <div style="width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">🚫</div>
@@ -604,9 +604,9 @@ function renderLobbyScreen() {
                   </div>
                 </div>
               `;
-            }
+      }
 
-            return `
+      return `
               <div class="player-slot selected wc3-slot-card" style="border-left: 4px solid ${color};">
                 <img src="${role.avatar}" class="player-slot-avatar" alt="${role.name}">
                 <div class="player-slot-info" style="flex: 1;">
@@ -647,7 +647,7 @@ function renderLobbyScreen() {
                 </div>
               </div>
             `;
-          }).join('')}
+    }).join('')}
         </div>
 
         <div style="margin-top: var(--space-xl); display: flex; gap: var(--space-md); justify-content: space-between; align-items: center; flex-wrap: wrap;">

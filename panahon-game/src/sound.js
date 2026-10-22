@@ -213,6 +213,23 @@ class SoundManager {
     osc.start();
     osc.stop(this.ctx.currentTime + 1.05);
   }
+
+  chatChirp() {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(580, this.ctx.currentTime);
+    osc.frequency.setValueAtTime(880, this.ctx.currentTime + 0.05);
+    gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.12);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.13);
+  }
 }
 
 export const sounds = new SoundManager();

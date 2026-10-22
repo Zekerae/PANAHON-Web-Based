@@ -10,6 +10,7 @@ export class NetworkManager {
     this.playerId = null;
     this.isHost = false;
     this.players = [];
+    this.chatMessages = [];
     this.serverUrl = null;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
@@ -19,6 +20,9 @@ export class NetworkManager {
     this.onStateUpdate = null;
     this.onPlayerJoin = null;
     this.onPlayerLeave = null;
+    this.onRosterUpdate = null;
+    this.onRoomClosed = null;
+    this.onChatMessage = null;
     this.onError = null;
     this.onRoomCreated = null;
     this.onRoomJoined = null;
@@ -209,12 +213,45 @@ export class NetworkManager {
     }
   }
 
+  leaveRoom() {
+    if (this.roomCode && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.send({
+        type: 'LEAVE_ROOM',
+        roomCode: this.roomCode,
+        playerId: this.playerId
+      });
+    }
+    this.cleanup();
+  }
+
   startGame() {
     if (!this.isHost || !this.roomCode) return;
     this.send({
       type: 'START_GAME',
       roomCode: this.roomCode
     });
+  }
+
+  sendChatMessage(text) {
+    if (!text || !text.trim()) return;
+    const msg = {
+      type: 'CHAT_MESSAGE',
+      roomCode: this.roomCode,
+      senderId: this.playerId,
+      senderName: this.myPlayerName || 'Castaway',
+      roleKey: this.myRoleKey || 'HISTORIAN',
+      text: text.trim()
+    };
+    if (this.mode === 'online') {
+      this.send(msg);
+    } else {
+      const localMsg = {
+        ...msg,
+        timestamp: Date.now()
+      };
+      this.chatMessages.push(localMsg);
+      if (this.onChatMessage) this.onChatMessage(localMsg);
+    }
   }
 
   sendAction(action) {
@@ -254,13 +291,14 @@ export class NetworkManager {
         this.roomCode = msg.roomCode;
         this.playerId = msg.playerId;
         this.isHost = true;
-        this.players = [{
+        this.players = msg.players || [{
           id: 0,
           name: this.myPlayerName || 'Host',
           roleKey: this.myRoleKey,
           isHost: true,
           connected: true
         }];
+        this.chatMessages = [];
         if (this.onRoomCreated) this.onRoomCreated(msg.roomCode);
         break;
 
@@ -269,7 +307,22 @@ export class NetworkManager {
         this.playerId = msg.playerId;
         this.isHost = false;
         this.players = msg.players || [];
+        if (Array.isArray(msg.messages)) {
+          this.chatMessages = msg.messages;
+        }
         if (this.onRoomJoined) this.onRoomJoined(msg.roomCode, msg.players);
+        break;
+
+      case 'ROSTER_UPDATE':
+        this.players = msg.players || [];
+        if (this.onRosterUpdate) this.onRosterUpdate(this.players);
+        if (msg.playerJoined && this.onPlayerJoin) this.onPlayerJoin(msg.playerJoined);
+        if (msg.playerLeft && this.onPlayerLeave) this.onPlayerLeave(msg.playerLeft);
+        break;
+
+      case 'YOUR_ID':
+        this.playerId = msg.playerId;
+        if (msg.roomCode) this.roomCode = msg.roomCode;
         break;
 
       case 'PLAYER_JOINED':
@@ -279,9 +332,22 @@ export class NetworkManager {
         if (this.onPlayerJoin) this.onPlayerJoin(msg.player);
         break;
 
-      case 'PLAYER_LEFT':
-        this.players = this.players.filter(p => p.id !== msg.playerId);
-        if (this.onPlayerLeave) this.onPlayerLeave(msg.playerId);
+      case 'PLAYER_LEFT': {
+        const pId = typeof msg.playerId === 'number' ? msg.playerId : msg.playerId?.id;
+        this.players = this.players.filter(p => p.id !== pId);
+        if (this.onPlayerLeave) this.onPlayerLeave(pId);
+        break;
+      }
+
+      case 'ROOM_CLOSED':
+        this.cleanup();
+        if (this.onRoomClosed) this.onRoomClosed(msg.message || 'Room closed by host.');
+        break;
+
+      case 'CHAT_MESSAGE':
+        this.chatMessages.push(msg);
+        if (this.chatMessages.length > 60) this.chatMessages.shift();
+        if (this.onChatMessage) this.onChatMessage(msg);
         break;
 
       case 'STATE_UPDATE':
@@ -368,11 +434,12 @@ export class NetworkManager {
     this.roomCode = null;
     this.playerId = null;
     this.players = [];
+    this.chatMessages = [];
     this.isConnecting = false;
   }
 
   disconnect() {
-    this.cleanup();
+    this.leaveRoom();
   }
 
   isConnected() {

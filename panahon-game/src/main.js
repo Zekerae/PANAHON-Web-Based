@@ -38,6 +38,8 @@ let onlineRoomCodeInput = '';
 let currentRoomPlayers = [];
 let isConnectingOnline = false;
 let showServerSettings = false;
+let unreadChatCount = 0;
+let isGameChatOpen = false;
 
 // Toasts queue
 const toasts = [];
@@ -61,28 +63,54 @@ const app = document.querySelector('#app');
 function setupNetworkListeners() {
   network.onRoomCreated = (code) => {
     isConnectingOnline = false;
-    currentRoomPlayers = [{ id: 0, name: onlinePlayerName, roleKey: onlineSelectedRole, isHost: true }];
+    currentRoomPlayers = network.players.slice();
+    unreadChatCount = 0;
     showToast('Room Created', `Room Code: ${code}. Share with allies!`, 'success');
     render();
   };
 
   network.onRoomJoined = (code, players) => {
     isConnectingOnline = false;
-    currentRoomPlayers = players || [];
+    currentRoomPlayers = players || network.players.slice();
+    unreadChatCount = 0;
     showToast('Joined Room', `Connected to Room ${code}`, 'success');
     render();
   };
 
-  network.onPlayerJoin = (player) => {
-    currentRoomPlayers.push(player);
-    showToast('Allied Castaway Arrived', `${player.name} joined as ${ROLES[player.roleKey]?.name}!`, 'info');
+  network.onRosterUpdate = (players) => {
+    currentRoomPlayers = players || [];
     render();
   };
 
-  network.onPlayerLeave = (playerId) => {
-    currentRoomPlayers = currentRoomPlayers.filter(p => p.id !== playerId);
-    showToast('Castaway Disconnected', `A player lost temporal sync.`, 'warning');
+  network.onPlayerJoin = (player) => {
+    if (!currentRoomPlayers.some(p => p.id === player.id || (p.name === player.name && p.roleKey === player.roleKey))) {
+      currentRoomPlayers.push(player);
+    }
+    showToast('Allied Castaway Arrived', `${player.name} joined as ${ROLES[player.roleKey]?.name || player.roleKey}!`, 'info');
     render();
+  };
+
+  network.onPlayerLeave = (playerData) => {
+    const leavingId = typeof playerData === 'number' ? playerData : playerData?.id;
+    currentRoomPlayers = currentRoomPlayers.filter(p => p.id !== leavingId);
+    showToast('Castaway Departed', 'A player departed the timeline.', 'warning');
+    render();
+  };
+
+  network.onRoomClosed = (msg) => {
+    isConnectingOnline = false;
+    currentRoomPlayers = [];
+    showToast('Anomaly Closed', msg || 'Room closed by host.', 'danger');
+    render();
+  };
+
+  network.onChatMessage = (chatMsg) => {
+    sounds.chatChirp();
+    appendChatMessageToDom(chatMsg);
+    if (currentScreen === 'game' && !isGameChatOpen) {
+      unreadChatCount++;
+      updateChatBadgeDom();
+    }
   };
 
   network.onGameStart = (players) => {
@@ -112,6 +140,190 @@ function setupNetworkListeners() {
 }
 
 setupNetworkListeners();
+
+// --- CHAT HELPERS ---
+function formatChatTime(timestamp) {
+  if (!timestamp) return '';
+  const d = new Date(timestamp);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderChatMessagesHtml(messages) {
+  if (!messages || messages.length === 0) {
+    return `
+      <div class="chat-empty">
+        <span style="font-size: 1.2rem;">📡</span>
+        <span style="font-weight: 700;">Chrono-Comms Online</span>
+        <span>Coordinate roles and plan your strategy here.</span>
+      </div>
+    `;
+  }
+
+  return messages.map(m => {
+    const isSelf = (network.mode === 'online' && m.senderId === network.playerId) ||
+                   (network.mode === 'local' && m.senderName === onlinePlayerName);
+    const role = ROLES[m.roleKey] || ROLES.HISTORIAN;
+    const playerColor = PLAYER_COLORS[m.senderId % PLAYER_COLORS.length] || 'var(--text-accent)';
+    const timeStr = formatChatTime(m.timestamp);
+
+    return `
+      <div class="chat-msg-row ${isSelf ? 'self' : ''}">
+        <img src="${role.avatar}" class="chat-msg-avatar" alt="${m.roleKey}">
+        <div class="chat-msg-bubble">
+          <div class="chat-msg-meta">
+            <span class="chat-msg-sender" style="color: ${playerColor};">${escapeHtml(m.senderName)}</span>
+            <span class="chat-msg-time">${timeStr}</span>
+          </div>
+          <div class="chat-msg-text">${escapeHtml(m.text)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function appendChatMessageToDom(chatMsg) {
+  const containers = document.querySelectorAll('.chat-messages');
+  if (!containers || containers.length === 0) return;
+
+  const isSelf = (network.mode === 'online' && chatMsg.senderId === network.playerId) ||
+                 (network.mode === 'local' && chatMsg.senderName === onlinePlayerName);
+  const role = ROLES[chatMsg.roleKey] || ROLES.HISTORIAN;
+  const playerColor = PLAYER_COLORS[chatMsg.senderId % PLAYER_COLORS.length] || 'var(--text-accent)';
+  const timeStr = formatChatTime(chatMsg.timestamp);
+
+  const rowHtml = `
+    <div class="chat-msg-row ${isSelf ? 'self' : ''}">
+      <img src="${role.avatar}" class="chat-msg-avatar" alt="${chatMsg.roleKey}">
+      <div class="chat-msg-bubble">
+        <div class="chat-msg-meta">
+          <span class="chat-msg-sender" style="color: ${playerColor};">${escapeHtml(chatMsg.senderName)}</span>
+          <span class="chat-msg-time">${timeStr}</span>
+        </div>
+        <div class="chat-msg-text">${escapeHtml(chatMsg.text)}</div>
+      </div>
+    </div>
+  `;
+
+  containers.forEach(c => {
+    const emptyPlaceholder = c.querySelector('.chat-empty');
+    if (emptyPlaceholder) emptyPlaceholder.remove();
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = rowHtml.trim();
+    const newElement = tempDiv.firstChild;
+    c.appendChild(newElement);
+    c.scrollTop = c.scrollHeight;
+  });
+}
+
+function updateChatBadgeDom() {
+  const btn = document.querySelector('#btn-toggle-chat');
+  if (!btn) return;
+  if (unreadChatCount > 0) {
+    btn.classList.add('btn-chat-unread');
+    btn.innerHTML = `💬 Comms <span class="chat-badge">${unreadChatCount}</span>`;
+  } else {
+    btn.classList.remove('btn-chat-unread');
+    btn.innerHTML = `💬 Comms`;
+  }
+}
+
+function renderChatBoxHtml(boxId, isFloating = false) {
+  const quickChips = [
+    '⚡ Ready!',
+    '⏳ Need 1 more',
+    '🎯 Target Artifact',
+    '🔋 Take Energy',
+    '⚠️ Paradox Warning',
+    '🚀 Chrono Shift!'
+  ];
+
+  return `
+    <div class="${isFloating ? 'game-chat-panel' : 'lobby-chat-panel'}" id="${boxId}">
+      <div class="chat-header">
+        <div class="chat-title">
+          <span>📡</span>
+          <span>CREW COMMS</span>
+          <span style="font-size: 0.65rem; color: #10B981; margin-left: 4px;">● LIVE</span>
+        </div>
+        ${isFloating ? `
+          <button class="btn btn-secondary" id="btn-close-game-chat" style="padding: 2px 8px; font-size: 0.7rem; border-radius: 4px;">✖</button>
+        ` : ''}
+      </div>
+
+      <div class="chat-messages" id="${boxId}-messages">
+        ${renderChatMessagesHtml(network.chatMessages)}
+      </div>
+
+      <div class="chat-quick-chips">
+        ${quickChips.map(chip => `
+          <button class="quick-chip" data-quick="${chip}">${chip}</button>
+        `).join('')}
+      </div>
+
+      <div class="chat-input-bar">
+        <input type="text" class="chat-text-input" id="${boxId}-input" placeholder="Transmit to crew..." maxlength="250" autocomplete="off">
+        <button class="btn btn-primary btn-chat-send" id="${boxId}-send">Send</button>
+      </div>
+    </div>
+  `;
+}
+
+function setupChatListeners(boxId) {
+  const input = document.querySelector(`#${boxId}-input`);
+  const sendBtn = document.querySelector(`#${boxId}-send`);
+  const messagesContainer = document.querySelector(`#${boxId}-messages`);
+
+  if (messagesContainer) {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  const handleSend = () => {
+    if (!input) return;
+    const val = input.value.trim();
+    if (!val) return;
+    network.sendChatMessage(val);
+    input.value = '';
+    input.focus();
+  };
+
+  sendBtn?.addEventListener('click', () => {
+    sounds.btnClick();
+    handleSend();
+  });
+
+  input?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSend();
+    }
+  });
+
+  document.querySelectorAll(`#${boxId} .quick-chip`).forEach(chip => {
+    chip.addEventListener('click', () => {
+      sounds.btnClick();
+      const txt = chip.dataset.quick;
+      if (txt) {
+        network.sendChatMessage(txt);
+      }
+    });
+  });
+
+  document.querySelector('#btn-close-game-chat')?.addEventListener('click', () => {
+    sounds.btnClick();
+    isGameChatOpen = false;
+    render();
+  });
+}
 
 function clearAutoMoveTimer() {
   if (autoMoveTimer) {
@@ -380,38 +592,48 @@ function renderLobbyScreen() {
           </div>
         ` : `
           <!-- Waiting Room -->
-          <div class="room-code-display">
-            <div class="room-code-label">Anomaly Sync Code</div>
-            <div class="room-code">${network.roomCode}</div>
-            <p style="font-size: 0.8rem; color: var(--text-secondary);">Share this code with up to 3 allies to form your crew.</p>
-          </div>
-
-          <div class="lobby-section-title">Connected Crew (${currentRoomPlayers.length}/4)</div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-sm); margin-bottom: var(--space-lg);">
-            ${currentRoomPlayers.map((p, idx) => `
-              <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--bg-glass); border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
-                <div style="display: flex; align-items: center; gap: var(--space-md);">
-                  <span class="online-status connected"></span>
-                  <span style="font-weight: 700; color: ${PLAYER_COLORS[idx]};">${p.name}</span>
-                </div>
-                <div style="font-size: 0.8rem; color: var(--text-accent); font-family: var(--font-display);">
-                  ${ROLES[p.roleKey]?.name || p.roleKey} ${p.id === 0 ? '★ Host' : ''}
-                </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: var(--space-md); align-items: start;">
+            <!-- Left: Room Code & Crew Slots -->
+            <div>
+              <div class="room-code-display" style="padding: 12px; margin-bottom: var(--space-sm);">
+                <div class="room-code-label">Anomaly Sync Code</div>
+                <div class="room-code" style="font-size: 2.1rem; letter-spacing: 5px;">${network.roomCode}</div>
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">Share this code with up to 3 allies to form your crew.</p>
               </div>
-            `).join('')}
-          </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <button id="btn-leave-room" class="btn btn-secondary">Leave Room</button>
-            ${network.isHost ? `
-              <button id="btn-host-start" class="btn btn-primary" ${currentRoomPlayers.length < 1 ? 'disabled' : ''}>
-                Launch Mission (${currentRoomPlayers.length} Players)
-              </button>
-            ` : `
-              <div style="font-size: 0.85rem; color: var(--text-secondary); font-style: italic;">
-                Waiting for host to initiate Chrono Shift...
+              <div class="lobby-section-title" style="margin-bottom: 6px;">Connected Crew (${currentRoomPlayers.length}/4)</div>
+              <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+                ${currentRoomPlayers.map((p, idx) => `
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-glass); border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span class="online-status connected"></span>
+                      <span style="font-weight: 700; font-size: 0.85rem; color: ${PLAYER_COLORS[idx] || '#fff'};">${escapeHtml(p.name)}</span>
+                    </div>
+                    <div style="font-size: 0.72rem; color: var(--text-accent); font-family: var(--font-display);">
+                      ${ROLES[p.roleKey]?.name || p.roleKey} ${p.isHost || p.id === 0 ? '★ Host' : ''}
+                    </div>
+                  </div>
+                `).join('')}
               </div>
-            `}
+
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <button id="btn-leave-room" class="btn btn-secondary" style="padding: 6px 14px; font-size: 0.78rem;">Leave Room</button>
+                ${network.isHost ? `
+                  <button id="btn-host-start" class="btn btn-primary" style="padding: 6px 16px; font-size: 0.82rem;" ${currentRoomPlayers.length < 1 ? 'disabled' : ''}>
+                    Launch Mission (${currentRoomPlayers.length} Players)
+                  </button>
+                ` : `
+                  <div style="font-size: 0.75rem; color: var(--text-secondary); font-style: italic;">
+                    Waiting for host to initiate Chrono Shift...
+                  </div>
+                `}
+              </div>
+            </div>
+
+            <!-- Right: Crew Comms (Lobby Chat) -->
+            <div>
+              ${renderChatBoxHtml('lobby-chat', false)}
+            </div>
           </div>
         `}
       </div>
@@ -530,9 +752,9 @@ function renderLobbyScreen() {
 
   document.querySelector('#btn-leave-room')?.addEventListener('click', () => {
     sounds.btnClick();
-    network.disconnect();
-    network.roomCode = null;
+    network.leaveRoom();
     currentRoomPlayers = [];
+    unreadChatCount = 0;
     render();
   });
 
@@ -540,6 +762,10 @@ function renderLobbyScreen() {
     sounds.btnClick();
     network.startGame();
   });
+
+  if (network.roomCode) {
+    setupChatListeners('lobby-chat');
+  }
 }
 
 // ==========================================
@@ -596,6 +822,9 @@ function renderGameScreen() {
         </div>
 
         <div style="display: flex; align-items: center; gap: var(--space-sm);">
+          <button id="btn-toggle-chat" class="btn ${unreadChatCount > 0 ? 'btn-chat-unread' : ''}" style="padding: 6px 12px; font-size: 0.75rem; background: var(--bg-glass); position: relative;">
+            💬 Comms ${unreadChatCount > 0 ? `<span class="chat-badge">${unreadChatCount}</span>` : ''}
+          </button>
           <button id="btn-header-guide" class="btn" style="padding: 6px 12px; font-size: 0.75rem; background: var(--bg-glass);">
             📖 Manual
           </button>
@@ -1028,6 +1257,9 @@ function renderGameScreen() {
           ` : ''}
         </div>
       </section>
+
+      <!-- Floating In-Game Chat Drawer -->
+      ${isGameChatOpen ? renderChatBoxHtml('game-chat', true) : ''}
     </div>
   `;
 
@@ -1043,6 +1275,20 @@ function renderGameScreen() {
 }
 
 function attachGameListeners(state, currentPlayer, isMyTurn) {
+  // Chat Toggle
+  document.querySelector('#btn-toggle-chat')?.addEventListener('click', () => {
+    sounds.btnClick();
+    isGameChatOpen = !isGameChatOpen;
+    if (isGameChatOpen) {
+      unreadChatCount = 0;
+    }
+    render();
+  });
+
+  if (isGameChatOpen) {
+    setupChatListeners('game-chat');
+  }
+
   // Guide and audio buttons
   document.querySelector('#btn-header-guide')?.addEventListener('click', () => {
     sounds.btnClick();

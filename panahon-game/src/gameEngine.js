@@ -141,6 +141,8 @@ export class GameEngine {
       diceResult: null,
       movesRemaining: 0,
       movementDirection: 'forward', // 'forward' | 'backward'
+      momentumActive: false,
+      momentumUsedMidTile: false,
       gameTimeRemaining: GAME_CONSTANTS.GAME_TIME_MINUTES * 60, // in seconds
       gameStarted: true,
       gameOver: false,
@@ -226,6 +228,10 @@ export class GameEngine {
     this.state.diceResult = result;
     this.state.movesRemaining = result + (player.bonusMoves || 0);
     this.state.movementDirection = 'forward';
+    if (player.roleKey !== 'EXPLORER' || !this.state.momentumActive) {
+      this.state.momentumActive = false;
+      this.state.momentumUsedMidTile = false;
+    }
     player.bonusMoves = 0;
     this.state.phase = 'moving';
 
@@ -293,6 +299,8 @@ export class GameEngine {
     // If no more moves, resolve tile and reset direction
     if (this.state.movesRemaining <= 0) {
       this.state.movementDirection = 'forward';
+      this.state.momentumActive = false;
+      this.state.momentumUsedMidTile = false;
       this.resolveTile(player, tile);
     }
 
@@ -346,6 +354,8 @@ export class GameEngine {
     // If no more moves, resolve
     if (this.state.movesRemaining <= 0) {
       this.state.movementDirection = 'forward';
+      this.state.momentumActive = false;
+      this.state.momentumUsedMidTile = false;
       this.resolveTile(player, tile);
     }
 
@@ -365,6 +375,8 @@ export class GameEngine {
       if (action === 'stopForArtifact') {
         this.state.movesRemaining = 0;
         this.state.movementDirection = 'forward';
+        this.state.momentumActive = false;
+        this.state.momentumUsedMidTile = false;
         const tile = this.state.board[player.currentEra][player.tileIndex];
         this.resolveTile(player, tile);
       }
@@ -781,13 +793,9 @@ export class GameEngine {
         }
         this.modifyEnergy(player, -1);
         player.activeCooldown = ROLES.EXPLORER.active.cooldown;
-        this.addLog('ability', `${player.name} used Momentum! Interact then continue moving.`);
-        // Resolve current tile, then allow remaining movement
-        const tile = this.state.board[player.currentEra][player.tileIndex];
-        if (tile.type !== TILE_TYPES.EMPTY && tile.type !== TILE_TYPES.START) {
-          this.resolveTile(player, tile);
-        }
-        this.state.phase = 'moving'; // Continue moving
+        this.state.momentumActive = true;
+        this.state.momentumUsedMidTile = false;
+        this.addLog('ability', `${player.name} activated Momentum! (Manual movement enabled: pause & interact with any space along your path).`);
         break;
 
       case 'GUARDIAN':
@@ -1026,6 +1034,8 @@ export class GameEngine {
     this.state.diceResult = null;
     this.state.movesRemaining = 0;
     this.state.movementDirection = 'forward';
+    this.state.momentumActive = false;
+    this.state.momentumUsedMidTile = false;
     this.state.pendingModal = null;
     this.state.pendingChoice = null;
 
@@ -1033,8 +1043,30 @@ export class GameEngine {
     this.notify();
   }
 
+  // Momentum mid-turn tile interaction
+  interactMomentumTile(playerIdx) {
+    const player = this.state.players[playerIdx];
+    if (!this.state.momentumActive || this.state.momentumUsedMidTile) return false;
+    const tile = this.state.board[player.currentEra][player.tileIndex];
+    if (tile.type === TILE_TYPES.EMPTY || tile.type === TILE_TYPES.START) {
+      this.addLog('info', 'Nothing to interact with on this starting space.');
+      return false;
+    }
+    this.state.momentumUsedMidTile = true;
+    this.addLog('ability', `${player.name} used Momentum to interact with ${tile.type.toUpperCase()} space!`);
+    this.resolveTile(player, tile);
+    if (this.state.movesRemaining > 0) {
+      this.state.phase = 'moving';
+    }
+    this.notify();
+    return true;
+  }
+
   dismissModal() {
     this.state.pendingModal = null;
+    if (this.state.movesRemaining > 0) {
+      this.state.phase = 'moving';
+    }
     this.notify();
   }
 

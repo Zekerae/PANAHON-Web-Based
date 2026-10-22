@@ -29,52 +29,93 @@ export class NetworkManager {
   }
 
   // --- Online Mode ---
-  connect(serverUrl) {
-    if (!serverUrl) {
-      const host = window.location.hostname || 'localhost';
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      serverUrl = `${protocol}//${host}:3001`;
+  connect(customUrl) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return Promise.resolve();
     }
 
-    return new Promise((resolve, reject) => {
-      try {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-          resolve();
-          return;
-        }
+    const host = window.location.hostname || 'localhost';
+    const isHttps = window.location.protocol === 'https:';
+    const protocol = isHttps ? 'wss:' : 'ws:';
 
-        this.ws = new WebSocket(serverUrl);
+    const candidates = customUrl ? [customUrl] : [
+      `${protocol}//${window.location.host}/ws`,
+      `${protocol}//${host}:3001`,
+      `ws://localhost:3001`,
+      `ws://127.0.0.1:3001`
+    ];
 
-        this.ws.onopen = () => {
-          console.log('Connected to game server:', serverUrl);
-          this.reconnectAttempts = 0;
-          resolve();
-        };
+    const uniqueCandidates = [...new Set(candidates)];
 
-        this.ws.onmessage = (event) => {
-          try {
-            this.handleMessage(JSON.parse(event.data));
-          } catch (e) {
-            console.error('Failed to parse incoming WS message:', e);
+    const trySingle = (url) => {
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        let socket = null;
+
+        const timer = setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            try { socket?.close(); } catch (_) {}
+            reject(new Error(`Timeout connecting to ${url}`));
           }
-        };
+        }, 3000);
 
-        this.ws.onclose = () => {
-          console.log('Disconnected from server');
-          if (this.mode === 'online' && this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.reconnectAttempts++;
-            setTimeout(() => this.connect(serverUrl).catch(() => {}), 2000 * this.reconnectAttempts);
-          }
-        };
+        try {
+          socket = new WebSocket(url);
 
-        this.ws.onerror = (err) => {
-          console.error('WebSocket error:', err);
-          if (this.onError) this.onError('Server connection failed. Is the server running?');
+          socket.onopen = () => {
+            if (!settled) {
+              settled = true;
+              clearTimeout(timer);
+              this.ws = socket;
+              this.serverUrl = url;
+              this.reconnectAttempts = 0;
+              console.log('Connected to game relay server at:', url);
+
+              socket.onmessage = (event) => {
+                try {
+                  this.handleMessage(JSON.parse(event.data));
+                } catch (e) {
+                  console.error('Failed to parse incoming WS message:', e);
+                }
+              };
+
+              socket.onclose = () => {
+                console.log('Disconnected from relay server:', url);
+                if (this.mode === 'online' && this.reconnectAttempts < this.maxReconnectAttempts) {
+                  this.reconnectAttempts++;
+                  setTimeout(() => this.connect(this.serverUrl).catch(() => {}), 2000 * this.reconnectAttempts);
+                }
+              };
+
+              socket.onerror = (err) => {
+                console.error('WebSocket runtime error on', url, err);
+              };
+
+              resolve();
+            }
+          };
+
+          socket.onerror = (err) => {
+            if (!settled) {
+              settled = true;
+              clearTimeout(timer);
+              try { socket?.close(); } catch (_) {}
+              reject(err);
+            }
+          };
+        } catch (err) {
+          clearTimeout(timer);
           reject(err);
-        };
-      } catch (err) {
-        reject(err);
-      }
+        }
+      });
+    };
+
+    return uniqueCandidates.reduce((promiseChain, url) => {
+      return promiseChain.catch(() => trySingle(url));
+    }, Promise.reject(new Error('Initial attempt'))).catch((finalErr) => {
+      if (this.onError) this.onError('Could not connect to relay server on port 3001 or /ws proxy. Please ensure the server is running.');
+      throw finalErr;
     });
   }
 
@@ -208,6 +249,9 @@ export class NetworkManager {
         break;
       case 'USE_ABILITY':
         this.engine.useActiveAbility(action.playerIdx);
+        break;
+      case 'INTERACT_MOMENTUM':
+        this.engine.interactMomentumTile(action.playerIdx);
         break;
       case 'RESOLVE_CHOICE':
         this.engine.resolveChoice(action.action);

@@ -21,6 +21,7 @@ let activeHandTab = 'mission'; // 'mission' | 'clues' | 'artifacts'
 let showGuide = false;
 let guideTab = 'overview';
 let cameraMode = 'full'; // 'full' | 'focus-spanish' | 'focus-american' | 'focus-japanese' | 'focus-myth' | 'auto'
+let autoMoveTimer = null;
 
 // Local player setup defaults
 let localPlayers = [
@@ -35,6 +36,7 @@ let onlinePlayerName = 'Temporal Castaway';
 let onlineSelectedRole = 'HISTORIAN';
 let onlineRoomCodeInput = '';
 let currentRoomPlayers = [];
+let isConnectingOnline = false;
 
 // Toasts queue
 const toasts = [];
@@ -57,12 +59,14 @@ const app = document.querySelector('#app');
 
 function setupNetworkListeners() {
   network.onRoomCreated = (code) => {
+    isConnectingOnline = false;
     currentRoomPlayers = [{ id: 0, name: onlinePlayerName, roleKey: onlineSelectedRole, isHost: true }];
     showToast('Room Created', `Room Code: ${code}. Share with allies!`, 'success');
     render();
   };
 
   network.onRoomJoined = (code, players) => {
+    isConnectingOnline = false;
     currentRoomPlayers = players || [];
     showToast('Joined Room', `Connected to Room ${code}`, 'success');
     render();
@@ -100,12 +104,77 @@ function setupNetworkListeners() {
   };
 
   network.onError = (msg) => {
+    isConnectingOnline = false;
     showToast('Multiplayer Alert', msg, 'danger');
     render();
   };
 }
 
 setupNetworkListeners();
+
+function clearAutoMoveTimer() {
+  if (autoMoveTimer) {
+    clearTimeout(autoMoveTimer);
+    autoMoveTimer = null;
+  }
+}
+
+function checkAndTriggerAutoMove(delayMs = 380) {
+  const state = engine.state;
+  if (!state || state.gameOver) {
+    clearAutoMoveTimer();
+    return;
+  }
+
+  // Only auto-move during 'moving' phase when moves remain
+  if (state.phase !== 'moving' || state.movesRemaining <= 0) {
+    clearAutoMoveTimer();
+    return;
+  }
+
+  // Do not auto-move if paused for a modal or choice
+  if (state.pendingModal || state.pendingChoice) {
+    clearAutoMoveTimer();
+    return;
+  }
+
+  // Do not auto-move if Explorer activated Momentum (manual mode)
+  if (state.momentumActive) {
+    clearAutoMoveTimer();
+    return;
+  }
+
+  // In multiplayer, only the active player's client drives the step pacing
+  const isMyTurn = network.isMyTurn(state.currentPlayerIndex);
+  if (!isMyTurn) {
+    clearAutoMoveTimer();
+    return;
+  }
+
+  // If already scheduled, let it run
+  if (autoMoveTimer) return;
+
+  // Schedule next step
+  autoMoveTimer = setTimeout(() => {
+    autoMoveTimer = null;
+    const currentState = engine.state;
+    if (
+      currentState?.phase === 'moving' &&
+      currentState.movesRemaining > 0 &&
+      !currentState.momentumActive &&
+      !currentState.pendingModal &&
+      !currentState.pendingChoice &&
+      network.isMyTurn(currentState.currentPlayerIndex)
+    ) {
+      sounds.moveStep();
+      engine.movePlayerStep();
+      network.sendAction({ type: 'MOVE_STEP' });
+
+      // Trigger next step
+      checkAndTriggerAutoMove(380);
+    }
+  }, delayMs);
+}
 
 // Subscribe to game engine state changes
 engine.subscribe((state) => {
@@ -118,6 +187,7 @@ engine.subscribe((state) => {
     currentScreen = 'endgame';
   }
   render();
+  checkAndTriggerAutoMove(380);
 });
 
 // --- RENDER DISPATCHER ---
@@ -294,8 +364,8 @@ function renderLobbyScreen() {
 
             <div style="display: flex; justify-content: flex-end; gap: var(--space-md); margin-top: var(--space-md);">
               <button id="btn-lobby-back" class="btn btn-secondary">Back</button>
-              <button id="btn-online-connect" class="btn btn-primary">
-                ${onlineSubMode === 'create' ? 'Create Room' : 'Join Room'}
+              <button id="btn-online-connect" class="btn btn-primary" ${isConnectingOnline ? 'disabled' : ''}>
+                ${isConnectingOnline ? '🔄 Connecting...' : (onlineSubMode === 'create' ? 'Create Room' : 'Join Room')}
               </button>
             </div>
           </div>
@@ -429,8 +499,11 @@ function renderLobbyScreen() {
   });
 
   document.querySelector('#btn-online-connect')?.addEventListener('click', async () => {
+    if (isConnectingOnline) return;
     sounds.btnClick();
+    isConnectingOnline = true;
     network.setMode('online');
+    render();
     try {
       showToast('Connecting', 'Reaching temporal relay server...', 'info');
       await network.connect();
@@ -438,13 +511,17 @@ function renderLobbyScreen() {
         network.createRoom(onlinePlayerName.trim() || 'Castaway', onlineSelectedRole);
       } else {
         if (!onlineRoomCodeInput) {
+          isConnectingOnline = false;
           showToast('Invalid Code', 'Please enter a 5-letter Room Code.', 'warning');
+          render();
           return;
         }
         network.joinRoom(onlineRoomCodeInput, onlinePlayerName.trim() || 'Castaway', onlineSelectedRole);
       }
     } catch (err) {
-      showToast('Connection Failed', 'Could not reach server. Run "npm run server" or play Local Pass & Play.', 'danger');
+      isConnectingOnline = false;
+      showToast('Connection Failed', 'Could not reach server. Verify server is running on port 3001.', 'danger');
+      render();
     }
   });
 
@@ -727,23 +804,62 @@ function renderGameScreen() {
             <button id="btn-roll-dice" class="btn btn-primary" style="width: 100%; margin-top: var(--space-sm); padding: 8px;" ${!isMyTurn ? 'disabled' : ''}>
               🎲 Roll Movement Die
             </button>
+            ${currentPlayer.roleKey === 'EXPLORER' && isMyTurn ? `
+              ${state.momentumActive ? `
+                <div style="margin-top: 6px; padding: 6px; background: rgba(234, 179, 8, 0.2); border: 1px solid rgba(234, 179, 8, 0.4); border-radius: 6px; font-size: 0.75rem; color: #FACC15; text-align: center; font-weight: 600;">
+                  🏃 Momentum Activated! Roll to move manually.
+                </div>
+              ` : (currentPlayer.activeCooldown === 0 && currentPlayer.energy >= 1 ? `
+                <button id="btn-pre-momentum" class="btn btn-accent" style="width: 100%; margin-top: 6px; padding: 6px; font-size: 0.75rem;">
+                  🏃 Activate Momentum First (-1 Energy, Manual Move)
+                </button>
+              ` : '')}
+            ` : ''}
           ` : ''}
 
           ${state.phase === 'moving' ? `
-            <div style="margin-top: var(--space-sm);">
-              ${state.movementDirection === 'backward' ? `
-                <button id="btn-move-step" class="btn btn-secondary" style="width: 100%; padding: 8px; font-size: 0.8rem; background: rgba(239, 68, 68, 0.25); border-color: rgba(239, 68, 68, 0.5);" ${!isMyTurn ? 'disabled' : ''}>
-                  ⬅️ Step Backward (${state.movesRemaining} remaining)
-                </button>
-              ` : `
+            ${state.momentumActive ? `
+              <div class="momentum-panel" style="margin-top: var(--space-sm); padding: 10px; background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.4); border-radius: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; font-weight: 700; color: #FACC15; font-size: 0.85rem;">
+                  <span>🏃 Momentum Active!</span>
+                  <span class="badge" style="background: #FACC15; color: #000; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Manual Move</span>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin: 6px 0;">
+                  Moves left: <strong>${state.movesRemaining}</strong> spaces. Pause & interact with any tile!
+                </div>
+                
+                ${!state.momentumUsedMidTile && state.board[currentPlayer.currentEra][currentPlayer.tileIndex].type !== 'start' ? `
+                  <button id="btn-momentum-interact" class="btn btn-accent" style="width: 100%; margin-bottom: 6px; padding: 8px; font-size: 0.8rem;" ${!isMyTurn ? 'disabled' : ''}>
+                    ✨ Interact with Current Space (${state.board[currentPlayer.currentEra][currentPlayer.tileIndex].type.toUpperCase()})
+                  </button>
+                ` : (state.momentumUsedMidTile ? `
+                  <div style="font-size: 0.7rem; color: #10B981; margin-bottom: 6px;">
+                    ✓ Tile interaction used! Continue moving to finish.
+                  </div>
+                ` : '')}
+
                 <button id="btn-move-step" class="btn btn-primary" style="width: 100%; padding: 8px; font-size: 0.8rem;" ${!isMyTurn ? 'disabled' : ''}>
-                  Step Forward ➡️ (${state.movesRemaining} remaining)
+                  Step Forward ➡️ (${state.movesRemaining} left)
                 </button>
-              `}
-            </div>
-            <div style="font-size: 0.65rem; color: var(--text-secondary); text-align: center; margin-top: 4px;">
-              Tip: Click the highlighted space on the board or tap the step button!
-            </div>
+              </div>
+            ` : `
+              <div style="margin-top: var(--space-sm); padding: 10px; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 8px; text-align: center;">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; color: #60A5FA; font-size: 0.85rem;">
+                  <span style="display: inline-block; animation: pawnHop 0.6s infinite alternate;">🚶</span>
+                  <span>Auto-Moving... (${state.movesRemaining} left)</span>
+                </div>
+                
+                ${currentPlayer.roleKey === 'EXPLORER' && currentPlayer.activeCooldown === 0 && currentPlayer.energy >= 1 && isMyTurn ? `
+                  <button id="btn-pause-momentum" class="btn btn-accent" style="width: 100%; margin-top: 8px; padding: 6px 8px; font-size: 0.75rem;">
+                    ⚡ Pause & Activate Momentum (-1 En)
+                  </button>
+                ` : ''}
+
+                <button id="btn-move-step" class="btn btn-secondary" style="width: 100%; margin-top: 6px; padding: 5px; font-size: 0.72rem; opacity: 0.85;" ${!isMyTurn ? 'disabled' : ''}>
+                  ⏩ Step Immediately
+                </button>
+              </div>
+            `}
           ` : ''}
         </div>
 
@@ -966,12 +1082,14 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
 
   // Dice roll
   const rollAction = () => {
+    clearAutoMoveTimer();
     sounds.diceRoll();
     const diceEl = document.querySelector('#dice-element');
     diceEl?.classList.add('rolling');
     setTimeout(() => {
       const result = engine.rollDice();
       network.sendAction({ type: 'ROLL_DICE', result });
+      checkAndTriggerAutoMove(550);
     }, 600);
   };
 
@@ -980,11 +1098,34 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
     if (state.phase === 'rolling') rollAction();
   });
 
+  // Momentum triggers (pre-roll and mid-movement)
+  const triggerMomentum = () => {
+    sounds.btnClick();
+    clearAutoMoveTimer();
+    const ok = engine.useActiveAbility(state.currentPlayerIndex);
+    if (ok) {
+      network.sendAction({ type: 'USE_ABILITY', playerIdx: state.currentPlayerIndex });
+    }
+  };
+  document.querySelector('#btn-pre-momentum')?.addEventListener('click', triggerMomentum);
+  document.querySelector('#btn-pause-momentum')?.addEventListener('click', triggerMomentum);
+
+  // Momentum mid-tile interaction
+  document.querySelector('#btn-momentum-interact')?.addEventListener('click', () => {
+    sounds.btnClick();
+    const ok = engine.interactMomentumTile(state.currentPlayerIndex);
+    if (ok) {
+      network.sendAction({ type: 'INTERACT_MOMENTUM', playerIdx: state.currentPlayerIndex });
+    }
+  });
+
   // Step movement button
   const triggerStepMove = () => {
+    clearAutoMoveTimer();
     sounds.moveStep();
     engine.movePlayerStep();
     network.sendAction({ type: 'MOVE_STEP' });
+    checkAndTriggerAutoMove(380);
   };
   document.querySelector('#btn-move-step')?.addEventListener('click', triggerStepMove);
   document.querySelector('#btn-move-fwd')?.addEventListener('click', triggerStepMove);
@@ -994,11 +1135,13 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
   document.querySelectorAll('.mario-party-space[data-tile-id]').forEach(spaceEl => {
     spaceEl.addEventListener('click', () => {
       if (state.phase === 'moving' && state.movesRemaining > 0) {
+        clearAutoMoveTimer();
         const tileId = spaceEl.dataset.tileId;
         const ok = engine.moveToTile(tileId);
         if (ok) {
           sounds.moveStep();
           network.sendAction({ type: 'MOVE_TO_TILE', targetTileId: tileId });
+          checkAndTriggerAutoMove(380);
         }
       }
     });
@@ -1008,13 +1151,19 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
   document.querySelector('#btn-act-warp')?.addEventListener('click', () => {
     sounds.portal();
     const ok = engine.timeWarp(state.currentPlayerIndex);
-    if (ok) network.sendAction({ type: 'TIME_WARP', playerIdx: state.currentPlayerIndex });
+    if (ok) {
+      network.sendAction({ type: 'TIME_WARP', playerIdx: state.currentPlayerIndex });
+      checkAndTriggerAutoMove(550);
+    }
   });
 
   document.querySelector('#btn-act-reverse')?.addEventListener('click', () => {
     sounds.portal();
     const ok = engine.reverseTime(state.currentPlayerIndex);
-    if (ok) network.sendAction({ type: 'REVERSE_TIME', playerIdx: state.currentPlayerIndex });
+    if (ok) {
+      network.sendAction({ type: 'REVERSE_TIME', playerIdx: state.currentPlayerIndex });
+      checkAndTriggerAutoMove(550);
+    }
   });
 
   document.querySelector('#btn-act-rest')?.addEventListener('click', () => {

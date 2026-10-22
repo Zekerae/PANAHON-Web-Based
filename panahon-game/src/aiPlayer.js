@@ -32,7 +32,7 @@ class AiController {
     return true;
   }
 
-  // Trigger next AI step with a natural human-perceivable pacing
+  // Trigger next AI step with natural pacing
   scheduleAiStep(engine, network, delay = 800) {
     if (!this.isAiTurn(engine, network)) {
       this.clearTimer();
@@ -47,7 +47,10 @@ class AiController {
   }
 
   executeAiStep(engine, network) {
-    if (!this.isAiTurn(engine, network)) return;
+    if (!this.isAiTurn(engine, network)) {
+      this.clearTimer();
+      return;
+    }
 
     const state = engine.state;
     const player = engine.getCurrentPlayer();
@@ -55,10 +58,10 @@ class AiController {
 
     // 1. Pending Modal (e.g. Card drawn)
     if (state.pendingModal) {
-      // Allow players to view what the bot drew, then auto-dismiss
+      // Auto-dismiss card modal after allowing brief view duration
       engine.dismissModal();
       network?.sendAction({ type: 'DISMISS_MODAL' });
-      this.scheduleAiStep(engine, network, 600);
+      this.scheduleAiStep(engine, network, 500);
       return;
     }
 
@@ -68,9 +71,21 @@ class AiController {
       return;
     }
 
-    // 3. Rolling Phase
+    // 3. Card Resolution Phase (safeguard)
+    if (state.phase === 'cardResolution') {
+      if (state.pendingModal) {
+        engine.dismissModal();
+        network?.sendAction({ type: 'DISMISS_MODAL' });
+      } else {
+        engine.state.phase = 'action';
+      }
+      this.scheduleAiStep(engine, network, 450);
+      return;
+    }
+
+    // 4. Rolling Phase
     if (state.phase === 'rolling') {
-      // Explorer AI: consider activating Momentum pre-roll if energy is good
+      // Explorer AI: activate Momentum pre-roll if energy is good
       if (
         player.roleKey === 'EXPLORER' &&
         player.activeCooldown === 0 &&
@@ -91,22 +106,29 @@ class AiController {
       if (result) {
         network?.sendAction({ type: 'ROLL_DICE', result });
       }
-      this.scheduleAiStep(engine, network, 800);
+      this.scheduleAiStep(engine, network, 750);
       return;
     }
 
-    // 4. Moving Phase
-    if (state.phase === 'moving' && state.movesRemaining > 0) {
-      sounds.moveStep?.();
-      const ok = engine.movePlayerStep();
-      if (ok) {
-        network?.sendAction({ type: 'MOVE_STEP' });
+    // 5. Moving Phase
+    if (state.phase === 'moving') {
+      if (state.movesRemaining > 0) {
+        sounds.moveStep?.();
+        const ok = engine.movePlayerStep();
+        if (ok) {
+          network?.sendAction({ type: 'MOVE_STEP' });
+        }
+        this.scheduleAiStep(engine, network, 450);
+        return;
+      } else {
+        // Moves completed, advance phase to action
+        engine.state.phase = 'action';
+        this.scheduleAiStep(engine, network, 400);
+        return;
       }
-      this.scheduleAiStep(engine, network, 500);
-      return;
     }
 
-    // 5. Action Phase
+    // 6. Action Phase
     if (state.phase === 'action') {
       // A. Check if bot has an artifact matching the current era to return for 5 points!
       const matchingArtifact = player.artifactCards.find(a => a.era === player.currentEra);
@@ -114,7 +136,7 @@ class AiController {
         sounds.victory?.();
         engine.returnArtifact(player.id, matchingArtifact.id);
         network?.sendAction({ type: 'RETURN_ARTIFACT', playerIdx: player.id, artifactId: matchingArtifact.id });
-        this.scheduleAiStep(engine, network, 800);
+        this.scheduleAiStep(engine, network, 750);
         return;
       }
 
@@ -165,8 +187,13 @@ class AiController {
       sounds.btnClick?.();
       engine.endTurn();
       network?.sendAction({ type: 'END_TURN' });
-      this.scheduleAiStep(engine, network, 800);
+      this.scheduleAiStep(engine, network, 750);
+      return;
     }
+
+    // 7. Safety Watchdog: If in any unrecognized or intermediate phase during bot turn, recover safely
+    engine.state.phase = 'action';
+    this.scheduleAiStep(engine, network, 500);
   }
 
   // Handle decisions when presented with choices
@@ -175,12 +202,11 @@ class AiController {
 
     if (choiceType === 'artifactStop') {
       // Stop if player has clues or mission matches
-      const tile = engine.state.board[player.currentEra][player.tileIndex];
       const hasClues = (player.clueProgress && Object.keys(player.clueProgress).length > 0);
       const action = hasClues ? 'stopForArtifact' : 'continueMoving';
       engine.resolveChoice(action);
       network?.sendAction({ type: 'RESOLVE_CHOICE', action });
-      this.scheduleAiStep(engine, network, 700);
+      this.scheduleAiStep(engine, network, 650);
       return;
     }
 
@@ -198,16 +224,26 @@ class AiController {
         engine.resolveChoice('continueMoving');
         network?.sendAction({ type: 'RESOLVE_CHOICE', action: 'continueMoving' });
       }
-      this.scheduleAiStep(engine, network, 800);
+      this.scheduleAiStep(engine, network, 700);
+      return;
+    }
+
+    if (choiceType === 'timeGateTravel') {
+      const targetEra = player.mission?.targetEra;
+      const dest = (targetEra && targetEra !== player.currentEra) ? targetEra : 'stay';
+      engine.resolveChoice(dest);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action: dest });
+      this.scheduleAiStep(engine, network, 650);
       return;
     }
 
     if (choiceType === 'historianDecipher') {
-      // Pick mystery card
+      // Pick first mystery clue card
       const action = 'pick_0';
+      sounds.btnClick?.();
       engine.resolveChoice(action);
       network?.sendAction({ type: 'RESOLVE_CHOICE', action });
-      this.scheduleAiStep(engine, network, 700);
+      this.scheduleAiStep(engine, network, 650);
       return;
     }
 
@@ -216,7 +252,7 @@ class AiController {
       const action = player.paradox >= 2 ? 'reduceEnergy' : 'restoreEnergy';
       engine.resolveChoice(action);
       network?.sendAction({ type: 'RESOLVE_CHOICE', action });
-      this.scheduleAiStep(engine, network, 700);
+      this.scheduleAiStep(engine, network, 650);
       return;
     }
 
@@ -225,7 +261,7 @@ class AiController {
       const best = options[0]?.action || 'drawClue';
       engine.resolveChoice(best);
       network?.sendAction({ type: 'RESOLVE_CHOICE', action: best });
-      this.scheduleAiStep(engine, network, 700);
+      this.scheduleAiStep(engine, network, 650);
       return;
     }
 
@@ -233,7 +269,7 @@ class AiController {
     const firstAction = choice.options?.[0]?.action || 'continueMoving';
     engine.resolveChoice(firstAction);
     network?.sendAction({ type: 'RESOLVE_CHOICE', action: firstAction });
-    this.scheduleAiStep(engine, network, 700);
+    this.scheduleAiStep(engine, network, 650);
   }
 }
 

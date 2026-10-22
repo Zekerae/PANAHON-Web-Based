@@ -1543,6 +1543,8 @@ function renderGameScreen() {
     renderCardModal(state.pendingModal);
   } else if (state.pendingChoice) {
     renderChoiceModal(state.pendingChoice);
+  } else {
+    dismissAnyActiveOverlay();
   }
 }
 
@@ -1818,17 +1820,99 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
   });
 }
 
+let activeOverlayTimeout = null;
+
+function dismissAnyActiveOverlay(immediate = false) {
+  if (activeOverlayTimeout) {
+    clearTimeout(activeOverlayTimeout);
+    activeOverlayTimeout = null;
+  }
+  const overlays = document.querySelectorAll('#active-modal, .side-card-overlay');
+  if (overlays.length === 0) return;
+
+  if (immediate) {
+    overlays.forEach(el => el.remove());
+  } else {
+    overlays.forEach(el => {
+      el.classList.add('overlay-closing');
+      setTimeout(() => el.remove(), 250);
+    });
+  }
+}
+
 // ==========================================
 // 4. MODALS & CHOICES
 // ==========================================
 function renderCardModal(modal) {
-  const existing = document.querySelector('#active-modal');
-  if (existing) existing.remove();
+  // Clear any existing overlay so only one overlay is active at a time
+  dismissAnyActiveOverlay(true);
+
+  const activePlayer = engine.getCurrentPlayer();
+  const drawingPlayer = (modal.playerId !== undefined && engine.state?.players[modal.playerId])
+    ? engine.state.players[modal.playerId]
+    : activePlayer;
+  const isAi = drawingPlayer?.isAi === true;
 
   const isDanger = modal.type === 'danger';
   const isEvent = modal.type === 'event';
   const isArtifact = modal.type === 'artifact';
   const isClue = modal.isClue || modal.cardType === 'Clue Card' || modal.cardType === 'Decoy Card';
+
+  // If drawn by an AI bot, show non-blocking side overlay with auto-dismiss timer
+  if (isAi) {
+    const overlayHtml = `
+      <div class="side-card-overlay" id="active-modal">
+        <div class="side-card-header">
+          <div class="side-card-title">
+            <span class="bot-badge">🤖 BOT</span>
+            <span style="color: ${isDanger ? 'var(--text-danger)' : (isEvent ? 'var(--tile-event)' : 'var(--text-accent)')};">
+              ${modal.cardType || modal.title}
+            </span>
+          </div>
+          <button class="side-card-close" id="side-overlay-close-btn" title="Dismiss">&times;</button>
+        </div>
+
+        <div class="side-card-body">
+          <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">
+            <strong style="color: ${drawingPlayer?.color || '#fff'};">${escapeHtml(drawingPlayer?.name || modal.playerName || 'Bot')}</strong> drew a card:
+          </div>
+
+          <div class="side-card-content-preview">
+            ${modal.image ? `<img src="${modal.image}" class="side-card-thumb" alt="${modal.title}">` : ''}
+            <div>
+              <div style="font-weight: 700; font-size: 0.82rem; color: var(--text-primary);">${modal.title}</div>
+              <div style="font-size: 0.72rem; color: var(--text-secondary); line-height: 1.3; margin-top: 2px;">
+                ${modal.description || ''}
+              </div>
+            </div>
+          </div>
+
+          ${isDanger && modal.diceRoll !== undefined ? `
+            <div style="margin-top: 6px; font-size: 0.75rem; color: ${modal.success ? 'var(--text-success)' : 'var(--text-danger)'}; font-weight: 700;">
+              🎲 Rolled ${modal.diceRoll}: ${modal.success ? '✓ Hazard Evaded' : '✗ Hazard Triggered'}
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="overlay-timer-bar">
+          <div class="overlay-timer-fill"></div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', overlayHtml);
+
+    document.querySelector('#side-overlay-close-btn')?.addEventListener('click', () => {
+      dismissAnyActiveOverlay(true);
+    });
+
+    if (activeOverlayTimeout) clearTimeout(activeOverlayTimeout);
+    activeOverlayTimeout = setTimeout(() => {
+      dismissAnyActiveOverlay();
+    }, 2800);
+
+    return;
+  }
 
   // In online multiplayer, hide other players' clue cards (only the player who drew it sees the card content)
   const isSecretToMe = (network.mode === 'online') && isClue && (modal.playerId !== undefined) && (modal.playerId !== network.playerId);
@@ -1913,7 +1997,7 @@ function renderCardModal(modal) {
       engine.dismissModal();
       network.sendAction({ type: 'DISMISS_MODAL' });
     }
-    document.querySelector('#active-modal')?.remove();
+    dismissAnyActiveOverlay(true);
   };
 
   document.querySelector('#modal-close-btn')?.addEventListener('click', dismiss);
@@ -1921,14 +2005,72 @@ function renderCardModal(modal) {
 }
 
 function renderChoiceModal(choice) {
-  const existing = document.querySelector('#active-modal');
-  if (existing) existing.remove();
+  // Clear any existing overlay so only one overlay is active at a time
+  dismissAnyActiveOverlay(true);
 
   const activePlayer = engine.getCurrentPlayer();
   const isAi = activePlayer?.isAi === true;
   const isMyTurn = !isAi && network.isMyTurn(engine.state.currentPlayerIndex);
   const isDecipher = choice.type === 'historianDecipher';
 
+  // If it's an AI choice, show as sleek non-blocking Side Overlay with auto-dismiss timer
+  if (isAi) {
+    const overlayHtml = `
+      <div class="side-card-overlay" id="active-modal">
+        <div class="side-card-header">
+          <div class="side-card-title">
+            <span class="bot-badge">🤖 BOT</span>
+            <span>${choice.title}</span>
+          </div>
+          <button class="side-card-close" id="side-overlay-close-btn" title="Dismiss">&times;</button>
+        </div>
+
+        <div class="side-card-body">
+          <div style="font-size: 0.8rem; color: var(--text-secondary);">
+            <strong style="color: ${activePlayer.color || '#fff'};">${activePlayer.name}</strong> is evaluating tactical options:
+          </div>
+
+          ${isDecipher && choice.drawnCards ? `
+            <div class="mystery-cards-mini-row">
+              ${choice.drawnCards.map((c, idx) => `
+                <div class="mystery-card-mini ${idx === 0 ? 'selected-by-bot' : ''}">
+                  <div style="font-size: 1.4rem;">📜</div>
+                  <div style="font-size: 0.72rem; font-weight: 700; color: #60A5FA;">Card #${idx + 1}</div>
+                  ${idx === 0 ? '<div class="mini-choice-badge">DECIPHERED</div>' : '<div style="font-size: 0.6rem; color: #94A3B8;">Deck Return</div>'}
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          <div class="side-card-status">
+            <span class="ai-pulse-dot"></span>
+            <span style="font-size: 0.78rem; color: #93C5FD; font-weight: 600;">
+              ${choice.options[0]?.label || 'Resolving automatically...'}
+            </span>
+          </div>
+        </div>
+
+        <div class="overlay-timer-bar">
+          <div class="overlay-timer-fill"></div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', overlayHtml);
+
+    document.querySelector('#side-overlay-close-btn')?.addEventListener('click', () => {
+      dismissAnyActiveOverlay(true);
+    });
+
+    if (activeOverlayTimeout) clearTimeout(activeOverlayTimeout);
+    activeOverlayTimeout = setTimeout(() => {
+      dismissAnyActiveOverlay();
+    }, 2800);
+
+    return;
+  }
+
+  // HUMAN CHOICE MODAL
   const modalHtml = `
     <div class="modal-overlay" id="active-modal">
       <div class="modal" ${isDecipher ? 'style="max-width: 500px; width: 95%;"' : ''}>
@@ -1938,7 +2080,7 @@ function renderChoiceModal(choice) {
           ${isDecipher && choice.drawnCards ? `
             <div class="mystery-cards-grid">
               ${choice.drawnCards.map((c, idx) => `
-                <div class="mystery-card choice-btn" data-action="pick_${idx}" title="Click to choose Mystery Card #${idx + 1}" ${(!isMyTurn || isAi) ? 'style="pointer-events: none; opacity: 0.6;"' : ''}>
+                <div class="mystery-card choice-btn" data-action="pick_${idx}" title="Click to choose Mystery Card #${idx + 1}" ${!isMyTurn && network.mode === 'online' ? 'style="pointer-events: none; opacity: 0.6;"' : ''}>
                   <div style="font-size: 2.2rem; filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.7));">📜</div>
                   <div style="font-size: 0.8rem; font-weight: 800; color: #60A5FA; letter-spacing: 0.5px;">CARD #${idx + 1}</div>
                   <div style="font-size: 0.62rem; color: #93C5FD; background: rgba(59, 130, 246, 0.2); padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.4);">
@@ -1951,20 +2093,15 @@ function renderChoiceModal(choice) {
               🔍 Click any face-down mystery card above to keep it!
             </div>
           ` : ''}
-          ${isAi ? `
-            <div style="font-size: 0.85rem; color: #60A5FA; margin-top: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
-              <span class="ai-pulse-dot"></span>
-              <span>🤖 <strong>${activePlayer.name}</strong> is making a tactical choice...</span>
-            </div>
-          ` : (!isMyTurn && network.mode === 'online' ? `
+          ${!isMyTurn && network.mode === 'online' ? `
             <div style="font-size: 0.85rem; color: #60A5FA; margin-top: 10px; font-weight: 600;">
               ⏳ Waiting for ${activePlayer.name} to choose...
             </div>
-          ` : '')}
+          ` : ''}
         </div>
         <div class="modal-actions" style="display: flex; flex-direction: column; gap: var(--space-sm);">
           ${choice.options.map(opt => `
-            <button class="btn btn-secondary choice-btn" data-action="${opt.action}" style="width: 100%;" ${(!isMyTurn || isAi) ? 'disabled' : ''}>
+            <button class="btn btn-secondary choice-btn" data-action="${opt.action}" style="width: 100%;" ${!isMyTurn && network.mode === 'online' ? 'disabled' : ''}>
               ${opt.label}
             </button>
           `).join('')}
@@ -1975,7 +2112,7 @@ function renderChoiceModal(choice) {
 
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-  if (!isMyTurn || isAi) {
+  if (!isMyTurn && network.mode === 'online') {
     return;
   }
 
@@ -1995,7 +2132,7 @@ function renderChoiceModal(choice) {
       }
       engine.resolveChoice(action);
       network.sendAction({ type: 'RESOLVE_CHOICE', action });
-      document.querySelector('#active-modal')?.remove();
+      dismissAnyActiveOverlay(true);
     });
   });
 }

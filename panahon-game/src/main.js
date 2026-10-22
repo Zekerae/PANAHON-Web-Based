@@ -1159,16 +1159,7 @@ function renderGameScreen() {
     const coords = ERA_TILE_COORDINATES[era];
     if (!coords) return '';
     // Convert percentage to pixel coordinates in 1024x765
-    let d;
-    if (era === ERAS.SPANISH && coords.length >= 25) {
-      const p = (i) => `${(coords[i].x * 1024) / 100} ${(coords[i].y * 765) / 100}`;
-      const forward = coords.slice(0, 22).map((_, i) => `${i === 0 ? 'M' : 'L'} ${p(i)}`).join(' ');
-      const exitToNexus = `L ${p(3)} L ${p(22)} L ${p(23)} L ${p(24)}`;
-      const returnToPlatform = `L ${p(3)} Z`;
-      d = `${forward} ${exitToNexus} ${returnToPlatform}`;
-    } else {
-      d = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${(c.x * 1024) / 100} ${(c.y * 765) / 100}`).join(' ') + ' Z';
-    }
+    const d = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${(c.x * 1024) / 100} ${(c.y * 765) / 100}`).join(' ') + ' Z';
     const isActiveEra = currentPlayer.currentEra === era;
     return `<path d="${d}" class="board-path-line ${isActiveEra ? 'active-era-path' : ''}" />`;
   }).join('')}

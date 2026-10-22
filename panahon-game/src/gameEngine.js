@@ -567,6 +567,7 @@ export class GameEngine {
     if (card.isDecoy && player.roleKey === 'HISTORIAN' && player.passiveCooldown <= 0) {
       this.addLog('ability', `${player.name} used Decoy Discard! Discarded a decoy card.`);
       player.passiveCooldown = ROLES.HISTORIAN.passive.cooldown;
+      this.discardCard(card);
       this.state.phase = 'action';
       this.notify();
       return;
@@ -1169,11 +1170,13 @@ export class GameEngine {
     }
 
     // Clue points
-    player.clueCards.forEach(c => {
-      if (!c.isDecoy && !c.counted) {
-        c.counted = true;
-      }
-    });
+    if (Array.isArray(player.clueCards)) {
+      player.clueCards.forEach(c => {
+        if (c && !c.isDecoy && !c.counted) {
+          c.counted = true;
+        }
+      });
+    }
 
     // Next player
     this.state.currentPlayerIndex = (this.state.currentPlayerIndex + 1) % this.state.players.length;
@@ -1223,6 +1226,8 @@ export class GameEngine {
     this.state.pendingModal = null;
     if (this.state.movesRemaining > 0) {
       this.state.phase = 'moving';
+    } else if (this.state.phase === 'cardResolution') {
+      this.state.phase = 'action';
     }
     this.notify();
   }

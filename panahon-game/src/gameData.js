@@ -27,129 +27,146 @@ export const TILE_TYPES = {
   EMPTY: 'empty'
 };
 
-// Tile layout for each era (20 spaces forming a continuous road loop)
+// Tile layout for each era matching Full Map with Tiles.png
 export const ERA_TILE_LAYOUTS = {
   [ERAS.SPANISH]: [
-    'start', 'clue', 'event', 'clue', 'danger',
-    'clue', 'empty', 'clue', 'event', 'clue',
-    'clue', 'danger', 'clue', 'empty', 'clue',
-    'event', 'clue', 'paradox', 'artifact', 'empty',
-    'clue', 'clue', 'event', 'paradox', 'timegate'
+    'start', 'event', 'empty', 'danger', 'empty',
+    'timegate', 'clue', 'event', 'empty', 'event',
+    'clue', 'paradox', 'event', 'empty', 'danger',
+    'paradox', 'clue', 'event', 'empty', 'paradox',
+    'event', 'paradox', 'clue', 'danger', 'artifact'
   ],
   [ERAS.AMERICAN]: [
-    'start', 'clue', 'event', 'clue', 'danger',
-    'clue', 'empty', 'clue', 'clue', 'timegate',
-    'clue', 'event', 'danger', 'empty', 'artifact',
-    'clue', 'empty', 'paradox', 'event', 'clue'
+    'start', 'empty', 'clue', 'paradox', 'empty',
+    'event', 'empty', 'event', 'danger', 'event',
+    'empty', 'danger', 'event', 'timegate', 'clue',
+    'paradox', 'danger', 'empty', 'clue', 'paradox',
+    'event', 'danger', 'artifact', 'danger'
   ],
   [ERAS.JAPANESE]: [
-    'start', 'clue', 'danger', 'clue', 'event',
-    'artifact', 'empty', 'clue', 'event', 'timegate',
-    'clue', 'empty', 'clue', 'danger', 'clue',
-    'clue', 'paradox', 'event', 'clue', 'clue'
+    'start', 'empty', 'danger', 'clue', 'paradox',
+    'event', 'empty', 'event', 'paradox', 'clue',
+    'event', 'empty', 'danger', 'artifact', 'danger',
+    'timegate', 'event', 'paradox', 'clue', 'danger',
+    'empty', 'event', 'paradox', 'clue', 'empty', 'event'
   ],
   [ERAS.MYTH]: [
-    'start', 'event', 'clue', 'clue', 'danger',
-    'clue', 'artifact', 'clue', 'event', 'empty',
-    'paradox', 'clue', 'empty', 'timegate', 'clue',
-    'clue', 'event', 'danger', 'clue', 'clue'
+    'start', 'clue', 'paradox', 'event', 'danger',
+    'artifact', 'danger', 'event', 'paradox', 'clue',
+    'danger', 'empty', 'event', 'danger', 'empty',
+    'event', 'empty', 'timegate', 'event', 'event',
+    'clue', 'paradox', 'paradox', 'clue'
   ]
 };
 
-// Percentage coordinates (0-100%) precisely positioned along the winding roads of Full Map.png
+// Percentage coordinates (0-100%) precisely positioned along the winding roads of Full Map with Tiles.png
 export const ERA_TILE_COORDINATES = {
   [ERAS.SPANISH]: [
-    { x: 48.7, y: 16.7 },  // 0 start (Platform Station)
-    { x: 47.4, y: 21.3 },  // 1 clue (Platform track)
-    { x: 45.4, y: 26.3 },  // 2 event (Platform approach)
-    { x: 39.6, y: 29.0 },  // 3 clue (Central Junction)
-    { x: 37.1, y: 24.2 },  // 4 danger (Highway curve)
-    { x: 36.0, y: 19.0 },  // 5 clue (Highway north)
-    { x: 34.1, y: 14.6 },  // 6 empty (Highway ridge)
-    { x: 30.6, y: 12.8 },  // 7 clue (Northern estate highway)
-    { x: 27.1, y: 12.0 },  // 8 event (Estate pass)
-    { x: 23.3, y: 11.4 },  // 9 clue (Ridge descent)
-    { x: 20.1, y: 13.1 },  // 10 clue (Loop gateway)
-    { x: 18.7, y: 18.0 },  // 11 danger (Terrace upper ridge)
-    { x: 15.1, y: 18.3 },  // 12 clue (Terrace northern road)
-    { x: 11.6, y: 18.3 },  // 13 empty (Western bend)
-    { x: 7.8, y: 17.3 },   // 14 clue (Western outlook)
-    { x: 5.2, y: 21.0 },   // 15 event (Western descent)
-    { x: 4.6, y: 26.5 },   // 16 clue (Western road)
-    { x: 6.0, y: 32.2 },   // 17 paradox (Southwestern trail)
-    { x: 9.9, y: 35.7 },   // 18 artifact (Terraced Garden Shrine)
-    { x: 14.6, y: 35.7 },  // 19 empty (Southern coast trail)
-    { x: 18.5, y: 32.5 },  // 20 clue (Southeastern turn)
-    { x: 19.3, y: 24.7 },  // 21 clue (Eastern ascent)
-    { x: 43.4, y: 31.1 },  // 22 event (Nexus Avenue)
-    { x: 46.1, y: 34.5 },  // 23 paradox (Nexus Approach)
-    { x: 48.0, y: 39.3 }   // 24 timegate (Central Nexus NW entrance!)
+    { x: 45.9, y: 17.6 },  // 0: Station Cyan Bullseye
+    { x: 44.7, y: 22.5 },  // 1: Star
+    { x: 42.9, y: 26.9 },  // 2: Empty
+    { x: 41.0, y: 31.4 },  // 3: Skull
+    { x: 43.5, y: 34.4 },  // 4: Empty
+    { x: 45.4, y: 38.6 },  // 5: Timegate (Central Nexus NW entrance)
+    { x: 37.6, y: 29.5 },  // 6: Magnifying glass
+    { x: 35.7, y: 24.7 },  // 7: Star
+    { x: 34.1, y: 20.0 },  // 8: Empty
+    { x: 32.0, y: 15.9 },  // 9: Star
+    { x: 28.6, y: 14.1 },  // 10: Magnifying glass
+    { x: 25.1, y: 13.5 },  // 11: Paradox (P)
+    { x: 21.7, y: 12.9 },  // 12: Star
+    { x: 18.4, y: 14.5 },  // 13: Empty
+    { x: 17.3, y: 18.6 },  // 14: Skull
+    { x: 13.9, y: 19.2 },  // 15: Paradox (P)
+    { x: 10.5, y: 19.2 },  // 16: Magnifying glass
+    { x: 6.8,  y: 18.6 },  // 17: Star
+    { x: 4.2,  y: 21.8 },  // 18: Empty
+    { x: 3.6,  y: 26.5 },  // 19: Paradox (P)
+    { x: 5.0,  y: 31.6 },  // 20: Star
+    { x: 8.7,  y: 35.2 },  // 21: Paradox (P)
+    { x: 13.4, y: 35.4 },  // 22: Magnifying glass
+    { x: 17.1, y: 32.3 },  // 23: Skull
+    { x: 17.8, y: 25.1 }   // 24: Artifact Pedestal
   ],
   [ERAS.AMERICAN]: [
-    { x: 93.3, y: 18.3 },  // 0 start (Circular landing pad)
-    { x: 90.3, y: 26.8 },  // 1 clue (Highway descending south)
-    { x: 86.9, y: 34.0 },  // 2 event (Following eastern highway down)
-    { x: 82.5, y: 36.6 },  // 3 clue (Curving southwest along highway)
-    { x: 77.6, y: 36.6 },  // 4 danger (Passing above southern house)
-    { x: 72.3, y: 35.3 },  // 5 clue (Highway stretch)
-    { x: 66.4, y: 34.6 },  // 6 empty (Highway heading towards nexus)
-    { x: 61.0, y: 34.6 },  // 7 clue (Highway pass)
-    { x: 55.2, y: 37.3 },  // 8 clue (Approaching Nexus entrance)
-    { x: 51.3, y: 44.4 },  // 9 timegate (Central Nexus NE entrance!)
-    { x: 56.2, y: 36.6 },  // 10 clue (Ascending northeast)
-    { x: 59.6, y: 28.1 },  // 11 event (North branch)
-    { x: 64.0, y: 22.9 },  // 12 danger (Upper highway top curve)
-    { x: 69.3, y: 20.9 },  // 13 empty (Upper highway curve)
-    { x: 75.2, y: 21.6 },  // 14 artifact (Upper highway radar installation)
-    { x: 81.1, y: 24.2 },  // 15 clue (Curving east)
-    { x: 85.0, y: 30.7 },  // 16 empty (East curve around oval)
-    { x: 83.0, y: 36.6 },  // 17 paradox (East-south curve around oval)
-    { x: 77.1, y: 35.3 },  // 18 event (Inner highway pass)
-    { x: 87.4, y: 24.8 }   // 19 clue (Connecting back to Landing Pad!)
+    { x: 93.3, y: 24.6 },  // 0: Landing pad Cyan Bullseye
+    { x: 92.5, y: 29.5 },  // 1: Empty
+    { x: 91.5, y: 34.0 },  // 2: Magnifying glass
+    { x: 89.0, y: 37.0 },  // 3: Paradox (P)
+    { x: 85.0, y: 37.6 },  // 4: Empty
+    { x: 82.0, y: 35.8 },  // 5: Star
+    { x: 78.5, y: 33.6 },  // 6: Empty
+    { x: 75.0, y: 34.2 },  // 7: Star
+    { x: 71.5, y: 34.8 },  // 8: Skull
+    { x: 67.5, y: 35.5 },  // 9: Star
+    { x: 63.5, y: 35.5 },  // 10: Empty
+    { x: 59.8, y: 34.5 },  // 11: Skull
+    { x: 56.4, y: 36.8 },  // 12: Star
+    { x: 53.0, y: 43.5 },  // 13: Timegate (Central Nexus NE entrance)
+    { x: 56.8, y: 27.5 },  // 14: Magnifying glass
+    { x: 60.5, y: 26.0 },  // 15: Paradox (P)
+    { x: 64.0, y: 27.0 },  // 16: Skull
+    { x: 65.5, y: 24.5 },  // 17: Empty
+    { x: 69.5, y: 22.0 },  // 18: Magnifying glass
+    { x: 74.0, y: 20.0 },  // 19: Paradox (P)
+    { x: 78.5, y: 20.5 },  // 20: Star
+    { x: 82.5, y: 22.5 },  // 21: Skull
+    { x: 83.5, y: 26.5 },  // 22: Artifact Pedestal
+    { x: 82.5, y: 31.8 }   // 23: Skull
   ],
   [ERAS.JAPANESE]: [
-    { x: 10.3, y: 91.5 },  // 0 start (Glowing Red Beacon!)
-    { x: 16.6, y: 93.5 },  // 1 clue (Wide dirt road along south edge)
-    { x: 23.4, y: 92.8 },  // 2 danger (South road)
-    { x: 30.3, y: 92.2 },  // 3 clue (South road)
-    { x: 36.1, y: 90.8 },  // 4 event (South road curve)
-    { x: 41.5, y: 88.9 },  // 5 artifact (Southeast corner shrine)
-    { x: 44.4, y: 81.0 },  // 6 empty (Eastern road heading north)
-    { x: 44.4, y: 72.5 },  // 7 clue (Eastern road)
-    { x: 43.0, y: 64.7 },  // 8 event (Eastern road turning to Nexus)
-    { x: 47.4, y: 54.9 },  // 9 timegate (Central Nexus SW bridge!)
-    { x: 41.0, y: 62.7 },  // 10 clue (Top road heading west)
-    { x: 33.7, y: 61.4 },  // 11 empty (Top road under hangar)
-    { x: 25.9, y: 60.1 },  // 12 clue (Top road)
-    { x: 18.1, y: 59.5 },  // 13 danger (Top road curve)
-    { x: 11.2, y: 60.1 },  // 14 clue (Top-left corner)
-    { x: 9.3, y: 67.3 },  // 15 clue (Western road descending)
-    { x: 9.3, y: 74.5 },  // 16 paradox (Western road outpost)
-    { x: 9.3, y: 81.7 },  // 17 event (Western road)
-    { x: 9.3, y: 87.6 },  // 18 clue (Western road near beacon)
-    { x: 9.8, y: 90.8 }   // 19 clue (Returning to Beacon!)
+    { x: 7.7,  y: 88.0 },  // 0: Start Cyan Bullseye
+    { x: 7.2,  y: 94.2 },  // 1: Red bunker
+    { x: 13.5, y: 91.5 },  // 2: Skull
+    { x: 16.8, y: 84.7 },  // 3: Magnifying glass
+    { x: 20.3, y: 79.9 },  // 4: Paradox (P)
+    { x: 24.8, y: 78.2 },  // 5: Star
+    { x: 28.9, y: 79.9 },  // 6: Empty
+    { x: 32.2, y: 86.3 },  // 7: Star
+    { x: 35.4, y: 92.3 },  // 8: Paradox (P)
+    { x: 39.6, y: 93.7 },  // 9: Magnifying glass
+    { x: 43.6, y: 91.6 },  // 10: Star
+    { x: 45.9, y: 86.0 },  // 11: Empty
+    { x: 45.6, y: 78.4 },  // 12: Skull
+    { x: 43.5, y: 72.5 },  // 13: Artifact Pedestal
+    { x: 42.4, y: 66.4 },  // 14: Skull
+    { x: 44.6, y: 60.5 },  // 15: Timegate (Central Nexus SW bridge)
+    { x: 38.7, y: 59.6 },  // 16: Star
+    { x: 32.7, y: 60.5 },  // 17: Paradox (P)
+    { x: 27.8, y: 63.1 },  // 18: Magnifying glass
+    { x: 22.4, y: 61.8 },  // 19: Skull
+    { x: 17.4, y: 60.1 },  // 20: Empty
+    { x: 11.1, y: 59.9 },  // 21: Star
+    { x: 8.4,  y: 63.5 },  // 22: Paradox (P)
+    { x: 7.6,  y: 70.7 },  // 23: Magnifying glass
+    { x: 7.7,  y: 76.9 },  // 24: Empty
+    { x: 7.3,  y: 83.5 }   // 25: Star
   ],
   [ERAS.MYTH]: [
-    { x: 89.4, y: 56.2 },  // 0 start (Torii Gate Shrine!)
-    { x: 86.9, y: 64.7 },  // 1 event (Descending south)
-    { x: 85.4, y: 73.2 },  // 2 clue (Eastern ridge path)
-    { x: 84.0, y: 82.4 },  // 3 clue (Eastern ridge path)
-    { x: 80.6, y: 89.5 },  // 4 danger (Southeast terrace)
-    { x: 74.7, y: 93.5 },  // 5 clue (South terrace near pink flower)
-    { x: 68.8, y: 94.8 },  // 6 artifact (Glowing Spirit Tree grove)
-    { x: 62.5, y: 94.8 },  // 7 clue (South terrace)
-    { x: 56.6, y: 93.5 },  // 8 event (South terrace near blue rune)
-    { x: 51.8, y: 88.9 },  // 9 empty (Curving under fiery tree)
-    { x: 48.8, y: 81.0 },  // 10 paradox (West terrace ascending)
-    { x: 47.9, y: 71.9 },  // 11 clue (Past cyan pool)
-    { x: 48.8, y: 62.7 },  // 12 empty (Approaching nexus)
-    { x: 51.3, y: 54.9 },  // 13 timegate (Central Nexus SE bridge!)
-    { x: 55.7, y: 53.6 },  // 14 clue (Path heading east under sakura)
-    { x: 61.0, y: 53.6 },  // 15 clue (Path under sakura)
-    { x: 66.9, y: 54.2 },  // 16 event (Northern trail)
-    { x: 72.8, y: 54.9 },  // 17 danger (Trail under second sakura)
-    { x: 78.6, y: 55.6 },  // 18 clue (Trail towards Torii)
-    { x: 84.5, y: 55.9 }   // 19 clue (Torii platform entrance)
+    { x: 89.6, y: 37.3 },  // 0: Torii Gate Cyan Bullseye
+    { x: 89.1, y: 46.5 },  // 1: Magnifying glass
+    { x: 90.3, y: 54.0 },  // 2: Paradox (P)
+    { x: 89.4, y: 85.0 },  // 3: Star
+    { x: 85.7, y: 87.8 },  // 4: Skull
+    { x: 81.5, y: 87.6 },  // 5: Artifact Pedestal
+    { x: 78.0, y: 83.9 },  // 6: Skull
+    { x: 74.8, y: 80.8 },  // 7: Star
+    { x: 68.2, y: 86.9 },  // 8: Paradox (P)
+    { x: 65.6, y: 92.5 },  // 9: Magnifying glass
+    { x: 61.2, y: 93.9 },  // 10: Skull
+    { x: 57.0, y: 91.2 },  // 11: Empty
+    { x: 53.8, y: 85.5 },  // 12: Star
+    { x: 51.2, y: 77.6 },  // 13: Skull
+    { x: 53.0, y: 70.0 },  // 14: Empty
+    { x: 57.4, y: 62.5 },  // 15: Star
+    { x: 58.1, y: 56.5 },  // 16: Empty
+    { x: 56.6, y: 50.8 },  // 17: Timegate (Central Nexus SE bridge)
+    { x: 59.5, y: 46.5 },  // 18: Star
+    { x: 63.7, y: 46.5 },  // 19: Star
+    { x: 68.4, y: 45.8 },  // 20: Magnifying glass
+    { x: 71.8, y: 52.0 },  // 21: Paradox (P)
+    { x: 73.9, y: 58.2 },  // 22: Paradox (P)
+    { x: 74.4, y: 66.5 }   // 23: Magnifying glass
   ]
 };
 

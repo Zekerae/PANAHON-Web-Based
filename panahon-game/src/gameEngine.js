@@ -1227,6 +1227,14 @@ export class GameEngine {
     this.notify();
   }
 
+  discardCard(card) {
+    if (!card) return;
+    if (!this.state.discardPile) {
+      this.state.discardPile = [];
+    }
+    this.state.discardPile.push(card);
+  }
+
   // --- End Game ---
   endGame(reason) {
     this.stopTimer();

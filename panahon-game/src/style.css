@@ -2768,5 +2768,40 @@ html, body {
   }
 }
 
+.side-card-maximize {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 3px 6px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+.side-card-maximize:hover {
+  color: var(--text-accent);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.side-card-clickable {
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-sm);
+}
+
+.side-card-clickable:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(168, 85, 247, 0.6);
+  transform: translateY(-1px);
+}
+
+.card-preview-modal {
+  border: 1px solid rgba(232, 197, 71, 0.5);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8), 0 0 28px rgba(232, 197, 71, 0.25);
+}
+
+
 
 

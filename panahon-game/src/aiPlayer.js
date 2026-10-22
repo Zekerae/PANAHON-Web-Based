@@ -56,144 +56,157 @@ class AiController {
     const player = engine.getCurrentPlayer();
     if (!state || !player) return;
 
-    // 1. Pending Modal (e.g. Card drawn)
-    if (state.pendingModal) {
-      // Auto-dismiss card modal after allowing brief view duration
-      engine.dismissModal();
-      network?.sendAction({ type: 'DISMISS_MODAL' });
-      this.scheduleAiStep(engine, network, 500);
-      return;
-    }
-
-    // 2. Pending Choice (e.g. Artifact stop, Time Gate pass, Decipher)
-    if (state.pendingChoice) {
-      this.handleAiChoice(engine, network, state.pendingChoice, player);
-      return;
-    }
-
-    // 3. Card Resolution Phase (safeguard)
-    if (state.phase === 'cardResolution') {
+    try {
+      // 1. Pending Modal (e.g. Card drawn)
       if (state.pendingModal) {
+        // Auto-dismiss card modal after allowing brief view duration
         engine.dismissModal();
         network?.sendAction({ type: 'DISMISS_MODAL' });
-      } else {
-        engine.state.phase = 'action';
-      }
-      this.scheduleAiStep(engine, network, 450);
-      return;
-    }
-
-    // 4. Rolling Phase
-    if (state.phase === 'rolling') {
-      // Explorer AI: activate Momentum pre-roll if energy is good
-      if (
-        player.roleKey === 'EXPLORER' &&
-        player.activeCooldown === 0 &&
-        !player.usedAbilityThisTurn &&
-        player.energy >= 3 &&
-        Math.random() < 0.45
-      ) {
-        sounds.btnClick?.();
-        engine.useActiveAbility(player.id);
-        network?.sendAction({ type: 'USE_ABILITY', playerIdx: player.id });
-        this.scheduleAiStep(engine, network, 600);
+        this.scheduleAiStep(engine, network, 500);
         return;
       }
 
-      // Roll the die
-      sounds.diceRoll?.();
-      const result = engine.rollDice();
-      if (result) {
-        network?.sendAction({ type: 'ROLL_DICE', result });
+      // 2. Pending Choice (e.g. Artifact stop, Time Gate pass, Decipher)
+      if (state.pendingChoice) {
+        this.handleAiChoice(engine, network, state.pendingChoice, player);
+        return;
       }
-      this.scheduleAiStep(engine, network, 750);
-      return;
-    }
 
-    // 5. Moving Phase
-    if (state.phase === 'moving') {
-      if (state.movesRemaining > 0) {
-        sounds.moveStep?.();
-        const ok = engine.movePlayerStep();
-        if (ok) {
-          network?.sendAction({ type: 'MOVE_STEP' });
+      // 3. Card Resolution Phase (safeguard)
+      if (state.phase === 'cardResolution') {
+        if (state.pendingModal) {
+          engine.dismissModal();
+          network?.sendAction({ type: 'DISMISS_MODAL' });
+        } else {
+          engine.state.phase = 'action';
         }
         this.scheduleAiStep(engine, network, 450);
         return;
-      } else {
-        // Moves completed, advance phase to action
-        engine.state.phase = 'action';
-        this.scheduleAiStep(engine, network, 400);
-        return;
       }
-    }
 
-    // 6. Action Phase
-    if (state.phase === 'action') {
-      // A. Check if bot has an artifact matching the current era to return for 5 points!
-      const matchingArtifact = player.artifactCards.find(a => a.era === player.currentEra);
-      if (matchingArtifact) {
-        sounds.victory?.();
-        engine.returnArtifact(player.id, matchingArtifact.id);
-        network?.sendAction({ type: 'RETURN_ARTIFACT', playerIdx: player.id, artifactId: matchingArtifact.id });
+      // 4. Rolling Phase
+      if (state.phase === 'rolling') {
+        // Explorer AI: activate Momentum pre-roll if energy is good
+        if (
+          player.roleKey === 'EXPLORER' &&
+          player.activeCooldown === 0 &&
+          !player.usedAbilityThisTurn &&
+          player.energy >= 3 &&
+          Math.random() < 0.45
+        ) {
+          sounds.btnClick?.();
+          engine.useActiveAbility(player.id);
+          network?.sendAction({ type: 'USE_ABILITY', playerIdx: player.id });
+          this.scheduleAiStep(engine, network, 600);
+          return;
+        }
+
+        // Roll the die
+        sounds.diceRoll?.();
+        const result = engine.rollDice();
+        if (result) {
+          network?.sendAction({ type: 'ROLL_DICE', result });
+        }
         this.scheduleAiStep(engine, network, 750);
         return;
       }
 
-      // B. Use Role Active Ability if available and strategically useful
-      if (!player.usedAbilityThisTurn && player.activeCooldown === 0 && player.energy >= (player.role?.active?.energyCost || 0)) {
-        let shouldCast = false;
-
-        if (player.roleKey === 'GUARDIAN') {
-          // Cast shield if paradox is getting high, or on teammate with high paradox
-          const highParadoxTeammate = state.players.find(p => p.paradox >= 3 && !p.shielded);
-          if (player.paradox >= 2 || highParadoxTeammate) {
-            shouldCast = true;
+      // 5. Moving Phase
+      if (state.phase === 'moving') {
+        if (state.movesRemaining > 0) {
+          sounds.moveStep?.();
+          const ok = engine.movePlayerStep();
+          if (ok) {
+            network?.sendAction({ type: 'MOVE_STEP' });
           }
-        } else if (player.roleKey === 'HISTORIAN') {
-          // Decipher clues if we have enough energy
-          if (player.energy >= 3) {
-            shouldCast = true;
-          }
-        } else if (player.roleKey === 'STRATEGIST') {
-          // Place trap if on a valuable clue or artifact space
-          const currentTile = state.board[player.currentEra][player.tileIndex];
-          if (currentTile.type === TILE_TYPES.CLUE || currentTile.type === TILE_TYPES.ARTIFACT) {
-            shouldCast = true;
-          }
-        }
-
-        if (shouldCast) {
-          sounds.portal?.();
-          const used = engine.useActiveAbility(player.id);
-          if (used) {
-            network?.sendAction({ type: 'USE_ABILITY', playerIdx: player.id });
-            this.scheduleAiStep(engine, network, 700);
-            return;
-          }
+          this.scheduleAiStep(engine, network, 450);
+          return;
+        } else {
+          // Moves completed, advance phase to action
+          engine.state.phase = 'action';
+          this.scheduleAiStep(engine, network, 400);
+          return;
         }
       }
 
-      // C. If low on energy or stranded, rest
-      if (player.energy <= 0 || player.stranded) {
+      // 6. Action Phase
+      if (state.phase === 'action') {
+        // A. Check if bot has an artifact matching the current era to return for 5 points!
+        const matchingArtifact = player.artifactCards.find(a => a.era === player.currentEra);
+        if (matchingArtifact) {
+          sounds.victory?.();
+          engine.returnArtifact(player.id, matchingArtifact.id);
+          network?.sendAction({ type: 'RETURN_ARTIFACT', playerIdx: player.id, artifactId: matchingArtifact.id });
+          this.scheduleAiStep(engine, network, 750);
+          return;
+        }
+
+        // B. Use Role Active Ability if available and strategically useful
+        if (!player.usedAbilityThisTurn && player.activeCooldown === 0 && player.energy >= (player.role?.active?.energyCost || 0)) {
+          let shouldCast = false;
+
+          if (player.roleKey === 'GUARDIAN') {
+            const highParadoxTeammate = state.players.find(p => p.paradox >= 3 && !p.shielded);
+            if (player.paradox >= 2 || highParadoxTeammate) {
+              shouldCast = true;
+            }
+          } else if (player.roleKey === 'HISTORIAN') {
+            if (player.energy >= 3) {
+              shouldCast = true;
+            }
+          } else if (player.roleKey === 'STRATEGIST') {
+            const currentTile = state.board[player.currentEra][player.tileIndex];
+            if (currentTile.type === TILE_TYPES.CLUE || currentTile.type === TILE_TYPES.ARTIFACT) {
+              shouldCast = true;
+            }
+          }
+
+          if (shouldCast) {
+            sounds.portal?.();
+            const used = engine.useActiveAbility(player.id);
+            if (used) {
+              network?.sendAction({ type: 'USE_ABILITY', playerIdx: player.id });
+              this.scheduleAiStep(engine, network, 700);
+              return;
+            }
+          }
+        }
+
+        // C. If low on energy or stranded, rest
+        if (player.energy <= 0 || player.stranded) {
+          sounds.btnClick?.();
+          engine.rest(player.id);
+          network?.sendAction({ type: 'REST', playerIdx: player.id });
+          this.scheduleAiStep(engine, network, 700);
+          return;
+        }
+
+        // D. Finish Turn
         sounds.btnClick?.();
-        engine.rest(player.id);
-        network?.sendAction({ type: 'REST', playerIdx: player.id });
-        this.scheduleAiStep(engine, network, 700);
+        engine.endTurn();
+        network?.sendAction({ type: 'END_TURN' });
+        this.scheduleAiStep(engine, network, 750);
         return;
       }
 
-      // D. Finish Turn
-      sounds.btnClick?.();
-      engine.endTurn();
-      network?.sendAction({ type: 'END_TURN' });
-      this.scheduleAiStep(engine, network, 750);
-      return;
+      // 7. Safety Watchdog: If in any unrecognized or intermediate phase during bot turn, recover safely
+      engine.state.phase = 'action';
+      this.scheduleAiStep(engine, network, 500);
+    } catch (err) {
+      console.warn('AI Controller encountered an error, attempting recovery:', err);
+      try {
+        if (engine.state.pendingChoice) {
+          engine.resolveChoice('continueMoving');
+        } else if (engine.state.pendingModal) {
+          engine.dismissModal();
+        } else {
+          engine.endTurn();
+        }
+      } catch (recoverErr) {
+        console.error('AI recovery fallback failed:', recoverErr);
+      }
+      this.scheduleAiStep(engine, network, 1000);
     }
-
-    // 7. Safety Watchdog: If in any unrecognized or intermediate phase during bot turn, recover safely
-    engine.state.phase = 'action';
-    this.scheduleAiStep(engine, network, 500);
   }
 
   // Handle decisions when presented with choices

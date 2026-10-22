@@ -1445,7 +1445,7 @@ function renderGameScreen() {
                 <div>
                   <div class="mission-title">
                     ${isViewingSelf
-        ? `Mission: Retrieve ${viewedPlayer.mission.targetArtifact}`
+        ? `Mission: Retrieve ${viewedPlayer.mission.artifactNickname || viewedPlayer.mission.artifactName || 'Classified Relic'}`
         : `Mission: Classified Objective (${viewedPlayer.name})`}
                   </div>
                   <div class="mission-objective">
@@ -1840,6 +1840,62 @@ function dismissAnyActiveOverlay(immediate = false) {
   }
 }
 
+function renderMaximizedCardPreview(data) {
+  dismissAnyActiveOverlay(true);
+
+  const previewHtml = `
+    <div class="modal-overlay" id="active-modal" style="z-index: 10000;">
+      <div class="modal card-preview-modal" style="max-width: 460px; width: 92%; animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
+        <button class="modal-close" id="max-preview-close">&times;</button>
+        <div class="modal-title" style="color: ${data.isDanger ? 'var(--text-danger)' : (data.isEvent ? 'var(--tile-event)' : 'var(--text-accent)')};">
+          ${data.cardType || data.title}
+        </div>
+
+        <div class="modal-body" style="text-align: center;">
+          <div class="card-display" style="max-width: 330px; margin: 0 auto;">
+            ${data.image ? `<img src="${data.image}" alt="${data.title}" style="max-height: 230px; object-fit: contain; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.2); margin-bottom: 8px;">` : ''}
+            <div class="card-display-title" style="font-size: 1.15rem; font-weight: 700; color: var(--text-accent);">${data.title}</div>
+            ${data.era ? `<div style="font-size: 0.75rem; color: var(--text-secondary); margin: 4px 0 8px;">Era: <strong style="color: #fff;">${ERA_NAMES[data.era] || data.era}</strong></div>` : ''}
+            <div class="card-display-desc" style="font-size: 0.88rem; line-height: 1.45; color: var(--text-primary); text-align: left; background: rgba(0,0,0,0.4); padding: 10px 12px; border-radius: 6px;">
+              ${data.description || data.hint || 'Classified historical intel.'}
+            </div>
+          </div>
+
+          ${data.diceRoll !== undefined ? `
+            <div class="modal-dice" style="margin-top: 14px;">
+              <div class="dice" style="border-color: ${data.success ? 'var(--text-success)' : 'var(--text-danger)'};">
+                ${data.diceRoll}
+              </div>
+              <div class="modal-dice-result">
+                <div style="font-size: 0.8rem; color: var(--text-secondary);">Dice Check Roll</div>
+                <div class="modal-dice-outcome ${data.success ? 'success' : 'failure'}">
+                  ${data.success ? '✓ HAZARD EVADED' : '✗ HAZARD TRIGGERED'}
+                </div>
+                <div style="font-size: 0.8rem; margin-top: 4px; color: ${data.success ? 'var(--text-success)' : 'var(--text-danger)'};">
+                  ${data.success ? data.successMsg : data.failMsg}
+                </div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="modal-actions" style="margin-top: 16px;">
+          <button id="max-preview-close-btn" class="btn btn-primary" style="width: 100%;">Close Preview</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', previewHtml);
+
+  const close = () => {
+    sounds.btnClick?.();
+    dismissAnyActiveOverlay(true);
+  };
+  document.querySelector('#max-preview-close')?.addEventListener('click', close);
+  document.querySelector('#max-preview-close-btn')?.addEventListener('click', close);
+}
+
 // ==========================================
 // 4. MODALS & CHOICES
 // ==========================================
@@ -1858,7 +1914,7 @@ function renderCardModal(modal) {
   const isArtifact = modal.type === 'artifact';
   const isClue = modal.isClue || modal.cardType === 'Clue Card' || modal.cardType === 'Decoy Card';
 
-  // If drawn by an AI bot, show non-blocking side overlay with auto-dismiss timer
+  // If drawn by an AI bot, show non-blocking side overlay with auto-dismiss timer and click-to-maximize
   if (isAi) {
     const overlayHtml = `
       <div class="side-card-overlay" id="active-modal">
@@ -1869,7 +1925,10 @@ function renderCardModal(modal) {
               ${modal.cardType || modal.title}
             </span>
           </div>
-          <button class="side-card-close" id="side-overlay-close-btn" title="Dismiss">&times;</button>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <button class="side-card-maximize" id="side-overlay-maximize-btn" title="Click to view card in full screen">🔍</button>
+            <button class="side-card-close" id="side-overlay-close-btn" title="Dismiss">&times;</button>
+          </div>
         </div>
 
         <div class="side-card-body">
@@ -1877,7 +1936,7 @@ function renderCardModal(modal) {
             <strong style="color: ${drawingPlayer?.color || '#fff'};">${escapeHtml(drawingPlayer?.name || modal.playerName || 'Bot')}</strong> drew a card:
           </div>
 
-          <div class="side-card-content-preview">
+          <div class="side-card-content-preview side-card-clickable" id="side-card-preview-box" title="Click to view card in full screen">
             ${modal.image ? `<img src="${modal.image}" class="side-card-thumb" alt="${modal.title}">` : ''}
             <div>
               <div style="font-weight: 700; font-size: 0.82rem; color: var(--text-primary);">${modal.title}</div>
@@ -1885,6 +1944,10 @@ function renderCardModal(modal) {
                 ${modal.description || ''}
               </div>
             </div>
+          </div>
+
+          <div style="font-size: 0.68rem; color: #60A5FA; display: flex; align-items: center; gap: 4px; cursor: pointer;" id="side-card-click-hint">
+            <span>🔍</span> Click card to view in full size
           </div>
 
           ${isDanger && modal.diceRoll !== undefined ? `
@@ -1901,6 +1964,27 @@ function renderCardModal(modal) {
     `;
 
     document.body.insertAdjacentHTML('beforeend', overlayHtml);
+
+    const openMaximized = () => {
+      sounds.btnClick?.();
+      renderMaximizedCardPreview({
+        title: modal.title,
+        cardType: modal.cardType,
+        description: modal.description,
+        image: modal.image,
+        era: modal.era,
+        diceRoll: modal.diceRoll,
+        success: modal.success,
+        successMsg: modal.successMsg,
+        failMsg: modal.failMsg,
+        isDanger: isDanger,
+        isEvent: isEvent
+      });
+    };
+
+    document.querySelector('#side-card-preview-box')?.addEventListener('click', openMaximized);
+    document.querySelector('#side-card-click-hint')?.addEventListener('click', openMaximized);
+    document.querySelector('#side-overlay-maximize-btn')?.addEventListener('click', openMaximized);
 
     document.querySelector('#side-overlay-close-btn')?.addEventListener('click', () => {
       dismissAnyActiveOverlay(true);
@@ -2013,8 +2097,9 @@ function renderChoiceModal(choice) {
   const isMyTurn = !isAi && network.isMyTurn(engine.state.currentPlayerIndex);
   const isDecipher = choice.type === 'historianDecipher';
 
-  // If it's an AI choice, show as sleek non-blocking Side Overlay with auto-dismiss timer
+  // If it's an AI choice, show as sleek non-blocking Side Overlay with auto-dismiss timer and click-to-maximize
   if (isAi) {
+    const targetCard = (isDecipher && choice.drawnCards) ? choice.drawnCards[0] : null;
     const overlayHtml = `
       <div class="side-card-overlay" id="active-modal">
         <div class="side-card-header">
@@ -2022,16 +2107,19 @@ function renderChoiceModal(choice) {
             <span class="bot-badge">🤖 BOT</span>
             <span>${choice.title}</span>
           </div>
-          <button class="side-card-close" id="side-overlay-close-btn" title="Dismiss">&times;</button>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            ${targetCard ? `<button class="side-card-maximize" id="side-choice-maximize-btn" title="Click to view card in full screen">🔍</button>` : ''}
+            <button class="side-card-close" id="side-overlay-close-btn" title="Dismiss">&times;</button>
+          </div>
         </div>
 
         <div class="side-card-body">
           <div style="font-size: 0.8rem; color: var(--text-secondary);">
-            <strong style="color: ${activePlayer.color || '#fff'};">${activePlayer.name}</strong> is evaluating tactical options:
+            <strong style="color: ${activePlayer.color || '#fff'};">${activePlayer.name}</strong> evaluated tactical options:
           </div>
 
           ${isDecipher && choice.drawnCards ? `
-            <div class="mystery-cards-mini-row">
+            <div class="mystery-cards-mini-row side-card-clickable" id="side-choice-preview-box" title="Click to view card in full screen">
               ${choice.drawnCards.map((c, idx) => `
                 <div class="mystery-card-mini ${idx === 0 ? 'selected-by-bot' : ''}">
                   <div style="font-size: 1.4rem;">📜</div>
@@ -2039,6 +2127,9 @@ function renderChoiceModal(choice) {
                   ${idx === 0 ? '<div class="mini-choice-badge">DECIPHERED</div>' : '<div style="font-size: 0.6rem; color: #94A3B8;">Deck Return</div>'}
                 </div>
               `).join('')}
+            </div>
+            <div style="font-size: 0.68rem; color: #60A5FA; display: flex; align-items: center; gap: 4px; cursor: pointer;" id="side-choice-click-hint">
+              <span>🔍</span> Click card to view in full size
             </div>
           ` : ''}
 
@@ -2057,6 +2148,23 @@ function renderChoiceModal(choice) {
     `;
 
     document.body.insertAdjacentHTML('beforeend', overlayHtml);
+
+    const openChoiceMaximized = () => {
+      if (targetCard) {
+        sounds.btnClick?.();
+        renderMaximizedCardPreview({
+          title: targetCard.title || (targetCard.isDecoy ? 'Decoy Card' : 'Clue Card'),
+          cardType: targetCard.isDecoy ? 'Decoy Card' : 'Clue Card',
+          description: targetCard.description || targetCard.hint,
+          image: targetCard.image || targetCard.cardImage,
+          era: targetCard.era
+        });
+      }
+    };
+
+    document.querySelector('#side-choice-preview-box')?.addEventListener('click', openChoiceMaximized);
+    document.querySelector('#side-choice-click-hint')?.addEventListener('click', openChoiceMaximized);
+    document.querySelector('#side-choice-maximize-btn')?.addEventListener('click', openChoiceMaximized);
 
     document.querySelector('#side-overlay-close-btn')?.addEventListener('click', () => {
       dismissAnyActiveOverlay(true);
@@ -2134,7 +2242,6 @@ function renderChoiceModal(choice) {
       network.sendAction({ type: 'RESOLVE_CHOICE', action });
       dismissAnyActiveOverlay(true);
     });
-  });
 }
 
 // ==========================================

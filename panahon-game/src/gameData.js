@@ -31,9 +31,10 @@ export const TILE_TYPES = {
 export const ERA_TILE_LAYOUTS = {
   [ERAS.SPANISH]: [
     'start', 'clue', 'event', 'clue', 'danger',
-    'clue', 'empty', 'artifact', 'empty', 'clue',
-    'clue', 'event', 'clue', 'clue', 'danger',
-    'clue', 'paradox', 'timegate', 'event', 'clue'
+    'clue', 'empty', 'clue', 'event', 'clue',
+    'clue', 'danger', 'clue', 'empty', 'clue',
+    'event', 'clue', 'paradox', 'artifact', 'empty',
+    'clue', 'clue', 'event', 'paradox', 'timegate'
   ],
   [ERAS.AMERICAN]: [
     'start', 'clue', 'event', 'clue', 'danger',
@@ -58,26 +59,31 @@ export const ERA_TILE_LAYOUTS = {
 // Percentage coordinates (0-100%) precisely positioned along the winding roads of Full Map.png
 export const ERA_TILE_COORDINATES = {
   [ERAS.SPANISH]: [
-    { x: 15.6, y: 19.6 },  // 0 start (Village Gateway near red roof house)
-    { x: 11.2, y: 18.3 },  // 1 clue (Road turning left)
-    { x: 7.3, y: 22.9 },  // 2 event (Western road descending)
-    { x: 6.3, y: 30.1 },  // 3 clue (Western road)
-    { x: 6.8, y: 35.9 },  // 4 danger (Western road lower stretch)
-    { x: 9.3, y: 40.5 },  // 5 clue (Bottom-left corner curve)
-    { x: 13.7, y: 39.9 },  // 6 empty (Road curving east under terraced garden)
-    { x: 18.1, y: 37.9 },  // 7 artifact (Terraced garden southern trail)
-    { x: 21.5, y: 33.3 },  // 8 empty (Road east curve around garden)
-    { x: 22.5, y: 26.8 },  // 9 clue (Road heading north)
-    { x: 23.4, y: 20.9 },  // 10 clue (Rising towards top junction)
-    { x: 27.3, y: 19.0 },  // 11 event (Top highway past northern house)
-    { x: 32.2, y: 18.3 },  // 12 clue (Top highway ridge)
-    { x: 37.1, y: 19.0 },  // 13 clue (Top highway curve)
-    { x: 41.5, y: 24.2 },  // 14 danger (Descending southeast avenue)
-    { x: 44.4, y: 31.4 },  // 15 clue (Avenue heading to nexus)
-    { x: 46.4, y: 38.6 },  // 16 paradox (Avenue approaching nexus)
-    { x: 47.9, y: 46.4 },  // 17 timegate (Central Nexus NW bridge entrance!)
-    { x: 43.5, y: 34.6 },  // 18 event (Ascending avenue return)
-    { x: 33.2, y: 19.0 }   // 19 clue (Returning highway link to start)
+    { x: 48.7, y: 16.7 },  // 0 start (Platform Station)
+    { x: 47.4, y: 21.3 },  // 1 clue (Platform track)
+    { x: 45.4, y: 26.3 },  // 2 event (Platform approach)
+    { x: 39.6, y: 29.0 },  // 3 clue (Central Junction)
+    { x: 37.1, y: 24.2 },  // 4 danger (Highway curve)
+    { x: 36.0, y: 19.0 },  // 5 clue (Highway north)
+    { x: 34.1, y: 14.6 },  // 6 empty (Highway ridge)
+    { x: 30.6, y: 12.8 },  // 7 clue (Northern estate highway)
+    { x: 27.1, y: 12.0 },  // 8 event (Estate pass)
+    { x: 23.3, y: 11.4 },  // 9 clue (Ridge descent)
+    { x: 20.1, y: 13.1 },  // 10 clue (Loop gateway)
+    { x: 18.7, y: 18.0 },  // 11 danger (Terrace upper ridge)
+    { x: 15.1, y: 18.3 },  // 12 clue (Terrace northern road)
+    { x: 11.6, y: 18.3 },  // 13 empty (Western bend)
+    { x: 7.8, y: 17.3 },   // 14 clue (Western outlook)
+    { x: 5.2, y: 21.0 },   // 15 event (Western descent)
+    { x: 4.6, y: 26.5 },   // 16 clue (Western road)
+    { x: 6.0, y: 32.2 },   // 17 paradox (Southwestern trail)
+    { x: 9.9, y: 35.7 },   // 18 artifact (Terraced Garden Shrine)
+    { x: 14.6, y: 35.7 },  // 19 empty (Southern coast trail)
+    { x: 18.5, y: 32.5 },  // 20 clue (Southeastern turn)
+    { x: 19.3, y: 24.7 },  // 21 clue (Eastern ascent)
+    { x: 43.4, y: 31.1 },  // 22 event (Nexus Avenue)
+    { x: 46.1, y: 34.5 },  // 23 paradox (Nexus Approach)
+    { x: 48.0, y: 39.3 }   // 24 timegate (Central Nexus NW entrance!)
   ],
   [ERAS.AMERICAN]: [
     { x: 93.3, y: 18.3 },  // 0 start (Circular landing pad)

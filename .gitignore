@@ -1,0 +1,18 @@
+# Logs
+logs
+*.log
+
+# Dependencies & Build Output
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+# Raw oversized map source assets (>50MB-300MB+; the web game only uses Full Map.png)
+Panahon_ Game Assets/Map/*_Quadrant_Map/

@@ -1,0 +1,1378 @@
+// ===== PANAHON: CHRONO SHIFT - Main Controller & UI =====
+
+import './style.css';
+import { GameEngine } from './gameEngine.js';
+import { NetworkManager } from './network.js';
+import {
+  ERAS, ERA_NAMES, ERA_ORDER, TILE_TYPES, ROLES, ROLE_ORDER,
+  ARTIFACTS, ALL_ARTIFACTS, GAME_CONSTANTS, SCORING, PLAYER_COLORS,
+  ERA_TILE_COORDINATES
+} from './gameData.js';
+import { sounds } from './sound.js';
+
+// --- State Variables ---
+let engine = new GameEngine();
+let network = new NetworkManager(engine);
+let currentScreen = 'title'; // 'title' | 'lobby' | 'game' | 'endgame'
+let lobbyMode = 'local'; // 'local' | 'online'
+let onlineSubMode = 'create'; // 'create' | 'join'
+let soundMuted = false;
+let activeHandTab = 'mission'; // 'mission' | 'clues' | 'artifacts'
+let showGuide = false;
+let guideTab = 'overview';
+let cameraMode = 'full'; // 'full' | 'focus-spanish' | 'focus-american' | 'focus-japanese' | 'focus-myth' | 'auto'
+
+// Local player setup defaults
+let localPlayers = [
+  { name: 'Historian', roleKey: 'HISTORIAN' },
+  { name: 'Explorer', roleKey: 'EXPLORER' },
+  { name: 'Guardian', roleKey: 'GUARDIAN' },
+  { name: 'Strategist', roleKey: 'STRATEGIST' }
+];
+
+// Online player setup state
+let onlinePlayerName = 'Temporal Castaway';
+let onlineSelectedRole = 'HISTORIAN';
+let onlineRoomCodeInput = '';
+let currentRoomPlayers = [];
+
+// Toasts queue
+const toasts = [];
+
+function showToast(title, message, type = 'info') {
+  const toast = { id: Date.now() + Math.random(), title, message, type };
+  toasts.push(toast);
+  renderToasts();
+  setTimeout(() => {
+    const idx = toasts.findIndex(t => t.id === toast.id);
+    if (idx >= 0) {
+      toasts.splice(idx, 1);
+      renderToasts();
+    }
+  }, 4000);
+}
+
+// --- Initialize App ---
+const app = document.querySelector('#app');
+
+function setupNetworkListeners() {
+  network.onRoomCreated = (code) => {
+    currentRoomPlayers = [{ id: 0, name: onlinePlayerName, roleKey: onlineSelectedRole, isHost: true }];
+    showToast('Room Created', `Room Code: ${code}. Share with allies!`, 'success');
+    render();
+  };
+
+  network.onRoomJoined = (code, players) => {
+    currentRoomPlayers = players || [];
+    showToast('Joined Room', `Connected to Room ${code}`, 'success');
+    render();
+  };
+
+  network.onPlayerJoin = (player) => {
+    currentRoomPlayers.push(player);
+    showToast('Allied Castaway Arrived', `${player.name} joined as ${ROLES[player.roleKey]?.name}!`, 'info');
+    render();
+  };
+
+  network.onPlayerLeave = (playerId) => {
+    currentRoomPlayers = currentRoomPlayers.filter(p => p.id !== playerId);
+    showToast('Castaway Disconnected', `A player lost temporal sync.`, 'warning');
+    render();
+  };
+
+  network.onGameStart = (players) => {
+    sounds.portal();
+    const configs = players.map((p, idx) => ({
+      name: p.name,
+      roleKey: p.roleKey,
+      isLocal: network.isHost ? (p.id === 0) : (p.id === network.playerId),
+      connectionId: p.id
+    }));
+    engine.initGame(configs);
+    currentScreen = 'game';
+    showToast('Chrono Shift Engaged', 'All timelines active. Protect the flow of history!', 'success');
+    render();
+  };
+
+  network.onStateUpdate = (state) => {
+    engine.loadState(state);
+    render();
+  };
+
+  network.onError = (msg) => {
+    showToast('Multiplayer Alert', msg, 'danger');
+    render();
+  };
+}
+
+setupNetworkListeners();
+
+// Subscribe to game engine state changes
+engine.subscribe((state) => {
+  if (state?.gameOver && currentScreen === 'game') {
+    if (state.endReason === 'collapse') {
+      sounds.collapse();
+    } else {
+      sounds.victory();
+    }
+    currentScreen = 'endgame';
+  }
+  render();
+});
+
+// --- RENDER DISPATCHER ---
+function render() {
+  if (!app) return;
+
+  switch (currentScreen) {
+    case 'title':
+      renderTitleScreen();
+      break;
+    case 'lobby':
+      renderLobbyScreen();
+      break;
+    case 'game':
+      renderGameScreen();
+      break;
+    case 'endgame':
+      renderEndGameScreen();
+      break;
+  }
+
+  renderToasts();
+  if (showGuide) {
+    renderGuideModal();
+  }
+}
+
+// ==========================================
+// 1. TITLE SCREEN
+// ==========================================
+function renderTitleScreen() {
+  app.innerHTML = `
+    <div class="title-screen">
+      <div class="title-content">
+        <h1 class="title-logo">PANAHON</h1>
+        <div class="title-subtitle">Chrono Shift</div>
+        <div class="title-acronym">Portal Anomaly Navigation and Historical Origin Network</div>
+        <div class="title-buttons">
+          <button id="btn-play-local" class="btn btn-primary">
+            Pass & Play (Local)
+          </button>
+          <button id="btn-play-online" class="btn btn-secondary">
+            Online Multiplayer
+          </button>
+          <button id="btn-rules" class="btn btn-secondary">
+            Rules & Field Manual
+          </button>
+          <button id="btn-sound-toggle" class="btn" style="padding: 8px 16px; font-size: 0.8rem; background: var(--bg-glass);">
+            ${soundMuted ? '🔇 Audio Off' : '🔊 Audio On'}
+          </button>
+        </div>
+        <div style="margin-top: 30px; font-size: 0.75rem; color: var(--text-secondary); letter-spacing: 1px;">
+          Pixel Crew • BSIT 3-8 • Version 0.3
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.querySelector('#btn-play-local')?.addEventListener('click', () => {
+    sounds.btnClick();
+    lobbyMode = 'local';
+    currentScreen = 'lobby';
+    render();
+  });
+
+  document.querySelector('#btn-play-online')?.addEventListener('click', () => {
+    sounds.btnClick();
+    lobbyMode = 'online';
+    currentScreen = 'lobby';
+    render();
+  });
+
+  document.querySelector('#btn-rules')?.addEventListener('click', () => {
+    sounds.btnClick();
+    showGuide = true;
+    render();
+  });
+
+  document.querySelector('#btn-sound-toggle')?.addEventListener('click', () => {
+    soundMuted = sounds.toggleMute();
+    render();
+  });
+}
+
+// ==========================================
+// 2. LOBBY SCREEN
+// ==========================================
+function renderLobbyScreen() {
+  const roleKeys = ROLE_ORDER;
+
+  let contentHtml = '';
+
+  if (lobbyMode === 'local') {
+    contentHtml = `
+      <div class="lobby-panel">
+        <div class="lobby-section-title">Configure 4 Temporal Castaways</div>
+        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: var(--space-md);">
+          Assign unique roles for all 4 players to maintain temporal stability across the four historical eras.
+        </p>
+
+        <div class="player-slots">
+          ${localPlayers.map((player, idx) => {
+            const role = ROLES[player.roleKey];
+            return `
+              <div class="player-slot selected" style="border-left: 4px solid ${PLAYER_COLORS[idx]};">
+                <img src="${role.avatar}" class="player-slot-avatar" alt="${role.name}">
+                <div class="player-slot-info">
+                  <div style="font-size: 0.7rem; color: ${PLAYER_COLORS[idx]}; font-weight: 700;">PLAYER ${idx + 1}</div>
+                  <input type="text" class="player-name-input" data-idx="${idx}" value="${player.name}" placeholder="Player Name" style="margin: 4px 0;">
+                  <select class="role-select" data-idx="${idx}" style="background: rgba(0,0,0,0.5); color: var(--text-accent); border: 1px solid var(--border-glass); border-radius: 4px; padding: 4px; font-size: 0.75rem; width: 100%;">
+                    ${roleKeys.map(rk => `
+                      <option value="${rk}" ${rk === player.roleKey ? 'selected' : ''}>
+                        ${ROLES[rk].name} (${ROLES[rk].passive.name})
+                      </option>
+                    `).join('')}
+                  </select>
+                  <div class="player-slot-desc" style="margin-top: 4px;">
+                    <strong>Active:</strong> ${role.active.name} | <strong>Passive:</strong> ${role.passive.name}
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <div style="margin-top: var(--space-xl); display: flex; gap: var(--space-md); justify-content: flex-end;">
+          <button id="btn-lobby-back" class="btn btn-secondary">Back</button>
+          <button id="btn-start-local" class="btn btn-primary">Launch Chrono Shift</button>
+        </div>
+      </div>
+    `;
+  } else {
+    // Online Multiplayer
+    const isRoomActive = network.roomCode !== null;
+    contentHtml = `
+      <div class="lobby-panel">
+        <div class="lobby-mode-tabs">
+          <div class="mode-tab ${onlineSubMode === 'create' ? 'active' : ''}" id="tab-sub-create">Host Mission</div>
+          <div class="mode-tab ${onlineSubMode === 'join' ? 'active' : ''}" id="tab-sub-join">Join Anomaly</div>
+        </div>
+
+        ${!isRoomActive ? `
+          <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+            <div>
+              <label style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Your Name:</label>
+              <input type="text" id="online-name-input" class="player-name-input" value="${onlinePlayerName}" style="margin-top: 4px;">
+            </div>
+
+            <div>
+              <label style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Choose Your Castaway Role:</label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); margin-top: 6px;">
+                ${roleKeys.map(rk => {
+                  const role = ROLES[rk];
+                  const isSel = onlineSelectedRole === rk;
+                  return `
+                    <div class="player-slot ${isSel ? 'selected' : ''}" data-role="${rk}" style="cursor: pointer; padding: 8px;">
+                      <img src="${role.avatar}" class="player-slot-avatar" style="width: 38px; height: 38px;">
+                      <div>
+                        <div style="font-size: 0.8rem; font-weight: 700; color: ${isSel ? 'var(--text-accent)' : 'var(--text-primary)'};">${role.name}</div>
+                        <div style="font-size: 0.65rem; color: var(--text-secondary);">${role.passive.name}</div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+
+            ${onlineSubMode === 'join' ? `
+              <div>
+                <label style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Room Code:</label>
+                <input type="text" id="online-code-input" class="player-name-input" placeholder="e.g. KY72P" value="${onlineRoomCodeInput}" style="letter-spacing: 4px; font-family: var(--font-display); font-weight: 700; text-transform: uppercase; font-size: 1.1rem; margin-top: 4px;">
+              </div>
+            ` : ''}
+
+            <div style="display: flex; justify-content: flex-end; gap: var(--space-md); margin-top: var(--space-md);">
+              <button id="btn-lobby-back" class="btn btn-secondary">Back</button>
+              <button id="btn-online-connect" class="btn btn-primary">
+                ${onlineSubMode === 'create' ? 'Create Room' : 'Join Room'}
+              </button>
+            </div>
+          </div>
+        ` : `
+          <!-- Waiting Room -->
+          <div class="room-code-display">
+            <div class="room-code-label">Anomaly Sync Code</div>
+            <div class="room-code">${network.roomCode}</div>
+            <p style="font-size: 0.8rem; color: var(--text-secondary);">Share this code with up to 3 allies to form your crew.</p>
+          </div>
+
+          <div class="lobby-section-title">Connected Crew (${currentRoomPlayers.length}/4)</div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-sm); margin-bottom: var(--space-lg);">
+            ${currentRoomPlayers.map((p, idx) => `
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: var(--bg-glass); border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
+                <div style="display: flex; align-items: center; gap: var(--space-md);">
+                  <span class="online-status connected"></span>
+                  <span style="font-weight: 700; color: ${PLAYER_COLORS[idx]};">${p.name}</span>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-accent); font-family: var(--font-display);">
+                  ${ROLES[p.roleKey]?.name || p.roleKey} ${p.id === 0 ? '★ Host' : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <button id="btn-leave-room" class="btn btn-secondary">Leave Room</button>
+            ${network.isHost ? `
+              <button id="btn-host-start" class="btn btn-primary" ${currentRoomPlayers.length < 1 ? 'disabled' : ''}>
+                Launch Mission (${currentRoomPlayers.length} Players)
+              </button>
+            ` : `
+              <div style="font-size: 0.85rem; color: var(--text-secondary); font-style: italic;">
+                Waiting for host to initiate Chrono Shift...
+              </div>
+            `}
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  app.innerHTML = `
+    <div class="lobby-screen">
+      <div class="lobby-title">MISSION BRIEFING</div>
+      <div class="lobby-mode-tabs" style="max-width: 700px; width: 100%;">
+        <div class="mode-tab ${lobbyMode === 'local' ? 'active' : ''}" id="tab-local">Pass & Play (Local)</div>
+        <div class="mode-tab ${lobbyMode === 'online' ? 'active' : ''}" id="tab-online">Online Multiplayer</div>
+      </div>
+      ${contentHtml}
+    </div>
+  `;
+
+  // --- Attach Lobby Event Listeners ---
+  document.querySelector('#tab-local')?.addEventListener('click', () => {
+    sounds.btnClick();
+    lobbyMode = 'local';
+    render();
+  });
+
+  document.querySelector('#tab-online')?.addEventListener('click', () => {
+    sounds.btnClick();
+    lobbyMode = 'online';
+    render();
+  });
+
+  document.querySelector('#btn-lobby-back')?.addEventListener('click', () => {
+    sounds.btnClick();
+    currentScreen = 'title';
+    render();
+  });
+
+  // Local inputs
+  document.querySelectorAll('.player-name-input[data-idx]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const idx = parseInt(e.target.dataset.idx);
+      localPlayers[idx].name = e.target.value;
+    });
+  });
+
+  document.querySelectorAll('.role-select[data-idx]').forEach(select => {
+    select.addEventListener('change', (e) => {
+      const idx = parseInt(e.target.dataset.idx);
+      localPlayers[idx].roleKey = e.target.value;
+      render();
+    });
+  });
+
+  document.querySelector('#btn-start-local')?.addEventListener('click', () => {
+    sounds.portal();
+    const configs = localPlayers.map(p => ({
+      name: p.name.trim() || ROLES[p.roleKey].name,
+      roleKey: p.roleKey,
+      isLocal: true
+    }));
+    network.setMode('local');
+    engine.initGame(configs);
+    currentScreen = 'game';
+    showToast('Mission Commenced', 'Timeline localized. Travel through eras and collect clues!', 'success');
+    render();
+  });
+
+  // Online sub-mode tabs
+  document.querySelector('#tab-sub-create')?.addEventListener('click', () => {
+    sounds.btnClick();
+    onlineSubMode = 'create';
+    render();
+  });
+
+  document.querySelector('#tab-sub-join')?.addEventListener('click', () => {
+    sounds.btnClick();
+    onlineSubMode = 'join';
+    render();
+  });
+
+  document.querySelector('#online-name-input')?.addEventListener('input', (e) => {
+    onlinePlayerName = e.target.value;
+  });
+
+  document.querySelector('#online-code-input')?.addEventListener('input', (e) => {
+    onlineRoomCodeInput = e.target.value.toUpperCase();
+  });
+
+  document.querySelectorAll('.player-slot[data-role]').forEach(slot => {
+    slot.addEventListener('click', () => {
+      sounds.btnClick();
+      onlineSelectedRole = slot.dataset.role;
+      render();
+    });
+  });
+
+  document.querySelector('#btn-online-connect')?.addEventListener('click', async () => {
+    sounds.btnClick();
+    network.setMode('online');
+    try {
+      showToast('Connecting', 'Reaching temporal relay server...', 'info');
+      await network.connect();
+      if (onlineSubMode === 'create') {
+        network.createRoom(onlinePlayerName.trim() || 'Castaway', onlineSelectedRole);
+      } else {
+        if (!onlineRoomCodeInput) {
+          showToast('Invalid Code', 'Please enter a 5-letter Room Code.', 'warning');
+          return;
+        }
+        network.joinRoom(onlineRoomCodeInput, onlinePlayerName.trim() || 'Castaway', onlineSelectedRole);
+      }
+    } catch (err) {
+      showToast('Connection Failed', 'Could not reach server. Run "npm run server" or play Local Pass & Play.', 'danger');
+    }
+  });
+
+  document.querySelector('#btn-leave-room')?.addEventListener('click', () => {
+    sounds.btnClick();
+    network.disconnect();
+    network.roomCode = null;
+    currentRoomPlayers = [];
+    render();
+  });
+
+  document.querySelector('#btn-host-start')?.addEventListener('click', () => {
+    sounds.btnClick();
+    network.startGame();
+  });
+}
+
+// ==========================================
+// 3. GAME SCREEN
+// ==========================================
+function renderGameScreen() {
+  const state = engine.getState();
+  if (!state) return;
+
+  const currentPlayer = engine.getCurrentPlayer();
+  const timelineLevel = state.timelineMeter;
+  const isOnline = network.mode === 'online';
+  const isMyTurn = !isOnline || currentPlayer.id === network.playerId;
+
+  // Header timeline color
+  let timelineClass = 'safe';
+  if (timelineLevel >= 8) timelineClass = 'danger';
+  else if (timelineLevel >= 5) timelineClass = 'warn';
+
+  // Format timer
+  const minutes = Math.floor(state.timeRemaining / 60);
+  const seconds = state.timeRemaining % 60;
+  const timerStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+  app.innerHTML = `
+    <div class="game-screen">
+      <!-- HEADER -->
+      <header class="game-header">
+        <div style="display: flex; align-items: center; gap: var(--space-md);">
+          <div class="game-header-title">PANAHON</div>
+          <span style="font-size: 0.75rem; color: var(--text-secondary); letter-spacing: 1px;">CHRONO SHIFT</span>
+        </div>
+
+        <div class="header-meters">
+          <!-- Cooperative Timeline Meter -->
+          <div class="timeline-meter" title="Cooperative Timeline Meter: If it reaches 10, the timeline collapses and all players lose!">
+            <div class="timeline-meter-label">Timeline Stability:</div>
+            <div class="timeline-meter-bar">
+              <div class="timeline-meter-fill ${timelineClass}" style="width: ${(timelineLevel / 10) * 100}%;"></div>
+            </div>
+            <div class="timeline-meter-value ${timelineLevel >= 8 ? 'text-danger' : ''}">${timelineLevel}/10</div>
+          </div>
+
+          <!-- Game Timer -->
+          <div class="game-timer" title="40-minute mission countdown">
+            <span class="timer-icon">⏳</span>
+            <span>${timerStr}</span>
+          </div>
+
+          <!-- Round counter -->
+          <div style="font-family: var(--font-display); font-size: 0.8rem; color: var(--text-secondary);">
+            Round <strong style="color: var(--text-accent);">${state.turnNumber}</strong>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: var(--space-sm);">
+          <button id="btn-header-guide" class="btn" style="padding: 6px 12px; font-size: 0.75rem; background: var(--bg-glass);">
+            📖 Manual
+          </button>
+          <button id="btn-header-sound" class="btn" style="padding: 6px 12px; font-size: 0.75rem; background: var(--bg-glass);">
+            ${soundMuted ? '🔇' : '🔊'}
+          </button>
+        </div>
+      </header>
+
+      <!-- LEFT PANEL: CASTAWAY DOSSIERS -->
+      <aside class="left-panel">
+        <div style="font-family: var(--font-display); font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">
+          Temporal Castaways
+        </div>
+
+        ${state.players.map((p, idx) => {
+          const isActive = idx === state.currentPlayerIndex;
+          const paradoxPercent = Math.min(100, (p.paradox / 5) * 100);
+          let paradoxClass = 'paradox-fill-low';
+          if (p.paradox >= 4) paradoxClass = 'paradox-fill-high';
+          else if (p.paradox >= 2) paradoxClass = 'paradox-fill-mid';
+
+          return `
+            <div class="player-card ${isActive ? 'active-turn' : ''}" style="border-left: 4px solid ${p.color};">
+              ${isActive ? `<div class="turn-indicator">▶</div>` : ''}
+              <div class="player-card-header">
+                <img src="${p.role.avatar}" class="player-avatar-small" alt="${p.name}">
+                <div style="flex: 1;">
+                  <div class="player-card-name" style="color: ${p.color};">${p.name}</div>
+                  <div class="player-card-role">${p.role.name}</div>
+                </div>
+                <div class="player-points">${p.points} PTS</div>
+              </div>
+
+              <div class="player-stats">
+                <!-- Energy Bar -->
+                <div class="stat-row">
+                  <span class="stat-label">Energy</span>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <div class="stat-bar">
+                      <div class="stat-bar-fill energy-fill" style="width: ${(p.energy / 10) * 100}%;"></div>
+                    </div>
+                    <span class="stat-value" style="color: var(--energy-color);">${p.energy}/10</span>
+                  </div>
+                </div>
+
+                <!-- Individual Paradox Meter -->
+                <div class="stat-row">
+                  <span class="stat-label">Paradox</span>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <div class="stat-bar">
+                      <div class="stat-bar-fill ${paradoxClass}" style="width: ${paradoxPercent}%;"></div>
+                    </div>
+                    <span class="stat-value" style="color: ${p.paradox >= 4 ? 'var(--text-danger)' : 'var(--text-primary)'};">${p.paradox}/5</span>
+                  </div>
+                </div>
+
+                <div class="stat-row" style="margin-top: 4px; font-size: 0.7rem; color: var(--text-secondary);">
+                  <span>Era: <strong>${ERA_NAMES[p.currentEra].replace(' Era', '')}</strong></span>
+                  <span>Clues: <strong>${p.clueCards.filter(c => !c.isDecoy).length}</strong></span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </aside>
+
+      <!-- CENTER: THE FOUR QUADRANTS BOARD (MARIO PARTY / PUMMEL PARTY STYLE) -->
+      <main class="board-container">
+        <!-- Board Camera Controls -->
+        <div class="board-camera-bar">
+          <button class="board-cam-btn ${cameraMode === 'full' ? 'active' : ''}" data-cam="full">🗺️ Full Map</button>
+          <button class="board-cam-btn ${cameraMode === 'focus-spanish' ? 'active' : ''}" data-cam="focus-spanish">Spanish</button>
+          <button class="board-cam-btn ${cameraMode === 'focus-american' ? 'active' : ''}" data-cam="focus-american">American</button>
+          <button class="board-cam-btn ${cameraMode === 'focus-japanese' ? 'active' : ''}" data-cam="focus-japanese">Japanese</button>
+          <button class="board-cam-btn ${cameraMode === 'focus-myth' ? 'active' : ''}" data-cam="focus-myth">Myth</button>
+          <button class="board-cam-btn ${cameraMode === 'auto' ? 'active' : ''}" data-cam="auto">🎯 Auto Focus</button>
+        </div>
+
+        ${state.temporalOccurrence > 0 ? `
+          <div class="temporal-badge">
+            ⚡ Temporal Occurrence Active (${state.temporalOccurrence} turns left)!
+          </div>
+        ` : ''}
+
+        <div class="board-viewport">
+          <div class="board-map-wrapper ${cameraMode === 'auto' ? `focus-${currentPlayer.currentEra}` : (cameraMode === 'full' ? '' : cameraMode)}">
+            <!-- SVG Path lines connecting circle spaces like Mario Party trail -->
+            <svg class="board-paths-svg" viewBox="0 0 1024 765" preserveAspectRatio="none">
+              ${ERA_ORDER.map(era => {
+                const coords = ERA_TILE_COORDINATES[era];
+                if (!coords) return '';
+                // Convert percentage to pixel coordinates in 1024x765
+                const d = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${(c.x * 1024) / 100} ${(c.y * 765) / 100}`).join(' ') + ' Z';
+                const isActiveEra = currentPlayer.currentEra === era;
+                return `<path d="${d}" class="board-path-line ${isActiveEra ? 'active-era-path' : ''}" />`;
+              }).join('')}
+              <!-- Connections from Timegate Spaces to Central Nexus Portal Dial -->
+              ${ERA_ORDER.map(era => {
+                const tgIdx = state.board[era].findIndex(t => t.type === 'timegate');
+                if (tgIdx === -1) return '';
+                const c = ERA_TILE_COORDINATES[era][tgIdx];
+                return `<path d="M ${(c.x * 1024) / 100} ${(c.y * 765) / 100} L ${1024 * 0.50} ${765 * 0.49}" class="board-path-line" style="stroke: #00E5FF; stroke-width: 3; stroke-dasharray: 4 4;" />`;
+              }).join('')}
+            </svg>
+
+            <!-- Circular Spaces along the paths -->
+            <div class="board-map">
+              ${ERA_ORDER.map(era => {
+                const tiles = state.board[era];
+                const coords = ERA_TILE_COORDINATES[era];
+
+                return tiles.map((t, idx) => {
+                  const coord = coords[idx];
+                  const tileType = t.type;
+                  const playersOnTile = state.players.filter(p => p.currentEra === era && p.tileIndex === idx);
+
+                  // Calculate if space is reachable during moving phase (strictly following movementDirection)
+                  let isReachable = false;
+                  if (state.phase === 'moving' && state.movesRemaining > 0 && currentPlayer.currentEra === era) {
+                    const cIdx = currentPlayer.tileIndex;
+                    const dir = state.movementDirection === 'backward' ? -1 : 1;
+                    if (dir === 1 && idx === (cIdx + 1) % 20) {
+                      isReachable = true;
+                    } else if (dir === -1 && idx === (cIdx - 1 + 20) % 20) {
+                      isReachable = true;
+                    }
+                  }
+
+                  let icon = '•';
+                  if (tileType === 'clue') icon = '🔍';
+                  else if (tileType === 'event') icon = '⚡';
+                  else if (tileType === 'danger') icon = '⚠️';
+                  else if (tileType === 'artifact') icon = '🏆';
+                  else if (tileType === 'timegate') icon = '🌀';
+                  else if (tileType === 'paradox') icon = '⏳';
+                  else if (tileType === 'start') icon = '🚩';
+
+                  return `
+                    <div class="mario-party-space space-${tileType} ${isReachable ? 'reachable-space' : ''}" 
+                         data-tile-id="${t.id}" 
+                         style="left: ${coord.x}%; top: ${coord.y}%;"
+                         title="${tileType.toUpperCase()} (Space #${idx + 1} - ${ERA_NAMES[era]})">
+                      ${isReachable ? `<div class="reachable-arrow-indicator">▼</div>` : ''}
+                      <div class="space-disc">
+                        <span class="space-icon">${icon}</span>
+                      </div>
+                      ${t.trap ? `<span class="tile-trap-indicator" title="Temporal Trap!">💣</span>` : ''}
+                      ${playersOnTile.length > 0 ? `
+                        <div class="tile-players">
+                          ${playersOnTile.map(p => {
+                            const isPawnTurn = p.id === currentPlayer.id;
+                            return `
+                              <div class="mario-pawn ${isPawnTurn ? 'active-turn' : ''}" title="${p.name} (${p.role.name})">
+                                ${isPawnTurn ? `<div class="pawn-turn-arrow">▼ YOU</div>` : ''}
+                                <div class="pawn-badge" style="background: ${p.color};">P${p.id + 1}</div>
+                                <img src="${p.role.avatar}" class="pawn-sprite" alt="${p.name}">
+                                <div class="pawn-pedestal" style="background: ${p.color}; box-shadow: 0 0 8px ${p.color};"></div>
+                              </div>
+                            `;
+                          }).join('')}
+                        </div>
+                      ` : ''}
+                    </div>
+                  `;
+                }).join('');
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- RIGHT PANEL: COMMAND CENTER & ACTION CONTROLS -->
+      <aside class="right-panel">
+        <!-- Active Turn Castaway -->
+        <div class="panel-section" style="border-left: 3px solid ${currentPlayer.color};">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <div style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase;">Current Turn</div>
+              <div style="font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: ${currentPlayer.color};">
+                ${currentPlayer.name}
+              </div>
+            </div>
+            <img src="${currentPlayer.role.avatar}" style="width: 36px; height: 36px; border-radius: var(--radius-sm); object-fit: contain;">
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
+            Location: <strong style="color: var(--text-primary);">${ERA_NAMES[currentPlayer.currentEra]}</strong> (Tile #${currentPlayer.tileIndex})
+          </div>
+        </div>
+
+        <!-- DICE & MOVEMENT SECTION -->
+        <div class="panel-section">
+          <div class="panel-section-title">Movement & Dice</div>
+          <div class="dice-area">
+            <div id="dice-element" class="dice" title="Click to Roll Die">
+              ${state.diceResult !== null ? state.diceResult : '?'}
+            </div>
+            <div>
+              <div class="dice-result">
+                Phase: <strong style="color: var(--text-accent); text-transform: uppercase;">${state.phase}</strong>
+              </div>
+              <div style="font-size: 0.8rem; color: var(--text-primary); margin-top: 2px;">
+                ${state.phase === 'rolling' ? 'Roll D6 to begin move' : `Moves left: <strong>${state.movesRemaining}</strong>`}
+              </div>
+            </div>
+          </div>
+
+          ${state.phase === 'rolling' ? `
+            <button id="btn-roll-dice" class="btn btn-primary" style="width: 100%; margin-top: var(--space-sm); padding: 8px;" ${!isMyTurn ? 'disabled' : ''}>
+              🎲 Roll Movement Die
+            </button>
+          ` : ''}
+
+          ${state.phase === 'moving' ? `
+            <div style="margin-top: var(--space-sm);">
+              ${state.movementDirection === 'backward' ? `
+                <button id="btn-move-step" class="btn btn-secondary" style="width: 100%; padding: 8px; font-size: 0.8rem; background: rgba(239, 68, 68, 0.25); border-color: rgba(239, 68, 68, 0.5);" ${!isMyTurn ? 'disabled' : ''}>
+                  ⬅️ Step Backward (${state.movesRemaining} remaining)
+                </button>
+              ` : `
+                <button id="btn-move-step" class="btn btn-primary" style="width: 100%; padding: 8px; font-size: 0.8rem;" ${!isMyTurn ? 'disabled' : ''}>
+                  Step Forward ➡️ (${state.movesRemaining} remaining)
+                </button>
+              `}
+            </div>
+            <div style="font-size: 0.65rem; color: var(--text-secondary); text-align: center; margin-top: 4px;">
+              Tip: Click the highlighted space on the board or tap the step button!
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- SPECIAL ACTIONS -->
+        <div class="panel-section">
+          <div class="panel-section-title">Temporal Actions</div>
+          <div class="action-buttons">
+            <!-- Time Warp -->
+            <button id="btn-act-warp" class="action-btn" ${!isMyTurn || currentPlayer.energy < GAME_CONSTANTS.TIME_WARP_COST || state.phase !== 'action' ? 'disabled' : ''} title="Spend 2 Energy to re-roll and move again">
+              <span class="action-btn-icon">⚡</span>
+              <span>Time Warp</span>
+              <span class="action-btn-cost">-2 Energy</span>
+            </button>
+
+            <!-- Reverse Time -->
+            <button id="btn-act-reverse" class="action-btn" ${!isMyTurn || currentPlayer.energy < GAME_CONSTANTS.REVERSE_TIME_COST || state.phase !== 'action' ? 'disabled' : ''} title="Spend 3 Energy to roll and move backwards">
+              <span class="action-btn-icon">⏪</span>
+              <span>Reverse Time</span>
+              <span class="action-btn-cost">-3 Energy</span>
+            </button>
+
+            <!-- Rest -->
+            <button id="btn-act-rest" class="action-btn" ${!isMyTurn || state.phase === 'moving' ? 'disabled' : ''} title="Rest your entire turn to recover +3 Energy">
+              <span class="action-btn-icon">💤</span>
+              <span>Rest (Skip)</span>
+              <span class="action-btn-cost">+3 Energy</span>
+            </button>
+
+            <!-- Time Gate -->
+            ${(() => {
+              const currentTile = state.board[currentPlayer.currentEra][currentPlayer.tileIndex];
+              const isOnTimeGate = currentTile?.type === TILE_TYPES.TIMEGATE;
+              const tgCost = currentPlayer.roleKey === 'EXPLORER' ? 1 : 2;
+              return `
+                <button id="btn-act-timegate" class="action-btn" ${!isMyTurn || !isOnTimeGate || currentPlayer.energy < tgCost ? 'disabled' : ''} title="Enter the Time Gate to travel across eras">
+                  <span class="action-btn-icon">🌀</span>
+                  <span>Time Gate</span>
+                  <span class="action-btn-cost">-${tgCost} Energy</span>
+                </button>
+              `;
+            })()}
+
+            <!-- Role Skill -->
+            <button id="btn-act-skill" class="action-btn" ${!isMyTurn || currentPlayer.activeCooldown > 0 || currentPlayer.energy < (currentPlayer.role.active.energyCost || 0) ? 'disabled' : ''} title="${currentPlayer.role.active.description}">
+              <span class="action-btn-icon">✨</span>
+              <span>${currentPlayer.role.active.name}</span>
+              <span class="action-btn-cost">
+                ${currentPlayer.activeCooldown > 0 ? `CD: ${currentPlayer.activeCooldown}T` : `-${currentPlayer.role.active.energyCost || 0} En`}
+              </span>
+            </button>
+
+            <!-- Return Artifact -->
+            ${(() => {
+              const matchingArt = currentPlayer.artifactCards.find(a => a.era === currentPlayer.currentEra);
+              return `
+                <button id="btn-act-return" class="action-btn" ${!isMyTurn || !matchingArt ? 'disabled' : ''} title="Return matching artifact to this timeline for points!">
+                  <span class="action-btn-icon">📦</span>
+                  <span>Return Relic</span>
+                  <span class="action-btn-cost">+5 Points</span>
+                </button>
+              `;
+            })()}
+          </div>
+
+          <button id="btn-end-turn" class="btn btn-primary" style="width: 100%; margin-top: var(--space-md); padding: 8px;" ${!isMyTurn || state.phase === 'moving' ? 'disabled' : ''}>
+            Finish Turn ⏭️
+          </button>
+        </div>
+
+        <!-- GAME LOG FEED -->
+        <div class="panel-section" style="flex: 1; min-height: 120px; display: flex; flex-direction: column;">
+          <div class="panel-section-title">Timeline Chronicle</div>
+          <div id="game-log-feed" class="game-log">
+            ${engine.logEntries.slice().reverse().map(l => `
+              <div class="log-entry">
+                <span class="log-player">[${l.type.toUpperCase()}]</span> ${l.message}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </aside>
+
+      <!-- BOTTOM PANEL: HAND & DOSSIER -->
+      <section class="bottom-panel">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div class="tab-nav" style="margin: 0;">
+            <button class="tab-btn ${activeHandTab === 'mission' ? 'active' : ''}" id="tab-hand-mission">
+              📜 Mission Dossier
+            </button>
+            <button class="tab-btn ${activeHandTab === 'clues' ? 'active' : ''}" id="tab-hand-clues">
+              🔍 Clues (${currentPlayer.clueCards.length})
+            </button>
+            <button class="tab-btn ${activeHandTab === 'artifacts' ? 'active' : ''}" id="tab-hand-artifacts">
+              🏆 Relics (${currentPlayer.artifactCards.length})
+            </button>
+          </div>
+          <div style="font-size: 0.7rem; color: var(--text-secondary);">
+            Viewing: <strong style="color: ${currentPlayer.color};">${currentPlayer.name}</strong>'s Hand
+          </div>
+        </div>
+
+        <!-- Tab Contents -->
+        <div style="flex: 1; overflow-y: auto;">
+          ${activeHandTab === 'mission' && currentPlayer.mission ? `
+            <div class="mission-display">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                  <div class="mission-title">Mission: Retrieve ${currentPlayer.mission.targetArtifact}</div>
+                  <div class="mission-objective">${currentPlayer.mission.description}</div>
+                </div>
+                <div style="text-align: right;">
+                  <span style="font-size: 0.7rem; background: var(--bg-glass); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-glass);">
+                    Target Era: <strong>${ERA_NAMES[currentPlayer.mission.targetEra]}</strong>
+                  </span>
+                </div>
+              </div>
+
+              <!-- Clue requirement progress (requires 3 clues!) -->
+              <div class="mission-progress">
+                <span class="mission-progress-text">Clue Requirement:</span>
+                <div class="mission-progress-bar">
+                  <div class="mission-progress-fill" style="width: ${(Math.min(3, currentPlayer.clueProgress[currentPlayer.mission.artifactId] || 0) / 3) * 100}%;"></div>
+                </div>
+                <span class="mission-progress-text">
+                  ${currentPlayer.clueProgress[currentPlayer.mission.artifactId] || 0}/3 Required Clues
+                </span>
+              </div>
+            </div>
+          ` : ''}
+
+          ${activeHandTab === 'clues' ? `
+            <div class="hand-cards">
+              ${currentPlayer.clueCards.length === 0 ? `
+                <div style="font-size: 0.8rem; color: var(--text-secondary); padding: 10px;">
+                  No clues collected yet. Land on Clue Tiles (🔍) in different eras to discover hints.
+                </div>
+              ` : currentPlayer.clueCards.map(c => `
+                <div class="hand-card clue-card" title="${c.hint}">
+                  <img src="${c.cardImage}" alt="${c.hint}">
+                  <div class="hand-card-type" style="color: ${c.isDecoy ? 'var(--text-danger)' : 'var(--tile-clue)'};">
+                    ${c.isDecoy ? 'Decoy Hint' : `${ERA_NAMES[c.era].replace(' Era', '')}`}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          ${activeHandTab === 'artifacts' ? `
+            <div class="hand-cards">
+              ${currentPlayer.artifactCards.length === 0 ? `
+                <div style="font-size: 0.8rem; color: var(--text-secondary); padding: 10px;">
+                  No historical artifacts acquired yet. Reach an Artifact Tile with 3 clues to retrieve one!
+                </div>
+              ` : currentPlayer.artifactCards.map(a => `
+                <div class="hand-card artifact-card" title="${a.name} (${a.nickname})">
+                  <img src="${a.cardImage}" alt="${a.name}">
+                  <div class="hand-card-type" style="color: var(--tile-artifact);">
+                    ${a.nickname}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
+      </section>
+    </div>
+  `;
+
+  // Attach Game Event Handlers
+  attachGameListeners(state, currentPlayer, isMyTurn);
+
+  // Render modal if pending
+  if (state.pendingModal) {
+    renderCardModal(state.pendingModal);
+  } else if (state.pendingChoice) {
+    renderChoiceModal(state.pendingChoice);
+  }
+}
+
+function attachGameListeners(state, currentPlayer, isMyTurn) {
+  // Guide and audio buttons
+  document.querySelector('#btn-header-guide')?.addEventListener('click', () => {
+    sounds.btnClick();
+    showGuide = true;
+    render();
+  });
+
+  document.querySelector('#btn-header-sound')?.addEventListener('click', () => {
+    soundMuted = sounds.toggleMute();
+    render();
+  });
+
+  // Camera control buttons
+  document.querySelectorAll('.board-cam-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sounds.btnClick();
+      cameraMode = btn.dataset.cam;
+      render();
+    });
+  });
+
+  // Hand tabs
+  document.querySelector('#tab-hand-mission')?.addEventListener('click', () => {
+    sounds.btnClick();
+    activeHandTab = 'mission';
+    render();
+  });
+  document.querySelector('#tab-hand-clues')?.addEventListener('click', () => {
+    sounds.btnClick();
+    activeHandTab = 'clues';
+    render();
+  });
+  document.querySelector('#tab-hand-artifacts')?.addEventListener('click', () => {
+    sounds.btnClick();
+    activeHandTab = 'artifacts';
+    render();
+  });
+
+  if (!isMyTurn) return;
+
+  // Dice roll
+  const rollAction = () => {
+    sounds.diceRoll();
+    const diceEl = document.querySelector('#dice-element');
+    diceEl?.classList.add('rolling');
+    setTimeout(() => {
+      const result = engine.rollDice();
+      network.sendAction({ type: 'ROLL_DICE', result });
+    }, 600);
+  };
+
+  document.querySelector('#btn-roll-dice')?.addEventListener('click', rollAction);
+  document.querySelector('#dice-element')?.addEventListener('click', () => {
+    if (state.phase === 'rolling') rollAction();
+  });
+
+  // Step movement button
+  const triggerStepMove = () => {
+    sounds.moveStep();
+    engine.movePlayerStep();
+    network.sendAction({ type: 'MOVE_STEP' });
+  };
+  document.querySelector('#btn-move-step')?.addEventListener('click', triggerStepMove);
+  document.querySelector('#btn-move-fwd')?.addEventListener('click', triggerStepMove);
+  document.querySelector('#btn-move-bwd')?.addEventListener('click', triggerStepMove);
+
+  // Space / tile clicking for movement
+  document.querySelectorAll('.mario-party-space[data-tile-id]').forEach(spaceEl => {
+    spaceEl.addEventListener('click', () => {
+      if (state.phase === 'moving' && state.movesRemaining > 0) {
+        const tileId = spaceEl.dataset.tileId;
+        const ok = engine.moveToTile(tileId);
+        if (ok) {
+          sounds.moveStep();
+          network.sendAction({ type: 'MOVE_TO_TILE', targetTileId: tileId });
+        }
+      }
+    });
+  });
+
+  // Actions
+  document.querySelector('#btn-act-warp')?.addEventListener('click', () => {
+    sounds.portal();
+    const ok = engine.timeWarp(state.currentPlayerIndex);
+    if (ok) network.sendAction({ type: 'TIME_WARP', playerIdx: state.currentPlayerIndex });
+  });
+
+  document.querySelector('#btn-act-reverse')?.addEventListener('click', () => {
+    sounds.portal();
+    const ok = engine.reverseTime(state.currentPlayerIndex);
+    if (ok) network.sendAction({ type: 'REVERSE_TIME', playerIdx: state.currentPlayerIndex });
+  });
+
+  document.querySelector('#btn-act-rest')?.addEventListener('click', () => {
+    sounds.btnClick();
+    engine.rest(state.currentPlayerIndex);
+    network.sendAction({ type: 'REST', playerIdx: state.currentPlayerIndex });
+  });
+
+  document.querySelector('#btn-act-timegate')?.addEventListener('click', () => {
+    sounds.portal();
+    engine.handleTimeGate(currentPlayer);
+  });
+
+  document.querySelector('#btn-act-skill')?.addEventListener('click', () => {
+    sounds.btnClick();
+    engine.useActiveAbility(state.currentPlayerIndex);
+    network.sendAction({ type: 'USE_ABILITY', playerIdx: state.currentPlayerIndex });
+  });
+
+  document.querySelector('#btn-act-return')?.addEventListener('click', () => {
+    const matchingArt = currentPlayer.artifactCards.find(a => a.era === currentPlayer.currentEra);
+    if (matchingArt) {
+      sounds.artifact();
+      engine.returnArtifact(state.currentPlayerIndex, matchingArt.id);
+      network.sendAction({ type: 'RETURN_ARTIFACT', playerIdx: state.currentPlayerIndex, artifactId: matchingArt.id });
+    }
+  });
+
+  document.querySelector('#btn-end-turn')?.addEventListener('click', () => {
+    sounds.btnClick();
+    engine.endTurn();
+    network.sendAction({ type: 'END_TURN' });
+  });
+}
+
+// ==========================================
+// 4. MODALS & CHOICES
+// ==========================================
+function renderCardModal(modal) {
+  const existing = document.querySelector('#active-modal');
+  if (existing) existing.remove();
+
+  const isDanger = modal.type === 'danger';
+  const isEvent = modal.type === 'event';
+  const isArtifact = modal.type === 'artifact';
+
+  const modalHtml = `
+    <div class="modal-overlay" id="active-modal">
+      <div class="modal">
+        <button class="modal-close" id="modal-close-btn">&times;</button>
+        <div class="modal-title" style="color: ${isDanger ? 'var(--text-danger)' : (isEvent ? 'var(--tile-event)' : 'var(--text-accent)')};">
+          ${modal.cardType || modal.title}
+        </div>
+
+        <div class="modal-body">
+          <div class="card-display">
+            ${modal.image ? `<img src="${modal.image}" alt="${modal.title}">` : ''}
+            <div class="card-display-title">${modal.title}</div>
+            <div class="card-display-desc">${modal.description}</div>
+          </div>
+
+          ${isDanger && modal.diceRoll !== undefined ? `
+            <div class="modal-dice">
+              <div class="dice" style="border-color: ${modal.success ? 'var(--text-success)' : 'var(--text-danger)'};">
+                ${modal.diceRoll}
+              </div>
+              <div class="modal-dice-result">
+                <div style="font-size: 0.8rem; color: var(--text-secondary);">Dice Check Roll</div>
+                <div class="modal-dice-outcome ${modal.success ? 'success' : 'failure'}">
+                  ${modal.success ? '✓ HAZARD EVADED' : '✗ HAZARD TRIGGERED'}
+                </div>
+                <div style="font-size: 0.8rem; margin-top: 4px; color: ${modal.success ? 'var(--text-success)' : 'var(--text-danger)'};">
+                  ${modal.success ? modal.successMsg : modal.failMsg}
+                </div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="modal-actions">
+          <button id="modal-confirm-btn" class="btn btn-primary">Acknowledge</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+  const dismiss = () => {
+    sounds.btnClick();
+    engine.dismissModal();
+    network.sendAction({ type: 'DISMISS_MODAL' });
+    document.querySelector('#active-modal')?.remove();
+  };
+
+  document.querySelector('#modal-close-btn')?.addEventListener('click', dismiss);
+  document.querySelector('#modal-confirm-btn')?.addEventListener('click', dismiss);
+}
+
+function renderChoiceModal(choice) {
+  const existing = document.querySelector('#active-modal');
+  if (existing) existing.remove();
+
+  const modalHtml = `
+    <div class="modal-overlay" id="active-modal">
+      <div class="modal">
+        <div class="modal-title">${choice.title}</div>
+        <div class="modal-body" style="text-align: center; margin-bottom: var(--space-lg);">
+          <p>${choice.message}</p>
+        </div>
+        <div class="modal-actions" style="display: flex; flex-direction: column; gap: var(--space-sm);">
+          ${choice.options.map(opt => `
+            <button class="btn btn-secondary choice-btn" data-action="${opt.action}" style="width: 100%;">
+              ${opt.label}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+  document.querySelectorAll('.choice-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sounds.btnClick();
+      const action = btn.dataset.action;
+      engine.resolveChoice(action);
+      network.sendAction({ type: 'RESOLVE_CHOICE', action });
+      document.querySelector('#active-modal')?.remove();
+    });
+  });
+}
+
+// ==========================================
+// 5. TOAST NOTIFICATIONS
+// ==========================================
+function renderToasts() {
+  let container = document.querySelector('.toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+
+  container.innerHTML = toasts.map(t => `
+    <div class="toast toast-${t.type}">
+      <div class="toast-title">${t.title}</div>
+      <div>${t.message}</div>
+    </div>
+  `).join('');
+}
+
+// ==========================================
+// 6. RULES / GUIDE MODAL
+// ==========================================
+function renderGuideModal() {
+  const existing = document.querySelector('#guide-modal');
+  if (existing) existing.remove();
+
+  const guideHtml = `
+    <div class="modal-overlay" id="guide-modal" style="z-index: 1500;">
+      <div class="modal" style="max-width: 680px; width: 95%;">
+        <button class="modal-close" id="guide-close-btn">&times;</button>
+        <div class="modal-title">PANAHON FIELD MANUAL (V0.3)</div>
+
+        <div class="tab-nav" style="margin-bottom: var(--space-md);">
+          <button class="tab-btn ${guideTab === 'overview' ? 'active' : ''}" id="gtab-overview">Overview</button>
+          <button class="tab-btn ${guideTab === 'roles' ? 'active' : ''}" id="gtab-roles">Castaway Roles</button>
+          <button class="tab-btn ${guideTab === 'mechanics' ? 'active' : ''}" id="gtab-mechanics">Meters & Rules</button>
+          <button class="tab-btn ${guideTab === 'scoring' ? 'active' : ''}" id="gtab-scoring">Scoring</button>
+        </div>
+
+        <div class="modal-body" style="font-size: 0.85rem; line-height: 1.6; max-height: 55vh; overflow-y: auto;">
+          ${guideTab === 'overview' ? `
+            <h4 style="color: var(--text-accent);">About The Game</h4>
+            <p>PANAHON: Chrono Shift is a cooperative and competitive tabletop time-travel game for 4 players. Players take the role of <strong>Temporal Castaways</strong> responsible for correcting disturbances across different timelines. Mysterious artifacts have been displaced from their original eras.</p>
+            <h4 style="color: var(--text-accent); margin-top: 12px;">The 4 Historical Timelines</h4>
+            <ul>
+              <li><strong>Spanish Era (1521-1898):</strong> Silver Dos Mundos, Murillo Velarde Map, Concepcion Porcelain, Relicario.</li>
+              <li><strong>American Era (1898-1946):</strong> Quezon Typewriter, El Renacimiento Issue, Kellogg Magneto, Port Telephone.</li>
+              <li><strong>Japanese Era (1942-1945):</strong> Death March Marker, Senninbari Belt, Guerrilla Transceiver, Capas Field Litter.</li>
+              <li><strong>Myth/Legend Era:</strong> Cordillera Bulul, Batu-Balani Agimat, Kamagong Comb, Kris ng Datu.</li>
+            </ul>
+          ` : ''}
+
+          ${guideTab === 'roles' ? `
+            <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+              <div style="border-left: 3px solid #E74C3C; padding-left: 8px;">
+                <strong>The Historian:</strong>
+                <div><em>Passive (Decoy Discard):</em> Discard a drawn Decoy Card (2 Turn CD).</div>
+                <div><em>Active (Clue Decipher):</em> Look at the top 3 cards on the Clue Deck, keep 1, shuffle rest (Cost: 2 Energy, 3 Turn CD).</div>
+              </div>
+              <div style="border-left: 3px solid #3498DB; padding-left: 8px;">
+                <strong>The Explorer:</strong>
+                <div><em>Passive (Chrono-Stride):</em> Reduced Time Gate travel cost to 1 Energy.</div>
+                <div><em>Active (Momentum):</em> Pause movement to interact with a tile, then continue moving (Cost: 1 Energy, 2 Turn CD).</div>
+              </div>
+              <div style="border-left: 3px solid #2ECC71; padding-left: 8px;">
+                <strong>The Guardian:</strong>
+                <div><em>Passive (Aegis Shield):</em> Reduce any Hazard/Danger Card penalty by 1.</div>
+                <div><em>Active (Temporal Repair):</em> Reduce Paradox Meter by 1 and either spend 2 Energy or restore 1 Energy (3 Turn CD).</div>
+              </div>
+              <div style="border-left: 3px solid #F39C12; padding-left: 8px;">
+                <strong>The Strategist:</strong>
+                <div><em>Passive (Trap Mastery):</em> +1 Energy when someone triggers your Trap.</div>
+                <div><em>Active (Temporal Trap):</em> Plant a Danger Trap on your current tile (Cost: 2 Energy, 2 Turn CD).</div>
+              </div>
+            </div>
+          ` : ''}
+
+          ${guideTab === 'mechanics' ? `
+            <h4 style="color: var(--text-accent);">Energy System (0 - 10)</h4>
+            <p>Every player starts with 10 Energy. Moving through Time Gates costs 2 Energy (1 for Explorer). Reaching 0 Energy makes a player <strong>Stranded</strong>. A stranded player can spend their turn <strong>Resting</strong> to recover +3 Energy.</p>
+
+            <h4 style="color: var(--text-accent); margin-top: 10px;">Individual Paradox Meter (0 - 5)</h4>
+            <ul>
+              <li><strong>Level 0-1:</strong> Stable (+2 bonus points at game end).</li>
+              <li><strong>Level 2:</strong> Minor Friction (-1 Point penalty).</li>
+              <li><strong>Level 3:</strong> Temporal Strain (Immediate loss of 1 Energy).</li>
+              <li><strong>Level 4:</strong> Anomaly Trigger (Immediately draw a Danger Card).</li>
+              <li><strong>Level 5 (Critical Breach):</strong> +2 to Shared Timeline Meter, -3 Points, and meter resets to Level 2.</li>
+            </ul>
+
+            <h4 style="color: var(--text-danger); margin-top: 10px;">Shared Timeline Meter (0 - 10)</h4>
+            <p><strong>Losing Condition:</strong> If the Timeline Meter reaches 10, the timeline collapses and <strong>all players immediately lose!</strong></p>
+
+            <h4 style="color: var(--text-accent); margin-top: 10px;">Artifact Acquisition Rule</h4>
+            <p>Players must gather at least <strong>3 Clues</strong> related to a specific artifact before attempting to acquire it from an Artifact Tile.</p>
+          ` : ''}
+
+          ${guideTab === 'scoring' ? `
+            <table style="width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.8rem;">
+              <tr style="border-bottom: 1px solid var(--border-glass); text-align: left;">
+                <th style="padding: 6px;">Achievement</th>
+                <th style="padding: 6px; text-align: right;">Points</th>
+              </tr>
+              <tr><td style="padding: 4px;">Complete Assigned Mission</td><td style="text-align: right; color: var(--text-accent); font-weight: 700;">+10</td></tr>
+              <tr><td style="padding: 4px;">Return Artifact to Correct Timeline</td><td style="text-align: right; color: var(--text-accent); font-weight: 700;">+5</td></tr>
+              <tr><td style="padding: 4px;">Complete Optional Objective</td><td style="text-align: right; color: var(--text-accent);">+2</td></tr>
+              <tr><td style="padding: 4px;">Collect Required Clues</td><td style="text-align: right; color: var(--text-accent);">+1 each</td></tr>
+              <tr><td style="padding: 4px;">Unused Energy Remaining</td><td style="text-align: right; color: var(--text-accent);">+1 each</td></tr>
+              <tr><td style="padding: 4px;">Paradox Level 0-1 (Stewardship)</td><td style="text-align: right; color: var(--text-success);">+2</td></tr>
+              <tr><td style="padding: 4px;">Paradox Level 4-5</td><td style="text-align: right; color: var(--text-danger);">-3</td></tr>
+              <tr><td style="padding: 4px;">Mission Failure</td><td style="text-align: right; color: var(--text-danger);">-5</td></tr>
+            </table>
+          ` : ''}
+        </div>
+
+        <div class="modal-actions">
+          <button id="guide-close-btn2" class="btn btn-primary">Understood</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', guideHtml);
+
+  const closeGuide = () => {
+    sounds.btnClick();
+    showGuide = false;
+    document.querySelector('#guide-modal')?.remove();
+  };
+
+  document.querySelector('#guide-close-btn')?.addEventListener('click', closeGuide);
+  document.querySelector('#guide-close-btn2')?.addEventListener('click', closeGuide);
+
+  ['overview', 'roles', 'mechanics', 'scoring'].forEach(tab => {
+    document.querySelector(`#gtab-${tab}`)?.addEventListener('click', () => {
+      sounds.btnClick();
+      guideTab = tab;
+      renderGuideModal();
+    });
+  });
+}
+
+// ==========================================
+// 7. END GAME SCREEN
+// ==========================================
+function renderEndGameScreen() {
+  const state = engine.getState();
+  if (!state) return;
+
+  const isCollapse = state.endReason === 'collapse' || state.timelineMeter >= 10;
+  const sortedPlayers = [...state.players].sort((a, b) => b.points - a.points);
+  const winner = isCollapse ? null : sortedPlayers[0];
+
+  app.innerHTML = `
+    <div class="endgame-screen">
+      <div class="endgame-title" style="color: ${isCollapse ? 'var(--text-danger)' : 'var(--text-accent)'};">
+        ${isCollapse ? '💀 TIMELINE COLLAPSE!' : '🏆 MISSION COMPLETE!'}
+      </div>
+      <div class="endgame-subtitle">
+        ${isCollapse
+          ? 'The temporal breach reached catastrophic levels. History collapsed and all castaways were lost.'
+          : `Temporal stability restored! Winner: ${winner.name} (${winner.role.name})`}
+      </div>
+
+      <div class="scoreboard">
+        ${sortedPlayers.map((p, rank) => {
+          const isWinner = !isCollapse && rank === 0;
+          return `
+            <div class="score-card ${isWinner ? 'winner' : ''}">
+              <div class="score-rank">#${rank + 1}</div>
+              <img src="${p.role.avatar}" style="width: 44px; height: 44px; border-radius: var(--radius-sm); object-fit: contain;">
+              <div class="score-player-info">
+                <div class="score-player-name" style="color: ${p.color};">
+                  ${p.name} ${isWinner ? '👑' : ''}
+                </div>
+                <div class="score-player-role">${p.role.name}</div>
+                <div class="score-breakdown">
+                  <span class="score-item">Mission: <span class="score-item-value">${p.missionComplete ? '+10' : '-5'}</span></span>
+                  <span class="score-item">Artifacts: <span class="score-item-value">+${p.artifactCards.length * 5}</span></span>
+                  <span class="score-item">Clues: <span class="score-item-value">+${p.cluePoints || 0}</span></span>
+                  <span class="score-item">Energy: <span class="score-item-value">+${p.energy}</span></span>
+                  <span class="score-item">Paradox: <span class="score-item-value">${p.paradox <= 1 ? '+2' : (p.paradox >= 4 ? '-3' : '0')}</span></span>
+                </div>
+              </div>
+              <div class="score-total">${p.points} PTS</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div style="display: flex; gap: var(--space-md); margin-top: var(--space-md);">
+        <button id="btn-play-again" class="btn btn-primary">Play Another Shift</button>
+        <button id="btn-back-menu" class="btn btn-secondary">Main Menu</button>
+      </div>
+    </div>
+  `;
+
+  document.querySelector('#btn-play-again')?.addEventListener('click', () => {
+    sounds.portal();
+    const configs = state.players.map(p => ({
+      name: p.name,
+      roleKey: p.roleKey,
+      isLocal: p.isLocal
+    }));
+    engine = new GameEngine();
+    network = new NetworkManager(engine);
+    setupNetworkListeners();
+    engine.subscribe((s) => {
+      if (s?.gameOver && currentScreen === 'game') {
+        currentScreen = 'endgame';
+      }
+      render();
+    });
+    engine.initGame(configs);
+    currentScreen = 'game';
+    render();
+  });
+
+  document.querySelector('#btn-back-menu')?.addEventListener('click', () => {
+    sounds.btnClick();
+    currentScreen = 'title';
+    render();
+  });
+}
+
+// Initial Render
+render();

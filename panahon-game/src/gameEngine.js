@@ -33,8 +33,8 @@ export class GameEngine {
     return () => { this.listeners = this.listeners.filter(l => l !== fn); };
   }
 
-  notify() {
-    this.listeners.forEach(fn => fn(this.state));
+  notify(eventType = 'state') {
+    this.listeners.forEach(fn => fn(this.state, eventType));
   }
 
   getState() {
@@ -174,7 +174,7 @@ export class GameEngine {
       if (this.state.gameTimeRemaining <= 0) {
         this.endGame('timeout');
       }
-      this.notify();
+      this.notify('timer');
     }, 1000);
   }
 

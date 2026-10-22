@@ -390,7 +390,7 @@ function checkAndTriggerAutoMove(delayMs = 380) {
 }
 
 // Subscribe to game engine state changes
-engine.subscribe((state) => {
+engine.subscribe((state, eventType) => {
   if (state?.gameOver && currentScreen === 'game') {
     if (state.endReason === 'collapse') {
       sounds.collapse();
@@ -398,9 +398,36 @@ engine.subscribe((state) => {
       sounds.victory();
     }
     currentScreen = 'endgame';
+    render();
+    return;
   }
+
+  // Only update header countdown span without re-rendering entire screen
+  if (eventType === 'timer') {
+    const timerSpan = document.querySelector('.game-timer span:last-child');
+    if (timerSpan && typeof state.gameTimeRemaining === 'number') {
+      const minutes = Math.floor(state.gameTimeRemaining / 60);
+      const seconds = state.gameTimeRemaining % 60;
+      timerSpan.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+    return;
+  }
+
+  // Preserve chat input text and focus if user was typing during a turn or action update
+  const activeInput = document.querySelector('.chat-text-input:focus');
+  const activeInputId = activeInput?.id;
+  const activeInputValue = activeInput?.value;
+
   render();
   checkAndTriggerAutoMove(380);
+
+  if (activeInputId) {
+    const restoredInput = document.querySelector(`#${activeInputId}`);
+    if (restoredInput) {
+      if (typeof activeInputValue === 'string') restoredInput.value = activeInputValue;
+      restoredInput.focus();
+    }
+  }
 });
 
 // --- RENDER DISPATCHER ---

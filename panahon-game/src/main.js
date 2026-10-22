@@ -37,6 +37,7 @@ let onlineSelectedRole = 'HISTORIAN';
 let onlineRoomCodeInput = '';
 let currentRoomPlayers = [];
 let isConnectingOnline = false;
+let showServerSettings = false;
 
 // Toasts queue
 const toasts = [];
@@ -362,6 +363,14 @@ function renderLobbyScreen() {
               </div>
             ` : ''}
 
+            <!-- Serverless WebRTC Network Status Badge -->
+            <div style="margin-top: var(--space-xs); padding: 8px 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1rem;">🌐</span>
+              <div style="font-size: 0.72rem; color: #10B981; line-height: 1.3;">
+                <strong>Serverless WebRTC Enabled:</strong> Peer-to-Peer connection across 5G & Wi-Fi. No server required!
+              </div>
+            </div>
+
             <div style="display: flex; justify-content: flex-end; gap: var(--space-md); margin-top: var(--space-md);">
               <button id="btn-lobby-back" class="btn btn-secondary">Back</button>
               <button id="btn-online-connect" class="btn btn-primary" ${isConnectingOnline ? 'disabled' : ''}>
@@ -498,30 +507,24 @@ function renderLobbyScreen() {
     });
   });
 
-  document.querySelector('#btn-online-connect')?.addEventListener('click', async () => {
+  document.querySelector('#btn-online-connect')?.addEventListener('click', () => {
     if (isConnectingOnline) return;
     sounds.btnClick();
     isConnectingOnline = true;
     network.setMode('online');
     render();
-    try {
-      showToast('Connecting', 'Reaching temporal relay server...', 'info');
-      await network.connect();
-      if (onlineSubMode === 'create') {
-        network.createRoom(onlinePlayerName.trim() || 'Castaway', onlineSelectedRole);
-      } else {
-        if (!onlineRoomCodeInput) {
-          isConnectingOnline = false;
-          showToast('Invalid Code', 'Please enter a 5-letter Room Code.', 'warning');
-          render();
-          return;
-        }
-        network.joinRoom(onlineRoomCodeInput, onlinePlayerName.trim() || 'Castaway', onlineSelectedRole);
+    if (onlineSubMode === 'create') {
+      showToast('Creating Mission', 'Opening Peer-to-Peer room...', 'info');
+      network.createRoom(onlinePlayerName.trim() || 'Castaway', onlineSelectedRole);
+    } else {
+      if (!onlineRoomCodeInput) {
+        isConnectingOnline = false;
+        showToast('Invalid Code', 'Please enter a 5-letter Room Code.', 'warning');
+        render();
+        return;
       }
-    } catch (err) {
-      isConnectingOnline = false;
-      showToast('Connection Failed', 'Could not reach server. Verify server is running on port 3001.', 'danger');
-      render();
+      showToast('Connecting', `Joining Room ${onlineRoomCodeInput}...`, 'info');
+      network.joinRoom(onlineRoomCodeInput, onlinePlayerName.trim() || 'Castaway', onlineSelectedRole);
     }
   });
 

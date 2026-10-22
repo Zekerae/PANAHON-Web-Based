@@ -409,14 +409,18 @@ export function generateClueCards() {
     eraArtifacts.forEach((artifact, artIdx) => {
       for (let c = 0; c < 3; c++) {
         const cardNum = eraIdx * 12 + artIdx * 3 + c + 1;
+        const imgPath = getClueCardImage(cardNum);
         clueCards.push({
           id: `clue_${era}_${artIdx}_${c}`,
           type: 'clue',
           era: era,
           artifactId: artifact.id,
+          artifactName: artifact.name,
           isDecoy: false,
-          image: getClueCardImage(cardNum),
-          description: `Clue about ${artifact.name}`
+          image: imgPath,
+          cardImage: imgPath,
+          description: `Clue about ${artifact.name}`,
+          hint: `Clue about ${artifact.name}`
         });
       }
     });
@@ -424,14 +428,17 @@ export function generateClueCards() {
     // 5 decoy cards per era
     for (let d = 0; d < 5; d++) {
       const decoyNum = d + 1;
+      const decoyImg = `assets/Cards/Decoy Cards/${eraIdx * 4 + decoyNum}.png`;
       clueCards.push({
         id: `decoy_${era}_${d}`,
         type: 'decoy',
         era: era,
         artifactId: null,
         isDecoy: true,
-        image: `assets/Cards/Decoy Cards/${eraIdx * 4 + decoyNum}.png`,
-        description: 'Decoy - This clue leads nowhere!'
+        image: decoyImg,
+        cardImage: decoyImg,
+        description: 'Decoy - This clue leads nowhere!',
+        hint: 'Decoy - This clue leads nowhere!'
       });
     }
   });

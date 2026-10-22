@@ -1306,9 +1306,11 @@ function renderGameScreen() {
                 </div>
               ` : viewedPlayer.clueCards.map(c => {
           if (isViewingSelf) {
+            const cardImg = c.cardImage || c.image || '';
+            const cardDesc = c.description || c.hint || (c.isDecoy ? 'Decoy Hint' : 'Clue Card');
             return `
-                    <div class="hand-card clue-card" title="${c.hint}">
-                      <img src="${c.cardImage}" alt="${c.hint}">
+                    <div class="hand-card clue-card" data-card-type="clue" data-card-id="${c.id}" title="${escapeHtml(cardDesc)}">
+                      <img src="${cardImg}" alt="${escapeHtml(cardDesc)}">
                       <div class="hand-card-type" style="color: ${c.isDecoy ? 'var(--text-danger)' : 'var(--tile-clue)'};">
                         ${c.isDecoy ? 'Decoy Hint' : `${ERA_NAMES[c.era].replace(' Era', '')}`}
                       </div>
@@ -1338,8 +1340,8 @@ function renderGameScreen() {
                   No historical artifacts acquired yet. Reach an Artifact Tile with 3 clues to retrieve one!
                 </div>
               ` : viewedPlayer.artifactCards.map(a => `
-                <div class="hand-card artifact-card" title="${a.name} (${a.nickname})">
-                  <img src="${a.cardImage}" alt="${a.name}">
+                <div class="hand-card artifact-card" data-card-type="artifact" data-card-id="${a.id}" title="${a.name} (${a.nickname})">
+                  <img src="${a.cardImage || a.image}" alt="${a.name}">
                   <div class="hand-card-type" style="color: var(--tile-artifact);">
                     ${a.nickname}
                   </div>
@@ -1424,6 +1426,39 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
     sounds.btnClick();
     inspectedPlayerId = null;
     render();
+  });
+
+  // Hand card preview on click
+  document.querySelectorAll('.hand-card[data-card-id]').forEach(cardEl => {
+    cardEl.addEventListener('click', () => {
+      const cardId = cardEl.dataset.cardId;
+      const cardType = cardEl.dataset.cardType;
+      sounds.btnClick();
+      const viewedPlayer = (inspectedPlayerId !== null && state.players[inspectedPlayerId]) ? state.players[inspectedPlayerId] : currentPlayer;
+      if (cardType === 'clue') {
+        const found = viewedPlayer.clueCards.find(c => c.id === cardId);
+        if (found) {
+          renderCardModal({
+            title: found.isDecoy ? 'Decoy Card' : 'Clue Card',
+            cardType: found.isDecoy ? 'Decoy Card' : 'Clue Card',
+            description: found.description || found.hint,
+            image: found.cardImage || found.image,
+            era: found.era
+          });
+        }
+      } else if (cardType === 'artifact') {
+        const found = viewedPlayer.artifactCards.find(a => a.id === cardId);
+        if (found) {
+          renderCardModal({
+            title: `${found.name} (${found.nickname})`,
+            cardType: 'Historical Relic',
+            description: found.description,
+            image: found.cardImage || found.image,
+            era: found.era
+          });
+        }
+      }
+    });
   });
 
   // Inspect player from sidebar

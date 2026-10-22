@@ -1,6 +1,8 @@
 // ===== PANAHON: CHRONO SHIFT - WebSocket Cloud Relay Network =====
 // Supports Render.com Cloud Relay, local dev proxy (/ws), and cross-network 5G/Wi-Fi/VPN
 
+import sounds from './sound.js';
+
 export class NetworkManager {
   constructor(gameEngine) {
     this.engine = gameEngine;
@@ -15,6 +17,7 @@ export class NetworkManager {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.isConnecting = false;
+    this.heartbeatTimer = null;
 
     // Callbacks
     this.onStateUpdate = null;
@@ -107,39 +110,41 @@ export class NetworkManager {
           console.log('[Network] Connecting to relay server:', url);
           socket = new WebSocket(url);
 
-          socket.onopen = () => {
-            if (!settled) {
-              settled = true;
-              clearTimeout(timer);
-              this.ws = socket;
-              this.serverUrl = url;
-              this.reconnectAttempts = 0;
-              this.isConnecting = false;
-              console.log('[Network] Connected to relay server:', url);
+              socket.onopen = () => {
+                if (!settled) {
+                  settled = true;
+                  clearTimeout(timer);
+                  this.ws = socket;
+                  this.serverUrl = url;
+                  this.reconnectAttempts = 0;
+                  this.isConnecting = false;
+                  this.startHeartbeat();
+                  console.log('[Network] Connected to relay server:', url);
 
-              socket.onmessage = (event) => {
-                try {
-                  this.handleMessage(JSON.parse(event.data));
-                } catch (e) {
-                  console.error('[Network] Message parse error:', e);
+                  socket.onmessage = (event) => {
+                    try {
+                      this.handleMessage(JSON.parse(event.data));
+                    } catch (e) {
+                      console.error('[Network] Message parse error:', e);
+                    }
+                  };
+
+                  socket.onclose = () => {
+                    console.warn('[Network] Disconnected from relay server:', url);
+                    this.stopHeartbeat();
+                    if (this.mode === 'online' && this.reconnectAttempts < this.maxReconnectAttempts) {
+                      this.reconnectAttempts++;
+                      setTimeout(() => this.connect(this.serverUrl).catch(() => {}), 2000 * this.reconnectAttempts);
+                    }
+                  };
+
+                  socket.onerror = (err) => {
+                    console.error('[Network] WebSocket error on', url, err);
+                  };
+
+                  resolve();
                 }
               };
-
-              socket.onclose = () => {
-                console.warn('[Network] Disconnected from relay server:', url);
-                if (this.mode === 'online' && this.reconnectAttempts < this.maxReconnectAttempts) {
-                  this.reconnectAttempts++;
-                  setTimeout(() => this.connect(this.serverUrl).catch(() => {}), 2000 * this.reconnectAttempts);
-                }
-              };
-
-              socket.onerror = (err) => {
-                console.error('[Network] WebSocket error on', url, err);
-              };
-
-              resolve();
-            }
-          };
 
           socket.onerror = (err) => {
             if (!settled) {
@@ -266,6 +271,22 @@ export class NetworkManager {
     return true;
   }
 
+  startHeartbeat() {
+    this.stopHeartbeat();
+    this.heartbeatTimer = setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ type: 'PING' }));
+      }
+    }, 20000);
+  }
+
+  stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
+
   broadcastState(state) {
     if (this.mode === 'local' || !this.isHost) return;
     this.send({
@@ -344,6 +365,9 @@ export class NetworkManager {
         if (this.onRoomClosed) this.onRoomClosed(msg.message || 'Room closed by host.');
         break;
 
+      case 'PONG':
+        return;
+
       case 'CHAT_MESSAGE':
         this.chatMessages.push(msg);
         if (this.chatMessages.length > 60) this.chatMessages.shift();
@@ -356,6 +380,9 @@ export class NetworkManager {
 
       case 'GAME_ACTION':
         this.executeRemoteAction(msg.action);
+        if (this.isHost && msg.action?.type === 'END_TURN') {
+          this.broadcastState(this.engine.getState());
+        }
         break;
 
       case 'GAME_START':
@@ -376,6 +403,7 @@ export class NetworkManager {
     if (!action) return;
     switch (action.type) {
       case 'ROLL_DICE':
+        sounds.diceRoll();
         if (action.result) {
           this.engine.state.diceResult = action.result;
           this.engine.state.movesRemaining = action.result;
@@ -388,45 +416,57 @@ export class NetworkManager {
         }
         break;
       case 'MOVE_STEP':
+        sounds.moveStep();
         this.engine.movePlayerStep();
         break;
       case 'MOVE_TO_TILE':
+        sounds.moveStep();
         this.engine.moveToTile(action.targetTileId);
         break;
       case 'END_TURN':
+        sounds.btnClick();
         this.engine.endTurn();
         break;
       case 'USE_ABILITY':
+        sounds.btnClick();
         this.engine.useActiveAbility(action.playerIdx);
         break;
       case 'INTERACT_MOMENTUM':
+        sounds.btnClick();
         this.engine.interactMomentumTile(action.playerIdx);
         break;
       case 'RESOLVE_CHOICE':
+        sounds.btnClick();
         this.engine.resolveChoice(action.action);
         break;
       case 'DISMISS_MODAL':
+        sounds.btnClick();
         this.engine.dismissModal();
         break;
       case 'TIME_WARP':
+        sounds.portal();
         this.engine.timeWarp(action.playerIdx);
         break;
       case 'REVERSE_TIME':
+        sounds.portal();
         this.engine.reverseTime(action.playerIdx);
         break;
       case 'REST':
+        sounds.btnClick();
         this.engine.rest(action.playerIdx);
         break;
       case 'TRADE_ENERGY':
         this.engine.tradeEnergy(action.fromIdx, action.toIdx, action.amount);
         break;
       case 'RETURN_ARTIFACT':
+        sounds.artifact();
         this.engine.returnArtifact(action.playerIdx, action.artifactId);
         break;
     }
   }
 
   cleanup() {
+    this.stopHeartbeat();
     if (this.ws) {
       try { this.ws.close(); } catch (_) {}
       this.ws = null;

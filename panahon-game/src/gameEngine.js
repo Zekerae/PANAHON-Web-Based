@@ -1003,6 +1003,7 @@ export class GameEngine {
 
   // --- Turn Management ---
   endTurn() {
+    if (this.state.gameOver) return;
     const player = this.getCurrentPlayer();
     
     // Decrease cooldowns

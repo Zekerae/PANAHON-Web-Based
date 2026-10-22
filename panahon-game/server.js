@@ -3,6 +3,15 @@
 import { WebSocketServer } from 'ws';
 import http from 'http';
 
+// Process-level crash protection
+process.on('uncaughtException', (err) => {
+  console.error('[CRITICAL] Uncaught exception in relay server:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[CRITICAL] Unhandled promise rejection at:', promise, 'reason:', reason);
+});
+
 const PORT = process.env.PORT || 3001;
 
 const server = http.createServer((req, res) => {
@@ -20,6 +29,10 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server });
 
+wss.on('error', (err) => {
+  console.error('[CRITICAL] WebSocketServer error:', err);
+});
+
 // Room storage: roomCode -> room object
 const rooms = new Map();
 
@@ -33,6 +46,7 @@ function generateRoomCode() {
 }
 
 function getPublicPlayers(room) {
+  if (!room || !Array.isArray(room.players)) return [];
   return room.players.map(p => ({
     id: p.id,
     name: p.name,
@@ -43,94 +57,154 @@ function getPublicPlayers(room) {
 }
 
 function broadcast(room, message, excludeWs = null) {
-  const data = JSON.stringify(message);
+  if (!room || !Array.isArray(room.players)) return;
+  const data = typeof message === 'string' ? message : JSON.stringify(message);
   room.players.forEach(player => {
-    if (player.ws !== excludeWs && player.ws.readyState === 1) {
+    if (player && player.ws !== excludeWs && player.ws && player.ws.readyState === 1) {
       try {
         player.ws.send(data);
       } catch (err) {
-        console.error(`Broadcast error to player ${player.id}:`, err);
+        console.error(`Broadcast error to player ${player.id}:`, err?.message || err);
       }
     }
   });
 }
 
 function handlePlayerExit(room, playerId, ws) {
-  if (!room || playerId === null) return;
+  try {
+    if (!room || playerId === null || !Array.isArray(room.players)) return;
 
-  if (!room.gameStarted) {
-    // Before game starts:
-    if (playerId === room.host) {
-      // Host left: close the room and notify remaining players
-      console.log(`Host left lobby. Closing room ${room.code}`);
+    if (!room.gameStarted) {
+      // Before game starts:
+      if (playerId === room.host) {
+        // Host left: close the room and notify remaining players
+        console.log(`Host left lobby. Closing room ${room.code}`);
+        broadcast(room, {
+          type: 'ROOM_CLOSED',
+          message: 'The Host left the anomaly lobby. Room closed.'
+        }, ws);
+        rooms.delete(room.code);
+        return;
+      }
+
+      // Non-host left before game start: completely remove player from room
+      const leavingPlayer = room.players.find(p => p.id === playerId);
+      room.players = room.players.filter(p => p.id !== playerId);
+
+      // Re-index remaining players cleanly so IDs are contiguous 0..N-1
+      room.players.forEach((p, idx) => {
+        p.id = idx;
+        if (p.ws && p.ws.readyState === 1) {
+          try {
+            p.ws.send(JSON.stringify({
+              type: 'YOUR_ID',
+              playerId: idx,
+              roomCode: room.code
+            }));
+          } catch (_) {}
+        }
+      });
+
+      const roster = getPublicPlayers(room);
       broadcast(room, {
-        type: 'ROOM_CLOSED',
-        message: 'The Host left the anomaly lobby. Room closed.'
+        type: 'ROSTER_UPDATE',
+        players: roster,
+        playerLeft: {
+          id: playerId,
+          name: leavingPlayer?.name || 'Player'
+        }
       }, ws);
+
+      console.log(`Player ${leavingPlayer?.name || playerId} left room ${room.code}. Active players: ${room.players.length}`);
+    } else {
+      // In-game disconnect: mark as disconnected so game flow isn't corrupt
+      const player = room.players.find(p => p.id === playerId);
+      if (player) {
+        player.connected = false;
+        broadcast(room, {
+          type: 'PLAYER_LEFT',
+          playerId
+        }, ws);
+        console.log(`In-game player disconnected: ${player.name} (Player ${playerId})`);
+      }
+    }
+
+    // Clean up if room is completely empty
+    const activeCount = room.players.filter(p => p && p.connected && p.ws && p.ws.readyState === 1).length;
+    if (activeCount === 0) {
       rooms.delete(room.code);
-      return;
+      console.log(`Room ${room.code} deleted (all players departed)`);
     }
-
-    // Non-host left before game start: completely remove player from room
-    const leavingPlayer = room.players.find(p => p.id === playerId);
-    room.players = room.players.filter(p => p.id !== playerId);
-
-    // Re-index remaining players cleanly so IDs are contiguous 0..N-1
-    room.players.forEach((p, idx) => {
-      p.id = idx;
-      if (p.ws.readyState === 1) {
-        try {
-          p.ws.send(JSON.stringify({
-            type: 'YOUR_ID',
-            playerId: idx,
-            roomCode: room.code
-          }));
-        } catch (_) {}
-      }
-    });
-
-    const roster = getPublicPlayers(room);
-    broadcast(room, {
-      type: 'ROSTER_UPDATE',
-      players: roster,
-      playerLeft: {
-        id: playerId,
-        name: leavingPlayer?.name || 'Player'
-      }
-    }, ws);
-
-    console.log(`Player ${leavingPlayer?.name || playerId} left room ${room.code}. Active players: ${room.players.length}`);
-  } else {
-    // In-game disconnect: mark as disconnected so game flow isn't corrupt
-    const player = room.players.find(p => p.id === playerId);
-    if (player) {
-      player.connected = false;
-      broadcast(room, {
-        type: 'PLAYER_LEFT',
-        playerId
-      }, ws);
-      console.log(`In-game player disconnected: ${player.name} (Player ${playerId})`);
-    }
-  }
-
-  // Clean up if room is completely empty
-  const activeCount = room.players.filter(p => p.connected && p.ws.readyState === 1).length;
-  if (activeCount === 0) {
-    rooms.delete(room.code);
-    console.log(`Room ${room.code} deleted (all players departed)`);
+  } catch (err) {
+    console.error('Error in handlePlayerExit:', err);
   }
 }
 
+// 25-second server-side keepalive heartbeat
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach(ws => {
+    if (ws.isAlive === false) {
+      console.log('[Server] Terminating unresponsive socket connection');
+      return ws.terminate();
+    }
+    ws.isAlive = false;
+    try {
+      ws.ping();
+    } catch (_) {}
+  });
+}, 25000);
+
+wss.on('close', () => {
+  clearInterval(heartbeatInterval);
+});
+
 wss.on('connection', (ws) => {
+  ws.isAlive = true;
+  ws.on('pong', () => {
+    ws.isAlive = true;
+  });
+
   let currentRoom = null;
   let currentPlayerId = null;
+  let msgCount = 0;
+  let lastRateReset = Date.now();
+
+  ws.on('error', (err) => {
+    console.error(`[WebSocket Client Error] Player ${currentPlayerId} in room ${currentRoom?.code}:`, err?.message || err);
+  });
 
   ws.on('message', (data) => {
     try {
       const msg = JSON.parse(data);
+      if (!msg || typeof msg !== 'object') return;
+
+      // Handle keep-alive pings immediately without rate-limit penalty
+      if (msg.type === 'PING') {
+        if (ws.readyState === 1) {
+          ws.send(JSON.stringify({ type: 'PONG' }));
+        }
+        return;
+      }
+
+      const now = Date.now();
+      if (now - lastRateReset > 1000) {
+        msgCount = 0;
+        lastRateReset = now;
+      }
+      msgCount++;
+      if (msgCount > 60) {
+        console.warn(`[Server] Rate limit reached (${msgCount} msg/s) for socket in room ${currentRoom?.code}`);
+        return;
+      }
 
       switch (msg.type) {
         case 'CREATE_ROOM': {
+          if (currentRoom) {
+            handlePlayerExit(currentRoom, currentPlayerId, ws);
+            currentRoom = null;
+            currentPlayerId = null;
+          }
+
           let roomCode;
           do {
             roomCode = generateRoomCode();
@@ -168,6 +242,12 @@ wss.on('connection', (ws) => {
         }
 
         case 'JOIN_ROOM': {
+          if (currentRoom) {
+            handlePlayerExit(currentRoom, currentPlayerId, ws);
+            currentRoom = null;
+            currentPlayerId = null;
+          }
+
           const roomCode = (msg.roomCode || '').trim().toUpperCase();
           const room = rooms.get(roomCode);
           if (!room) {
@@ -177,7 +257,7 @@ wss.on('connection', (ws) => {
 
           // Clean up disconnected ghosts before game start
           if (!room.gameStarted) {
-            room.players = room.players.filter(p => p.connected && p.ws.readyState === 1);
+            room.players = room.players.filter(p => p.connected && p.ws && p.ws.readyState === 1);
           }
 
           if (room.players.length >= 4) {
@@ -236,6 +316,34 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        case 'REJOIN_ROOM': {
+          const roomCode = (msg.roomCode || '').trim().toUpperCase();
+          const room = rooms.get(roomCode);
+          if (room && room.gameStarted) {
+            const player = room.players.find(p => p.id === msg.playerId);
+            if (player) {
+              player.ws = ws;
+              player.connected = true;
+              currentRoom = room;
+              currentPlayerId = player.id;
+              ws.send(JSON.stringify({
+                type: 'ROOM_REJOINED',
+                roomCode,
+                playerId: player.id,
+                state: room.state
+              }));
+              broadcast(room, {
+                type: 'PLAYER_RECONNECTED',
+                playerId: player.id,
+                name: player.name
+              }, ws);
+              console.log(`Player ${player.name} reconnected to in-progress room ${roomCode}`);
+              return;
+            }
+          }
+          break;
+        }
+
         case 'LEAVE_ROOM': {
           handlePlayerExit(currentRoom, currentPlayerId, ws);
           currentRoom = null;
@@ -269,9 +377,13 @@ wss.on('connection', (ws) => {
 
         case 'START_GAME': {
           if (!currentRoom || currentPlayerId !== currentRoom.host) return;
+          if (currentRoom.gameStarted) {
+            console.log(`Ignoring duplicate START_GAME in room ${currentRoom.code}`);
+            return;
+          }
 
           // Only include connected active players
-          const activePlayers = currentRoom.players.filter(p => p.connected && p.ws.readyState === 1);
+          const activePlayers = currentRoom.players.filter(p => p && p.connected && p.ws && p.ws.readyState === 1);
           if (activePlayers.length < 1) return;
 
           currentRoom.gameStarted = true;
@@ -320,7 +432,11 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
-    handlePlayerExit(currentRoom, currentPlayerId, ws);
+    try {
+      handlePlayerExit(currentRoom, currentPlayerId, ws);
+    } catch (err) {
+      console.error('Error in close handler:', err);
+    }
     currentRoom = null;
     currentPlayerId = null;
   });

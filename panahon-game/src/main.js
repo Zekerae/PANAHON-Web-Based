@@ -41,6 +41,13 @@ let showServerSettings = false;
 let unreadChatCount = 0;
 let isGameChatOpen = false;
 
+// Spam prevention flags
+let isRollingDice = false;
+let isMovingStep = false;
+let isEndingTurn = false;
+let isResolvingChoice = false;
+let lastChatSent = 0;
+
 // Toasts queue
 const toasts = [];
 
@@ -289,8 +296,11 @@ function setupChatListeners(boxId) {
 
   const handleSend = () => {
     if (!input) return;
+    const now = Date.now();
+    if (now - lastChatSent < 350) return;
     const val = input.value.trim();
     if (!val) return;
+    lastChatSent = now;
     network.sendChatMessage(val);
     input.value = '';
     input.focus();
@@ -310,6 +320,9 @@ function setupChatListeners(boxId) {
 
   document.querySelectorAll(`#${boxId} .quick-chip`).forEach(chip => {
     chip.addEventListener('click', () => {
+      const now = Date.now();
+      if (now - lastChatSent < 350) return;
+      lastChatSent = now;
       sounds.btnClick();
       const txt = chip.dataset.quick;
       if (txt) {
@@ -417,6 +430,11 @@ engine.subscribe((state, eventType) => {
   const activeInput = document.querySelector('.chat-text-input:focus');
   const activeInputId = activeInput?.id;
   const activeInputValue = activeInput?.value;
+
+  // Reset spam debounce flags on phase change
+  if (state?.phase !== 'rolling') isRollingDice = false;
+  if (state?.phase !== 'moving') isMovingStep = false;
+  if (state?.phase !== 'action') isEndingTurn = false;
 
   render();
   checkAndTriggerAutoMove(380);
@@ -788,7 +806,11 @@ function renderLobbyScreen() {
     render();
   });
 
-  document.querySelector('#btn-host-start')?.addEventListener('click', () => {
+  document.querySelector('#btn-host-start')?.addEventListener('click', (e) => {
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = '🚀 Launching Mission...';
     sounds.btnClick();
     network.startGame();
   });
@@ -1361,14 +1383,29 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
 
   // Dice roll
   const rollAction = () => {
+    if (isRollingDice || state.phase !== 'rolling' || !isMyTurn) return;
+    isRollingDice = true;
     clearAutoMoveTimer();
+
+    const rollBtn = document.querySelector('#btn-roll-dice');
+    if (rollBtn) {
+      rollBtn.disabled = true;
+      rollBtn.style.opacity = '0.5';
+      rollBtn.style.pointerEvents = 'none';
+    }
+
     sounds.diceRoll();
     const diceEl = document.querySelector('#dice-element');
     diceEl?.classList.add('rolling');
+
     setTimeout(() => {
-      const result = engine.rollDice();
-      network.sendAction({ type: 'ROLL_DICE', result });
-      checkAndTriggerAutoMove(550);
+      if (engine.state.phase === 'rolling') {
+        const result = engine.rollDice();
+        if (result) {
+          network.sendAction({ type: 'ROLL_DICE', result });
+        }
+      }
+      isRollingDice = false;
     }, 600);
   };
 
@@ -1379,6 +1416,7 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
 
   // Momentum triggers (pre-roll and mid-movement)
   const triggerMomentum = () => {
+    if (state.phase !== 'rolling' && state.phase !== 'moving') return;
     sounds.btnClick();
     clearAutoMoveTimer();
     const ok = engine.useActiveAbility(state.currentPlayerIndex);
@@ -1400,11 +1438,23 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
 
   // Step movement button
   const triggerStepMove = () => {
+    if (isMovingStep || state.phase !== 'moving' || state.movesRemaining <= 0 || !isMyTurn) return;
+    isMovingStep = true;
     clearAutoMoveTimer();
+
+    document.querySelectorAll('#btn-move-step, #btn-move-fwd, #btn-move-bwd').forEach(b => {
+      b.disabled = true;
+      b.style.opacity = '0.6';
+    });
+
     sounds.moveStep();
-    engine.movePlayerStep();
-    network.sendAction({ type: 'MOVE_STEP' });
-    checkAndTriggerAutoMove(380);
+    const ok = engine.movePlayerStep();
+    if (ok) {
+      network.sendAction({ type: 'MOVE_STEP' });
+    }
+    setTimeout(() => {
+      isMovingStep = false;
+    }, 280);
   };
   document.querySelector('#btn-move-step')?.addEventListener('click', triggerStepMove);
   document.querySelector('#btn-move-fwd')?.addEventListener('click', triggerStepMove);
@@ -1413,68 +1463,107 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
   // Space / tile clicking for movement
   document.querySelectorAll('.mario-party-space[data-tile-id]').forEach(spaceEl => {
     spaceEl.addEventListener('click', () => {
-      if (state.phase === 'moving' && state.movesRemaining > 0) {
-        clearAutoMoveTimer();
-        const tileId = spaceEl.dataset.tileId;
-        const ok = engine.moveToTile(tileId);
-        if (ok) {
-          sounds.moveStep();
-          network.sendAction({ type: 'MOVE_TO_TILE', targetTileId: tileId });
-          checkAndTriggerAutoMove(380);
-        }
+      if (isMovingStep || state.phase !== 'moving' || state.movesRemaining <= 0 || !isMyTurn) return;
+      isMovingStep = true;
+      clearAutoMoveTimer();
+      const tileId = spaceEl.dataset.tileId;
+      const ok = engine.moveToTile(tileId);
+      if (ok) {
+        sounds.moveStep();
+        network.sendAction({ type: 'MOVE_TO_TILE', targetTileId: tileId });
       }
+      setTimeout(() => {
+        isMovingStep = false;
+      }, 280);
     });
   });
 
   // Actions
-  document.querySelector('#btn-act-warp')?.addEventListener('click', () => {
+  document.querySelector('#btn-act-warp')?.addEventListener('click', (e) => {
+    if (state.phase !== 'action' || !isMyTurn) return;
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    btn.disabled = true;
     sounds.portal();
     const ok = engine.timeWarp(state.currentPlayerIndex);
     if (ok) {
       network.sendAction({ type: 'TIME_WARP', playerIdx: state.currentPlayerIndex });
-      checkAndTriggerAutoMove(550);
     }
   });
 
-  document.querySelector('#btn-act-reverse')?.addEventListener('click', () => {
+  document.querySelector('#btn-act-reverse')?.addEventListener('click', (e) => {
+    if (state.phase !== 'action' || !isMyTurn) return;
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    btn.disabled = true;
     sounds.portal();
     const ok = engine.reverseTime(state.currentPlayerIndex);
     if (ok) {
       network.sendAction({ type: 'REVERSE_TIME', playerIdx: state.currentPlayerIndex });
-      checkAndTriggerAutoMove(550);
     }
   });
 
-  document.querySelector('#btn-act-rest')?.addEventListener('click', () => {
+  document.querySelector('#btn-act-rest')?.addEventListener('click', (e) => {
+    if (state.phase !== 'action' || !isMyTurn) return;
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    btn.disabled = true;
     sounds.btnClick();
     engine.rest(state.currentPlayerIndex);
     network.sendAction({ type: 'REST', playerIdx: state.currentPlayerIndex });
   });
 
-  document.querySelector('#btn-act-timegate')?.addEventListener('click', () => {
+  document.querySelector('#btn-act-timegate')?.addEventListener('click', (e) => {
+    if (state.phase !== 'action' || !isMyTurn) return;
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    btn.disabled = true;
     sounds.portal();
     engine.handleTimeGate(currentPlayer);
   });
 
-  document.querySelector('#btn-act-skill')?.addEventListener('click', () => {
+  document.querySelector('#btn-act-skill')?.addEventListener('click', (e) => {
+    if (state.phase !== 'action' || !isMyTurn) return;
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    btn.disabled = true;
     sounds.btnClick();
     engine.useActiveAbility(state.currentPlayerIndex);
     network.sendAction({ type: 'USE_ABILITY', playerIdx: state.currentPlayerIndex });
   });
 
-  document.querySelector('#btn-act-return')?.addEventListener('click', () => {
+  document.querySelector('#btn-act-return')?.addEventListener('click', (e) => {
+    if (state.phase !== 'action' || !isMyTurn) return;
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
     const matchingArt = currentPlayer.artifactCards.find(a => a.era === currentPlayer.currentEra);
     if (matchingArt) {
+      btn.disabled = true;
       sounds.artifact();
       engine.returnArtifact(state.currentPlayerIndex, matchingArt.id);
       network.sendAction({ type: 'RETURN_ARTIFACT', playerIdx: state.currentPlayerIndex, artifactId: matchingArt.id });
     }
   });
 
-  document.querySelector('#btn-end-turn')?.addEventListener('click', () => {
+  document.querySelector('#btn-end-turn')?.addEventListener('click', (e) => {
+    if (isEndingTurn || state.phase !== 'action' || !isMyTurn) return;
+    isEndingTurn = true;
+    const btn = e.currentTarget;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ Ending Turn...';
+      btn.style.pointerEvents = 'none';
+    }
+    clearAutoMoveTimer();
     sounds.btnClick();
     engine.endTurn();
     network.sendAction({ type: 'END_TURN' });
+    if (network.isHost) {
+      network.broadcastState(engine.getState());
+    }
+    setTimeout(() => {
+      isEndingTurn = false;
+    }, 600);
   });
 }
 
@@ -1531,7 +1620,12 @@ function renderCardModal(modal) {
 
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+  let isDismissing = false;
   const dismiss = () => {
+    if (isDismissing) return;
+    isDismissing = true;
+    document.querySelector('#modal-confirm-btn')?.setAttribute('disabled', 'true');
+    document.querySelector('#modal-close-btn')?.setAttribute('disabled', 'true');
     sounds.btnClick();
     engine.dismissModal();
     network.sendAction({ type: 'DISMISS_MODAL' });
@@ -1566,8 +1660,15 @@ function renderChoiceModal(choice) {
 
   document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+  let choiceHandled = false;
   document.querySelectorAll('.choice-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (choiceHandled) return;
+      choiceHandled = true;
+      document.querySelectorAll('.choice-btn').forEach(b => {
+        b.disabled = true;
+        b.style.pointerEvents = 'none';
+      });
       sounds.btnClick();
       const action = btn.dataset.action;
       engine.resolveChoice(action);

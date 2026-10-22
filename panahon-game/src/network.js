@@ -144,9 +144,10 @@ export class NetworkManager {
       let connectTimeout = setTimeout(() => {
         if (!this.playerId && this.playerId !== 0) {
           console.warn('[WebRTC] Connection timeout to host:', targetPeerId);
+          const targetCode = this.roomCode || roomCode;
           this.cleanup();
           if (this.onError) {
-            this.onError(`Room "${this.roomCode}" not found. Verify the code and ensure the Host is online.`);
+            this.onError(`Room "${targetCode}" not found or timed out. Verify the code and ensure the Host is actively in the lobby.`);
           }
         }
       }, 10000);
@@ -178,14 +179,22 @@ export class NetworkManager {
         conn.on('error', (err) => {
           console.error('[WebRTC] Host connection error:', err);
           clearTimeout(connectTimeout);
-          if (this.onError) this.onError(`Could not reach host room "${this.roomCode}".`);
+          const targetCode = this.roomCode || roomCode;
+          this.cleanup();
+          if (this.onError) this.onError(`Could not reach host room "${targetCode}".`);
         });
       });
 
       this.peer.on('error', (err) => {
         console.error('[WebRTC] Client Peer Error:', err);
         clearTimeout(connectTimeout);
-        if (this.onError) this.onError(`Connection error: ${err.type || err.message}`);
+        const targetCode = this.roomCode || roomCode;
+        this.cleanup();
+        if (err.type === 'peer-unavailable') {
+          if (this.onError) this.onError(`Room "${targetCode}" does not exist or has closed. Make sure the Host has created the room.`);
+        } else {
+          if (this.onError) this.onError(`WebRTC Error: ${err.message || err.type}`);
+        }
       });
     } catch (err) {
       console.error('[WebRTC] Client peer init failed:', err);

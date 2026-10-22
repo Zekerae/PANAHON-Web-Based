@@ -1169,7 +1169,7 @@ function renderGameScreen() {
           <div class="panel-section-title">Temporal Actions</div>
           <div class="action-buttons">
             <!-- Reverse Time -->
-            <button id="btn-act-reverse" class="action-btn" ${!isMyTurn || currentPlayer.reverseTimeCooldown > 0 || currentPlayer.energy < GAME_CONSTANTS.REVERSE_TIME_COST || state.phase !== 'action' ? 'disabled' : ''} title="Spend 3 Energy to roll and move backwards (${GAME_CONSTANTS.REVERSE_TIME_COOLDOWN} Turn CD)">
+            <button id="btn-act-reverse" class="action-btn" ${!isMyTurn || state.phase === 'moving' || currentPlayer.reverseTimeCooldown > 0 || currentPlayer.energy < GAME_CONSTANTS.REVERSE_TIME_COST ? 'disabled' : ''} title="Spend 3 Energy to roll and move backwards (${GAME_CONSTANTS.REVERSE_TIME_COOLDOWN} Turn CD)">
               <span class="action-btn-icon">⏪</span>
               <span>Reverse Time</span>
               <span class="action-btn-cost">
@@ -1185,7 +1185,7 @@ function renderGameScreen() {
             </button>
 
             <!-- Role Skill -->
-            <button id="btn-act-skill" class="action-btn" ${!isMyTurn || currentPlayer.usedAbilityThisTurn || currentPlayer.activeCooldown > 0 || currentPlayer.energy < (currentPlayer.role.active.energyCost || 0) ? 'disabled' : ''} title="${currentPlayer.role.active.description}">
+            <button id="btn-act-skill" class="action-btn" ${!isMyTurn || state.phase === 'moving' || currentPlayer.usedAbilityThisTurn || currentPlayer.activeCooldown > 0 || currentPlayer.energy < (currentPlayer.role.active.energyCost || 0) ? 'disabled' : ''} title="${currentPlayer.role.active.description}">
               <span class="action-btn-icon">✨</span>
               <span>${currentPlayer.role.active.name}</span>
               <span class="action-btn-cost">
@@ -1528,7 +1528,7 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
 
   // Actions
   document.querySelector('#btn-act-reverse')?.addEventListener('click', (e) => {
-    if (state.phase !== 'action' || !isMyTurn) return;
+    if (state.phase === 'moving' || !isMyTurn) return;
     const btn = e.currentTarget;
     if (btn.disabled) return;
     btn.disabled = true;
@@ -1540,7 +1540,7 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
   });
 
   document.querySelector('#btn-act-rest')?.addEventListener('click', (e) => {
-    if (state.phase !== 'action' || !isMyTurn) return;
+    if (state.phase === 'moving' || !isMyTurn) return;
     const btn = e.currentTarget;
     if (btn.disabled) return;
     btn.disabled = true;
@@ -1550,7 +1550,7 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
   });
 
   document.querySelector('#btn-act-skill')?.addEventListener('click', (e) => {
-    if (state.phase !== 'action' || !isMyTurn) return;
+    if (state.phase === 'moving' || !isMyTurn) return;
     const btn = e.currentTarget;
     if (btn.disabled) return;
     btn.disabled = true;
@@ -1702,13 +1702,30 @@ function renderChoiceModal(choice) {
 
   const isMyTurn = network.isMyTurn(engine.state.currentPlayerIndex);
   const activePlayer = engine.getCurrentPlayer();
+  const isDecipher = choice.type === 'historianDecipher';
 
   const modalHtml = `
     <div class="modal-overlay" id="active-modal">
-      <div class="modal">
+      <div class="modal" ${isDecipher ? 'style="max-width: 500px; width: 95%;"' : ''}>
         <div class="modal-title">${choice.title}</div>
         <div class="modal-body" style="text-align: center; margin-bottom: var(--space-lg);">
           <p>${choice.message}</p>
+          ${isDecipher && choice.drawnCards ? `
+            <div class="mystery-cards-grid">
+              ${choice.drawnCards.map((c, idx) => `
+                <div class="mystery-card choice-btn" data-action="pick_${idx}" title="Click to choose Mystery Card #${idx + 1}" ${!isMyTurn && network.mode === 'online' ? 'style="pointer-events: none; opacity: 0.6;"' : ''}>
+                  <div style="font-size: 2.2rem; filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.7));">📜</div>
+                  <div style="font-size: 0.8rem; font-weight: 800; color: #60A5FA; letter-spacing: 0.5px;">CARD #${idx + 1}</div>
+                  <div style="font-size: 0.62rem; color: #93C5FD; background: rgba(59, 130, 246, 0.2); padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.4);">
+                    FACE DOWN
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 12px;">
+              🔍 Click any face-down mystery card above to keep it!
+            </div>
+          ` : ''}
           ${!isMyTurn && network.mode === 'online' ? `
             <div style="font-size: 0.85rem; color: #60A5FA; margin-top: 10px; font-weight: 600;">
               ⏳ Waiting for ${activePlayer.name} to choose...

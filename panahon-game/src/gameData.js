@@ -163,7 +163,7 @@ export const ROLES = {
     },
     active: {
       name: 'Clue Decipher',
-      description: 'Look at the top 3 cards on the Clue Deck, keep 1, and shuffle the rest (3 Turn CD, 2 Energy Cost)',
+      description: 'Select 1 of 3 face-down Clue Cards to keep, shuffle the rest (3 Turn CD, 2 Energy Cost)',
       cooldown: 3,
       energyCost: 2
     }
@@ -199,7 +199,7 @@ export const ROLES = {
     },
     active: {
       name: 'Temporal Repair',
-      description: 'Reduce Paradox Meter by 1 and reduce 2 Energy or restore 1 Energy (3 Turn CD)',
+      description: 'Spend 2 Energy to reduce Paradox by 1, OR restore 1 Energy (3 Turn CD)',
       cooldown: 3,
       energyCost: 0 // variable
     }

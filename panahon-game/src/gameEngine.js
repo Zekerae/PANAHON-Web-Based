@@ -422,7 +422,9 @@ export class GameEngine {
     if (!this.state.pendingChoice) return;
 
     const player = this.getCurrentPlayer();
-    const choiceType = this.state.pendingChoice.type;
+    const choice = this.state.pendingChoice;
+    const choiceType = choice.type;
+    const returnPhase = choice.returnPhase || 'action';
     this.state.pendingChoice = null;
 
     if (choiceType === 'artifactStop') {
@@ -464,13 +466,40 @@ export class GameEngine {
         this.modifyEnergy(player, -2);
         this.addLog('ability', `${player.name} used Temporal Repair: -1 Paradox, -2 Energy`);
       } else if (action === 'restoreEnergy') {
-        this.modifyParadox(player, -1);
         this.modifyEnergy(player, 1);
-        this.addLog('ability', `${player.name} used Temporal Repair: -1 Paradox, +1 Energy`);
+        this.addLog('ability', `${player.name} used Temporal Repair: +1 Energy restored`);
       }
       player.usedAbilityThisTurn = true;
       player.activeCooldown = ROLES.GUARDIAN.active.cooldown;
-      this.state.phase = 'action';
+      this.state.phase = returnPhase;
+    } else if (choiceType === 'historianDecipher') {
+      const drawnCards = choice.drawnCards || [];
+      const chosenIdx = parseInt(action.replace('pick_', ''), 10);
+      const chosenCard = drawnCards[chosenIdx] || drawnCards[0];
+      const remainingCards = drawnCards.filter((_, idx) => idx !== chosenIdx);
+
+      // Return remaining cards to deck and reshuffle
+      const deck = this.state.clueDecks[player.currentEra] || [];
+      deck.push(...remainingCards);
+      this.state.clueDecks[player.currentEra] = shuffle(deck);
+
+      // Award chosen card to player
+      if (chosenCard && chosenCard.isDecoy && player.roleKey === 'HISTORIAN' && player.passiveCooldown <= 0) {
+        this.addLog('ability', `${player.name} drew a Decoy Card via Clue Decipher, but discarded it with Decoy Discard!`);
+        player.passiveCooldown = ROLES.HISTORIAN.passive.cooldown;
+        this.discardCard(chosenCard);
+      } else if (chosenCard) {
+        player.clueCards.push(chosenCard);
+        if (!chosenCard.isDecoy && chosenCard.artifactId) {
+          if (!player.clueProgress[chosenCard.artifactId]) {
+            player.clueProgress[chosenCard.artifactId] = 0;
+          }
+          player.clueProgress[chosenCard.artifactId]++;
+        }
+        this.addLog('clue', `${player.name} deciphered and kept a Clue Card: ${chosenCard.hint || 'Mystery Clue'}!`);
+      }
+
+      this.state.phase = returnPhase;
     } else if (choiceType === 'timeGateTravel') {
       if (action && action !== 'stay') {
         this.travelToEra(player, action);
@@ -861,11 +890,30 @@ export class GameEngine {
           this.addLog('warning', 'Not enough Energy for Clue Decipher!');
           return false;
         }
+        const clueDeck = this.state.clueDecks[player.currentEra];
+        if (!clueDeck || clueDeck.length === 0) {
+          this.addLog('warning', 'The Clue Deck for this era is empty!');
+          return false;
+        }
         this.modifyEnergy(player, -2);
-        this.peekClueCards(player, 3);
         player.usedAbilityThisTurn = true;
         player.activeCooldown = ROLES.HISTORIAN.active.cooldown;
-        this.addLog('ability', `${player.name} used Clue Decipher!`);
+
+        const count = Math.min(3, clueDeck.length);
+        const drawnCards = clueDeck.splice(0, count);
+
+        this.state.pendingChoice = {
+          type: 'historianDecipher',
+          returnPhase: this.state.phase,
+          drawnCards: drawnCards,
+          title: '📜 Clue Decipher (Historian)',
+          message: `Select 1 of the ${count} face-down mystery Clue Cards to keep. The other cards will be shuffled back into the deck!`,
+          options: drawnCards.map((_, idx) => ({
+            label: `🎴 Keep Mystery Card #${idx + 1}`,
+            action: `pick_${idx}`
+          }))
+        };
+        this.addLog('ability', `${player.name} activated Clue Decipher! Choosing 1 of ${count} face-down cards...`);
         break;
 
       case 'EXPLORER':
@@ -884,16 +932,15 @@ export class GameEngine {
 
       case 'GUARDIAN':
         // Temporal Repair
-        player.usedAbilityThisTurn = true;
-        player.activeCooldown = ROLES.GUARDIAN.active.cooldown;
         const guardianOptions = [];
         if (player.energy >= 2) {
-          guardianOptions.push({ label: 'Reduce Paradox -1 & Spend 2 Energy', action: 'reduceEnergy' });
+          guardianOptions.push({ label: '⚡ Spend 2 Energy & Reduce Paradox -1', action: 'reduceEnergy' });
         }
-        guardianOptions.push({ label: 'Reduce Paradox -1 & Restore 1 Energy', action: 'restoreEnergy' });
+        guardianOptions.push({ label: '🔋 Regen +1 Energy (No Paradox Reduction)', action: 'restoreEnergy' });
         this.state.pendingChoice = {
           type: 'guardianRepair',
-          title: 'Temporal Repair',
+          returnPhase: this.state.phase,
+          title: 'Temporal Repair (Guardian)',
           message: 'Choose your Temporal Repair mode:',
           options: guardianOptions
         };

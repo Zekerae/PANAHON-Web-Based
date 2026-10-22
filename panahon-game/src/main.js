@@ -178,7 +178,7 @@ function renderChatMessagesHtml(messages) {
 
   return messages.map(m => {
     const isSelf = (network.mode === 'online' && m.senderId === network.playerId) ||
-                   (network.mode === 'local' && m.senderName === onlinePlayerName);
+      (network.mode === 'local' && m.senderName === onlinePlayerName);
     const role = ROLES[m.roleKey] || ROLES.HISTORIAN;
     const playerColor = PLAYER_COLORS[m.senderId % PLAYER_COLORS.length] || 'var(--text-accent)';
     const timeStr = formatChatTime(m.timestamp);
@@ -203,7 +203,7 @@ function appendChatMessageToDom(chatMsg) {
   if (!containers || containers.length === 0) return;
 
   const isSelf = (network.mode === 'online' && chatMsg.senderId === network.playerId) ||
-                 (network.mode === 'local' && chatMsg.senderName === onlinePlayerName);
+    (network.mode === 'local' && chatMsg.senderName === onlinePlayerName);
   const role = ROLES[chatMsg.roleKey] || ROLES.HISTORIAN;
   const playerColor = PLAYER_COLORS[chatMsg.senderId % PLAYER_COLORS.length] || 'var(--text-accent)';
   const timeStr = formatChatTime(chatMsg.timestamp);
@@ -549,8 +549,8 @@ function renderLobbyScreen() {
 
         <div class="player-slots">
           ${localPlayers.map((player, idx) => {
-            const role = ROLES[player.roleKey];
-            return `
+      const role = ROLES[player.roleKey];
+      return `
               <div class="player-slot selected" style="border-left: 4px solid ${PLAYER_COLORS[idx]};">
                 <img src="${role.avatar}" class="player-slot-avatar" alt="${role.name}">
                 <div class="player-slot-info">
@@ -569,7 +569,7 @@ function renderLobbyScreen() {
                 </div>
               </div>
             `;
-          }).join('')}
+    }).join('')}
         </div>
 
         <div style="margin-top: var(--space-xl); display: flex; gap: var(--space-md); justify-content: flex-end;">
@@ -599,9 +599,9 @@ function renderLobbyScreen() {
               <label style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Choose Your Castaway Role:</label>
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); margin-top: 6px;">
                 ${roleKeys.map(rk => {
-                  const role = ROLES[rk];
-                  const isSel = onlineSelectedRole === rk;
-                  return `
+      const role = ROLES[rk];
+      const isSel = onlineSelectedRole === rk;
+      return `
                     <div class="player-slot ${isSel ? 'selected' : ''}" data-role="${rk}" style="cursor: pointer; padding: 8px;">
                       <img src="${role.avatar}" class="player-slot-avatar" style="width: 38px; height: 38px;">
                       <div>
@@ -610,7 +610,7 @@ function renderLobbyScreen() {
                       </div>
                     </div>
                   `;
-                }).join('')}
+    }).join('')}
               </div>
             </div>
 
@@ -906,15 +906,15 @@ function renderGameScreen() {
         </div>
 
         ${state.players.map((p, idx) => {
-          const isActive = idx === state.currentPlayerIndex;
-          const isMe = isOnline && p.id === network.playerId;
-          const isInspected = viewedPlayer.id === p.id;
-          const paradoxPercent = Math.min(100, (p.paradox / 5) * 100);
-          let paradoxClass = 'paradox-fill-low';
-          if (p.paradox >= 4) paradoxClass = 'paradox-fill-high';
-          else if (p.paradox >= 2) paradoxClass = 'paradox-fill-mid';
+    const isActive = idx === state.currentPlayerIndex;
+    const isMe = isOnline && p.id === network.playerId;
+    const isInspected = viewedPlayer.id === p.id;
+    const paradoxPercent = Math.min(100, (p.paradox / 5) * 100);
+    let paradoxClass = 'paradox-fill-low';
+    if (p.paradox >= 4) paradoxClass = 'paradox-fill-high';
+    else if (p.paradox >= 2) paradoxClass = 'paradox-fill-mid';
 
-          return `
+    return `
             <div class="player-card ${isActive ? 'active-turn' : ''} ${isInspected ? 'inspected-player' : ''}" data-player-id="${p.id}" style="border-left: 4px solid ${p.color}; cursor: pointer;" title="Click to view ${p.name}'s hand/clues">
               ${isActive ? `<div class="turn-indicator">▶</div>` : ''}
               <div class="player-card-header">
@@ -958,7 +958,7 @@ function renderGameScreen() {
               </div>
             </div>
           `;
-        }).join('')}
+  }).join('')}
       </aside>
 
       <!-- CENTER: THE FOUR QUADRANTS BOARD (MARIO PARTY / PUMMEL PARTY STYLE) -->
@@ -984,55 +984,55 @@ function renderGameScreen() {
             <!-- SVG Path lines connecting circle spaces like Mario Party trail -->
             <svg class="board-paths-svg" viewBox="0 0 1024 765" preserveAspectRatio="none">
               ${ERA_ORDER.map(era => {
-                const coords = ERA_TILE_COORDINATES[era];
-                if (!coords) return '';
-                // Convert percentage to pixel coordinates in 1024x765
-                const d = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${(c.x * 1024) / 100} ${(c.y * 765) / 100}`).join(' ') + ' Z';
-                const isActiveEra = currentPlayer.currentEra === era;
-                return `<path d="${d}" class="board-path-line ${isActiveEra ? 'active-era-path' : ''}" />`;
-              }).join('')}
+    const coords = ERA_TILE_COORDINATES[era];
+    if (!coords) return '';
+    // Convert percentage to pixel coordinates in 1024x765
+    const d = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${(c.x * 1024) / 100} ${(c.y * 765) / 100}`).join(' ') + ' Z';
+    const isActiveEra = currentPlayer.currentEra === era;
+    return `<path d="${d}" class="board-path-line ${isActiveEra ? 'active-era-path' : ''}" />`;
+  }).join('')}
               <!-- Connections from Timegate Spaces to Central Nexus Portal Dial -->
               ${ERA_ORDER.map(era => {
-                const tgIdx = state.board[era].findIndex(t => t.type === 'timegate');
-                if (tgIdx === -1) return '';
-                const c = ERA_TILE_COORDINATES[era][tgIdx];
-                return `<path d="M ${(c.x * 1024) / 100} ${(c.y * 765) / 100} L ${1024 * 0.50} ${765 * 0.49}" class="board-path-line" style="stroke: #00E5FF; stroke-width: 3; stroke-dasharray: 4 4;" />`;
-              }).join('')}
+    const tgIdx = state.board[era].findIndex(t => t.type === 'timegate');
+    if (tgIdx === -1) return '';
+    const c = ERA_TILE_COORDINATES[era][tgIdx];
+    return `<path d="M ${(c.x * 1024) / 100} ${(c.y * 765) / 100} L ${1024 * 0.50} ${765 * 0.49}" class="board-path-line" style="stroke: #00E5FF; stroke-width: 3; stroke-dasharray: 4 4;" />`;
+  }).join('')}
             </svg>
 
             <!-- Circular Spaces along the paths -->
             <div class="board-map">
               ${ERA_ORDER.map(era => {
-                const tiles = state.board[era];
-                const coords = ERA_TILE_COORDINATES[era];
+    const tiles = state.board[era];
+    const coords = ERA_TILE_COORDINATES[era];
 
-                return tiles.map((t, idx) => {
-                  const coord = coords[idx];
-                  const tileType = t.type;
-                  const playersOnTile = state.players.filter(p => p.currentEra === era && p.tileIndex === idx);
+    return tiles.map((t, idx) => {
+      const coord = coords[idx];
+      const tileType = t.type;
+      const playersOnTile = state.players.filter(p => p.currentEra === era && p.tileIndex === idx);
 
-                  // Calculate if space is reachable during moving phase (strictly following movementDirection)
-                  let isReachable = false;
-                  if (state.phase === 'moving' && state.movesRemaining > 0 && currentPlayer.currentEra === era) {
-                    const cIdx = currentPlayer.tileIndex;
-                    const dir = state.movementDirection === 'backward' ? -1 : 1;
-                    if (dir === 1 && idx === (cIdx + 1) % 20) {
-                      isReachable = true;
-                    } else if (dir === -1 && idx === (cIdx - 1 + 20) % 20) {
-                      isReachable = true;
-                    }
-                  }
+      // Calculate if space is reachable during moving phase (strictly following movementDirection)
+      let isReachable = false;
+      if (state.phase === 'moving' && state.movesRemaining > 0 && currentPlayer.currentEra === era) {
+        const cIdx = currentPlayer.tileIndex;
+        const dir = state.movementDirection === 'backward' ? -1 : 1;
+        if (dir === 1 && idx === (cIdx + 1) % 20) {
+          isReachable = true;
+        } else if (dir === -1 && idx === (cIdx - 1 + 20) % 20) {
+          isReachable = true;
+        }
+      }
 
-                  let icon = '•';
-                  if (tileType === 'clue') icon = '🔍';
-                  else if (tileType === 'event') icon = '⚡';
-                  else if (tileType === 'danger') icon = '⚠️';
-                  else if (tileType === 'artifact') icon = '🏆';
-                  else if (tileType === 'timegate') icon = '🌀';
-                  else if (tileType === 'paradox') icon = '⏳';
-                  else if (tileType === 'start') icon = '🚩';
+      let icon = '•';
+      if (tileType === 'clue') icon = '🔍';
+      else if (tileType === 'event') icon = '⚡';
+      else if (tileType === 'danger') icon = '⚠️';
+      else if (tileType === 'artifact') icon = '🏆';
+      else if (tileType === 'timegate') icon = '🌀';
+      else if (tileType === 'paradox') icon = '⏳';
+      else if (tileType === 'start') icon = '🚩';
 
-                  return `
+      return `
                     <div class="mario-party-space space-${tileType} ${isReachable ? 'reachable-space' : ''}" 
                          data-tile-id="${t.id}" 
                          style="left: ${coord.x}%; top: ${coord.y}%;"
@@ -1045,8 +1045,8 @@ function renderGameScreen() {
                       ${playersOnTile.length > 0 ? `
                         <div class="tile-players">
                           ${playersOnTile.map(p => {
-                            const isPawnTurn = p.id === currentPlayer.id;
-                            return `
+        const isPawnTurn = p.id === currentPlayer.id;
+        return `
                               <div class="mario-pawn ${isPawnTurn ? 'active-turn' : ''}" title="${p.name} (${p.role.name})">
                                 ${isPawnTurn ? `<div class="pawn-turn-arrow">▼ YOU</div>` : ''}
                                 <div class="pawn-badge" style="background: ${p.color};">P${p.id + 1}</div>
@@ -1054,13 +1054,13 @@ function renderGameScreen() {
                                 <div class="pawn-pedestal" style="background: ${p.color}; box-shadow: 0 0 8px ${p.color};"></div>
                               </div>
                             `;
-                          }).join('')}
+      }).join('')}
                         </div>
                       ` : ''}
                     </div>
                   `;
-                }).join('');
-              }).join('')}
+    }).join('');
+  }).join('')}
             </div>
           </div>
         </div>
@@ -1110,9 +1110,9 @@ function renderGameScreen() {
                 <div style="margin-top: 6px; padding: 6px; background: rgba(234, 179, 8, 0.2); border: 1px solid rgba(234, 179, 8, 0.4); border-radius: 6px; font-size: 0.75rem; color: #FACC15; text-align: center; font-weight: 600;">
                   🏃 Momentum Activated! Roll to move manually.
                 </div>
-              ` : (currentPlayer.activeCooldown === 0 && !currentPlayer.usedAbilityThisTurn && currentPlayer.energy >= 1 ? `
+              ` : (currentPlayer.activeCooldown === 0 && !currentPlayer.usedAbilityThisTurn && currentPlayer.energy >= 2 ? `
                 <button id="btn-pre-momentum" class="btn btn-accent" style="width: 100%; margin-top: 6px; padding: 6px; font-size: 0.75rem;">
-                  🏃 Activate Momentum First (-1 Energy, Manual Move)
+                  🏃 Activate Momentum First (-2 Energy, Manual Move)
                 </button>
               ` : '')}
             ` : ''}
@@ -1150,9 +1150,9 @@ function renderGameScreen() {
                   <span>Auto-Moving... (${state.movesRemaining} left)</span>
                 </div>
                 
-                ${currentPlayer.roleKey === 'EXPLORER' && currentPlayer.activeCooldown === 0 && !currentPlayer.usedAbilityThisTurn && currentPlayer.energy >= 1 && isMyTurn ? `
+                ${currentPlayer.roleKey === 'EXPLORER' && currentPlayer.activeCooldown === 0 && !currentPlayer.usedAbilityThisTurn && currentPlayer.energy >= 2 && isMyTurn ? `
                   <button id="btn-pause-momentum" class="btn btn-accent" style="width: 100%; margin-top: 8px; padding: 6px 8px; font-size: 0.75rem;">
-                    ⚡ Pause & Activate Momentum (-1 En)
+                    ⚡ Pause & Activate Momentum (-2 En)
                   </button>
                 ` : ''}
 
@@ -1168,25 +1168,13 @@ function renderGameScreen() {
         <div class="panel-section">
           <div class="panel-section-title">Temporal Actions</div>
           <div class="action-buttons">
-            <!-- Time Warp (Era Travel via Time Gate) -->
-            ${(() => {
-              const currentTile = state.board[currentPlayer.currentEra][currentPlayer.tileIndex];
-              const isOnTimeGate = currentTile?.type === TILE_TYPES.TIMEGATE;
-              const warpCost = currentPlayer.roleKey === 'EXPLORER' ? GAME_CONSTANTS.TIME_GATE_COST_EXPLORER : GAME_CONSTANTS.TIME_GATE_COST;
-              return `
-                <button id="btn-act-warp" class="action-btn" ${!isMyTurn || !isOnTimeGate || currentPlayer.energy < warpCost || state.phase !== 'action' ? 'disabled' : ''} title="${isOnTimeGate ? `Warp through the Time Gate to travel to another era (Cost: ${warpCost} Energy)` : 'You must be on a Time Gate tile to use Time Warp'}">
-                  <span class="action-btn-icon">🌀</span>
-                  <span>Time Warp</span>
-                  <span class="action-btn-cost">-${warpCost} Energy</span>
-                </button>
-              `;
-            })()}
-
             <!-- Reverse Time -->
-            <button id="btn-act-reverse" class="action-btn" ${!isMyTurn || currentPlayer.energy < GAME_CONSTANTS.REVERSE_TIME_COST || state.phase !== 'action' ? 'disabled' : ''} title="Spend 3 Energy to roll and move backwards">
+            <button id="btn-act-reverse" class="action-btn" ${!isMyTurn || currentPlayer.reverseTimeCooldown > 0 || currentPlayer.energy < GAME_CONSTANTS.REVERSE_TIME_COST || state.phase !== 'action' ? 'disabled' : ''} title="Spend 3 Energy to roll and move backwards (${GAME_CONSTANTS.REVERSE_TIME_COOLDOWN} Turn CD)">
               <span class="action-btn-icon">⏪</span>
               <span>Reverse Time</span>
-              <span class="action-btn-cost">-3 Energy</span>
+              <span class="action-btn-cost">
+                ${currentPlayer.reverseTimeCooldown > 0 ? `CD: ${currentPlayer.reverseTimeCooldown}T` : `-3 Energy`}
+              </span>
             </button>
 
             <!-- Rest -->
@@ -1207,15 +1195,15 @@ function renderGameScreen() {
 
             <!-- Return Artifact -->
             ${(() => {
-              const matchingArt = currentPlayer.artifactCards.find(a => a.era === currentPlayer.currentEra);
-              return `
+      const matchingArt = currentPlayer.artifactCards.find(a => a.era === currentPlayer.currentEra);
+      return `
                 <button id="btn-act-return" class="action-btn" ${!isMyTurn || !matchingArt ? 'disabled' : ''} title="Return matching artifact to this timeline for points!">
                   <span class="action-btn-icon">📦</span>
                   <span>Return Relic</span>
                   <span class="action-btn-cost">+5 Points</span>
                 </button>
               `;
-            })()}
+    })()}
           </div>
 
           <button id="btn-end-turn" class="btn btn-primary" style="width: 100%; margin-top: var(--space-md); padding: 8px;" ${!isMyTurn || state.phase === 'moving' ? 'disabled' : ''}>
@@ -1268,13 +1256,13 @@ function renderGameScreen() {
                 <div>
                   <div class="mission-title">
                     ${isViewingSelf
-                      ? `Mission: Retrieve ${viewedPlayer.mission.targetArtifact}`
-                      : `Mission: Classified Objective (${viewedPlayer.name})`}
+        ? `Mission: Retrieve ${viewedPlayer.mission.targetArtifact}`
+        : `Mission: Classified Objective (${viewedPlayer.name})`}
                   </div>
                   <div class="mission-objective">
                     ${isViewingSelf
-                      ? viewedPlayer.mission.description
-                      : `Historical mission details and clues are classified to ${viewedPlayer.name}.`}
+        ? viewedPlayer.mission.description
+        : `Historical mission details and clues are classified to ${viewedPlayer.name}.`}
                   </div>
                 </div>
                 <div style="text-align: right;">
@@ -1292,8 +1280,8 @@ function renderGameScreen() {
                 </div>
                 <span class="mission-progress-text">
                   ${isViewingSelf
-                    ? `${viewedPlayer.clueProgress[viewedPlayer.mission.artifactId] || 0}/3 Required Clues`
-                    : `${viewedPlayer.clueCards.length} Clues Collected`}
+        ? `${viewedPlayer.clueProgress[viewedPlayer.mission.artifactId] || 0}/3 Required Clues`
+        : `${viewedPlayer.clueCards.length} Clues Collected`}
                 </span>
               </div>
             </div>
@@ -1306,8 +1294,8 @@ function renderGameScreen() {
                   No clues collected yet. Land on Clue Tiles (🔍) in different eras to discover hints.
                 </div>
               ` : viewedPlayer.clueCards.map(c => {
-                if (isViewingSelf) {
-                  return `
+          if (isViewingSelf) {
+            return `
                     <div class="hand-card clue-card" title="${c.hint}">
                       <img src="${c.cardImage}" alt="${c.hint}">
                       <div class="hand-card-type" style="color: ${c.isDecoy ? 'var(--text-danger)' : 'var(--tile-clue)'};">
@@ -1315,8 +1303,8 @@ function renderGameScreen() {
                       </div>
                     </div>
                   `;
-                } else {
-                  return `
+          } else {
+            return `
                     <div class="hand-card clue-card clue-card-secret" title="Secret Clue Card (${ERA_NAMES[c.era].replace(' Era', '')})">
                       <div class="card-secret-back">
                         <div class="card-secret-icon">🔒</div>
@@ -1327,8 +1315,8 @@ function renderGameScreen() {
                       </div>
                     </div>
                   `;
-                }
-              }).join('')}
+          }
+        }).join('')}
             </div>
           ` : ''}
 
@@ -1539,18 +1527,6 @@ function attachGameListeners(state, currentPlayer, isMyTurn) {
   });
 
   // Actions
-  document.querySelector('#btn-act-warp')?.addEventListener('click', (e) => {
-    if (state.phase !== 'action' || !isMyTurn) return;
-    const btn = e.currentTarget;
-    if (btn.disabled) return;
-    btn.disabled = true;
-    sounds.portal();
-    const ok = engine.timeWarp(state.currentPlayerIndex);
-    if (ok) {
-      network.sendAction({ type: 'TIME_WARP', playerIdx: state.currentPlayerIndex });
-    }
-  });
-
   document.querySelector('#btn-act-reverse')?.addEventListener('click', (e) => {
     if (state.phase !== 'action' || !isMyTurn) return;
     const btn = e.currentTarget;
@@ -1937,14 +1913,14 @@ function renderEndGameScreen() {
       </div>
       <div class="endgame-subtitle">
         ${isCollapse
-          ? 'The temporal breach reached catastrophic levels. History collapsed and all castaways were lost.'
-          : `Temporal stability restored! Winner: ${winner.name} (${winner.role.name})`}
+      ? 'The temporal breach reached catastrophic levels. History collapsed and all castaways were lost.'
+      : `Temporal stability restored! Winner: ${winner.name} (${winner.role.name})`}
       </div>
 
       <div class="scoreboard">
         ${sortedPlayers.map((p, rank) => {
-          const isWinner = !isCollapse && rank === 0;
-          return `
+        const isWinner = !isCollapse && rank === 0;
+        return `
             <div class="score-card ${isWinner ? 'winner' : ''}">
               <div class="score-rank">#${rank + 1}</div>
               <img src="${p.role.avatar}" style="width: 44px; height: 44px; border-radius: var(--radius-sm); object-fit: contain;">
@@ -1964,7 +1940,7 @@ function renderEndGameScreen() {
               <div class="score-total">${p.points} PTS</div>
             </div>
           `;
-        }).join('')}
+      }).join('')}
       </div>
 
       <div style="display: flex; gap: var(--space-md); margin-top: var(--space-md);">

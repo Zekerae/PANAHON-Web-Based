@@ -72,11 +72,17 @@ export class GameEngine {
       }));
     });
 
+    // Scatter players across eras randomly
+    const shuffledEras = [...ERA_ORDER].sort(() => Math.random() - 0.5);
+    while (shuffledEras.length < playerConfigs.length) {
+      shuffledEras.push(...[...ERA_ORDER].sort(() => Math.random() - 0.5));
+    }
+
     // Create players
     const players = playerConfigs.map((config, idx) => {
       const role = ROLES[config.roleKey];
       const mission = allMissions[idx];
-      const startEra = ERA_ORDER[idx % ERA_ORDER.length];
+      const startEra = shuffledEras[idx];
       // Find start tile in that era
       const startTileIdx = board[startEra].findIndex(t => t.type === TILE_TYPES.START);
       const tileIdx = startTileIdx >= 0 ? startTileIdx : 0;
@@ -116,6 +122,7 @@ export class GameEngine {
         // Skill cooldowns (turns remaining)
         passiveCooldown: 0,
         activeCooldown: 0,
+        reverseTimeCooldown: 0,
         usedAbilityThisTurn: false,
 
         // Clue tracking: how many clues collected per artifact
@@ -863,11 +870,11 @@ export class GameEngine {
 
       case 'EXPLORER':
         // Momentum
-        if (player.energy < 1) {
+        if (player.energy < 2) {
           this.addLog('warning', 'Not enough Energy for Momentum!');
           return false;
         }
-        this.modifyEnergy(player, -1);
+        this.modifyEnergy(player, -2);
         player.usedAbilityThisTurn = true;
         player.activeCooldown = ROLES.EXPLORER.active.cooldown;
         this.state.momentumActive = true;
@@ -941,10 +948,15 @@ export class GameEngine {
 
   reverseTime(playerIdx) {
     const player = this.state.players[playerIdx];
-    if (player.energy < GAME_CONSTANTS.REVERSE_TIME_COST) return false;
     if (this.state.currentPlayerIndex !== playerIdx) return false;
+    if (player.reverseTimeCooldown > 0) {
+      this.addLog('warning', `Reverse Time is on cooldown (${player.reverseTimeCooldown} turns remaining)!`);
+      return false;
+    }
+    if (player.energy < GAME_CONSTANTS.REVERSE_TIME_COST) return false;
 
     this.modifyEnergy(player, -GAME_CONSTANTS.REVERSE_TIME_COST);
+    player.reverseTimeCooldown = GAME_CONSTANTS.REVERSE_TIME_COOLDOWN;
     const roll = rollDie();
     this.state.diceResult = roll;
     this.state.movesRemaining = roll;
@@ -1124,6 +1136,7 @@ export class GameEngine {
     nextPlayer.usedAbilityThisTurn = false;
     if (nextPlayer.passiveCooldown > 0) nextPlayer.passiveCooldown--;
     if (nextPlayer.activeCooldown > 0) nextPlayer.activeCooldown--;
+    if (nextPlayer.reverseTimeCooldown > 0) nextPlayer.reverseTimeCooldown--;
 
     this.state.phase = 'rolling';
     this.state.diceResult = null;

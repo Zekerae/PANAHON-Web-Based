@@ -158,12 +158,12 @@ export const ROLES = {
     color: '#E74C3C',
     passive: {
       name: 'Decoy Discard',
-      description: 'Discard a drawn Decoy Card',
+      description: 'Discard a drawn Decoy Card (2 Turn CD)',
       cooldown: 2
     },
     active: {
       name: 'Clue Decipher',
-      description: 'Look at the top 3 cards on the Clue Deck, keep 1, and shuffle the rest',
+      description: 'Look at the top 3 cards on the Clue Deck, keep 1, and shuffle the rest (3 Turn CD, 2 Energy Cost)',
       cooldown: 3,
       energyCost: 2
     }
@@ -181,9 +181,9 @@ export const ROLES = {
     },
     active: {
       name: 'Momentum',
-      description: 'Pause movement to interact with a tile, then continue moving remaining rolled spaces',
+      description: 'Pause movement to interact with a tile, then continue moving remaining rolled spaces (2 Turn CD, 2 Energy Cost)',
       cooldown: 2,
-      energyCost: 1
+      energyCost: 2
     }
   },
   GUARDIAN: {
@@ -199,7 +199,7 @@ export const ROLES = {
     },
     active: {
       name: 'Temporal Repair',
-      description: 'Reduce Paradox Meter by 1 and reduce 2 Energy or restore 1 Energy',
+      description: 'Reduce Paradox Meter by 1 and reduce 2 Energy or restore 1 Energy (3 Turn CD)',
       cooldown: 3,
       energyCost: 0 // variable
     }
@@ -217,7 +217,7 @@ export const ROLES = {
     },
     active: {
       name: 'Temporal Trap',
-      description: 'Plant a Trap (Danger Tile) in your current tile',
+      description: 'Plant a Trap (Danger Tile) in your current tile (2 Turn CD, 2 Energy Cost)',
       cooldown: 2,
       energyCost: 2
     }
@@ -922,6 +922,7 @@ export const GAME_CONSTANTS = {
   TIME_GATE_COST_EXPLORER: 1,
   TIME_WARP_COST: 2,
   REVERSE_TIME_COST: 3,
+  REVERSE_TIME_COOLDOWN: 2,
   MAX_PARADOX: 5,
   MAX_TIMELINE: 10,
   GAME_TIME_MINUTES: 40,

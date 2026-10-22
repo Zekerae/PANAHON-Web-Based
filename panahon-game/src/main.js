@@ -363,11 +363,11 @@ function renderLobbyScreen() {
               </div>
             ` : ''}
 
-            <!-- Serverless WebRTC Network Status Badge -->
-            <div style="margin-top: var(--space-xs); padding: 8px 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 1rem;">🌐</span>
-              <div style="font-size: 0.72rem; color: #10B981; line-height: 1.3;">
-                <strong>Serverless WebRTC Enabled:</strong> Peer-to-Peer connection across 5G & Wi-Fi. No server required!
+            <!-- Cloud Relay Network Status Badge -->
+            <div style="margin-top: var(--space-xs); padding: 8px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-sm); display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1rem;">☁️</span>
+              <div style="font-size: 0.72rem; color: #60A5FA; line-height: 1.3;">
+                <strong>Global Cloud Relay Active:</strong> Ultra-fast synchronization across 5G mobile data, Wi-Fi, and VPNs via Render relay.
               </div>
             </div>
 
@@ -514,7 +514,7 @@ function renderLobbyScreen() {
     network.setMode('online');
     render();
     if (onlineSubMode === 'create') {
-      showToast('Creating Mission', 'Opening Peer-to-Peer room...', 'info');
+      showToast('Creating Mission', 'Connecting to Cloud Relay...', 'info');
       network.createRoom(onlinePlayerName.trim() || 'Castaway', onlineSelectedRole);
     } else {
       if (!onlineRoomCodeInput) {
@@ -523,7 +523,7 @@ function renderLobbyScreen() {
         render();
         return;
       }
-      showToast('Connecting', `Joining Room ${onlineRoomCodeInput}...`, 'info');
+      showToast('Connecting', `Connecting to Room ${onlineRoomCodeInput}...`, 'info');
       network.joinRoom(onlineRoomCodeInput, onlinePlayerName.trim() || 'Castaway', onlineSelectedRole);
     }
   });

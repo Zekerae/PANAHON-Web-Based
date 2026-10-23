@@ -15,6 +15,7 @@ import { useTurnAutomation } from './hooks/useTurnAutomation.js';
 import { aiController } from './aiPlayer.js';
 
 import BootSequence from './components/boot/BootSequence.jsx';
+import OrientationPrompt from './components/OrientationPrompt.jsx';
 import AppRouter from './components/AppRouter.jsx';
 import GuideModal from './components/GuideModal.jsx';
 import SupabaseConfigModal from './components/SupabaseConfigModal.jsx';
@@ -286,6 +287,8 @@ export default function App() {
 
   return (
     <div className="app-root">
+      {/* Mobile Portrait Orientation Lock Prompt */}
+      <OrientationPrompt />
       <AppRouter
         currentScreen={appState.currentScreen}
         titleProps={titleProps}

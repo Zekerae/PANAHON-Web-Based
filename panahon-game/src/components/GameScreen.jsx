@@ -220,8 +220,16 @@ function GameScreen({
 
 
 
+  const canReverseTime = isMyTurn &&
+    state.phase === 'moving' &&
+    !state.hasMovedThisTurn &&
+    (!state.stepsTakenThisTurn || state.stepsTakenThisTurn === 0) &&
+    state.movementDirection !== 'backward' &&
+    currentPlayer?.reverseTimeCooldown === 0 &&
+    (currentPlayer?.energy || 0) >= 3;
+
   return (
-    <div className="game-screen">
+    <div className={`game-screen mobile-tab-${mobileGameTab}`}>
       {/* 1. HEADER */}
       <GameHeader
         timelineLevel={timelineLevel}
@@ -231,6 +239,39 @@ function GameScreen({
         onOpenGuide={onOpenGuide}
         onOpenPause={handleOpenPause}
       />
+
+      {/* MOBILE SCREEN TABS BAR */}
+      <nav className="mobile-game-tabs" aria-label="Game Screen Sections">
+        <button
+          type="button"
+          className={`mobile-game-tab ${mobileGameTab === "board" ? "active" : ""}`}
+          onClick={() => { sounds.btnClick(); setMobileGameTab("board"); }}
+        >
+          🗺️ Board Map
+        </button>
+        <button
+          type="button"
+          className={`mobile-game-tab ${mobileGameTab === "actions" ? "active" : ""}`}
+          onClick={() => { sounds.btnClick(); setMobileGameTab("actions"); }}
+        >
+          ⚡ Actions & Die
+          {isMyTurn && state.phase === 'rolling' && <span className="mobile-turn-pulse">!</span>}
+        </button>
+        <button
+          type="button"
+          className={`mobile-game-tab ${mobileGameTab === "players" ? "active" : ""}`}
+          onClick={() => { sounds.btnClick(); setMobileGameTab("players"); }}
+        >
+          👥 Castaways ({state.players?.length || 0})
+        </button>
+        <button
+          type="button"
+          className={`mobile-game-tab ${mobileGameTab === "hand" ? "active" : ""}`}
+          onClick={() => { sounds.btnClick(); setMobileGameTab("hand"); }}
+        >
+          📜 Hand
+        </button>
+      </nav>
 
       {/* 2. LEFT PANEL: PLAYER DOSSIERS & COMMS */}
       <PlayerSidebar
@@ -257,6 +298,80 @@ function GameScreen({
         pendingChoice={state.pendingChoice}
         onMoveToTile={handleMoveToTile}
       />
+
+      {/* MOBILE BOARD QUICK ACTION DOCK (Floating on map in mobile view) */}
+      <div className="mobile-board-quick-dock">
+        {isMyTurn ? (
+          <div className="mobile-dock-inner">
+            {state.phase === 'rolling' && (
+              <button
+                type="button"
+                className="btn btn-roll-dice mobile-dock-roll-btn"
+                disabled={isRolling}
+                onClick={handleRollDice}
+              >
+                <span>🎲 ROLL MOVEMENT DIE</span>
+              </button>
+            )}
+
+            {state.phase === 'moving' && (
+              <div className="mobile-dock-moving-group">
+                <span className="mobile-dock-moves-badge">
+                  {state.movementDirection === 'backward' ? '⏪' : '🚶'} Moves: <strong>{state.movesRemaining}</strong>
+                </span>
+
+                {canReverseTime && (
+                  <button
+                    type="button"
+                    className="btn btn-warning mobile-dock-btn"
+                    onClick={handleReverseTime}
+                  >
+                    ⏪ Reverse (-3 En)
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="btn btn-primary mobile-dock-btn"
+                  onClick={handleStepMove}
+                >
+                  {state.movementDirection === 'backward' ? '⬅️ Step Back' : '➡️ Step Forward'}
+                </button>
+              </div>
+            )}
+
+            {state.phase === 'action' && (
+              <div className="mobile-dock-action-group">
+                <button
+                  type="button"
+                  className="btn btn-primary mobile-dock-btn"
+                  onClick={handleEndTurn}
+                >
+                  🏁 Finish Turn
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary mobile-dock-btn"
+                  onClick={() => setMobileGameTab("actions")}
+                >
+                  ⚡ Actions
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="mobile-dock-turn-banner" style={{ borderLeft: `3px solid ${currentPlayer?.color || '#38BDF8'}` }}>
+            <span>Turn: <strong style={{ color: currentPlayer?.color }}>{currentPlayer?.name}</strong> {isAiCurrent ? '🤖' : '👤'}</span>
+            <button
+              type="button"
+              className="btn btn-secondary mobile-dock-btn"
+              onClick={() => setMobileGameTab("actions")}
+            >
+              Chronicle →
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* 4. RIGHT PANEL: ACTIONS & CHRONICLE */}
       <GameActions

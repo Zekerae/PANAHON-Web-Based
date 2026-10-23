@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { ERA_NAMES, GAME_CONSTANTS } from '../../gameData.js';
+import Dice from './Dice';
 
 function GameActions({
   state,

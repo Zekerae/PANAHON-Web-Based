@@ -2,39 +2,75 @@ import React, { useState, useEffect, useRef } from "react";
 import sounds from "../../sound.js";
 
 export default function BootSequence({ onComplete }) {
-  const [stage, setStage] = useState("video"); // "video" | "loading" | "ready"
+  const [stage, setStage] = useState("video"); // "video" | "loading"
   const [progress, setProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState("Initializing Chrono Core...");
   const [isMuted, setIsMuted] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const videoRef = useRef(null);
 
-  // 1. INTRO VIDEO LOGIC
+  // 1. INTRO VIDEO LOGIC: Prioritize unmuted sound at page visit
   useEffect(() => {
     if (stage !== "video") return;
 
     const video = videoRef.current;
-    if (video) {
-      // Attempt unmuted play first; fallback to muted if browser blocks autoplay
-      video.play().catch(() => {
-        video.muted = true;
-        setIsMuted(true);
-        video.play().catch((err) => {
-          console.warn("Autoplay blocked entirely, proceeding to loading:", err);
-          handleSkipVideo();
+    if (!video) return;
+
+    // Explicitly configure unmuted audio with full volume
+    video.muted = false;
+    const vol = typeof sounds.sfxVolume === "number" && sounds.sfxVolume > 0 ? sounds.sfxVolume : 1.0;
+    video.volume = vol;
+
+    // Attempt unmuted autoplay directly
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          // Autoplay with sound succeeded on page visit!
+          setIsMuted(false);
+        })
+        .catch(() => {
+          // Browser autoplay policy blocked unmuted sound on cold load.
+          // Fall back to playing visually, but unmute as soon as any interaction occurs.
+          video.muted = true;
+          setIsMuted(true);
+          video.play().catch((err) => {
+            console.warn("Autoplay blocked, proceeding to loading:", err);
+            handleSkipVideo();
+          });
         });
-      });
     }
 
+    // Global listener: as soon as the user touches, clicks, or presses a key anywhere, unmute immediately
+    const handleFirstInteraction = () => {
+      if (videoRef.current) {
+        videoRef.current.muted = false;
+        videoRef.current.volume = 1.0;
+        setIsMuted(false);
+      }
+      try {
+        sounds.init();
+      } catch (_) {}
+    };
+
     const handleKeyDown = (e) => {
-      if (e.key === "Escape" || e.key === " " || e.key === "Enter") {
+      if (e.key === "Escape") {
         e.preventDefault();
         handleSkipVideo();
+      } else {
+        handleFirstInteraction();
       }
     };
 
+    window.addEventListener("pointerdown", handleFirstInteraction, { passive: true });
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("touchstart", handleFirstInteraction, { passive: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", handleFirstInteraction);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("touchstart", handleFirstInteraction);
+    };
   }, [stage]);
 
   const handleSkipVideo = () => {
@@ -44,20 +80,19 @@ export default function BootSequence({ onComplete }) {
     setStage("loading");
   };
 
-  const handleToggleMute = (e) => {
-    e.stopPropagation();
+  const handleUnmute = (e) => {
+    if (e) e.stopPropagation();
     if (videoRef.current) {
-      const nextMuted = !videoRef.current.muted;
-      videoRef.current.muted = nextMuted;
-      setIsMuted(nextMuted);
+      videoRef.current.muted = false;
+      videoRef.current.volume = 1.0;
+      setIsMuted(false);
     }
   };
 
-  // 2. LOADING SCREEN PROGRESS SIMULATION & PRELOAD
+  // 2. LOADING SCREEN LOGIC: Automatic transition to Main Menu (No Button)
   useEffect(() => {
     if (stage !== "loading") return;
 
-    // Preload audio and essential imagery
     try {
       sounds.init();
     } catch (_) {}
@@ -73,51 +108,33 @@ export default function BootSequence({ onComplete }) {
 
     let current = 0;
     const interval = setInterval(() => {
-      current += Math.floor(Math.random() * 8) + 4;
+      current += Math.floor(Math.random() * 8) + 5;
       if (current >= 100) {
         current = 100;
         setProgress(100);
         setStatusMessage("Historical Continuum Ready.");
         clearInterval(interval);
+
+        // AUTOMATICALLY ENTER MAIN MENU:
+        // Brief pause so 100% is cleanly perceived, then initiate fade-out & audio
         setTimeout(() => {
-          setStage("ready");
-        }, 300);
+          try {
+            sounds.startBgMusic();
+          } catch (_) {}
+          setIsFadingOut(true);
+          setTimeout(() => {
+            onComplete();
+          }, 450);
+        }, 350);
       } else {
         setProgress(current);
-        const match = messages.slice().reverse().find(m => current >= m.at);
+        const match = messages.slice().reverse().find((m) => current >= m.at);
         if (match) setStatusMessage(match.msg);
       }
-    }, 85);
+    }, 75);
 
     return () => clearInterval(interval);
-  }, [stage]);
-
-  // Handle final transition into the Main Menu
-  const handleEnterGame = () => {
-    if (isFadingOut) return;
-    sounds.btnClick();
-    try {
-      sounds.startBgMusic();
-    } catch (_) {}
-    setIsFadingOut(true);
-    setTimeout(() => {
-      onComplete();
-    }, 450);
-  };
-
-  useEffect(() => {
-    if (stage !== "ready") return;
-
-    const handleKeyDown = (e) => {
-      if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
-        e.preventDefault();
-        handleEnterGame();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [stage, isFadingOut]);
+  }, [stage, onComplete]);
 
   // STAGE 1: INTRO VIDEO
   if (stage === "video") {
@@ -131,14 +148,14 @@ export default function BootSequence({ onComplete }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          overflow: "hidden",
-          cursor: "pointer"
+          overflow: "hidden"
         }}
-        onClick={handleSkipVideo}
+        onClick={isMuted ? handleUnmute : undefined}
       >
         <video
           ref={videoRef}
           src="/assets/PixelCrewIntro.mp4"
+          autoPlay
           playsInline
           style={{
             width: "100%",
@@ -151,6 +168,36 @@ export default function BootSequence({ onComplete }) {
           onError={handleSkipVideo}
         />
 
+        {/* Ambient Unmute Prompt if blocked by browser autoplay policy */}
+        {isMuted && (
+          <div
+            onClick={handleUnmute}
+            style={{
+              position: "absolute",
+              bottom: "40px",
+              background: "rgba(15, 23, 42, 0.85)",
+              border: "1.5px solid rgba(56, 189, 248, 0.6)",
+              boxShadow: "0 0 25px rgba(56, 189, 248, 0.4), 0 8px 24px rgba(0, 0, 0, 0.6)",
+              borderRadius: "28px",
+              padding: "10px 24px",
+              color: "#38BDF8",
+              fontFamily: "var(--font-display)",
+              fontSize: "0.86rem",
+              fontWeight: 800,
+              letterSpacing: "2px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              animation: "pulseAudioPrompt 2s ease-in-out infinite",
+              zIndex: 20
+            }}
+          >
+            <span style={{ fontSize: "1.1rem" }}>🔊</span>
+            <span>TAP ANYWHERE FOR SOUND</span>
+          </div>
+        )}
+
         {/* Top-Right Controls */}
         <div
           style={{
@@ -160,42 +207,22 @@ export default function BootSequence({ onComplete }) {
             display: "flex",
             alignItems: "center",
             gap: "10px",
-            zIndex: 10
+            zIndex: 30
           }}
         >
-          {isMuted && (
-            <button
-              onClick={handleToggleMute}
-              style={{
-                background: "rgba(15, 23, 42, 0.75)",
-                backdropFilter: "blur(8px)",
-                border: "1px solid rgba(255, 255, 255, 0.2)",
-                borderRadius: "20px",
-                color: "#FCD34D",
-                padding: "6px 14px",
-                fontSize: "0.75rem",
-                fontWeight: 700,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px"
-              }}
-            >
-              <span>🔇</span>
-              <span>Click to Unmute</span>
-            </button>
-          )}
-
           <button
-            onClick={(e) => { e.stopPropagation(); handleSkipVideo(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSkipVideo();
+            }}
             style={{
               background: "rgba(15, 23, 42, 0.75)",
               backdropFilter: "blur(8px)",
               border: "1px solid rgba(56, 189, 248, 0.4)",
               borderRadius: "20px",
               color: "#FFF",
-              padding: "6px 16px",
-              fontSize: "0.76rem",
+              padding: "6px 18px",
+              fontSize: "0.78rem",
               fontFamily: "var(--font-display)",
               fontWeight: 800,
               letterSpacing: "1px",
@@ -211,20 +238,28 @@ export default function BootSequence({ onComplete }) {
         <div
           style={{
             position: "absolute",
-            bottom: "20px",
+            bottom: isMuted ? "12px" : "20px",
             color: "rgba(255, 255, 255, 0.35)",
             fontSize: "0.7rem",
             letterSpacing: "2px",
-            fontFamily: "var(--font-display)"
+            fontFamily: "var(--font-display)",
+            pointerEvents: "none"
           }}
         >
           PIXEL CREW PRESENTS
         </div>
+
+        <style>{`
+          @keyframes pulseAudioPrompt {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(56, 189, 248, 0.4); }
+            50% { transform: scale(1.05); box-shadow: 0 0 35px rgba(56, 189, 248, 0.75); }
+          }
+        `}</style>
       </div>
     );
   }
 
-  // STAGE 2: DUELYST THEMED LOADING SCREEN
+  // STAGE 2: DUELYST THEMED LOADING SCREEN (Automatically enters Main Menu)
   return (
     <div
       style={{
@@ -239,10 +274,8 @@ export default function BootSequence({ onComplete }) {
         padding: "24px",
         boxSizing: "border-box",
         opacity: isFadingOut ? 0 : 1,
-        transition: "opacity 0.45s ease-in-out",
-        cursor: stage === "ready" ? "pointer" : "default"
+        transition: "opacity 0.45s ease-in-out"
       }}
-      onClick={stage === "ready" ? handleEnterGame : undefined}
     >
       {/* Central Chrono Core Anomaly Orb */}
       <div style={{ position: "relative", width: "130px", height: "130px", marginBottom: "28px" }}>
@@ -284,7 +317,7 @@ export default function BootSequence({ onComplete }) {
           }}
         >
           <span style={{ animation: "pulseGlyph 2s ease-in-out infinite", display: "inline-block" }}>
-            {stage === "ready" ? "⚡" : "⏳"}
+            {progress >= 100 ? "⚡" : "⏳"}
           </span>
         </div>
       </div>
@@ -367,7 +400,7 @@ export default function BootSequence({ onComplete }) {
             color: "#94A3B8"
           }}
         >
-          <span style={{ color: stage === "ready" ? "#34D399" : "#38BDF8", fontWeight: 700 }}>
+          <span style={{ color: progress >= 100 ? "#34D399" : "#38BDF8", fontWeight: 700 }}>
             {statusMessage}
           </span>
           <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, color: "#F8FAFC" }}>
@@ -375,42 +408,6 @@ export default function BootSequence({ onComplete }) {
           </span>
         </div>
       </div>
-
-      {/* Enter Prompt when Ready */}
-      {stage === "ready" && (
-        <div style={{ marginTop: "28px", animation: "fadeIn 0.3s ease" }}>
-          <button
-            onClick={handleEnterGame}
-            style={{
-              background: "linear-gradient(135deg, #0284C7, #38BDF8)",
-              border: "1.5px solid #7DD3FC",
-              borderRadius: "8px",
-              color: "#FFF",
-              padding: "12px 32px",
-              fontSize: "0.92rem",
-              fontFamily: "var(--font-display)",
-              fontWeight: 900,
-              letterSpacing: "2px",
-              cursor: "pointer",
-              boxShadow: "0 0 25px rgba(56, 189, 248, 0.6), 0 8px 20px rgba(0, 0, 0, 0.5)",
-              animation: "pulseGlow 1.8s ease-in-out infinite"
-            }}
-          >
-            ENTER TIMELINE ➔
-          </button>
-          <div
-            style={{
-              fontSize: "0.68rem",
-              color: "#64748B",
-              textAlign: "center",
-              marginTop: "8px",
-              letterSpacing: "1px"
-            }}
-          >
-            CLICK ANYWHERE OR PRESS ANY KEY TO INITIALIZE
-          </div>
-        </div>
-      )}
 
       {/* CSS Animations */}
       <style>{`
@@ -425,10 +422,6 @@ export default function BootSequence({ onComplete }) {
         @keyframes pulseGlyph {
           0%, 100% { transform: scale(1); filter: drop-shadow(0 0 5px #38BDF8); }
           50% { transform: scale(1.15); filter: drop-shadow(0 0 15px #38BDF8); }
-        }
-        @keyframes pulseGlow {
-          0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(56, 189, 248, 0.5); }
-          50% { transform: scale(1.03); box-shadow: 0 0 32px rgba(56, 189, 248, 0.85); }
         }
       `}</style>
     </div>

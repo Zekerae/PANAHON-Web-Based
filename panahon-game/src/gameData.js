@@ -41,143 +41,144 @@ export const TILE_IMAGES = {
 // Tile layout for each era matching Full Map with Tiles.png
 export const ERA_TILE_LAYOUTS = {
   [ERAS.SPANISH]: [
-    'start', 'event', 'empty', 'danger', 'empty',
+    'empty', 'event', 'empty', 'danger', 'empty',
     'timegate', 'clue', 'event', 'empty', 'event',
     'clue', 'paradox', 'event', 'empty', 'danger',
-    'paradox', 'clue', 'event', 'empty', 'paradox',
-    'event', 'paradox', 'clue', 'danger', 'artifact'
+    'empty', 'clue', 'empty', 'empty', 'danger',
+    'empty', 'empty', 'clue', 'danger', 'artifact'
   ],
   [ERAS.AMERICAN]: [
-    'start', 'empty', 'clue', 'paradox', 'empty',
-    'event', 'empty', 'event', 'danger', 'event',
+    'empty', 'empty', 'clue', 'paradox', 'empty',
+    'event', 'empty', 'clue', 'danger', 'event',
     'empty', 'danger', 'event', 'timegate', 'clue',
-    'paradox', 'danger', 'empty', 'clue', 'paradox',
-    'event', 'danger', 'artifact', 'danger'
+    'empty', 'danger', 'empty', 'clue', 'empty',
+    'event', 'danger', 'artifact', 'empty', 'empty'
   ],
   [ERAS.JAPANESE]: [
-    'start', 'empty', 'danger', 'clue', 'paradox',
-    'event', 'empty', 'event', 'paradox', 'clue',
+    'empty', 'empty', 'danger', 'clue', 'paradox',
+    'event', 'empty', 'event', 'empty', 'clue',
     'event', 'empty', 'danger', 'artifact', 'danger',
-    'timegate', 'event', 'paradox', 'clue', 'danger',
-    'empty', 'event', 'paradox', 'clue', 'empty', 'event'
+    'timegate', 'empty', 'empty', 'clue', 'danger',
+    'empty', 'event', 'empty', 'clue', 'empty'
   ],
   [ERAS.MYTH]: [
-    'start', 'clue', 'paradox', 'event', 'danger',
-    'artifact', 'danger', 'event', 'paradox', 'clue',
+    'empty', 'clue', 'paradox', 'event', 'danger',
+    'artifact', 'danger', 'event', 'empty', 'clue',
     'danger', 'empty', 'event', 'danger', 'empty',
-    'event', 'empty', 'timegate', 'event', 'event',
-    'clue', 'paradox', 'paradox', 'clue'
+    'event', 'empty', 'timegate', 'empty', 'empty',
+    'clue', 'empty', 'empty', 'clue', 'empty'
   ]
 };
 
 // Percentage coordinates (0-100%) precisely positioned along the winding roads of Full Map with Tiles.png
 export const ERA_TILE_COORDINATES = {
   [ERAS.SPANISH]: [
-    { x: 45.9, y: 17.6 },  // 0: Station Cyan Bullseye
-    { x: 44.7, y: 22.5 },  // 1: Star
-    { x: 42.9, y: 26.9 },  // 2: Empty
-    { x: 41.0, y: 31.4 },  // 3: Skull
-    { x: 43.5, y: 34.4 },  // 4: Empty
+    { x: 45.9, y: 17.6 },  // 0: Station Cyan Bullseye (Blank)
+    { x: 44.7, y: 22.5 },  // 1: Star (Event)
+    { x: 42.9, y: 26.9 },  // 2: Empty (Blank)
+    { x: 41.0, y: 31.4 },  // 3: Skull (Danger)
+    { x: 43.5, y: 34.4 },  // 4: Empty (Blank)
     { x: 45.4, y: 38.6 },  // 5: Timegate (Central Nexus NW entrance)
-    { x: 37.6, y: 29.5 },  // 6: Magnifying glass
-    { x: 35.7, y: 24.7 },  // 7: Star
-    { x: 34.1, y: 20.0 },  // 8: Empty
-    { x: 32.0, y: 15.9 },  // 9: Star
-    { x: 28.6, y: 14.1 },  // 10: Magnifying glass
+    { x: 37.6, y: 29.5 },  // 6: Magnifying glass (Clue)
+    { x: 35.7, y: 24.7 },  // 7: Star (Event)
+    { x: 34.1, y: 20.0 },  // 8: Empty (Blank)
+    { x: 32.0, y: 15.9 },  // 9: Star (Event)
+    { x: 28.6, y: 14.1 },  // 10: Magnifying glass (Clue)
     { x: 25.1, y: 13.5 },  // 11: Paradox (P)
-    { x: 21.7, y: 12.9 },  // 12: Star
-    { x: 18.4, y: 14.5 },  // 13: Empty
-    { x: 17.3, y: 18.6 },  // 14: Skull
-    { x: 13.9, y: 19.2 },  // 15: Paradox (P)
-    { x: 10.5, y: 19.2 },  // 16: Magnifying glass
-    { x: 6.8,  y: 18.6 },  // 17: Star
-    { x: 4.2,  y: 21.8 },  // 18: Empty
-    { x: 3.6,  y: 26.5 },  // 19: Paradox (P)
-    { x: 5.0,  y: 31.6 },  // 20: Star
-    { x: 8.7,  y: 35.2 },  // 21: Paradox (P)
-    { x: 13.4, y: 35.4 },  // 22: Magnifying glass
-    { x: 17.1, y: 32.3 },  // 23: Skull
+    { x: 21.7, y: 12.9 },  // 12: Star (Event)
+    { x: 18.4, y: 14.5 },  // 13: Empty (Blank)
+    { x: 17.3, y: 18.6 },  // 14: Skull (Danger)
+    { x: 13.9, y: 19.2 },  // 15: Empty (Blank)
+    { x: 10.5, y: 19.2 },  // 16: Magnifying glass (Clue)
+    { x: 6.8,  y: 18.6 },  // 17: Empty (Blank)
+    { x: 4.2,  y: 21.8 },  // 18: Empty (Blank)
+    { x: 3.6,  y: 26.5 },  // 19: Skull (Danger)
+    { x: 5.0,  y: 31.6 },  // 20: Empty (Blank)
+    { x: 8.7,  y: 35.2 },  // 21: Empty (Blank)
+    { x: 13.4, y: 35.4 },  // 22: Magnifying glass (Clue)
+    { x: 17.1, y: 32.3 },  // 23: Skull (Danger)
     { x: 17.8, y: 25.1 }   // 24: Artifact Pedestal
   ],
   [ERAS.AMERICAN]: [
-    { x: 93.3, y: 24.6 },  // 0: Landing pad Cyan Bullseye
-    { x: 92.5, y: 29.5 },  // 1: Empty
-    { x: 91.5, y: 34.0 },  // 2: Magnifying glass
+    { x: 93.3, y: 24.6 },  // 0: Landing pad Cyan Bullseye (Blank)
+    { x: 92.5, y: 29.5 },  // 1: Empty (Blank)
+    { x: 91.5, y: 34.0 },  // 2: Magnifying glass (Clue)
     { x: 89.0, y: 37.0 },  // 3: Paradox (P)
-    { x: 85.0, y: 37.6 },  // 4: Empty
-    { x: 82.0, y: 35.8 },  // 5: Star
-    { x: 78.5, y: 33.6 },  // 6: Empty
-    { x: 75.0, y: 34.2 },  // 7: Star
-    { x: 71.5, y: 34.8 },  // 8: Skull
-    { x: 67.5, y: 35.5 },  // 9: Star
-    { x: 63.5, y: 35.5 },  // 10: Empty
-    { x: 59.8, y: 34.5 },  // 11: Skull
-    { x: 56.4, y: 36.8 },  // 12: Star
+    { x: 85.0, y: 37.6 },  // 4: Empty (Blank)
+    { x: 82.0, y: 35.8 },  // 5: Star (Event)
+    { x: 78.5, y: 33.6 },  // 6: Empty (Blank)
+    { x: 75.0, y: 34.2 },  // 7: Magnifying glass (Clue)
+    { x: 71.5, y: 34.8 },  // 8: Skull (Danger)
+    { x: 67.5, y: 35.5 },  // 9: Star (Event)
+    { x: 63.5, y: 35.5 },  // 10: Empty (Blank)
+    { x: 59.8, y: 34.5 },  // 11: Skull (Danger)
+    { x: 56.4, y: 36.8 },  // 12: Star (Event)
     { x: 53.0, y: 43.5 },  // 13: Timegate (Central Nexus NE entrance)
-    { x: 56.8, y: 27.5 },  // 14: Magnifying glass
-    { x: 60.5, y: 26.0 },  // 15: Paradox (P)
-    { x: 64.0, y: 27.0 },  // 16: Skull
-    { x: 65.5, y: 24.5 },  // 17: Empty
-    { x: 69.5, y: 22.0 },  // 18: Magnifying glass
-    { x: 74.0, y: 20.0 },  // 19: Paradox (P)
-    { x: 78.5, y: 20.5 },  // 20: Star
-    { x: 82.5, y: 22.5 },  // 21: Skull
+    { x: 56.8, y: 27.5 },  // 14: Magnifying glass (Clue)
+    { x: 60.5, y: 26.0 },  // 15: Empty (Blank)
+    { x: 64.0, y: 27.0 },  // 16: Skull (Danger)
+    { x: 65.5, y: 24.5 },  // 17: Empty (Blank)
+    { x: 69.5, y: 22.0 },  // 18: Magnifying glass (Clue)
+    { x: 74.0, y: 20.0 },  // 19: Empty (Blank)
+    { x: 78.5, y: 20.5 },  // 20: Star (Event)
+    { x: 82.5, y: 22.5 },  // 21: Skull (Danger)
     { x: 83.5, y: 26.5 },  // 22: Artifact Pedestal
-    { x: 82.5, y: 31.8 }   // 23: Skull
+    { x: 82.5, y: 31.8 },  // 23: Empty (Blank)
+    { x: 88.0, y: 28.0 }   // 24: Empty (Blank - return to landing pad)
   ],
   [ERAS.JAPANESE]: [
-    { x: 7.7,  y: 88.0 },  // 0: Start Cyan Bullseye
-    { x: 7.2,  y: 94.2 },  // 1: Red bunker
-    { x: 13.5, y: 91.5 },  // 2: Skull
-    { x: 16.8, y: 84.7 },  // 3: Magnifying glass
+    { x: 7.7,  y: 88.0 },  // 0: Start Cyan Bullseye (Blank)
+    { x: 7.2,  y: 94.2 },  // 1: Red bunker (Blank)
+    { x: 13.5, y: 91.5 },  // 2: Skull (Danger)
+    { x: 16.8, y: 84.7 },  // 3: Magnifying glass (Clue)
     { x: 20.3, y: 79.9 },  // 4: Paradox (P)
-    { x: 24.8, y: 78.2 },  // 5: Star
-    { x: 28.9, y: 79.9 },  // 6: Empty
-    { x: 32.2, y: 86.3 },  // 7: Star
-    { x: 35.4, y: 92.3 },  // 8: Paradox (P)
-    { x: 39.6, y: 93.7 },  // 9: Magnifying glass
-    { x: 43.6, y: 91.6 },  // 10: Star
-    { x: 45.9, y: 86.0 },  // 11: Empty
-    { x: 45.6, y: 78.4 },  // 12: Skull
+    { x: 24.8, y: 78.2 },  // 5: Star (Event)
+    { x: 28.9, y: 79.9 },  // 6: Empty (Blank)
+    { x: 32.2, y: 86.3 },  // 7: Star (Event)
+    { x: 35.4, y: 92.3 },  // 8: Empty (Blank)
+    { x: 39.6, y: 93.7 },  // 9: Magnifying glass (Clue)
+    { x: 43.6, y: 91.6 },  // 10: Star (Event)
+    { x: 45.9, y: 86.0 },  // 11: Empty (Blank)
+    { x: 45.6, y: 78.4 },  // 12: Skull (Danger)
     { x: 43.5, y: 72.5 },  // 13: Artifact Pedestal
-    { x: 42.4, y: 66.4 },  // 14: Skull
+    { x: 42.4, y: 66.4 },  // 14: Skull (Danger)
     { x: 44.6, y: 60.5 },  // 15: Timegate (Central Nexus SW bridge)
-    { x: 38.7, y: 59.6 },  // 16: Star
-    { x: 32.7, y: 60.5 },  // 17: Paradox (P)
-    { x: 27.8, y: 63.1 },  // 18: Magnifying glass
-    { x: 22.4, y: 61.8 },  // 19: Skull
-    { x: 17.4, y: 60.1 },  // 20: Empty
-    { x: 11.1, y: 59.9 },  // 21: Star
-    { x: 8.4,  y: 63.5 },  // 22: Paradox (P)
-    { x: 7.6,  y: 70.7 },  // 23: Magnifying glass
-    { x: 7.7,  y: 76.9 },  // 24: Empty
-    { x: 7.3,  y: 83.5 }   // 25: Star
+    { x: 38.7, y: 59.6 },  // 16: Empty (Blank)
+    { x: 32.7, y: 60.5 },  // 17: Empty (Blank)
+    { x: 27.8, y: 63.1 },  // 18: Magnifying glass (Clue)
+    { x: 22.4, y: 61.8 },  // 19: Skull (Danger)
+    { x: 17.4, y: 60.1 },  // 20: Empty (Blank)
+    { x: 11.1, y: 59.9 },  // 21: Star (Event)
+    { x: 8.4,  y: 63.5 },  // 22: Empty (Blank)
+    { x: 7.6,  y: 70.7 },  // 23: Magnifying glass (Clue)
+    { x: 7.5,  y: 80.2 }   // 24: Empty (Blank - return to start station)
   ],
   [ERAS.MYTH]: [
-    { x: 89.6, y: 37.3 },  // 0: Torii Gate Cyan Bullseye
-    { x: 89.1, y: 46.5 },  // 1: Magnifying glass
+    { x: 89.6, y: 37.3 },  // 0: Torii Gate Cyan Bullseye (Blank)
+    { x: 89.1, y: 46.5 },  // 1: Magnifying glass (Clue)
     { x: 90.3, y: 54.0 },  // 2: Paradox (P)
-    { x: 89.4, y: 85.0 },  // 3: Star
-    { x: 85.7, y: 87.8 },  // 4: Skull
+    { x: 89.4, y: 85.0 },  // 3: Star (Event)
+    { x: 85.7, y: 87.8 },  // 4: Skull (Danger)
     { x: 81.5, y: 87.6 },  // 5: Artifact Pedestal
-    { x: 78.0, y: 83.9 },  // 6: Skull
-    { x: 74.8, y: 80.8 },  // 7: Star
-    { x: 68.2, y: 86.9 },  // 8: Paradox (P)
-    { x: 65.6, y: 92.5 },  // 9: Magnifying glass
-    { x: 61.2, y: 93.9 },  // 10: Skull
-    { x: 57.0, y: 91.2 },  // 11: Empty
-    { x: 53.8, y: 85.5 },  // 12: Star
-    { x: 51.2, y: 77.6 },  // 13: Skull
-    { x: 53.0, y: 70.0 },  // 14: Empty
-    { x: 57.4, y: 62.5 },  // 15: Star
-    { x: 58.1, y: 56.5 },  // 16: Empty
+    { x: 78.0, y: 83.9 },  // 6: Skull (Danger)
+    { x: 74.8, y: 80.8 },  // 7: Star (Event)
+    { x: 68.2, y: 86.9 },  // 8: Empty (Blank)
+    { x: 65.6, y: 92.5 },  // 9: Magnifying glass (Clue)
+    { x: 61.2, y: 93.9 },  // 10: Skull (Danger)
+    { x: 57.0, y: 91.2 },  // 11: Empty (Blank)
+    { x: 53.8, y: 85.5 },  // 12: Star (Event)
+    { x: 51.2, y: 77.6 },  // 13: Skull (Danger)
+    { x: 53.0, y: 70.0 },  // 14: Empty (Blank)
+    { x: 57.4, y: 62.5 },  // 15: Star (Event)
+    { x: 58.1, y: 56.5 },  // 16: Empty (Blank)
     { x: 56.6, y: 50.8 },  // 17: Timegate (Central Nexus SE bridge)
-    { x: 59.5, y: 46.5 },  // 18: Star
-    { x: 63.7, y: 46.5 },  // 19: Star
-    { x: 68.4, y: 45.8 },  // 20: Magnifying glass
-    { x: 71.8, y: 52.0 },  // 21: Paradox (P)
-    { x: 73.9, y: 58.2 },  // 22: Paradox (P)
-    { x: 74.4, y: 66.5 }   // 23: Magnifying glass
+    { x: 59.5, y: 46.5 },  // 18: Empty (Blank)
+    { x: 63.7, y: 46.5 },  // 19: Empty (Blank)
+    { x: 68.4, y: 45.8 },  // 20: Magnifying glass (Clue)
+    { x: 71.8, y: 52.0 },  // 21: Empty (Blank)
+    { x: 73.9, y: 58.2 },  // 22: Empty (Blank)
+    { x: 74.4, y: 66.5 },  // 23: Magnifying glass (Clue)
+    { x: 82.5, y: 45.0 }   // 24: Empty (Blank - return to Torii gate)
   ]
 };
 
@@ -238,20 +239,20 @@ export const DEFAULT_ERA_PATH_CONNECTIONS = {
   })(),
   [ERAS.AMERICAN]: (() => {
     const c = {};
-    for (let i = 0; i < 23; i++) c[i] = [i + 1];
-    c[23] = [0];
+    for (let i = 0; i < 24; i++) c[i] = [i + 1];
+    c[24] = [0];
     return c;
   })(),
   [ERAS.JAPANESE]: (() => {
     const c = {};
-    for (let i = 0; i < 25; i++) c[i] = [i + 1];
-    c[25] = [0];
+    for (let i = 0; i < 24; i++) c[i] = [i + 1];
+    c[24] = [0];
     return c;
   })(),
   [ERAS.MYTH]: (() => {
     const c = {};
-    for (let i = 0; i < 23; i++) c[i] = [i + 1];
-    c[23] = [0];
+    for (let i = 0; i < 24; i++) c[i] = [i + 1];
+    c[24] = [0];
     return c;
   })()
 };
@@ -319,7 +320,15 @@ export function getActiveTileCoordinates() {
     const saved = localStorage.getItem('panahon_custom_map_coords');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed && typeof parsed === 'object') return parsed;
+      if (
+        parsed && typeof parsed === 'object' &&
+        parsed[ERAS.SPANISH]?.length === 25 &&
+        parsed[ERAS.AMERICAN]?.length === 25 &&
+        parsed[ERAS.JAPANESE]?.length === 25 &&
+        parsed[ERAS.MYTH]?.length === 25
+      ) {
+        return parsed;
+      }
     }
   } catch (_) {}
   return ERA_TILE_COORDINATES;
@@ -330,7 +339,15 @@ export function getActiveTileLayouts() {
     const saved = localStorage.getItem('panahon_custom_map_layouts');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed && typeof parsed === 'object') return parsed;
+      if (
+        parsed && typeof parsed === 'object' &&
+        parsed[ERAS.SPANISH]?.length === 25 &&
+        parsed[ERAS.AMERICAN]?.length === 25 &&
+        parsed[ERAS.JAPANESE]?.length === 25 &&
+        parsed[ERAS.MYTH]?.length === 25
+      ) {
+        return parsed;
+      }
     }
   } catch (_) {}
   return ERA_TILE_LAYOUTS;

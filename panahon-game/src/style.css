@@ -3008,3 +3008,697 @@ html, body {
   border: 1px solid rgba(232, 197, 71, 0.5);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8), 0 0 28px rgba(232, 197, 71, 0.25);
 }
+
+
+
+
+/* ==========================================
+   MAP & PATHING EDITOR STYLES
+   ========================================== */
+.map-editor-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #0f172a 60%, #020617 100%);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  overflow: hidden;
+}
+
+.map-editor-header {
+  height: 58px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-md);
+  gap: var(--space-sm);
+  z-index: 10;
+}
+
+.map-editor-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--text-accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.map-editor-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+.map-editor-canvas-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: auto;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.map-editor-canvas-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 1100px;
+  aspect-ratio: 1024 / 765;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.95), 0 0 30px rgba(99, 102, 241, 0.25);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  user-select: none;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.map-editor-canvas-wrapper.bg-clean {
+  background-image: url('/assets/Map/Full Map.png');
+}
+
+.map-editor-canvas-wrapper.bg-tiles {
+  background-image: url('/assets/Map/Full Map with Tiles.png');
+}
+
+.map-editor-canvas-wrapper.bg-grid {
+  background-color: #0b0f19;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+.editor-paths-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.editor-path-line {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+}
+
+.editor-path-line.active-era {
+  stroke-width: 4;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.editor-node {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  z-index: 5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+.editor-node:hover {
+  transform: translate(-50%, -50%) scale(1.22);
+  z-index: 10;
+  border-color: #fff;
+  box-shadow: 0 0 15px currentColor;
+}
+
+.editor-node.selected {
+  transform: translate(-50%, -50%) scale(1.35);
+  border: 3px solid #FACC15 !important;
+  box-shadow: 0 0 20px #FACC15, 0 0 35px rgba(250, 204, 21, 0.6) !important;
+  z-index: 20;
+  animation: nodePulse 1.5s infinite alternate ease-in-out;
+}
+
+.editor-node.dragging {
+  cursor: grabbing !important;
+  transform: translate(-50%, -50%) scale(1.45) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.9), 0 0 25px #00E5FF !important;
+  border-color: #00E5FF !important;
+  z-index: 30 !important;
+}
+
+@keyframes nodePulse {
+  0% { box-shadow: 0 0 15px #FACC15, 0 0 25px rgba(250, 204, 21, 0.4); }
+  100% { box-shadow: 0 0 25px #FACC15, 0 0 45px rgba(250, 204, 21, 0.8); }
+}
+
+.editor-node-num {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 10px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.editor-node-icon {
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+/* Sidebar Inspector */
+.map-editor-sidebar {
+  width: 290px;
+  min-width: 290px;
+  max-width: 290px;
+  flex-shrink: 0;
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(16px);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  padding: 8px 10px;
+  gap: 6px;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+.map-editor-sidebar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.map-editor-sidebar * {
+  box-sizing: border-box;
+}
+
+.sidebar-btn {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  letter-spacing: 0 !important;
+  font-family: var(--font-body) !important;
+  font-size: 0.68rem !important;
+  padding: 4px 6px !important;
+  border-radius: 4px !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #fff !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.sidebar-btn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.sidebar-btn:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+}
+
+.sidebar-btn.active {
+  background: rgba(234, 179, 8, 0.25) !important;
+  border-color: #FACC15 !important;
+  color: #FACC15 !important;
+  font-weight: 700 !important;
+}
+
+.sidebar-btn.danger {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  color: #FCA5A5 !important;
+}
+
+.sidebar-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.35) !important;
+  border-color: #EF4444 !important;
+  color: #fff !important;
+}
+
+.editor-checkbox-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.editor-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.67rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.editor-checkbox-item input {
+  cursor: pointer;
+  margin: 0;
+  transform: scale(0.9);
+}
+
+.editor-panel-section {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.editor-coord-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.coord-stepper-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.coord-stepper-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: #fff;
+}
+
+/* ==========================================
+   RESPONSIVE MAP EDITOR & MOBILE GAME ENHANCEMENTS
+   ========================================== */
+
+/* Map Editor Header Layout */
+.map-editor-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.map-editor-title .title-text {
+  white-space: nowrap;
+}
+
+.map-editor-era-scroll {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  white-space: nowrap;
+  padding: 2px 0;
+  flex: 1;
+}
+
+.map-editor-era-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.era-chip {
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.era-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.era-chip.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-weight: 700;
+}
+
+.map-editor-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.editor-btn-sm {
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.editor-btn-sm:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #fff;
+}
+
+.editor-btn-sm.primary-save {
+  background: #10B981;
+  border-color: #059669;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.editor-btn-sm.primary-save:hover {
+  background: #059669;
+}
+
+.editor-btn-sm.active-panel {
+  background: #FACC15;
+  border-color: #EAB308;
+  color: #000;
+  font-weight: 700;
+}
+
+.editor-btn-sm.active-accent {
+  background: #8B5CF6;
+  border-color: #7C3AED;
+  color: #fff;
+}
+
+.editor-btn-sm.close-btn {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.editor-btn-sm.close-btn:hover {
+  background: rgba(239, 68, 68, 0.8);
+}
+
+.editor-select-sm {
+  padding: 4px 6px;
+  font-size: 0.72rem;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.editor-zoom-group {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 1px;
+}
+
+.zoom-indicator {
+  font-size: 0.68rem;
+  color: #94A3B8;
+  min-width: 32px;
+  text-align: center;
+}
+
+/* Mobile Drawer (When screen width < 1024px) */
+.map-editor-sidebar.mobile-drawer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-height: 52vh;
+  border-radius: 16px 16px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  border-left: none;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.9);
+  z-index: 50;
+  animation: drawerSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mobile-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@keyframes drawerSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* Floating Mobile Mini Dock */
+.editor-mobile-dock {
+  position: absolute;
+  bottom: 12px;
+  left: 10px;
+  right: 10px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.85);
+  animation: dockPop 0.2s ease-out;
+}
+
+@keyframes dockPop {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.map-editor-toast {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  white-space: nowrap;
+}
+
+.map-editor-toast.toast-success {
+  background: rgba(16, 185, 129, 0.95);
+  color: #fff;
+}
+.map-editor-toast.toast-warning {
+  background: rgba(234, 179, 8, 0.95);
+  color: #000;
+}
+.map-editor-toast.toast-danger {
+  background: rgba(239, 68, 68, 0.95);
+  color: #fff;
+}
+.map-editor-toast.toast-info {
+  background: rgba(59, 130, 246, 0.95);
+  color: #fff;
+}
+
+/* Responsive Hide Rules */
+@media (max-width: 768px) {
+  .hide-xs {
+    display: none !important;
+  }
+
+  .map-editor-title .title-text {
+    display: none;
+  }
+
+  .editor-zoom-group {
+    display: none;
+  }
+
+  .map-editor-header {
+    padding: 0 8px;
+    height: 50px;
+  }
+
+  .map-editor-canvas-area {
+    padding: 8px;
+  }
+}
+
+/* ==========================================
+   MOBILE GAME SCREEN TABS & LAYOUT
+   ========================================== */
+.mobile-game-tabs {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .mobile-game-tabs {
+    display: flex;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.95);
+    border-bottom: 1px solid var(--border-glass);
+    padding: 4px 6px;
+    gap: 4px;
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    flex-shrink: 0;
+  }
+
+  .mobile-game-tab {
+    flex: 1;
+    padding: 8px 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+  }
+
+  .mobile-game-tab.active {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: #818CF8;
+    color: #fff;
+  }
+
+  .mobile-turn-pulse {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    background: #EF4444;
+    color: #fff;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    font-size: 0.6rem;
+    line-height: 14px;
+    font-weight: 800;
+    animation: turnPulse 1s infinite alternate;
+  }
+
+  /* Show/hide panels based on active mobile tab */
+  .game-screen.mobile-tab-board .left-panel,
+  .game-screen.mobile-tab-board .right-panel,
+  .game-screen.mobile-tab-board .bottom-panel {
+    display: none !important;
+  }
+
+  .game-screen.mobile-tab-board .board-container {
+    height: calc(100vh - 120px);
+    height: calc(100dvh - 120px);
+    min-height: auto;
+    border-bottom: none;
+  }
+
+  .game-screen.mobile-tab-actions .left-panel,
+  .game-screen.mobile-tab-actions .board-container,
+  .game-screen.mobile-tab-actions .bottom-panel {
+    display: none !important;
+  }
+
+  .game-screen.mobile-tab-actions .right-panel {
+    display: flex !important;
+    width: 100% !important;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .game-screen.mobile-tab-players .board-container,
+  .game-screen.mobile-tab-players .right-panel,
+  .game-screen.mobile-tab-players .bottom-panel {
+    display: none !important;
+  }
+
+  .game-screen.mobile-tab-players .left-panel {
+    display: flex !important;
+    width: 100% !important;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .game-screen.mobile-tab-hand .board-container,
+  .game-screen.mobile-tab-hand .left-panel,
+  .game-screen.mobile-tab-hand .right-panel {
+    display: none !important;
+  }
+
+  .game-screen.mobile-tab-hand .bottom-panel {
+    display: flex !important;
+    flex-direction: column;
+    width: 100% !important;
+    flex: 1;
+    height: calc(100vh - 120px);
+    height: calc(100dvh - 120px);
+    overflow-y: auto;
+  }
+}
+
+@media (min-width: 901px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}

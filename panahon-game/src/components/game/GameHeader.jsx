@@ -6,7 +6,6 @@ function GameHeader({
   timelineClass,
   timerStr,
   turnNumber,
-  onOpenGuide,
   onOpenPause
 }) {
   return (
@@ -39,24 +38,27 @@ function GameHeader({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-
         <button
-          className="btn"
-          style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--bg-glass)' }}
-          onClick={() => { sounds.btnClick(); onOpenGuide(); }}
-        >
-          📖 Manual
-        </button>
-        <button
+          id="btn-pause-game"
           className="btn btn-pause"
           onClick={() => {
             sounds.btnClick();
             if (onOpenPause) onOpenPause();
           }}
           title="Pause Game (Esc)"
+          aria-label="Pause Game"
         >
-          <span className="pause-bars-icon"><span></span><span></span></span>
-          <span className="pause-btn-text">PAUSE</span>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 14 14"
+            fill="currentColor"
+            aria-hidden="true"
+            style={{ display: 'block' }}
+          >
+            <rect x="2.5" y="2" width="3" height="10" rx="1" />
+            <rect x="8.5" y="2" width="3" height="10" rx="1" />
+          </svg>
         </button>
       </div>
     </header>

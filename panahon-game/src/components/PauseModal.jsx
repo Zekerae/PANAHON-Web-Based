@@ -138,14 +138,28 @@ export default function PauseModal({
           </button>
 
           <button
-            className="btn btn-secondary pause-btn"
-            style={{ padding: '9px 12px', fontSize: '0.8rem', minWidth: 0, width: '100%' }}
+            id="pause-btn-manual"
+            className="btn btn-secondary pause-btn pause-btn-manual"
+            style={{
+              padding: '10px 14px',
+              fontSize: '0.82rem',
+              minWidth: 0,
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              background: 'rgba(56, 189, 248, 0.12)',
+              border: '1.5px solid rgba(56, 189, 248, 0.45)',
+              color: '#38BDF8',
+              fontWeight: 700
+            }}
             onClick={() => {
               sounds.btnClick();
-              onOpenGuide();
+              if (onOpenGuide) onOpenGuide();
             }}
           >
-            📖 RULES & FIELD MANUAL
+            <span style={{ fontSize: '1rem' }}>📖</span> RULES & FIELD MANUAL
           </button>
 
           <button

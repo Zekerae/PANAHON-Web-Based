@@ -8,12 +8,14 @@ export default function GuideModal({ onClose }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopImmediatePropagation?.();
         sounds?.btnClick?.();
         if (typeof onClose === 'function') onClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [onClose]);
 
   const handleTab = (tab) => {

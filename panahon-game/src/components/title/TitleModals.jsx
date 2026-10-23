@@ -296,8 +296,20 @@ export function ProfileModal({ onClose }) {
    3. SETTINGS MODAL
    ========================================================================== */
 export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEditor, onReplayIntro }) {
-  const [sfxVolume, setSfxVolume] = useState(() => localStorage.getItem('panahon_sfx_vol') || '80');
-  const [musicVolume, setMusicVolume] = useState(() => localStorage.getItem('panahon_music_vol') || '75');
+  const [sfxVolume, setSfxVolume] = useState(() => Math.round((sounds.sfxVolume ?? 0.8) * 100));
+  const [musicVolume, setMusicVolume] = useState(() => Math.round((sounds.musicVolume ?? 0.75) * 100));
+
+  const handleSfxChange = (e) => {
+    const val = parseInt(e.target.value, 10);
+    setSfxVolume(val);
+    sounds.setSfxVolume(val / 100);
+  };
+
+  const handleMusicChange = (e) => {
+    const val = parseInt(e.target.value, 10);
+    setMusicVolume(val);
+    sounds.setMusicVolume(val / 100);
+  };
   const [particlesActive, setParticlesActive] = useState(() => localStorage.getItem('panahon_particles') !== 'false');
 
   const handleTestSound = () => {
@@ -364,36 +376,32 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEdi
             <div style={{ marginBottom: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px', color: '#94A3B8' }}>
                 <span>Sound Effects (SFX)</span>
-                <span>{sfxVolume}%</span>
+                <span style={{ color: '#38BDF8', fontWeight: 700 }}>{sfxVolume}%</span>
               </div>
               <input
                 type="range"
                 min="0"
                 max="100"
                 value={sfxVolume}
-                onChange={(e) => {
-                  setSfxVolume(e.target.value);
-                  localStorage.setItem('panahon_sfx_vol', e.target.value);
-                }}
-                style={{ width: '100%', accentColor: '#38BDF8' }}
+                onChange={handleSfxChange}
+                onMouseUp={() => sounds.btnClick()}
+                onTouchEnd={() => sounds.btnClick()}
+                style={{ width: '100%', accentColor: '#38BDF8', cursor: 'pointer' }}
               />
             </div>
 
             <div style={{ marginBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px', color: '#94A3B8' }}>
                 <span>Atmospheric Resonance (BGM)</span>
-                <span>{musicVolume}%</span>
+                <span style={{ color: '#F59E0B', fontWeight: 700 }}>{musicVolume}%</span>
               </div>
               <input
                 type="range"
                 min="0"
                 max="100"
                 value={musicVolume}
-                onChange={(e) => {
-                  setMusicVolume(e.target.value);
-                  localStorage.setItem('panahon_music_vol', e.target.value);
-                }}
-                style={{ width: '100%', accentColor: '#38BDF8' }}
+                onChange={handleMusicChange}
+                style={{ width: '100%', accentColor: '#38BDF8', cursor: 'pointer' }}
               />
             </div>
 

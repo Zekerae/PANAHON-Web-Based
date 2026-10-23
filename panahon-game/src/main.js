@@ -2233,6 +2233,7 @@ function renderChoiceModal(choice) {
       network.sendAction({ type: 'RESOLVE_CHOICE', action });
       dismissAnyActiveOverlay(true);
     });
+  });
 }
 
 // ==========================================

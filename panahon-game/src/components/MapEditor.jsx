@@ -3,7 +3,7 @@ import sounds from '../sound.js';
 import {
   ERAS, ERA_ORDER, ERA_NAMES,
   ERA_TILE_COORDINATES, ERA_TILE_LAYOUTS,
-  DEFAULT_ERA_LOOP_TARGETS, getActiveTileCoordinates, getActiveTileLayouts, getActiveLoopTargets,
+  DEFAULT_ERA_LOOP_TARGETS, DEFAULT_ERA_PATH_CONNECTIONS, getActivePathConnections, getActiveTileCoordinates, getActiveTileLayouts, getActiveLoopTargets,
   saveCustomMap, resetCustomMap
 } from '../gameData.js';
 
@@ -41,6 +41,8 @@ export default function MapEditor({ onClose }) {
   const [coords, setCoords] = useState(() => JSON.parse(JSON.stringify(getActiveTileCoordinates())));
   const [layouts, setLayouts] = useState(() => JSON.parse(JSON.stringify(getActiveTileLayouts())));
   const [loopTargets, setLoopTargets] = useState(() => JSON.parse(JSON.stringify(getActiveLoopTargets())));
+  const [connections, setConnections] = useState(() => JSON.parse(JSON.stringify(getActivePathConnections())));
+  const [isConnectingMode, setIsConnectingMode] = useState(false);
 
   const [activeEra, setActiveEra] = useState('spanish');
   const [selectedTile, setSelectedTile] = useState({ era: 'spanish', index: 0 });
@@ -120,6 +122,13 @@ export default function MapEditor({ onClose }) {
   const handleNodeStart = (e, era, index) => {
     e.stopPropagation();
     sounds.btnClick();
+    if (isConnectingMode && selectedTile) {
+      if (selectedTile.era === era && selectedTile.index !== index) {
+        handleAddConnection(era, selectedTile.index, index);
+        setIsConnectingMode(false);
+        return;
+      }
+    }
     setSelectedTile({ era, index });
     setActiveEra(era);
     setIsDragging(true);
@@ -343,6 +352,104 @@ export default function MapEditor({ onClose }) {
     triggerToast(`Reversed path traversal direction for ${ERA_NAMES[activeEra]}`, 'info');
   };
 
+  // Add directed connection from -> to
+  const handleAddConnection = (era, fromIdx, toIdx) => {
+    if (fromIdx === toIdx) return;
+    sounds.btnClick();
+    setConnections(prev => {
+      const next = { ...prev };
+      const eraConns = { ...(next[era] || {}) };
+      const curList = [...(eraConns[fromIdx] || [])];
+      if (!curList.includes(toIdx)) {
+        curList.push(toIdx);
+      }
+      eraConns[fromIdx] = curList;
+      next[era] = eraConns;
+      return next;
+    });
+    triggerToast(`Connected Tile #${fromIdx + 1} ➔ Tile #${toIdx + 1}!`);
+  };
+
+  // Remove connection
+  const handleRemoveConnection = (era, fromIdx, toIdx) => {
+    sounds.btnClick();
+    setConnections(prev => {
+      const next = { ...prev };
+      const eraConns = { ...(next[era] || {}) };
+      eraConns[fromIdx] = (eraConns[fromIdx] || []).filter(t => t !== toIdx);
+      next[era] = eraConns;
+      return next;
+    });
+    triggerToast(`Disconnected Tile #${fromIdx + 1} ➔ Tile #${toIdx + 1}`, 'info');
+  };
+
+  // Auto-chain all tiles sequentially (1 -> 2 -> ... -> N)
+  const handleAutoChainEra = (era) => {
+    sounds.portal();
+    const count = coords[era]?.length || 0;
+    if (count < 2) return;
+    setConnections(prev => {
+      const next = { ...prev };
+      const eraConns = {};
+      for (let i = 0; i < count - 1; i++) {
+        eraConns[i] = [i + 1];
+      }
+      eraConns[count - 1] = [0];
+      next[era] = eraConns;
+      return next;
+    });
+    triggerToast(`Auto-chained all ${count} tiles sequentially in ${ERA_NAMES[era]}`);
+  };
+
+  // Invert all path connections in era
+  const handleInvertEraFlow = (era) => {
+    sounds.portal();
+    setConnections(prev => {
+      const next = { ...prev };
+      const oldConns = next[era] || {};
+      const newConns = {};
+      for (const [fromStr, toList] of Object.entries(oldConns)) {
+        const fromIdx = parseInt(fromStr, 10);
+        if (Array.isArray(toList)) {
+          toList.forEach(toIdx => {
+            if (!newConns[toIdx]) newConns[toIdx] = [];
+            newConns[toIdx].push(fromIdx);
+          });
+        }
+      }
+      next[era] = newConns;
+      return next;
+    });
+    triggerToast(`Reversed all path connections for ${ERA_NAMES[era]}!`);
+  };
+
+  // Clear all connections in era (allows fully manual routing from scratch)
+  const handleClearEraConnections = (era) => {
+    if (confirm(`Clear all path connections for ${ERA_NAMES[era]}? You can route them manually from scratch.`)) {
+      sounds.portal();
+      setConnections(prev => {
+        const next = { ...prev };
+        next[era] = {};
+        return next;
+      });
+      triggerToast(`Cleared connections for ${ERA_NAMES[era]}`, 'warning');
+    }
+  };
+
+  // Toggle Path Mode ('mario_party' vs 'loop')
+  const handleTogglePathMode = (era, mode) => {
+    sounds.btnClick();
+    setPathModes(prev => ({
+      ...prev,
+      [era]: mode
+    }));
+    triggerToast(
+      mode === 'mario_party'
+        ? `🎮 Set ${ERA_NAMES[era]} to Mario Party Flow: 25 ➔ 15 ➔ 14... ➔ 1!`
+        : `🔁 Set ${ERA_NAMES[era]} to Circuit Loop Mode`
+    );
+  };
+
   // Set Loop Target for Era (e.g. Tile 25 loops back to Tile 15 in Spanish Era)
   const handleSetLoopTarget = (era, targetIndex) => {
     sounds.btnClick();
@@ -357,7 +464,7 @@ export default function MapEditor({ onClose }) {
   // Save to LocalStorage
   const handleSaveToGame = () => {
     sounds.btnClick();
-    const ok = saveCustomMap(coords, layouts, loopTargets);
+    const ok = saveCustomMap(coords, layouts, loopTargets, null, connections);
     if (ok) {
       triggerToast('💾 Custom Map saved! Game is now using these coordinates.');
     } else {
@@ -373,27 +480,33 @@ export default function MapEditor({ onClose }) {
       setCoords(JSON.parse(JSON.stringify(ERA_TILE_COORDINATES)));
       setLayouts(JSON.parse(JSON.stringify(ERA_TILE_LAYOUTS)));
       setLoopTargets(JSON.parse(JSON.stringify(DEFAULT_ERA_LOOP_TARGETS)));
+      setConnections(JSON.parse(JSON.stringify(DEFAULT_ERA_PATH_CONNECTIONS)));
       triggerToast('Map reset to factory defaults.');
     }
   };
 
-  // Path walking simulation preview
+  // Path walking simulation preview following the exact node-graph connections
   useEffect(() => {
     if (!isPreviewWalking) return;
     const curEra = activeEra === 'all' ? 'spanish' : activeEra;
     const max = coords[curEra]?.length || 1;
-    const loopTarget = loopTargets[curEra] !== undefined ? loopTargets[curEra] : (curEra === 'spanish' ? 14 : 0);
+    let step = 0;
+    setPreviewStep(0);
 
     const timer = setInterval(() => {
-      setPreviewStep(prev => {
-        if (prev >= max - 1) return loopTarget;
-        return prev + 1;
-      });
+      const eraConns = connections[curEra] || {};
+      const nextList = eraConns[step];
+      if (Array.isArray(nextList) && nextList.length > 0) {
+        step = nextList[0];
+      } else {
+        step = (step + 1) % max;
+      }
+      setPreviewStep(step);
       sounds.moveStep();
     }, 450);
 
     return () => clearInterval(timer);
-  }, [isPreviewWalking, activeEra, coords, loopTargets]);
+  }, [isPreviewWalking, activeEra, coords, connections]);
 
   // Selected tile details
   const curTileCoords = selectedTile ? coords[selectedTile.era]?.[selectedTile.index] : null;
@@ -411,6 +524,8 @@ export default function MapEditor({ onClose }) {
       'export const ERA_TILE_COORDINATES = ' + JSON.stringify(coords, null, 2) + ';',
       '',
       'export const DEFAULT_ERA_LOOP_TARGETS = ' + JSON.stringify(loopTargets, null, 2) + ';',
+      '',
+      'export const DEFAULT_ERA_PATH_CONNECTIONS = ' + JSON.stringify(connections, null, 2) + ';',
       ''
     ].join('\n');
   };
@@ -540,35 +655,83 @@ export default function MapEditor({ onClose }) {
             }}
             onClick={handleCanvasClick}
           >
-            {/* SVG PATHS */}
+            {/* SVG DIRECTED PATH LINES WITH ARROWS */}
             <svg className="editor-paths-svg" viewBox="0 0 1024 765" preserveAspectRatio="none">
+              <defs>
+                <marker
+                  id="flow-arrow-active"
+                  viewBox="0 0 10 10"
+                  refX="6"
+                  refY="5"
+                  markerWidth="6"
+                  markerHeight="6"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#FACC15" />
+                </marker>
+                {ERA_ORDER.map(era => (
+                  <marker
+                    key={`arrow-${era}`}
+                    id={`arrow-${era}`}
+                    viewBox="0 0 10 10"
+                    refX="6"
+                    refY="5"
+                    markerWidth="5"
+                    markerHeight="5"
+                    orient="auto-start-reverse"
+                  >
+                    <path d="M 0 2 L 7 5 L 0 8 z" fill={ERA_COLORS[era]} />
+                  </marker>
+                ))}
+              </defs>
+
               {ERA_ORDER.map(era => {
-                const eraCoords = coords[era];
-                if (!eraCoords || eraCoords.length === 0) return null;
+                const eraCoords = coords[era] || [];
+                const eraConns = connections[era] || {};
                 const isSelectedEra = activeEra === era || activeEra === 'all';
                 const opacity = isSelectedEra ? 1 : 0.25;
 
-                const targetIdx = loopTargets[era] !== undefined ? loopTargets[era] : (era === 'spanish' ? 14 : 0);
-                const targetCoord = eraCoords[targetIdx];
-                let pathData = eraCoords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${(c.x * 1024) / 100} ${(c.y * 765) / 100}`).join(' ');
-                if (targetIdx === 0) {
-                  pathData += ' Z';
-                } else if (targetCoord) {
-                  pathData += ` L ${(targetCoord.x * 1024) / 100} ${(targetCoord.y * 765) / 100}`;
-                }
+                return Object.entries(eraConns).map(([fromStr, toList]) => {
+                  const fromIdx = parseInt(fromStr, 10);
+                  const fromCoord = eraCoords[fromIdx];
+                  if (!fromCoord || !Array.isArray(toList)) return null;
 
-                return (
-                  <path
-                    key={era}
-                    d={pathData}
-                    className={`editor-path-line ${activeEra === era ? 'active-era' : ''}`}
-                    style={{
-                      stroke: ERA_COLORS[era],
-                      opacity,
-                      strokeWidth: activeEra === era ? 3.5 : 2
-                    }}
-                  />
-                );
+                  return toList.map(toIdx => {
+                    const toCoord = eraCoords[toIdx];
+                    if (!toCoord) return null;
+
+                    const isOutgoing = selectedTile?.era === era && selectedTile?.index === fromIdx;
+                    const isIncoming = selectedTile?.era === era && selectedTile?.index === toIdx;
+
+                    let strokeColor = ERA_COLORS[era];
+                    let strokeWidth = isSelectedEra ? 2.5 : 1.5;
+                    let marker = `url(#arrow-${era})`;
+
+                    if (isOutgoing) {
+                      strokeColor = '#FACC15';
+                      strokeWidth = 3.5;
+                      marker = 'url(#flow-arrow-active)';
+                    } else if (isIncoming) {
+                      strokeColor = '#00E5FF';
+                      strokeWidth = 3;
+                    }
+
+                    return (
+                      <line
+                        key={`${era}_${fromIdx}_${toIdx}`}
+                        x1={(fromCoord.x * 1024) / 100}
+                        y1={(fromCoord.y * 765) / 100}
+                        x2={(toCoord.x * 1024) / 100}
+                        y2={(toCoord.y * 765) / 100}
+                        stroke={strokeColor}
+                        strokeWidth={strokeWidth}
+                        opacity={opacity}
+                        markerEnd={marker}
+                        strokeLinecap="round"
+                      />
+                    );
+                  });
+                });
               })}
 
               {/* Timegate connectors to Nexus Dial Center (50%, 49%) */}
@@ -647,31 +810,35 @@ export default function MapEditor({ onClose }) {
                       <span className="editor-node-icon">{icon}</span>
                     )}
 
-                    {/* Loop Destination Marker Badge */}
-                    {loopTargets[era] === idx && (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          bottom: '-9px',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          fontSize: '0.58rem',
-                          background: '#10B981',
-                          color: '#fff',
-                          padding: '0 4px',
-                          borderRadius: '6px',
-                          lineHeight: '12px',
-                          fontWeight: 800,
-                          boxShadow: '0 0 6px rgba(16, 185, 129, 0.8)',
-                          whiteSpace: 'nowrap',
-                          pointerEvents: 'none',
-                          zIndex: 20
-                        }}
-                        title="Loop Destination Space"
-                      >
-                        🔁 Loop
-                      </span>
-                    )}
+                    {/* Outgoing Next Targets Indicators */}
+                    {(() => {
+                      const targets = connections[era]?.[idx] || [];
+                      if (targets.length === 0) return null;
+                      return (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            bottom: '-9px',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            fontSize: '0.52rem',
+                            background: '#3B82F6',
+                            color: '#fff',
+                            padding: '0 3px',
+                            borderRadius: '4px',
+                            lineHeight: '11px',
+                            fontWeight: 800,
+                            boxShadow: '0 0 5px rgba(59, 130, 246, 0.7)',
+                            whiteSpace: 'nowrap',
+                            pointerEvents: 'none',
+                            zIndex: 20
+                          }}
+                          title={`Flows into Tile: ${targets.map(t => '#' + (t + 1)).join(', ')}`}
+                        >
+                          ➔ {targets.map(t => t + 1).join(',')}
+                        </span>
+                      );
+                    })()}
 
                     {/* Test Walker Pawn */}
                     {isPawnHere && (
@@ -863,24 +1030,106 @@ export default function MapEditor({ onClose }) {
                     </button>
                   </div>
 
-                  {/* Connect Era End to this Space button */}
-                  <button
-                    className="sidebar-btn"
-                    style={{
-                      height: '24px',
-                      fontSize: '0.66rem',
-                      marginTop: '4px',
-                      background: loopTargets[selectedTile.era] === selectedTile.index ? 'rgba(16, 185, 129, 0.28)' : 'rgba(255,255,255,0.06)',
-                      borderColor: loopTargets[selectedTile.era] === selectedTile.index ? '#10B981' : 'rgba(255,255,255,0.18)',
-                      color: loopTargets[selectedTile.era] === selectedTile.index ? '#34D399' : '#fff'
-                    }}
-                    onClick={() => handleSetLoopTarget(selectedTile.era, selectedTile.index)}
-                    title={`Set Tile #${selectedTile.index + 1} as the loop destination for the final space (#${coords[selectedTile.era]?.length})`}
-                  >
-                    {loopTargets[selectedTile.era] === selectedTile.index
-                      ? `✓ Loop Target: Tile #${selectedTile.index + 1}`
-                      : `🔗 Connect End to Tile #${selectedTile.index + 1}`}
-                  </button>
+                  {/* MANUAL PATH CONNECTIONS & FLOW */}
+                  <div style={{ marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '0.64rem', fontWeight: 800, color: 'var(--text-accent)' }}>
+                        ➔ FLOWS INTO (Next Spaces):
+                      </span>
+                      <button
+                        className={`sidebar-btn ${isConnectingMode ? 'active' : ''}`}
+                        style={{ width: 'auto', padding: '2px 6px', height: '20px', fontSize: '0.58rem' }}
+                        onClick={() => {
+                          sounds.btnClick();
+                          setIsConnectingMode(!isConnectingMode);
+                          if (!isConnectingMode) {
+                            triggerToast('Click any space on map to connect!', 'info');
+                          }
+                        }}
+                        title="Click to enter linking mode, then click any tile on map"
+                      >
+                        {isConnectingMode ? '🎯 Click Map...' : '🔗 Link Space'}
+                      </button>
+                    </div>
+
+                    {/* Connected Targets Badges */}
+                    {(() => {
+                      const targets = connections[selectedTile.era]?.[selectedTile.index] || [];
+                      return (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginBottom: '4px' }}>
+                          {targets.length === 0 ? (
+                            <span style={{ fontSize: '0.60rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                              No outgoing path (dead end)
+                            </span>
+                          ) : (
+                            targets.map(targetIdx => (
+                              <div
+                                key={targetIdx}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  background: 'rgba(59, 130, 246, 0.25)',
+                                  border: '1px solid #3B82F6',
+                                  borderRadius: '3px',
+                                  padding: '1px 5px',
+                                  fontSize: '0.62rem',
+                                  color: '#fff'
+                                }}
+                              >
+                                <span>➔ #{targetIdx + 1} ({layouts[selectedTile.era]?.[targetIdx] || 'tile'})</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveConnection(selectedTile.era, selectedTile.index, targetIdx);
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#F87171',
+                                    cursor: 'pointer',
+                                    padding: '0 2px',
+                                    fontSize: '0.7rem',
+                                    lineHeight: 1
+                                  }}
+                                  title="Remove this connection"
+                                >
+                                  &times;
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Quick Dropdown to Add Connection */}
+                    <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                      <select
+                        className="input-field"
+                        style={{ flex: 1, padding: '1px 4px', fontSize: '0.63rem', height: '22px', minWidth: 0 }}
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value !== '') {
+                            handleAddConnection(selectedTile.era, selectedTile.index, parseInt(e.target.value, 10));
+                            e.target.value = '';
+                          }
+                        }}
+                      >
+                        <option value="" disabled>➕ Connect to Space #...</option>
+                        {(coords[selectedTile.era] || []).map((_, i) => {
+                          if (i === selectedTile.index) return null;
+                          const curList = connections[selectedTile.era]?.[selectedTile.index] || [];
+                          const isConnected = curList.includes(i);
+                          return (
+                            <option key={i} value={i} disabled={isConnected}>
+                              Tile #{i + 1} ({layouts[selectedTile.era]?.[i] || 'tile'}) {isConnected ? '✓ Connected' : ''}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -889,40 +1138,40 @@ export default function MapEditor({ onClose }) {
               </div>
             )}
 
-            {/* Pathing & Toggles */}
+            {/* Pathing Tools */}
             <div className="editor-panel-section" style={{ padding: '6px 8px' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-accent)', marginBottom: '4px' }}>
+                PATH FLOW TOOLS:
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px', marginBottom: '4px' }}>
+                <button
+                  className="sidebar-btn"
+                  style={{ height: '24px', fontSize: '0.62rem' }}
+                  disabled={activeEra === 'all'}
+                  onClick={() => handleAutoChainEra(activeEra)}
+                  title="Chain all tiles sequentially 1 -> 2 -> ... -> End -> 1"
+                >
+                  🔗 Auto-Chain (1➔End)
+                </button>
+                <button
+                  className="sidebar-btn"
+                  style={{ height: '24px', fontSize: '0.62rem' }}
+                  disabled={activeEra === 'all'}
+                  onClick={() => handleInvertEraFlow(activeEra)}
+                  title="Invert all path directions in this era"
+                >
+                  🔄 Invert Flow
+                </button>
+              </div>
               <button
-                className="sidebar-btn"
-                style={{ width: '100%', marginBottom: '5px', height: '25px', fontSize: '0.68rem' }}
+                className="sidebar-btn danger"
+                style={{ width: '100%', height: '22px', fontSize: '0.60rem', marginBottom: '5px' }}
                 disabled={activeEra === 'all'}
-                onClick={reversePathDirection}
+                onClick={() => handleClearEraConnections(activeEra)}
+                title="Clear all connections so you can route from scratch"
               >
-                🔄 Reverse Era Path
+                🧹 Clear Era Flow (Draw from Scratch)
               </button>
-
-              {/* Era Loop Target selector */}
-              {(() => {
-                const targetEra = activeEra === 'all' ? (selectedTile ? selectedTile.era : 'spanish') : activeEra;
-                return (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '5px' }}>
-                    <span style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                      🔁 Loop End to:
-                    </span>
-                    <select
-                      className="input-field"
-                      style={{ padding: '1px 4px', fontSize: '0.66rem', height: '23px', flex: 1, minWidth: 0 }}
-                      value={loopTargets[targetEra] ?? (targetEra === 'spanish' ? 14 : 0)}
-                      onChange={(e) => handleSetLoopTarget(targetEra, parseInt(e.target.value, 10))}
-                    >
-                      {(coords[targetEra] || []).map((_, i) => (
-                        <option key={i} value={i}>
-                          Tile #{i + 1} {layouts[targetEra]?.[i] ? `(${layouts[targetEra][i]})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                );
-              })()}
 
               <div className="editor-checkbox-grid">
                 <label className="editor-checkbox-item">

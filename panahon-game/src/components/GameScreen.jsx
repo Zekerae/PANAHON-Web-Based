@@ -231,13 +231,11 @@ function GameScreen({
         timelineClass={timelineClass}
         timerStr={timerStr}
         turnNumber={state.turnNumber}
-        unreadChatCount={unreadChatCount}
-        onToggleChat={toggleChat}
         onOpenGuide={onOpenGuide}
         onOpenPause={handleOpenPause}
       />
 
-      {/* 2. LEFT PANEL: PLAYER DOSSIERS */}
+      {/* 2. LEFT PANEL: PLAYER DOSSIERS & COMMS */}
       <PlayerSidebar
         players={state.players}
         currentPlayerIndex={state.currentPlayerIndex}
@@ -245,6 +243,9 @@ function GameScreen({
         isOnline={isOnline}
         myPlayerId={network.playerId}
         onSelectPlayer={(playerId) => setInspectedPlayerId(playerId)}
+        unreadChatCount={unreadChatCount}
+        onToggleChat={toggleChat}
+        isChatOpen={isGameChatOpen}
       />
 
       {/* 3. CENTER: FOUR QUADRANTS GAME BOARD */}

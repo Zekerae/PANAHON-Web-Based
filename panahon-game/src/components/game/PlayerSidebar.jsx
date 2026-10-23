@@ -8,7 +8,10 @@ function PlayerSidebar({
   viewedPlayerId,
   isOnline,
   myPlayerId,
-  onSelectPlayer
+  onSelectPlayer,
+  unreadChatCount,
+  onToggleChat,
+  isChatOpen
 }) {
   return (
     <aside className="left-panel">
@@ -16,7 +19,8 @@ function PlayerSidebar({
         Temporal Castaways
       </div>
 
-      {players.map((p, idx) => {
+      <div className="player-sidebar-list">
+        {players.map((p, idx) => {
         const isActive = idx === currentPlayerIndex;
         const isMe = isOnline && p.id === myPlayerId;
         const isInspected = viewedPlayerId === p.id;
@@ -81,6 +85,24 @@ function PlayerSidebar({
           </div>
         );
       })}
+      </div>
+
+      {/* CHAT / COMMS BUTTON BENEATH PLAYER LIST */}
+      <div className="sidebar-chat-footer">
+        <button
+          className={`btn btn-sidebar-chat ${unreadChatCount > 0 ? 'has-unread' : ''} ${isChatOpen ? 'active' : ''}`}
+          onClick={onToggleChat}
+          title={isChatOpen ? "Close Timeline Comms" : "Open Timeline Comms"}
+        >
+          <span className="chat-btn-icon">💬</span>
+          <span className="chat-btn-label">Timeline Comms</span>
+          {unreadChatCount > 0 && (
+            <span className="chat-badge" style={{ position: 'relative', top: 0, right: 0, marginLeft: '6px' }}>
+              {unreadChatCount}
+            </span>
+          )}
+        </button>
+      </div>
     </aside>
   );
 }

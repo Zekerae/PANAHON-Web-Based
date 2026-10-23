@@ -242,10 +242,15 @@ function GameActions({
         </button>
       </div>
 
-      {/* TIMELINE CHRONICLE LOG FEED */}
-      <div className="panel-section" style={{ flex: 1, minHeight: '120px', display: 'flex', flexDirection: 'column' }}>
-        <div className="panel-section-title">Timeline Chronicle</div>
-        <div id="game-log-feed" className="game-log">
+      {/* TIMELINE CHRONICLE LOG FEED - EXTENDED TO BOTTOM */}
+      <div className="panel-section timeline-chronicle-section" style={{ flex: 1, minHeight: '160px', display: 'flex', flexDirection: 'column', marginBottom: 0 }}>
+        <div className="panel-section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <span>Timeline Chronicle</span>
+          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'none', fontWeight: 500 }}>
+            {logEntries.length} entries
+          </span>
+        </div>
+        <div id="game-log-feed" className="game-log" style={{ flex: 1, maxHeight: 'none', minHeight: 0 }}>
           {logEntries.slice().reverse().map((l, i) => (
             <div key={i} className="log-entry">
               <span className="log-player">[{l.type.toUpperCase()}]</span> {l.message}

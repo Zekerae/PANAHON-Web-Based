@@ -6,8 +6,6 @@ function GameHeader({
   timelineClass,
   timerStr,
   turnNumber,
-  unreadChatCount,
-  onToggleChat,
   onOpenGuide,
   onOpenPause
 }) {
@@ -41,13 +39,7 @@ function GameHeader({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-        <button
-          className={`btn ${unreadChatCount > 0 ? 'btn-chat-unread' : ''}`}
-          style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--bg-glass)', position: 'relative' }}
-          onClick={onToggleChat}
-        >
-          💬 Comms {unreadChatCount > 0 && <span className="chat-badge">{unreadChatCount}</span>}
-        </button>
+
         <button
           className="btn"
           style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--bg-glass)' }}

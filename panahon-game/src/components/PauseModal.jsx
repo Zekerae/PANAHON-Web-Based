@@ -57,28 +57,40 @@ export default function PauseModal({
   };
 
   return (
-    <div className="modal-overlay pause-modal-overlay" onClick={onResume}>
+    <div className="modal-overlay pause-modal-overlay" onClick={onResume} style={{ zIndex: 12000 }}>
       <div
         className="modal pause-modal animate-scale-up"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="pause-title"
+        style={{
+          maxWidth: '430px',
+          width: '92%',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          padding: '18px 20px',
+          boxSizing: 'border-box'
+        }}
       >
         {/* Pause Modal Header */}
-        <div className="pause-header">
-          <div className="pause-icon-badge">
+        <div className="pause-header" style={{ marginBottom: '12px' }}>
+          <div className="pause-icon-badge" style={{ width: '42px', height: '42px', fontSize: '1.2rem', marginBottom: '6px' }}>
             <div className="pause-icon-bars">
               <span></span>
               <span></span>
             </div>
           </div>
-          <h2 id="pause-title" className="pause-title">MISSION PAUSED</h2>
-          <div className="pause-subtitle">Temporal anomaly suspended</div>
+          <h2 id="pause-title" className="pause-title" style={{ fontSize: '1.3rem', letterSpacing: '2.5px' }}>
+            MISSION PAUSED
+          </h2>
+          <div className="pause-subtitle" style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '2px' }}>
+            Temporal anomaly suspended
+          </div>
         </div>
 
         {/* Mission Telemetry Summary */}
-        <div className="pause-telemetry">
+        <div className="pause-telemetry" style={{ padding: '10px 14px', gap: '6px', marginBottom: '14px' }}>
           <div className="pause-telemetry-row">
             <span className="telemetry-label">Timeline Breach:</span>
             <span className={`telemetry-val ${timelineClass}`}>
@@ -88,7 +100,7 @@ export default function PauseModal({
           <div className="pause-telemetry-row">
             <span className="telemetry-label">Current Turn:</span>
             <span className="telemetry-val text-accent">
-              Round {state?.turnNumber || 1} • {currentPlayer?.name} ({roleName})
+              Round {state?.turnNumber || 1} &bull; {currentPlayer?.name} ({roleName})
             </span>
           </div>
           {currentEra && (
@@ -113,9 +125,10 @@ export default function PauseModal({
         </div>
 
         {/* Pause Action Buttons */}
-        <div className="pause-actions">
+        <div className="pause-actions" style={{ gap: '8px' }}>
           <button
             className="btn btn-primary pause-btn-resume"
+            style={{ padding: '10px', fontSize: '0.88rem', minWidth: 0, width: '100%' }}
             onClick={() => {
               sounds.btnClick();
               onResume();
@@ -126,6 +139,7 @@ export default function PauseModal({
 
           <button
             className="btn btn-secondary pause-btn"
+            style={{ padding: '9px 12px', fontSize: '0.8rem', minWidth: 0, width: '100%' }}
             onClick={() => {
               sounds.btnClick();
               onOpenGuide();
@@ -136,6 +150,7 @@ export default function PauseModal({
 
           <button
             className="btn btn-secondary pause-btn"
+            style={{ padding: '9px 12px', fontSize: '0.8rem', minWidth: 0, width: '100%' }}
             onClick={() => {
               onToggleSound();
             }}
@@ -145,7 +160,7 @@ export default function PauseModal({
 
           <button
             className="btn btn-secondary pause-btn"
-            style={{ borderColor: 'rgba(52, 152, 219, 0.45)', color: '#70b9eb' }}
+            style={{ borderColor: 'rgba(52, 152, 219, 0.45)', color: '#70b9eb', padding: '9px 12px', fontSize: '0.8rem', minWidth: 0, width: '100%' }}
             onClick={() => {
               sounds.btnClick();
               onSaveAndExit();
@@ -157,6 +172,7 @@ export default function PauseModal({
           {!confirmAbandon ? (
             <button
               className="btn pause-btn-abandon"
+              style={{ padding: '9px 12px', fontSize: '0.8rem', minWidth: 0, width: '100%', marginTop: '2px' }}
               onClick={() => {
                 sounds.btnClick();
                 setConfirmAbandon(true);
@@ -165,29 +181,82 @@ export default function PauseModal({
               🚪 {isOnline ? 'LEAVE ONLINE ROOM' : 'ABANDON MISSION'}
             </button>
           ) : (
-            <div className="pause-confirm-box">
-              <p className="pause-confirm-text">
+            <div
+              className="pause-confirm-box"
+              style={{
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1.5px solid rgba(239, 68, 68, 0.45)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                marginTop: '4px',
+                boxSizing: 'border-box',
+                width: '100%'
+              }}
+            >
+              <p
+                className="pause-confirm-text"
+                style={{
+                  fontSize: '0.78rem',
+                  color: '#FECACA',
+                  margin: '0 0 10px 0',
+                  lineHeight: 1.4,
+                  textAlign: 'center'
+                }}
+              >
                 {isOnline
                   ? 'Disconnect from current room? Other castaways will continue.'
-                  : 'Abandon mission? Progress will be lost.'}
+                  : 'Abandon mission? All unsaved expedition progress will be lost.'}
               </p>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
                 <button
-                  className="btn btn-danger"
-                  style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                  type="button"
                   onClick={() => {
                     sounds.btnClick();
                     onAbandonGame();
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    height: '36px',
+                    padding: '0 8px',
+                    background: 'linear-gradient(135deg, #DC2626, #EF4444)',
+                    border: '1px solid #F87171',
+                    borderRadius: '6px',
+                    color: '#FFF',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
                   }}
                 >
                   Yes, Abandon
                 </button>
                 <button
-                  className="btn btn-secondary"
-                  style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                  type="button"
                   onClick={() => {
                     sounds.btnClick();
                     setConfirmAbandon(false);
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    height: '36px',
+                    padding: '0 8px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '6px',
+                    color: '#CBD5E1',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   Cancel
@@ -197,8 +266,8 @@ export default function PauseModal({
           )}
         </div>
 
-        <div className="pause-footer-hint">
-          Tip: Press <kbd>ESC</kbd> anytime during gameplay to pause or resume.
+        <div className="pause-footer-hint" style={{ marginTop: '12px', fontSize: '0.7rem', color: '#64748B' }}>
+          Tip: Press <kbd style={{ padding: '1px 5px', fontSize: '0.68rem' }}>ESC</kbd> anytime during gameplay to pause or resume.
         </div>
       </div>
     </div>

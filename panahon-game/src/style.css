@@ -3947,6 +3947,8 @@ html, body {
 .pause-modal {
   max-width: 440px;
   width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
   background: linear-gradient(180deg, rgba(26, 26, 40, 0.96) 0%, rgba(16, 16, 26, 0.98) 100%);
   border: 2px solid rgba(234, 179, 8, 0.5);
   border-radius: var(--radius-lg, 14px);
@@ -3954,11 +3956,11 @@ html, body {
     0 0 35px rgba(234, 179, 8, 0.25),
     0 20px 50px rgba(0, 0, 0, 0.85),
     inset 0 1px 2px rgba(255, 255, 255, 0.2);
-  padding: var(--space-xl, 24px);
+  padding: 20px;
   color: var(--text-primary);
   text-align: center;
   position: relative;
-  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .pause-modal::before {
@@ -4134,11 +4136,12 @@ html, body {
 }
 
 .pause-confirm-box {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1.5px solid rgba(239, 68, 68, 0.45);
   border-radius: var(--radius-md, 8px);
-  padding: 12px;
-  margin-top: 6px;
+  padding: 12px 14px;
+  margin-top: 4px;
+  box-sizing: border-box;
 }
 
 .pause-confirm-text {

@@ -295,7 +295,7 @@ export function ProfileModal({ onClose }) {
 /* ==========================================================================
    3. SETTINGS MODAL
    ========================================================================== */
-export function SettingsModal({ onClose, soundMuted, onToggleSound }) {
+export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEditor }) {
   const [sfxVolume, setSfxVolume] = useState(() => localStorage.getItem('panahon_sfx_vol') || '80');
   const [musicVolume, setMusicVolume] = useState(() => localStorage.getItem('panahon_music_vol') || '75');
   const [particlesActive, setParticlesActive] = useState(() => localStorage.getItem('panahon_particles') !== 'false');
@@ -413,6 +413,42 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound }) {
               </button>
             </div>
           </div>
+
+          {/* Developer & Cartography Studio */}
+          {onOpenMapEditor && (
+            <div style={{
+              marginBottom: '20px',
+              background: 'rgba(99, 102, 241, 0.08)',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              borderRadius: '8px',
+              padding: '12px'
+            }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#A5B4FC', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🛠️</span> Cartography & Map Studio
+              </div>
+              <div style={{ fontSize: '0.73rem', color: '#94A3B8', marginBottom: '10px', lineHeight: 1.45 }}>
+                Advanced developer tool to customize tile coordinates, event distributions, directed paths, and loop logic across all 4 eras.
+              </div>
+              <button
+                className="btn btn-primary"
+                style={{
+                  width: '100%',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #4F46E5, #6366F1)',
+                  borderColor: '#818CF8',
+                  padding: '8px 14px'
+                }}
+                onClick={() => {
+                  sounds.btnClick();
+                  onClose();
+                  onOpenMapEditor();
+                }}
+              >
+                📐 Launch Map Editor
+              </button>
+            </div>
+          )}
 
           {/* System & Cache */}
           <div style={{ marginBottom: '12px' }}>

@@ -205,25 +205,7 @@ export default function TitleScreen({
               )}
             </div>
 
-            {/* SANDBOX (Map & Path Editor) */}
-            <div className="nav-item-container">
-              <button
-                className="duelyst-menu-link"
-                onClick={() => { sounds.btnClick(); onOpenMapEditor(); }}
-              >
-                <div className="menu-link-bullet">
-                  <svg viewBox="0 0 24 24" className="constellation-icon">
-                    <circle cx="6" cy="6" r="2.2" fill="currentColor" />
-                    <circle cx="18" cy="12" r="2.2" fill="currentColor" />
-                    <circle cx="6" cy="18" r="2.2" fill="currentColor" />
-                    <line x1="6" y1="6" x2="18" y2="12" stroke="currentColor" strokeWidth="1.5" />
-                    <line x1="6" y1="18" x2="18" y2="12" stroke="currentColor" strokeWidth="1.5" />
-                  </svg>
-                </div>
-                <span className="menu-link-text">SANDBOX</span>
-                <span className="menu-link-tag">MAP EDITOR</span>
-              </button>
-            </div>
+
 
             {/* COLLECTION (Artifact Codex) */}
             <div className="nav-item-container">
@@ -266,9 +248,31 @@ export default function TitleScreen({
             </div>
           </nav>
 
-          {/* Credits footer */}
-          <div className="duelyst-credits">
+          {/* Credits footer with discreet dev link */}
+          <div className="duelyst-credits" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
             <span>Pixel Crew • BSIT 3-8 • Version 0.3</span>
+            <span style={{ opacity: 0.3 }}>•</span>
+            <button
+              onClick={() => { sounds.btnClick(); onOpenMapEditor(); }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'rgba(255, 255, 255, 0.35)',
+                fontSize: '0.68rem',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                padding: '1px 5px',
+                borderRadius: '3px',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#38BDF8'; e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255, 255, 255, 0.35)'; e.currentTarget.style.background = 'none'; }}
+              title="Cartography Studio & Map Editor"
+            >
+              🛠️ Map Studio
+            </button>
           </div>
         </div>
 
@@ -344,6 +348,7 @@ export default function TitleScreen({
           onClose={() => setActiveModal(null)}
           soundMuted={soundMuted}
           onToggleSound={onToggleSound}
+          onOpenMapEditor={onOpenMapEditor}
         />
       )}
       {activeModal === 'friends' && (

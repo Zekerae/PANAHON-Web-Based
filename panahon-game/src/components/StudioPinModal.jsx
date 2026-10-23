@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import sounds from '../sound.js';
-import { verifyStudioPin, setStudioUnlocked, isStudioUnlocked } from '../studioAuth.js';
+import { verifyStudioPin, setStudioUnlocked } from '../studioAuth.js';
 
 export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
   const [pin, setPin] = useState('');
@@ -45,14 +45,14 @@ export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
 
   const triggerShake = () => {
     setIsShaking(true);
-    setTimeout(() => setIsShaking(false), 500);
+    setTimeout(() => setIsShaking(false), 450);
   };
 
   const handleVerify = async (candidatePin) => {
     if (lockoutSeconds > 0 || isChecking) return;
     const testVal = candidatePin !== undefined ? candidatePin : pin;
     if (!testVal || testVal.trim().length === 0) {
-      setErrorMsg('Please enter the Developer PIN');
+      setErrorMsg('Please enter the PIN');
       triggerShake();
       return;
     }
@@ -76,9 +76,9 @@ export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
 
         if (nextAttempts >= 5) {
           setLockoutSeconds(30);
-          setErrorMsg('Security lockout: 5 failed attempts. Please wait 30 seconds.');
+          setErrorMsg('Locked for 30s (5 failed attempts)');
         } else {
-          setErrorMsg(`Incorrect PIN (${5 - nextAttempts} attempt${5 - nextAttempts === 1 ? '' : 's'} remaining)`);
+          setErrorMsg(`Incorrect PIN (${5 - nextAttempts} left)`);
         }
         setPin('');
       }
@@ -97,7 +97,6 @@ export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
       const nextPin = pin + digit;
       setPin(nextPin);
       setErrorMsg('');
-      // Auto verify if reached 4 digits
       if (nextPin.length === 4) {
         handleVerify(nextPin);
       }
@@ -129,47 +128,80 @@ export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
   return (
     <div
       className="modal-overlay"
-      style={{ zIndex: 14000, backdropFilter: 'blur(10px)', background: 'rgba(2, 6, 23, 0.88)' }}
+      style={{
+        zIndex: 14000,
+        backdropFilter: 'blur(8px)',
+        background: 'rgba(2, 6, 23, 0.88)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '12px'
+      }}
       onClick={(e) => {
         if (e.target === e.currentTarget && lockoutSeconds === 0) onClose();
       }}
     >
       <div
-        className="modal duelyst-modal"
         style={{
-          maxWidth: '380px',
-          width: '92%',
+          width: '100%',
+          maxWidth: '310px',
           background: 'linear-gradient(165deg, rgba(15, 23, 42, 0.98) 0%, rgba(3, 7, 18, 0.98) 100%)',
-          border: '1.5px solid rgba(99, 102, 241, 0.4)',
-          boxShadow: '0 0 35px rgba(99, 102, 241, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.15)',
-          borderRadius: '16px',
-          padding: '24px 20px',
+          border: '1.5px solid rgba(99, 102, 241, 0.45)',
+          boxShadow: '0 16px 45px rgba(0, 0, 0, 0.85), 0 0 25px rgba(99, 102, 241, 0.25)',
+          borderRadius: '14px',
+          padding: '16px 18px',
           textAlign: 'center',
-          animation: isShaking ? 'pinShake 0.45s ease-in-out' : 'modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+          boxSizing: 'border-box',
+          position: 'relative',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          animation: isShaking ? 'pinShake 0.45s ease-in-out' : 'modalPop 0.22s ease-out'
         }}
       >
+        {/* Close Button */}
         <button
-          className="modal-close"
           onClick={() => { sounds.btnClick(); onClose(); }}
-          style={{ top: '12px', right: '14px', fontSize: '1.2rem', color: '#94A3B8' }}
+          style={{
+            position: 'absolute',
+            top: '8px',
+            right: '10px',
+            background: 'none',
+            border: 'none',
+            color: '#64748B',
+            fontSize: '1.2rem',
+            cursor: 'pointer',
+            padding: '4px',
+            lineHeight: 1
+          }}
         >
           &times;
         </button>
 
         {/* Header Icon & Title */}
-        <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.35)', marginBottom: '10px' }}>
-          <span style={{ fontSize: '1.8rem', filter: 'drop-shadow(0 0 8px rgba(99, 102, 241, 0.6))' }}>🔒</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '3px' }}>
+          <div style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            background: 'rgba(99, 102, 241, 0.18)',
+            border: '1px solid rgba(99, 102, 241, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '0.95rem'
+          }}>
+            🔒
+          </div>
+          <span style={{ fontSize: '0.96rem', fontWeight: 800, color: '#F8FAFC', letterSpacing: '0.3px' }}>
+            Cartography Studio
+          </span>
         </div>
 
-        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#F8FAFC', letterSpacing: '0.5px' }}>
-          Cartography Studio
-        </div>
-        <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '4px', marginBottom: '18px' }}>
+        <div style={{ fontSize: '0.68rem', color: '#94A3B8', marginBottom: '10px' }}>
           Developer Authorization Required
         </div>
 
-        {/* PIN Display Field */}
-        <div style={{ position: 'relative', marginBottom: '12px' }}>
+        {/* PIN Input Field */}
+        <div style={{ position: 'relative', marginBottom: '8px' }}>
           <input
             ref={inputRef}
             type={showMask ? 'password' : 'text'}
@@ -188,17 +220,18 @@ export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
             placeholder={lockoutSeconds > 0 ? `Locked (${lockoutSeconds}s)` : '••••'}
             style={{
               width: '100%',
-              background: 'rgba(0, 0, 0, 0.55)',
+              height: '38px',
+              background: 'rgba(0, 0, 0, 0.6)',
               border: errorMsg ? '1.5px solid #EF4444' : '1.5px solid rgba(99, 102, 241, 0.5)',
-              borderRadius: '10px',
+              borderRadius: '8px',
               color: '#F8FAFC',
-              fontSize: '1.6rem',
-              letterSpacing: showMask ? '10px' : '4px',
+              fontSize: '1.3rem',
+              letterSpacing: showMask ? '8px' : '3px',
               textAlign: 'center',
-              padding: '10px 42px 10px 16px',
+              padding: '4px 34px 4px 12px',
               outline: 'none',
-              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)',
-              fontWeight: 800
+              fontWeight: 800,
+              boxSizing: 'border-box'
             }}
           />
 
@@ -208,31 +241,31 @@ export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
             title={showMask ? 'Show PIN' : 'Hide PIN'}
             style={{
               position: 'absolute',
-              right: '10px',
+              right: '8px',
               top: '50%',
               transform: 'translateY(-50%)',
               background: 'none',
               border: 'none',
               color: '#94A3B8',
               cursor: 'pointer',
-              fontSize: '1.1rem',
-              padding: '4px'
+              fontSize: '0.95rem',
+              padding: '3px'
             }}
           >
             {showMask ? '👁️' : '🙈'}
           </button>
         </div>
 
-        {/* Error / Status Message */}
+        {/* Status / Error Message */}
         {errorMsg && (
           <div style={{
             color: '#F87171',
-            fontSize: '0.74rem',
+            fontSize: '0.68rem',
             fontWeight: 700,
-            marginBottom: '12px',
-            background: 'rgba(239, 68, 68, 0.1)',
-            padding: '5px 8px',
-            borderRadius: '6px',
+            marginBottom: '8px',
+            background: 'rgba(239, 68, 68, 0.12)',
+            padding: '3px 6px',
+            borderRadius: '4px',
             border: '1px solid rgba(239, 68, 68, 0.3)'
           }}>
             {errorMsg}
@@ -242,24 +275,24 @@ export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
         {lockoutSeconds > 0 && (
           <div style={{
             color: '#FBBF24',
-            fontSize: '0.75rem',
+            fontSize: '0.68rem',
             fontWeight: 700,
-            marginBottom: '12px',
+            marginBottom: '8px',
             background: 'rgba(245, 158, 11, 0.12)',
-            padding: '6px 8px',
-            borderRadius: '6px',
+            padding: '3px 6px',
+            borderRadius: '4px',
             border: '1px solid rgba(245, 158, 11, 0.35)'
           }}>
-            ⏳ Cooldown active: {lockoutSeconds}s remaining
+            ⏳ Cooldown active: {lockoutSeconds}s
           </div>
         )}
 
-        {/* Interactive Number Pad */}
+        {/* Number Pad Grid */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '8px',
-          marginBottom: '16px'
+          gap: '5px',
+          marginBottom: '10px'
         }}>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
             <button
@@ -268,17 +301,21 @@ export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
               disabled={lockoutSeconds > 0 || isChecking}
               onClick={() => handleNumberClick(String(num))}
               style={{
+                height: '35px',
                 background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '8px',
+                borderRadius: '6px',
                 color: '#F8FAFC',
-                fontSize: '1.15rem',
+                fontSize: '1.05rem',
                 fontWeight: 700,
-                padding: '10px 0',
                 cursor: lockoutSeconds > 0 ? 'not-allowed' : 'pointer',
-                transition: 'all 0.12s ease'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.1s ease',
+                padding: 0
               }}
-              onMouseEnter={(e) => { if (lockoutSeconds === 0) e.currentTarget.style.background = 'rgba(99, 102, 241, 0.2)'; }}
+              onMouseEnter={(e) => { if (lockoutSeconds === 0) e.currentTarget.style.background = 'rgba(99, 102, 241, 0.25)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; }}
             >
               {num}
@@ -290,17 +327,21 @@ export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
             disabled={lockoutSeconds > 0 || isChecking || pin.length === 0}
             onClick={handleClear}
             style={{
+              height: '35px',
               background: 'rgba(255, 255, 255, 0.03)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '8px',
+              borderRadius: '6px',
               color: '#94A3B8',
-              fontSize: '0.78rem',
+              fontSize: '0.68rem',
               fontWeight: 700,
-              padding: '10px 0',
-              cursor: (lockoutSeconds > 0 || pin.length === 0) ? 'not-allowed' : 'pointer'
+              cursor: (lockoutSeconds > 0 || pin.length === 0) ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0
             }}
           >
-            CLEAR
+            CLR
           </button>
 
           <button
@@ -308,17 +349,20 @@ export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
             disabled={lockoutSeconds > 0 || isChecking}
             onClick={() => handleNumberClick('0')}
             style={{
+              height: '35px',
               background: 'rgba(255, 255, 255, 0.05)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '8px',
+              borderRadius: '6px',
               color: '#F8FAFC',
-              fontSize: '1.15rem',
+              fontSize: '1.05rem',
               fontWeight: 700,
-              padding: '10px 0',
               cursor: lockoutSeconds > 0 ? 'not-allowed' : 'pointer',
-              transition: 'all 0.12s ease'
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0
             }}
-            onMouseEnter={(e) => { if (lockoutSeconds === 0) e.currentTarget.style.background = 'rgba(99, 102, 241, 0.2)'; }}
+            onMouseEnter={(e) => { if (lockoutSeconds === 0) e.currentTarget.style.background = 'rgba(99, 102, 241, 0.25)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; }}
           >
             0
@@ -329,42 +373,64 @@ export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
             disabled={lockoutSeconds > 0 || isChecking || pin.length === 0}
             onClick={handleBackspace}
             style={{
+              height: '35px',
               background: 'rgba(255, 255, 255, 0.03)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: '8px',
+              borderRadius: '6px',
               color: '#94A3B8',
-              fontSize: '1rem',
-              padding: '10px 0',
-              cursor: (lockoutSeconds > 0 || pin.length === 0) ? 'not-allowed' : 'pointer'
+              fontSize: '0.95rem',
+              cursor: (lockoutSeconds > 0 || pin.length === 0) ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0
             }}
           >
             ⌫
           </button>
         </div>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: '8px' }}>
+        {/* Bottom Actions Row */}
+        <div style={{ display: 'flex', gap: '6px', height: '34px' }}>
           <button
             type="button"
-            className="btn btn-secondary"
-            style={{ flex: 1, padding: '8px', fontSize: '0.8rem' }}
             onClick={() => { sounds.btnClick(); onClose(); }}
+            style={{
+              flex: 1,
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '6px',
+              color: '#CBD5E1',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              padding: '0 8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
           >
             Cancel
           </button>
 
           <button
             type="button"
-            className="btn btn-primary"
             disabled={lockoutSeconds > 0 || isChecking || pin.length === 0}
             onClick={() => handleVerify()}
             style={{
               flex: 1.5,
-              padding: '8px',
-              fontSize: '0.8rem',
-              fontWeight: 700,
               background: 'linear-gradient(135deg, #4F46E5, #6366F1)',
-              borderColor: '#818CF8'
+              border: '1px solid #818CF8',
+              borderRadius: '6px',
+              color: '#FFF',
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              cursor: (lockoutSeconds > 0 || isChecking || pin.length === 0) ? 'not-allowed' : 'pointer',
+              padding: '0 8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px'
             }}
           >
             {isChecking ? 'Verifying...' : 'Unlock Studio ➔'}
@@ -372,8 +438,8 @@ export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
         </div>
 
         {/* Security badge note */}
-        <div style={{ fontSize: '0.62rem', color: 'rgba(255, 255, 255, 0.35)', marginTop: '14px' }}>
-          🔒 Protected by Salted SHA-256 One-Way Encryption
+        <div style={{ fontSize: '0.60rem', color: '#64748B', marginTop: '10px' }}>
+          🔒 Salted SHA-256 Encrypted
         </div>
       </div>
     </div>

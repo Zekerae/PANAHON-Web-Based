@@ -2985,16 +2985,109 @@ html, body {
 
 /* Sidebar Inspector */
 .map-editor-sidebar {
-  width: 340px;
-  background: rgba(15, 23, 42, 0.92);
+  width: 290px;
+  min-width: 290px;
+  max-width: 290px;
+  flex-shrink: 0;
+  background: rgba(15, 23, 42, 0.96);
   backdrop-filter: blur(16px);
   border-left: 1px solid rgba(255, 255, 255, 0.12);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  padding: var(--space-md);
-  gap: var(--space-md);
+  justify-content: flex-start;
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  padding: 8px 10px;
+  gap: 6px;
   z-index: 10;
+  box-sizing: border-box;
+}
+
+.map-editor-sidebar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.map-editor-sidebar * {
+  box-sizing: border-box;
+}
+
+.sidebar-btn {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  letter-spacing: 0 !important;
+  font-family: var(--font-body) !important;
+  font-size: 0.68rem !important;
+  padding: 4px 6px !important;
+  border-radius: 4px !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #fff !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.sidebar-btn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.sidebar-btn:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+}
+
+.sidebar-btn.active {
+  background: rgba(234, 179, 8, 0.25) !important;
+  border-color: #FACC15 !important;
+  color: #FACC15 !important;
+  font-weight: 700 !important;
+}
+
+.sidebar-btn.danger {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  color: #FCA5A5 !important;
+}
+
+.sidebar-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.35) !important;
+  border-color: #EF4444 !important;
+  color: #fff !important;
+}
+
+.editor-checkbox-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.editor-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.67rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.editor-checkbox-item input {
+  cursor: pointer;
+  margin: 0;
+  transform: scale(0.9);
 }
 
 .editor-panel-section {

@@ -7,6 +7,17 @@ import {
   saveCustomMap, resetCustomMap
 } from '../gameData.js';
 
+const TILE_LABELS = {
+  start: 'Start',
+  clue: 'Clue',
+  event: 'Event',
+  danger: 'Danger',
+  artifact: 'Artifact',
+  timegate: 'Gate',
+  paradox: 'Paradox',
+  empty: 'Normal'
+};
+
 const TILE_ICONS = {
   start: '🚩',
   clue: '🔍',
@@ -670,34 +681,31 @@ export default function MapEditor({ onClose }) {
             {/* Mobile Drawer Header */}
             {isMobile && (
               <div className="mobile-drawer-header">
-                <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-accent)' }}>
-                  📐 MAP CONTROLS & INSPECTOR
+                <div style={{ fontWeight: 800, fontSize: '0.8rem', color: 'var(--text-accent)' }}>
+                  📐 MAP CONTROLS
                 </div>
-                <button className="editor-btn-sm" onClick={() => setSidebarOpen(false)}>✖ Minimize</button>
+                <button className="editor-btn-sm" onClick={() => setSidebarOpen(false)}>✖ Close</button>
               </div>
             )}
 
-            {/* Click-to-Add Mode Toggle */}
-            <div className="editor-panel-section" style={{ background: clickToAddMode ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.03)', borderColor: clickToAddMode ? '#3B82F6' : 'rgba(255,255,255,0.1)' }}>
+            {/* Click-to-Add Mode Toggle (Ultra-compact) */}
+            <div className="editor-panel-section" style={{ padding: '6px 8px', background: clickToAddMode ? 'rgba(59, 130, 246, 0.18)' : 'rgba(255,255,255,0.03)', borderColor: clickToAddMode ? '#3B82F6' : 'rgba(255,255,255,0.1)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: clickToAddMode ? '#60A5FA' : 'var(--text-primary)' }}>
-                  ➕ Click-to-Add Tile Mode
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: clickToAddMode ? '#60A5FA' : 'var(--text-primary)' }}>
+                  ➕ Click-to-Add Mode
                 </span>
                 <input
                   type="checkbox"
                   checked={clickToAddMode}
                   onChange={(e) => setClickToAddMode(e.target.checked)}
-                  style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
+                  style={{ cursor: 'pointer', transform: 'scale(1.1)', margin: 0 }}
                 />
               </div>
               {clickToAddMode && (
-                <div style={{ marginTop: '8px' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                    Click anywhere on the map to add this tile type:
-                  </div>
+                <div style={{ marginTop: '4px' }}>
                   <select
                     className="input-field"
-                    style={{ width: '100%', padding: '4px', fontSize: '0.75rem' }}
+                    style={{ width: '100%', padding: '3px 6px', fontSize: '0.72rem', height: '26px' }}
                     value={clickAddType}
                     onChange={(e) => setClickAddType(e.target.value)}
                   >
@@ -711,176 +719,163 @@ export default function MapEditor({ onClose }) {
 
             {/* SELECTED NODE INSPECTOR */}
             {selectedTile && curTileCoords ? (
-              <div className="editor-panel-section" style={{ borderLeft: `4px solid ${ERA_COLORS[selectedTile.era]}` }}>
+              <div className="editor-panel-section" style={{ padding: '6px 8px', borderLeft: `3px solid ${ERA_COLORS[selectedTile.era]}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: ERA_COLORS[selectedTile.era], fontWeight: 800 }}>
+                    <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', color: ERA_COLORS[selectedTile.era], fontWeight: 800 }}>
                       {ERA_NAMES[selectedTile.era]}
                     </span>
-                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#fff' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#fff', lineHeight: 1.1 }}>
                       Tile #{selectedTile.index + 1} of {coords[selectedTile.era]?.length}
                     </div>
                   </div>
-                  <div style={{ fontSize: '1.6rem' }}>
+                  <div style={{ fontSize: '1.3rem', lineHeight: 1 }}>
                     {TILE_ICONS[curTileType] || '•'}
                   </div>
                 </div>
 
-                {/* Tile Type Selector Grid */}
-                <div style={{ marginTop: '10px' }}>
-                  <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Tile Type:</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', marginTop: '4px' }}>
+                {/* Tile Type Selector (Ultra-compact 4x2 grid of icon buttons) */}
+                <div style={{ marginTop: '5px' }}>
+                  <div style={{ fontSize: '0.64rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>Tile Type:</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '3px' }}>
                     {Object.keys(TILE_ICONS).map(t => (
                       <button
                         key={t}
-                        className={`btn ${curTileType === t ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ padding: '6px 2px', fontSize: '0.68rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}
+                        className={`sidebar-btn ${curTileType === t ? 'active' : ''}`}
+                        style={{ height: '32px', padding: '2px 1px', flexDirection: 'column', gap: '1px' }}
                         onClick={() => changeTileType(t)}
+                        title={t.toUpperCase()}
                       >
-                        <span style={{ fontSize: '0.9rem' }}>{TILE_ICONS[t]}</span>
-                        <span style={{ fontSize: '0.58rem', textTransform: 'capitalize' }}>{t}</span>
+                        <span style={{ fontSize: '0.8rem', lineHeight: 1 }}>{TILE_ICONS[t]}</span>
+                        <span style={{ fontSize: '0.54rem', lineHeight: 1, textTransform: 'capitalize' }}>{TILE_LABELS[t] || t}</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Coordinates & Fine-Tuning */}
-                <div style={{ marginTop: '12px' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                    Tile Position (% of map):
-                  </div>
-
-                  <div className="editor-coord-row">
-                    <span style={{ width: '55px', fontSize: '0.75rem', fontWeight: 700, color: '#60A5FA' }}>X: {curTileCoords.x}%</span>
-                    <div style={{ display: 'flex', gap: '3px' }}>
-                      <button className="coord-stepper-btn" onClick={() => stepPosition('x', -1.0)} title="-1.0%">«</button>
-                      <button className="coord-stepper-btn" onClick={() => stepPosition('x', -0.1)} title="-0.1%">‹</button>
-                      <button className="coord-stepper-btn" onClick={() => stepPosition('x', 0.1)} title="+0.1%">›</button>
-                      <button className="coord-stepper-btn" onClick={() => stepPosition('x', 1.0)} title="+1.0%">»</button>
+                {/* Exact Coordinates with Stepper Buttons */}
+                <div style={{ marginTop: '6px' }}>
+                  <div className="editor-coord-row" style={{ marginTop: '2px' }}>
+                    <span style={{ width: '48px', fontSize: '0.7rem', fontWeight: 700, color: '#60A5FA' }}>X: {curTileCoords.x}%</span>
+                    <div style={{ display: 'flex', gap: '2px' }}>
+                      <button className="coord-stepper-btn" style={{ width: '22px', height: '22px', fontSize: '0.7rem' }} onClick={() => stepPosition('x', -1.0)} title="-1.0%">«</button>
+                      <button className="coord-stepper-btn" style={{ width: '22px', height: '22px', fontSize: '0.7rem' }} onClick={() => stepPosition('x', -0.1)} title="-0.1%">‹</button>
+                      <button className="coord-stepper-btn" style={{ width: '22px', height: '22px', fontSize: '0.7rem' }} onClick={() => stepPosition('x', 0.1)} title="+0.1%">›</button>
+                      <button className="coord-stepper-btn" style={{ width: '22px', height: '22px', fontSize: '0.7rem' }} onClick={() => stepPosition('x', 1.0)} title="+1.0%">»</button>
                     </div>
                   </div>
 
-                  <div className="editor-coord-row">
-                    <span style={{ width: '55px', fontSize: '0.75rem', fontWeight: 700, color: '#34D399' }}>Y: {curTileCoords.y}%</span>
-                    <div style={{ display: 'flex', gap: '3px' }}>
-                      <button className="coord-stepper-btn" onClick={() => stepPosition('y', -1.0)} title="-1.0%">«</button>
-                      <button className="coord-stepper-btn" onClick={() => stepPosition('y', -0.1)} title="-0.1%">‹</button>
-                      <button className="coord-stepper-btn" onClick={() => stepPosition('y', 0.1)} title="+0.1%">›</button>
-                      <button className="coord-stepper-btn" onClick={() => stepPosition('y', 1.0)} title="+1.0%">»</button>
+                  <div className="editor-coord-row" style={{ marginTop: '2px' }}>
+                    <span style={{ width: '48px', fontSize: '0.7rem', fontWeight: 700, color: '#34D399' }}>Y: {curTileCoords.y}%</span>
+                    <div style={{ display: 'flex', gap: '2px' }}>
+                      <button className="coord-stepper-btn" style={{ width: '22px', height: '22px', fontSize: '0.7rem' }} onClick={() => stepPosition('y', -1.0)} title="-1.0%">«</button>
+                      <button className="coord-stepper-btn" style={{ width: '22px', height: '22px', fontSize: '0.7rem' }} onClick={() => stepPosition('y', -0.1)} title="-0.1%">‹</button>
+                      <button className="coord-stepper-btn" style={{ width: '22px', height: '22px', fontSize: '0.7rem' }} onClick={() => stepPosition('y', 0.1)} title="+0.1%">›</button>
+                      <button className="coord-stepper-btn" style={{ width: '22px', height: '22px', fontSize: '0.7rem' }} onClick={() => stepPosition('y', 1.0)} title="+1.0%">»</button>
                     </div>
                   </div>
                 </div>
 
-                {/* Path Order Sequencing */}
-                <div style={{ marginTop: '14px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '10px' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                    Path Order & Manipulation:
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                {/* Path Order & Actions (2x2 grid) */}
+                <div style={{ marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '6px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
                     <button
-                      className="btn btn-secondary"
-                      style={{ padding: '6px', fontSize: '0.7rem' }}
+                      className="sidebar-btn"
                       disabled={selectedTile.index === 0}
                       onClick={() => moveTileOrder(-1)}
+                      style={{ height: '26px' }}
                     >
-                      ⬆️ Move Earlier
+                      ⬆️ Earlier
                     </button>
                     <button
-                      className="btn btn-secondary"
-                      style={{ padding: '6px', fontSize: '0.7rem' }}
+                      className="sidebar-btn"
                       disabled={selectedTile.index >= coords[selectedTile.era].length - 1}
                       onClick={() => moveTileOrder(1)}
+                      style={{ height: '26px' }}
                     >
-                      ⬇️ Move Later
+                      ⬇️ Later
                     </button>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '6px' }}>
                     <button
-                      className="btn btn-secondary"
-                      style={{ padding: '6px', fontSize: '0.7rem' }}
+                      className="sidebar-btn"
                       onClick={insertTileAfter}
+                      style={{ height: '26px' }}
                     >
-                      ➕ Insert After
+                      ➕ Insert
                     </button>
                     <button
-                      className="btn btn-danger"
-                      style={{ padding: '6px', fontSize: '0.7rem' }}
+                      className="sidebar-btn danger"
                       onClick={deleteTile}
+                      style={{ height: '26px' }}
                     >
-                      🗑️ Delete Tile
+                      🗑️ Delete
                     </button>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="editor-panel-section" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                Select any tile on the map to inspect or reposition.
+              <div className="editor-panel-section" style={{ textAlign: 'center', padding: '12px', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                Select a tile to inspect.
               </div>
             )}
 
-            {/* Pathing & Display Settings */}
-            <div className="editor-panel-section">
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-accent)', marginBottom: '8px' }}>
-                Pathing & Toggles
-              </div>
+            {/* Pathing & Toggles (2x2 Checkbox grid) */}
+            <div className="editor-panel-section" style={{ padding: '6px 8px' }}>
+              <button
+                className="sidebar-btn"
+                style={{ width: '100%', marginBottom: '6px', height: '26px' }}
+                disabled={activeEra === 'all'}
+                onClick={reversePathDirection}
+              >
+                🔄 Reverse Era Path
+              </button>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <button
-                  className="btn btn-secondary"
-                  style={{ width: '100%', padding: '6px', fontSize: '0.72rem' }}
-                  disabled={activeEra === 'all'}
-                  onClick={reversePathDirection}
-                >
-                  🔄 Reverse Era Path Direction
-                </button>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', cursor: 'pointer', marginTop: '4px' }}>
+              <div className="editor-checkbox-grid">
+                <label className="editor-checkbox-item">
                   <input
                     type="checkbox"
                     checked={snapToGrid}
                     onChange={(e) => setSnapToGrid(e.target.checked)}
                   />
-                  <span>Snap to 0.5% Grid on Drag</span>
+                  <span>0.5% Snap</span>
                 </label>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', cursor: 'pointer' }}>
+                <label className="editor-checkbox-item">
                   <input
                     type="checkbox"
                     checked={showNumbers}
                     onChange={(e) => setShowNumbers(e.target.checked)}
                   />
-                  <span>Show Tile Number Badges</span>
+                  <span>Numbers</span>
                 </label>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', cursor: 'pointer' }}>
+                <label className="editor-checkbox-item">
                   <input
                     type="checkbox"
                     checked={showIcons}
                     onChange={(e) => setShowIcons(e.target.checked)}
                   />
-                  <span>Show Space Type Icons</span>
+                  <span>Icons</span>
                 </label>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', cursor: 'pointer' }}>
+                <label className="editor-checkbox-item">
                   <input
                     type="checkbox"
                     checked={showNexusLines}
                     onChange={(e) => setShowNexusLines(e.target.checked)}
                   />
-                  <span>Show Central Nexus Portal Lines</span>
+                  <span>Nexus Lines</span>
                 </label>
               </div>
             </div>
 
-            {/* Reset button at bottom */}
-            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {/* Reset button docked at bottom */}
+            <div style={{ marginTop: 'auto' }}>
               <button
-                className="btn btn-secondary"
-                style={{ width: '100%', padding: '6px', fontSize: '0.72rem', color: '#F87171' }}
+                className="sidebar-btn danger"
+                style={{ width: '100%', height: '26px' }}
                 onClick={handleResetDefaults}
               >
-                🔄 Reset All to Factory Defaults
+                🔄 Reset Factory Defaults
               </button>
             </div>
           </aside>

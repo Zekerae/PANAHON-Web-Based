@@ -1812,75 +1812,87 @@ export default function MapEditor({ onClose }) {
 
       {/* BACKUP & RESTORE MODAL */}
       {showBackupModal && (
-        <div className="modal-overlay" style={{ zIndex: 3000 }}>
-          <div className="modal" style={{ maxWidth: '640px', width: '94%', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
-            <button className="modal-close" onClick={() => setShowBackupModal(false)}>&times;</button>
-            <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>📦</span> Tile Layout Backups & Snapshots
+        <div className="modal-overlay" style={{ zIndex: 3000, background: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(6px)' }}>
+          <div className="modal map-editor-compact-modal">
+            {/* Title Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 800, color: '#F1F5F9' }}>
+                <span>📦</span>
+                <span>Tile Layout Backups</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBackupModal(false)}
+                style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '1.2rem', cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}
+              >
+                &times;
+              </button>
             </div>
 
-            <div className="modal-body" style={{ overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: 1.4 }}>
-                Keep your hard work safe! Create snapshots anytime before moving tiles or rerouting. If a layout gets messed up, restore any snapshot with 1 click.
-              </p>
+            {/* Body */}
+            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '2px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontSize: '0.72rem', color: '#94A3B8', lineHeight: 1.35 }}>
+                Save snapshots before moving tiles. Revert any snapshot with 1 click if a layout gets messed up.
+              </div>
 
-              {/* Create new backup bar */}
+              {/* Snapshot Creator Box */}
               <div style={{
-                display: 'flex',
-                gap: '6px',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(15, 23, 42, 0.9)',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
                 borderRadius: '8px',
-                padding: '8px',
-                marginBottom: '14px',
-                alignItems: 'center'
+                padding: '8px 10px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
               }}>
                 <input
                   type="text"
-                  placeholder="Backup name (e.g. 'Before rearranging 14 to 24')"
+                  placeholder="Snapshot name (optional, e.g. 'Before road fix')"
                   value={backupNameInput}
                   onChange={(e) => setBackupNameInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleCreateBackup(backupNameInput); }}
                   style={{
-                    flex: 1,
-                    background: '#0F172A',
+                    width: '100%',
+                    background: '#020617',
                     border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: '#FFF',
-                    padding: '6px 10px',
-                    borderRadius: '5px',
-                    fontSize: '0.78rem'
+                    color: '#F8FAFC',
+                    padding: '5px 8px',
+                    borderRadius: '4px',
+                    fontSize: '0.74rem'
                   }}
                 />
-                <button
-                  className="btn btn-primary"
-                  style={{ padding: '6px 12px', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
-                  onClick={() => handleCreateBackup(backupNameInput)}
-                >
-                  + Save Backup
-                </button>
-                <input
-                  type="file"
-                  accept=".json"
-                  ref={backupFileInputRef}
-                  style={{ display: 'none' }}
-                  onChange={handleImportBackup}
-                />
-                <button
-                  className="btn btn-secondary"
-                  style={{ padding: '6px 10px', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
-                  onClick={() => backupFileInputRef.current?.click()}
-                  title="Import a saved backup .json file from your computer"
-                >
-                  📁 Import JSON
-                </button>
+                <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                  <input
+                    type="file"
+                    accept=".json"
+                    ref={backupFileInputRef}
+                    style={{ display: 'none' }}
+                    onChange={handleImportBackup}
+                  />
+                  <button
+                    type="button"
+                    className="compact-btn secondary"
+                    onClick={() => backupFileInputRef.current?.click()}
+                    title="Import a saved backup .json file from your computer"
+                  >
+                    📁 Import JSON
+                  </button>
+                  <button
+                    type="button"
+                    className="compact-btn primary"
+                    onClick={() => handleCreateBackup(backupNameInput)}
+                  >
+                    + Save Snapshot
+                  </button>
+                </div>
               </div>
 
               {/* Backups List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {backups.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '24px 12px', color: 'rgba(255,255,255,0.45)', fontSize: '0.82rem' }}>
-                    <div style={{ fontSize: '2rem', marginBottom: '6px' }}>📭</div>
-                    No backups saved yet. Click <strong>+ Save Backup</strong> above to save your first snapshot!
+                  <div style={{ textAlign: 'center', padding: '20px 10px', color: '#64748B', fontSize: '0.75rem' }}>
+                    <div style={{ fontSize: '1.6rem', marginBottom: '4px' }}>📭</div>
+                    No snapshots saved yet. Click <strong>+ Save Snapshot</strong> above!
                   </div>
                 ) : (
                   backups.map((b, idx) => {
@@ -1889,66 +1901,58 @@ export default function MapEditor({ onClose }) {
                       <div
                         key={b.id || idx}
                         style={{
-                          background: isFirst ? 'rgba(99, 102, 241, 0.12)' : 'rgba(15, 23, 42, 0.7)',
+                          background: isFirst ? 'rgba(99, 102, 241, 0.12)' : 'rgba(15, 23, 42, 0.75)',
                           border: isFirst ? '1px solid rgba(99, 102, 241, 0.45)' : '1px solid rgba(255, 255, 255, 0.08)',
-                          borderRadius: '8px',
-                          padding: '10px 12px',
+                          borderRadius: '6px',
+                          padding: '7px 10px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          gap: '10px',
-                          flexWrap: 'wrap'
+                          gap: '8px'
                         }}
                       >
+                        {/* Info */}
                         <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '0.9rem' }}>📦</span>
-                            <span style={{ fontWeight: 700, fontSize: '0.84rem', color: isFirst ? '#A5B4FC' : '#E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', overflow: 'hidden' }}>
+                            <span style={{ fontSize: '0.75rem' }}>📦</span>
+                            <span style={{ fontWeight: 700, fontSize: '0.75rem', color: isFirst ? '#A5B4FC' : '#E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {b.name}
                             </span>
                             {isFirst && (
-                              <span style={{ fontSize: '0.55rem', background: '#4F46E5', color: '#fff', padding: '1px 5px', borderRadius: '3px', fontWeight: 800 }}>
+                              <span style={{ fontSize: '0.52rem', background: '#4F46E5', color: '#fff', padding: '1px 4px', borderRadius: '2px', fontWeight: 800 }}>
                                 LATEST
                               </span>
                             )}
                           </div>
-                          <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.45)', marginTop: '2px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                            <span>🕒 {b.dateStr}</span>
-                            <span>🇪🇸 {b.coords?.spanish?.length || 0} tiles</span>
-                            <span>🇺🇸 {b.coords?.american?.length || 0} tiles</span>
-                            <span>🇯🇵 {b.coords?.japanese?.length || 0} tiles</span>
-                            <span>✨ {b.coords?.myth?.length || 0} tiles</span>
+                          <div style={{ fontSize: '0.62rem', color: '#94A3B8', marginTop: '2px' }}>
+                            🕒 {b.dateStr} • 25 tiles/era
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '5px', alignItems: 'center', flexShrink: 0 }}>
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
                           <button
-                            className="btn btn-primary"
-                            style={{
-                              padding: '4px 10px',
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              background: '#10B981',
-                              borderColor: '#059669'
-                            }}
+                            type="button"
+                            className="compact-btn success"
                             onClick={() => handleRestoreBackup(b)}
                             title="Restore this layout to map editor"
                           >
                             ↺ Restore
                           </button>
                           <button
-                            className="btn btn-secondary"
-                            style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+                            type="button"
+                            className="compact-btn secondary"
                             onClick={() => handleDownloadBackup(b)}
-                            title="Download as JSON file to computer"
+                            title="Download JSON file to computer"
                           >
-                            💾 Save File
+                            💾 Save
                           </button>
                           <button
-                            className="btn btn-danger"
-                            style={{ padding: '4px 7px', fontSize: '0.72rem', background: 'rgba(239, 68, 68, 0.2)', color: '#F87171', border: '1px solid rgba(239, 68, 68, 0.4)' }}
+                            type="button"
+                            className="compact-btn danger"
                             onClick={() => handleDeleteBackup(b.id, b.name)}
-                            title="Delete this snapshot"
+                            title="Delete snapshot"
+                            style={{ padding: '5px 7px' }}
                           >
                             🗑️
                           </button>
@@ -1960,43 +1964,67 @@ export default function MapEditor({ onClose }) {
               </div>
             </div>
 
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap', gap: '8px' }}>
+            {/* Footer */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: '10px',
+              paddingTop: '8px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
-                  {backups.length} snapshot{backups.length === 1 ? '' : 's'} stored
+                <span style={{ fontSize: '0.65rem', color: '#64748B' }}>
+                  {backups.length} snapshot{backups.length === 1 ? '' : 's'}
                 </span>
                 <button
-                  className="btn btn-secondary"
-                  style={{ fontSize: '0.68rem', padding: '3px 8px', borderColor: 'rgba(99, 102, 241, 0.4)', color: '#A5B4FC' }}
+                  type="button"
+                  className="compact-btn secondary"
+                  style={{ fontSize: '0.62rem', padding: '2px 6px', color: '#A5B4FC' }}
                   onClick={() => { sounds.btnClick(); setShowChangePinModal(true); }}
                   title="Change developer access PIN"
                 >
-                  🔑 Change Studio PIN
+                  🔑 PIN
                 </button>
               </div>
-              <button className="btn btn-secondary" onClick={() => setShowBackupModal(false)}>
-                Close
+              <button
+                type="button"
+                className="compact-btn secondary"
+                style={{ padding: '5px 16px' }}
+                onClick={() => setShowBackupModal(false)}
+              >
+                Done
               </button>
             </div>
           </div>
         </div>
       )}
+
       {/* CHANGE PIN MODAL */}
       {showChangePinModal && (
         <div className="modal-overlay" style={{ zIndex: 4000, background: 'rgba(2, 6, 23, 0.88)' }}>
-          <div className="modal" style={{ maxWidth: '400px', width: '92%' }}>
-            <button className="modal-close" onClick={() => setShowChangePinModal(false)}>&times;</button>
-            <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>🔑</span> Update Studio Passcode
+          <div className="modal map-editor-compact-modal" style={{ maxWidth: '360px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.92rem', fontWeight: 800, color: '#F1F5F9' }}>
+                <span>🔑</span>
+                <span>Update Studio Passcode</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowChangePinModal(false)}
+                style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '1.2rem', cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}
+              >
+                &times;
+              </button>
             </div>
 
-            <form onSubmit={handleChangePin} className="modal-body">
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '14px', lineHeight: 1.4 }}>
-                Set a custom developer PIN. Your PIN will be encrypted using one-way salted SHA-256 and cannot be viewed through inspect element.
+            <form onSubmit={handleChangePin} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <p style={{ fontSize: '0.72rem', color: '#94A3B8', margin: 0, lineHeight: 1.35 }}>
+                Set a custom developer PIN. Saved as a one-way salted SHA-256 hash.
               </p>
 
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94A3B8', marginBottom: '4px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.68rem', color: '#94A3B8', marginBottom: '3px' }}>
                   New PIN (4–8 digits):
                 </label>
                 <input
@@ -2008,20 +2036,20 @@ export default function MapEditor({ onClose }) {
                   onChange={(e) => { setNewPinInput(e.target.value.replace(/[^0-9]/g, '')); setPinChangeError(''); }}
                   style={{
                     width: '100%',
-                    background: '#0F172A',
+                    background: '#020617',
                     border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '6px',
+                    borderRadius: '5px',
                     color: '#FFF',
-                    fontSize: '1.2rem',
+                    fontSize: '1.1rem',
                     textAlign: 'center',
                     letterSpacing: '4px',
-                    padding: '8px'
+                    padding: '6px'
                   }}
                 />
               </div>
 
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94A3B8', marginBottom: '4px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.68rem', color: '#94A3B8', marginBottom: '3px' }}>
                   Confirm New PIN:
                 </label>
                 <input
@@ -2033,36 +2061,35 @@ export default function MapEditor({ onClose }) {
                   onChange={(e) => { setConfirmPinInput(e.target.value.replace(/[^0-9]/g, '')); setPinChangeError(''); }}
                   style={{
                     width: '100%',
-                    background: '#0F172A',
+                    background: '#020617',
                     border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '6px',
+                    borderRadius: '5px',
                     color: '#FFF',
-                    fontSize: '1.2rem',
+                    fontSize: '1.1rem',
                     textAlign: 'center',
                     letterSpacing: '4px',
-                    padding: '8px'
+                    padding: '6px'
                   }}
                 />
               </div>
 
               {pinChangeError && (
-                <div style={{ color: '#F87171', fontSize: '0.74rem', fontWeight: 700, marginBottom: '10px' }}>
+                <div style={{ color: '#F87171', fontSize: '0.72rem', fontWeight: 700 }}>
                   {pinChangeError}
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}>
+              <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', marginTop: '6px' }}>
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="compact-btn secondary"
                   onClick={() => setShowChangePinModal(false)}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
-                  style={{ background: '#4F46E5', borderColor: '#6366F1' }}
+                  className="compact-btn primary"
                 >
                   Save Encrypted PIN
                 </button>

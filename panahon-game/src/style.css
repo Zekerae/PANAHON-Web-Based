@@ -5104,3 +5104,84 @@ html, body {
   20%, 60% { transform: translateX(-8px); }
   40%, 80% { transform: translateX(8px); }
 }
+
+/* Compact Map Editor Modals */
+.map-editor-compact-modal {
+  padding: 16px 18px !important;
+  max-width: 520px !important;
+  width: 94% !important;
+  max-height: 82vh !important;
+  border-radius: 12px !important;
+  background: rgba(13, 17, 28, 0.98) !important;
+  border: 1.5px solid rgba(99, 102, 241, 0.4) !important;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.85), 0 0 25px rgba(99, 102, 241, 0.2) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+.map-editor-compact-modal * {
+  box-sizing: border-box;
+}
+
+.compact-btn {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  padding: 5px 10px !important;
+  border-radius: 5px !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  line-height: 1.2 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  border: 1px solid transparent !important;
+  transition: all 0.15s ease !important;
+  white-space: nowrap !important;
+}
+
+.compact-btn:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.compact-btn:active {
+  transform: translateY(0);
+}
+
+.compact-btn.primary {
+  background: #4F46E5 !important;
+  border-color: #6366F1 !important;
+  color: #FFF !important;
+}
+
+.compact-btn.success {
+  background: #059669 !important;
+  border-color: #10B981 !important;
+  color: #FFF !important;
+}
+
+.compact-btn.secondary {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #E2E8F0 !important;
+}
+
+.compact-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+}
+
+.compact-btn.danger {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  color: #F87171 !important;
+}
+
+.compact-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.25) !important;
+}

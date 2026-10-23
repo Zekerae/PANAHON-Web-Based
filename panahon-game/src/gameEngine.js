@@ -1,7 +1,7 @@
 // ===== PANAHON: CHRONO SHIFT - Game Engine =====
 
 import {
-  ERAS, ERA_ORDER, ERA_NAMES, TILE_TYPES, ERA_TILE_LAYOUTS, ERA_TILE_COORDINATES, getActiveTileLayouts, getActiveLoopTargets, getActivePathModes, getActivePathConnections,
+  ERAS, ERA_ORDER, ERA_NAMES, TILE_TYPES, ERA_TILE_LAYOUTS, ERA_TILE_COORDINATES, getActiveTileLayouts, getActiveLoopTargets, getActivePathModes, getActivePathConnections, getActiveJunctionRules,
   ROLES, ROLE_ORDER, ARTIFACTS, ALL_ARTIFACTS, EVENT_CARDS, DANGER_CARDS,
   generateClueCards, generateMissions, GAME_CONSTANTS, SCORING, PLAYER_COLORS
 } from './gameData.js';
@@ -341,18 +341,37 @@ export class GameEngine {
     return true;
   }
 
-  // Determine next tile index using the custom node-graph connections with smart junction routing
+  // Determine next tile index using custom node-graph connections, approach routing rules & Mario Party two-way trails
   getNextTileIndex(player, era, currentIdx, dir = 1) {
     const eraTiles = this.state.board[era];
     const total = eraTiles.length;
     const connections = (typeof getActivePathConnections === 'function') ? getActivePathConnections() : {};
+    const junctionRules = (typeof getActiveJunctionRules === 'function') ? getActiveJunctionRules() : {};
     const eraConnections = connections[era];
+    const eraRules = junctionRules[era] || {};
+    const prev = player?.previousTileIndex;
+
+    // 1. Explicit junction rule based on arrival space (currentIdx:prev)
+    if (prev !== undefined && prev !== null) {
+      const ruleKey = `${currentIdx}:${prev}`;
+      if (eraRules[ruleKey] !== undefined) {
+        return eraRules[ruleKey];
+      }
+    }
+
+    // 2. Linear return along two-way trail (village road 14 down to 7, or base road 3 down to 1):
+    if (prev !== undefined && prev !== null && prev > currentIdx) {
+      if ((currentIdx >= 6 && currentIdx <= 14) || (currentIdx >= 0 && currentIdx <= 2)) {
+        if (currentIdx === 6) return 3; // From Space 7 exit to Space 4
+        if (currentIdx === 0) return 1; // From Space 1 turn around to Space 2
+        return currentIdx - 1;
+      }
+    }
 
     if (eraConnections) {
       const targets = eraConnections[currentIdx];
-      const prev = player?.previousTileIndex;
 
-      // Handle return trail if single connection is a U-turn back to prev
+      // Handle single connection or return trail if single connection is a U-turn back to prev
       if (!Array.isArray(targets) || targets.length === 0 || (targets.length === 1 && targets[0] === prev)) {
         if (prev !== undefined && prev !== null && prev > currentIdx) {
           return currentIdx <= 0 ? 1 : currentIdx - 1;
@@ -365,25 +384,11 @@ export class GameEngine {
         return targets[0];
       }
 
-      // Multiple targets (Junction, e.g. Tile 15 having [16, 14]):
-      if (prev !== undefined && prev !== null) {
-        // Arrived from loop / higher index (e.g. from Tile 25 [idx 24] into Tile 15 [idx 14]):
-        // Take exit branch to lower index (e.g. Tile 14 [idx 13])!
-        if (prev > currentIdx) {
-          const exitBranch = targets.find(t => t < currentIdx && t !== prev);
-          if (exitBranch !== undefined) return exitBranch;
-        }
-        // Arrived from outward trail / lower index (e.g. from Tile 14 [idx 13] into Tile 15 [idx 14]):
-        // Continue forward into loop (e.g. Tile 16 [idx 15])!
-        if (prev < currentIdx) {
-          const forwardBranch = targets.find(t => t > currentIdx && t !== prev);
-          if (forwardBranch !== undefined) return forwardBranch;
-        }
-        const nonPrev = targets.find(t => t !== prev);
-        if (nonPrev !== undefined) return nonPrev;
-      }
+      // Multiple targets: take first candidate not equal to prev
+      let candidates = targets.filter(t => t !== prev);
+      if (candidates.length === 0) candidates = targets;
 
-      return targets[0];
+      return candidates[0] !== undefined ? candidates[0] : targets[0];
     }
 
     if (dir > 0) {

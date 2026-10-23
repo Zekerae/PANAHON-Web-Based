@@ -1,7 +1,7 @@
 // ===== PANAHON: CHRONO SHIFT - Game Engine =====
 
 import {
-  ERAS, ERA_ORDER, ERA_NAMES, TILE_TYPES, ERA_TILE_LAYOUTS, ERA_TILE_COORDINATES,
+  ERAS, ERA_ORDER, ERA_NAMES, TILE_TYPES, ERA_TILE_LAYOUTS, ERA_TILE_COORDINATES, getActiveTileLayouts,
   ROLES, ROLE_ORDER, ARTIFACTS, ALL_ARTIFACTS, EVENT_CARDS, DANGER_CARDS,
   generateClueCards, generateMissions, GAME_CONSTANTS, SCORING, PLAYER_COLORS
 } from './gameData.js';
@@ -61,7 +61,7 @@ export class GameEngine {
     // Build board: tiles per era
     const board = {};
     ERA_ORDER.forEach(era => {
-      const layout = ERA_TILE_LAYOUTS[era];
+      const layout = (getActiveTileLayouts() && getActiveTileLayouts()[era]) || ERA_TILE_LAYOUTS[era];
       board[era] = layout.map((type, idx) => ({
         id: `${era}_${idx}`,
         era,

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import sounds from '../sound.js';
 import {
   ERA_NAMES, ERA_ORDER, ROLES, GAME_CONSTANTS, PLAYER_COLORS,
-  ERA_TILE_COORDINATES
+  ERA_TILE_COORDINATES, getActiveTileCoordinates
 } from '../gameData.js';
 import ChatBox from './ChatBox.jsx';
 
@@ -13,6 +13,7 @@ export default function GameScreen({
   soundMuted,
   onToggleSound,
   onOpenGuide,
+  onOpenMapEditor,
   onInspectCard,
   chatMessages,
   unreadChatCount,
@@ -41,6 +42,7 @@ export default function GameScreen({
     : null) || myPlayer;
 
   const isViewingSelf = viewedPlayer.id === myPlayer.id || !isOnline;
+  const activeCoords = getActiveTileCoordinates();
 
   let timelineClass = 'safe';
   if (timelineLevel >= 8) timelineClass = 'danger';
@@ -193,6 +195,14 @@ export default function GameScreen({
           </button>
           <button
             className="btn"
+            style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--bg-glass)', borderColor: 'rgba(234, 179, 8, 0.4)' }}
+            onClick={() => { sounds.btnClick(); onOpenMapEditor(); }}
+            title="Open Real-time Map & Path Editor"
+          >
+            🗺️ Map Editor
+          </button>
+          <button
+            className="btn"
             style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--bg-glass)' }}
             onClick={() => { sounds.btnClick(); onOpenGuide(); }}
           >
@@ -306,7 +316,7 @@ export default function GameScreen({
             {/* SVG Path lines connecting circle spaces */}
             <svg className="board-paths-svg" viewBox="0 0 1024 765" preserveAspectRatio="none">
               {ERA_ORDER.map(era => {
-                const coords = ERA_TILE_COORDINATES[era];
+                const coords = (activeCoords[era] || ERA_TILE_COORDINATES[era]);
                 if (!coords) return null;
                 const d = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${(c.x * 1024) / 100} ${(c.y * 765) / 100}`).join(' ') + ' Z';
                 const isActiveEra = currentPlayer.currentEra === era;
@@ -316,7 +326,7 @@ export default function GameScreen({
               {ERA_ORDER.map(era => {
                 const tgIdx = state.board[era].findIndex(t => t.type === 'timegate');
                 if (tgIdx === -1) return null;
-                const c = ERA_TILE_COORDINATES[era][tgIdx];
+                const c = (activeCoords[era] || ERA_TILE_COORDINATES[era])[tgIdx];
                 return (
                   <path
                     key={era + '-nexus'}
@@ -332,7 +342,7 @@ export default function GameScreen({
             <div className="board-map">
               {ERA_ORDER.map(era => {
                 const tiles = state.board[era];
-                const coords = ERA_TILE_COORDINATES[era];
+                const coords = (activeCoords[era] || ERA_TILE_COORDINATES[era]);
 
                 return tiles.map((t, idx) => {
                   const coord = coords[idx];

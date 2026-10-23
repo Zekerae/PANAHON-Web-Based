@@ -1,7 +1,7 @@
 import React from 'react';
 import sounds from '../sound.js';
 
-export default function TitleScreen({ onSelectMode, onOpenGuide, soundMuted, onToggleSound }) {
+export default function TitleScreen({ onSelectMode, onOpenGuide, soundMuted, onToggleSound, onOpenMapEditor }) {
   return (
     <div className="title-screen">
       <div className="title-content">
@@ -43,6 +43,20 @@ export default function TitleScreen({ onSelectMode, onOpenGuide, soundMuted, onT
             }}
           >
             🌐 Online Multiplayer
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            style={{
+              borderColor: 'rgba(234, 179, 8, 0.4)',
+              background: 'rgba(234, 179, 8, 0.08)'
+            }}
+            onClick={() => {
+              sounds.btnClick();
+              onOpenMapEditor();
+            }}
+          >
+            🗺️ Map & Path Editor
           </button>
 
           <button

@@ -11,6 +11,7 @@ import LobbyScreen from './components/LobbyScreen.jsx';
 import GameScreen from './components/GameScreen.jsx';
 import EndGameScreen from './components/EndGameScreen.jsx';
 import GuideModal from './components/GuideModal.jsx';
+import MapEditor from './components/MapEditor.jsx';
 import SupabaseConfigModal from './components/SupabaseConfigModal.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
 import { CardModal, ChoiceModal, MaximizedCardPreview } from './components/Modals.jsx';
@@ -34,6 +35,7 @@ export default function App() {
   // Audio & Modals
   const [soundMuted, setSoundMuted] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [showMapEditor, setShowMapEditor] = useState(false);
   const [showSupabaseConfig, setShowSupabaseConfig] = useState(false);
   const [maximizedCardData, setMaximizedCardData] = useState(null);
 
@@ -326,6 +328,7 @@ export default function App() {
             setCurrentScreen('lobby');
           }}
           onOpenGuide={() => setShowGuide(true)}
+          onOpenMapEditor={() => setShowMapEditor(true)}
           soundMuted={soundMuted}
           onToggleSound={handleToggleSound}
         />
@@ -363,6 +366,7 @@ export default function App() {
           soundMuted={soundMuted}
           onToggleSound={handleToggleSound}
           onOpenGuide={() => setShowGuide(true)}
+          onOpenMapEditor={() => setShowMapEditor(true)}
           onInspectCard={(cardData) => setMaximizedCardData(cardData)}
           chatMessages={chatMessages}
           unreadChatCount={unreadChatCount}
@@ -410,6 +414,15 @@ export default function App() {
         <MaximizedCardPreview
           data={maximizedCardData}
           onClose={() => setMaximizedCardData(null)}
+        />
+      )}
+
+      {showMapEditor && (
+        <MapEditor
+          onClose={() => {
+            setShowMapEditor(false);
+            setGameState(engine.getState() ? { ...engine.getState() } : null);
+          }}
         />
       )}
 

@@ -170,6 +170,46 @@ export const ERA_TILE_COORDINATES = {
   ]
 };
 
+// Dynamic Map Accessors (Supports in-game Map Editor & Local Storage)
+export function getActiveTileCoordinates() {
+  try {
+    const saved = localStorage.getItem('panahon_custom_map_coords');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch (_) {}
+  return ERA_TILE_COORDINATES;
+}
+
+export function getActiveTileLayouts() {
+  try {
+    const saved = localStorage.getItem('panahon_custom_map_layouts');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch (_) {}
+  return ERA_TILE_LAYOUTS;
+}
+
+export function saveCustomMap(coords, layouts) {
+  try {
+    localStorage.setItem('panahon_custom_map_coords', JSON.stringify(coords));
+    localStorage.setItem('panahon_custom_map_layouts', JSON.stringify(layouts));
+    return true;
+  } catch (e) {
+    console.error('Failed to save custom map to localStorage:', e);
+    return false;
+  }
+}
+
+export function resetCustomMap() {
+  try {
+    localStorage.removeItem('panahon_custom_map_coords');
+    localStorage.removeItem('panahon_custom_map_layouts');
+  } catch (_) {}
+}
 
 // Roles
 export const ROLES = {

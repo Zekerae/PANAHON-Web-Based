@@ -7,10 +7,8 @@ function GameHeader({
   timerStr,
   turnNumber,
   unreadChatCount,
-  soundMuted,
   onToggleChat,
   onOpenGuide,
-  onToggleSound,
   onOpenPause
 }) {
   return (
@@ -56,13 +54,6 @@ function GameHeader({
           onClick={() => { sounds.btnClick(); onOpenGuide(); }}
         >
           📖 Manual
-        </button>
-        <button
-          className="btn"
-          style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--bg-glass)' }}
-          onClick={onToggleSound}
-        >
-          {soundMuted ? '🔇' : '🔊'}
         </button>
         <button
           className="btn btn-pause"

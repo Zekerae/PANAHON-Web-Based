@@ -232,10 +232,8 @@ function GameScreen({
         timerStr={timerStr}
         turnNumber={state.turnNumber}
         unreadChatCount={unreadChatCount}
-        soundMuted={soundMuted}
         onToggleChat={toggleChat}
         onOpenGuide={onOpenGuide}
-        onToggleSound={onToggleSound}
         onOpenPause={handleOpenPause}
       />
 

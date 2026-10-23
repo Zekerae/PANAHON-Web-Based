@@ -9,6 +9,15 @@ import {
   TILE_IMAGES
 } from "../../gameData.js";
 
+const CAMERA_OPTIONS = [
+  { id: 'full', label: 'Full Map', mobileLabel: 'Full', icon: '🗺️' },
+  { id: 'focus-spanish', label: 'Spanish', mobileLabel: 'Spanish' },
+  { id: 'focus-american', label: 'American', mobileLabel: 'American' },
+  { id: 'focus-japanese', label: 'Japanese', mobileLabel: 'Japanese' },
+  { id: 'focus-myth', label: 'Myth', mobileLabel: 'Myth' },
+  { id: 'auto', label: 'Auto Focus', mobileLabel: 'Auto', icon: '🎯' },
+];
+
 function GameBoard({
   board,
   players,
@@ -29,14 +38,18 @@ function GameBoard({
 
   return (
     <main className="board-container">
-      <div className="board-camera-bar">
-        {["full", "focus-spanish", "focus-american", "focus-japanese", "focus-myth", "auto"].map((cam) => (
+      <div className="board-camera-bar" role="toolbar" aria-label="Board camera controls">
+        {CAMERA_OPTIONS.map((cam) => (
           <button
-            key={cam}
-            className={`board-cam-btn ${cameraMode === cam ? "active" : ""}`}
-            onClick={() => { sounds.btnClick(); setCameraMode(cam); }}
+            key={cam.id}
+            className={`board-cam-btn ${cameraMode === cam.id ? "active" : ""}`}
+            onClick={() => { sounds.btnClick(); setCameraMode(cam.id); }}
+            title={cam.label}
+            aria-label={cam.label}
           >
-            {cam === "full" ? "🗺️ Full Map" : (cam === "auto" ? "🎯 Auto Focus" : cam.replace("focus-", "").toUpperCase())}
+            {cam.icon && <span className="board-cam-icon">{cam.icon}</span>}
+            <span className="board-cam-text-desktop">{cam.label}</span>
+            <span className="board-cam-text-mobile">{cam.mobileLabel}</span>
           </button>
         ))}
       </div>

@@ -1,5 +1,5 @@
 export const initialAppState = {
-  currentScreen: 'title', // 'title' | 'lobby' | 'game' | 'endgame'
+  currentScreen: 'title', // 'title' | 'lobby' | 'game' | 'endgame' | 'map-editor'
   lobbyMode: 'local', // 'local' | 'online'
   showGuide: false,
   showSupabaseConfig: false,

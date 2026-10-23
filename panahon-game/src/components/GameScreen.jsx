@@ -14,7 +14,6 @@ function GameScreen({
   soundMuted,
   onToggleSound,
   onOpenGuide,
-  onOpenMapEditor,
   onInspectCard,
   chatMessages,
   unreadChatCount,
@@ -43,7 +42,6 @@ function GameScreen({
     : null) || myPlayer;
 
   const isViewingSelf = viewedPlayer.id === myPlayer.id || !isOnline;
-  const activeCoords = getActiveTileCoordinates();
 
   let timelineClass = 'safe';
   if (timelineLevel >= 8) timelineClass = 'danger';

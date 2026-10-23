@@ -12,7 +12,6 @@ import { useTurnAutomation } from './hooks/useTurnAutomation.js';
 
 import AppRouter from './components/AppRouter.jsx';
 import GuideModal from './components/GuideModal.jsx';
-import MapEditor from './components/MapEditor.jsx';
 import SupabaseConfigModal from './components/SupabaseConfigModal.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
 import { CardModal, ChoiceModal, MaximizedCardPreview } from './components/Modals.jsx';
@@ -108,6 +107,7 @@ export default function App() {
   const titleProps = {
     onSelectMode: handleSelectMode,
     onOpenGuide: () => dispatch({ type: 'OPEN_GUIDE' }),
+    onOpenMapEditor: () => dispatch({ type: 'NAVIGATE', screen: 'map-editor' }),
     soundMuted,
     onToggleSound: toggleSound
   };
@@ -167,6 +167,9 @@ export default function App() {
         lobbyProps={lobbyProps}
         gameProps={gameProps}
         endgameProps={endgameProps}
+        mapEditorProps={{
+          onClose: () => dispatch({ type: 'RETURN_TO_TITLE' })
+        }}
       />
 
       {/* MODAL HOST */}

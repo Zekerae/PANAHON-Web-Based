@@ -170,6 +170,186 @@ export const ERA_TILE_COORDINATES = {
   ]
 };
 
+// Dynamic Map Accessors (Supports in-game Map Editor & Local Storage)
+// Default loop target index for each era (where the last tile connects to)
+// Spanish era: Tile 25 (index 24) connects directly to Tile 15 (index 14) to complete the loop!
+export const DEFAULT_ERA_LOOP_TARGETS = {
+  [ERAS.SPANISH]: 14,   // Tile #15
+  [ERAS.AMERICAN]: 0,   // Tile #1
+  [ERAS.JAPANESE]: 0,   // Tile #1
+  [ERAS.MYTH]: 0        // Tile #1
+};
+
+export function getActiveLoopTargets() {
+  try {
+    const saved = localStorage.getItem('panahon_custom_map_loops');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') return { ...DEFAULT_ERA_LOOP_TARGETS, ...parsed };
+    }
+  } catch (_) {}
+  return { ...DEFAULT_ERA_LOOP_TARGETS };
+}
+
+// Default Path Traversal Modes for each era:
+// 'mario_party': Outward journey (1 -> 25), then returns (25 -> 15 -> 14 -> ... -> 1), like Mario Party!
+// 'loop': Standard circular loop (loops from final tile to loop target)
+export const DEFAULT_ERA_PATH_MODES = {
+  [ERAS.SPANISH]: 'mario_party', // After 25, goes to 15, then 14 down the line!
+  [ERAS.AMERICAN]: 'loop',
+  [ERAS.JAPANESE]: 'loop',
+  [ERAS.MYTH]: 'loop'
+};
+
+export function getActivePathModes() {
+  try {
+    const saved = localStorage.getItem('panahon_custom_map_path_modes');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') return { ...DEFAULT_ERA_PATH_MODES, ...parsed };
+    }
+  } catch (_) {}
+  return { ...DEFAULT_ERA_PATH_MODES };
+}
+
+// Default Path Connections (Graph of which tile flows to which tile)
+// Gives the user 100% full manual control to route, branch, or reconnect any tile!
+export const DEFAULT_ERA_PATH_CONNECTIONS = {
+  [ERAS.SPANISH]: (() => {
+    const c = {};
+    for (let i = 0; i < 24; i++) c[i] = [i + 1];
+    c[3] = [4, 6, 2];   // Space 4 -> 5, 7, 3
+    c[5] = [3];         // Space 6 -> 4
+    c[6] = [7, 3];      // Space 7 -> 8, 4
+    c[14] = [15, 13];   // Space 15 -> 16, 14
+    c[24] = [14];       // Space 25 -> 15
+    return c;
+  })(),
+  [ERAS.AMERICAN]: (() => {
+    const c = {};
+    for (let i = 0; i < 23; i++) c[i] = [i + 1];
+    c[23] = [0];
+    return c;
+  })(),
+  [ERAS.JAPANESE]: (() => {
+    const c = {};
+    for (let i = 0; i < 25; i++) c[i] = [i + 1];
+    c[25] = [0];
+    return c;
+  })(),
+  [ERAS.MYTH]: (() => {
+    const c = {};
+    for (let i = 0; i < 23; i++) c[i] = [i + 1];
+    c[23] = [0];
+    return c;
+  })()
+};
+
+// Explicit Junction Approach Rules (Maps incoming space to outgoing destination)
+// e.g. "3:2": 4 means "When entering Space 4 (idx 3) from Space 3 (idx 2), go to Space 5 (idx 4)"
+export const DEFAULT_ERA_JUNCTION_RULES = {
+  [ERAS.SPANISH]: {
+    "3:2": 4,   // Space 4: From Space 3 -> Space 5 (ruins / nexus loop)
+    "3:5": 6,   // Space 4: From Space 6 -> Space 7 (mountain village trail)
+    "3:6": 2,   // Space 4: From Space 7 -> Space 3 (return trail to base)
+    "6:3": 7,   // Space 7: From Space 4 -> Space 8 (up village road)
+    "6:7": 3,   // Space 7: From Space 8 -> Space 4 (down village road to crossroads)
+    "14:13": 15, // Space 15: From Space 14 -> Space 16 (enter mountain loop)
+    "14:24": 13, // Space 15: From Space 25 -> Space 14 (exit mountain loop to village trail)
+    "0:1": 1    // Space 1: From Space 2 -> Space 2 (turn around at start)
+  },
+  [ERAS.AMERICAN]: {},
+  [ERAS.JAPANESE]: {},
+  [ERAS.MYTH]: {}
+};
+
+export function getActiveJunctionRules() {
+  try {
+    const saved = localStorage.getItem("panahon_custom_map_junction_rules");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === "object") {
+        return {
+          ...DEFAULT_ERA_JUNCTION_RULES,
+          ...parsed,
+          [ERAS.SPANISH]: {
+            ...DEFAULT_ERA_JUNCTION_RULES[ERAS.SPANISH],
+            ...(parsed[ERAS.SPANISH] || {})
+          }
+        };
+      }
+    }
+  } catch (_) {}
+  return JSON.parse(JSON.stringify(DEFAULT_ERA_JUNCTION_RULES));
+}
+
+export function saveCustomJunctionRules(rules) {
+  try {
+    localStorage.setItem("panahon_custom_map_junction_rules", JSON.stringify(rules));
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+export function getActivePathConnections() {
+  try {
+    const saved = localStorage.getItem('panahon_custom_map_connections');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch (_) {}
+  return JSON.parse(JSON.stringify(DEFAULT_ERA_PATH_CONNECTIONS));
+}
+
+export function getActiveTileCoordinates() {
+  try {
+    const saved = localStorage.getItem('panahon_custom_map_coords');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch (_) {}
+  return ERA_TILE_COORDINATES;
+}
+
+export function getActiveTileLayouts() {
+  try {
+    const saved = localStorage.getItem('panahon_custom_map_layouts');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch (_) {}
+  return ERA_TILE_LAYOUTS;
+}
+
+export function saveCustomMap(coords, layouts, loops, pathModes, connections, junctionRules) {
+  try {
+    localStorage.setItem('panahon_custom_map_coords', JSON.stringify(coords));
+    localStorage.setItem('panahon_custom_map_layouts', JSON.stringify(layouts));
+    if (loops) localStorage.setItem('panahon_custom_map_loops', JSON.stringify(loops));
+    if (pathModes) localStorage.setItem('panahon_custom_map_path_modes', JSON.stringify(pathModes));
+    if (connections) localStorage.setItem('panahon_custom_map_connections', JSON.stringify(connections));
+    if (junctionRules) localStorage.setItem('panahon_custom_map_junction_rules', JSON.stringify(junctionRules));
+    return true;
+  } catch (e) {
+    console.error('Failed to save custom map to localStorage:', e);
+    return false;
+  }
+}
+
+export function resetCustomMap() {
+  try {
+    localStorage.removeItem('panahon_custom_map_coords');
+    localStorage.removeItem('panahon_custom_map_layouts');
+    localStorage.removeItem('panahon_custom_map_loops');
+    localStorage.removeItem('panahon_custom_map_path_modes');
+    localStorage.removeItem('panahon_custom_map_connections');
+    localStorage.removeItem('panahon_custom_map_junction_rules');
+  } catch (_) {}
+}
 
 // Roles
 export const ROLES = {
@@ -578,7 +758,7 @@ export const EVENT_CARDS = {
       name: 'Temporal Occurrence!',
       description: 'For the next 2 turns, players draw from any era randomly on Clue, Event, or Danger tiles.',
       era: ERAS.AMERICAN,
-      image: 'assets/Cards/Event Cards/10.png',
+      image: 'assets/Cards/Event Cards/5.png',
       effect: (player, game) => {
         game.activateTemporalOccurrence(2);
         return 'Temporal Disturbance! Drawing from random eras for 2 rounds!';
@@ -639,7 +819,7 @@ export const EVENT_CARDS = {
       name: 'Temporal Occurrence!',
       description: 'For the next 2 turns, players draw from any era randomly on Clue, Event, or Danger tiles.',
       era: ERAS.JAPANESE,
-      image: 'assets/Cards/Event Cards/15.png',
+      image: 'assets/Cards/Event Cards/5.png',
       effect: (player, game) => {
         game.activateTemporalOccurrence(2);
         return 'Temporal Disturbance! Drawing from random eras for 2 rounds!';
@@ -664,7 +844,7 @@ export const EVENT_CARDS = {
       name: 'Anito Guidance',
       description: 'Teleport to any tile within the Myth/Legend timeline.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Event Cards/16.png',
+      image: 'assets/Cards/Event Cards/17.png',
       effect: (player, game) => {
         game.offerTeleport(player, ERAS.MYTH);
         return 'Teleport to any tile in the Myth/Legend timeline!';
@@ -675,7 +855,7 @@ export const EVENT_CARDS = {
       name: 'Enchanted Healing Spring',
       description: 'Restores 3 energy to all players in this timeline.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Event Cards/16.png',
+      image: 'assets/Cards/Event Cards/18.png',
       effect: (player, game) => {
         game.healAllInEra(ERAS.MYTH, 3);
         return 'All players in Myth era restored 3 Energy!';
@@ -686,7 +866,7 @@ export const EVENT_CARDS = {
       name: 'Ancient Relic Harmony',
       description: 'Decreases the Timeline Meter by 1.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Event Cards/16.png',
+      image: 'assets/Cards/Event Cards/19.png',
       effect: (player, game) => {
         game.modifyTimelineMeter(-1);
         return 'Timeline Meter decreased by 1!';
@@ -697,7 +877,7 @@ export const EVENT_CARDS = {
       name: 'Temporal Occurrence!',
       description: 'For the next 2 turns, players draw from any era randomly on Clue, Event, or Danger tiles.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Event Cards/16.png',
+      image: 'assets/Cards/Event Cards/5.png',
       effect: (player, game) => {
         game.activateTemporalOccurrence(2);
         return 'Temporal Disturbance! Drawing from random eras for 2 rounds!';

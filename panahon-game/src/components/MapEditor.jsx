@@ -1214,7 +1214,7 @@ export default function MapEditor({ onClose }) {
                               border: '1px solid rgba(16, 185, 129, 0.3)'
                             }}>
                               <span style={{ fontWeight: 700 }}>
-                                🔀 Fork (${targets.length} Links): ⭐#${targets[0] + 1}
+                                🔀 Fork ({targets.length} Links): ⭐#{targets[0] + 1}
                               </span>
                               <div style={{ display: 'flex', gap: '3px' }}>
                                 <button
@@ -1423,7 +1423,7 @@ export default function MapEditor({ onClose }) {
                                   return (
                                     <div key={incIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '3px', height: '18px' }}>
                                       <span style={{ fontSize: '0.56rem', color: '#E2E8F0', whiteSpace: 'nowrap' }}>
-                                        From Space #${incIdx + 1} ➔
+                                        From Space #{incIdx + 1} ➔
                                       </span>
                                       <select
                                         value={assignedTarget !== undefined ? assignedTarget : ''}
@@ -1444,7 +1444,7 @@ export default function MapEditor({ onClose }) {
                                       >
                                         {targets.map(t => (
                                           <option key={t} value={t}>
-                                            Space #${t + 1} ({layouts[curEra]?.[t] || 'tile'})
+                                            Space #{t + 1} ({layouts[curEra]?.[t] || 'tile'})
                                           </option>
                                         ))}
                                       </select>

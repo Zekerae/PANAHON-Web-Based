@@ -875,40 +875,56 @@ export class GameEngine {
 
   // --- Artifact Handling ---
   handleArtifactTile(player) {
-    const eraArtifacts = ARTIFACTS[player.currentEra];
-    
-    // Check if player has at least 3 clues for any artifact in this era
+    const eraArtifacts = ARTIFACTS[player.currentEra] || [];
+
+    // Filter artifacts player has >= 3 clues for, excluding already held or already completed mission relics
     const eligibleArtifacts = eraArtifacts.filter(artifact => {
+      // Don't re-acquire an artifact already held in player hand
+      if (player.artifactCards.some(a => a.id === artifact.id)) return false;
+      // Don't re-acquire an artifact if its mission is already finished
+      if (player.missionComplete && player.mission?.artifactId === artifact.id) return false;
       const clueCount = player.clueProgress[artifact.id] || 0;
       return clueCount >= GAME_CONSTANTS.REQUIRED_CLUES_FOR_ARTIFACT;
     });
 
     if (eligibleArtifacts.length === 0) {
-      this.state.pendingModal = {
-        type: 'info',
-        title: 'Artifact Tile',
-        description: `You need at least ${GAME_CONSTANTS.REQUIRED_CLUES_FOR_ARTIFACT} clues related to an artifact before you can acquire it. Keep exploring!`,
-        image: null
-      };
-      this.addLog('artifact', `${player.name} investigated the Artifact Tile but lacks enough clues.`);
+      // Check if player already holds an artifact from this era
+      const alreadyHeld = player.artifactCards.find(a => a.era === player.currentEra);
+      if (alreadyHeld) {
+        this.state.pendingModal = {
+          type: 'info',
+          title: 'Artifact Tile',
+          description: `You are already carrying the ${alreadyHeld.nickname}! Use the "Return Relic" action in your dashboard to return it to this timeline.`,
+          image: alreadyHeld.cardImage || alreadyHeld.image
+        };
+        this.addLog('artifact', `${player.name} visited the Artifact Tile while already holding ${alreadyHeld.nickname}.`);
+      } else {
+        this.state.pendingModal = {
+          type: 'info',
+          title: 'Artifact Tile',
+          description: `You need at least ${GAME_CONSTANTS.REQUIRED_CLUES_FOR_ARTIFACT} clues related to an artifact before you can acquire it. Keep exploring!`,
+          image: null
+        };
+        this.addLog('artifact', `${player.name} investigated the Artifact Tile but lacks enough clues.`);
+      }
     } else {
-      // Let player choose an artifact to acquire
-      const firstEligible = eligibleArtifacts[0];
-      player.artifactCards.push(firstEligible);
-      
+      // Prioritize player's mission artifact if eligible
+      const missionArtifact = eligibleArtifacts.find(a => player.mission && player.mission.artifactId === a.id);
+      const chosen = missionArtifact || eligibleArtifacts[0];
+      player.artifactCards.push(chosen);
+
       this.state.pendingModal = {
         type: 'artifact',
-        cardType: 'Artifact Acquired!',
-        title: firstEligible.name,
-        description: `You acquired the ${firstEligible.nickname}! Return it to the ${ERA_NAMES[firstEligible.era]} to complete your mission.`,
-        image: firstEligible.cardImage
+        cardType: 'Artifact Acquired! 📦',
+        title: chosen.name,
+        description: `You acquired the ${chosen.nickname}! Return it to the ${ERA_NAMES[chosen.era]} using "Return Relic" to complete your mission.`,
+        image: chosen.cardImage || chosen.image
       };
 
-      // Check mission completion
-      if (player.mission && player.mission.artifactId === firstEligible.id) {
-        this.addLog('mission', `${player.name} acquired their mission artifact: ${firstEligible.nickname}!`);
+      if (player.mission && player.mission.artifactId === chosen.id) {
+        this.addLog('mission', `${player.name} acquired their mission artifact: ${chosen.nickname}!`);
       } else {
-        this.addLog('artifact', `${player.name} acquired: ${firstEligible.nickname}`);
+        this.addLog('artifact', `${player.name} acquired: ${chosen.nickname}`);
       }
     }
 
@@ -1242,10 +1258,29 @@ export class GameEngine {
       this.addLog('mission', `${player.name} returned ${artifact.nickname} to the correct timeline! (+${SCORING.RETURN_ARTIFACT_CORRECT} Points)`);
 
       // Check mission complete
-      if (player.mission && player.mission.artifactId === artifactId) {
+      const isMission = player.mission && player.mission.artifactId === artifactId;
+      if (isMission) {
         player.missionComplete = true;
         player.points += SCORING.COMPLETE_MISSION;
         this.addLog('mission', `🎉 ${player.name} completed their mission! (+${SCORING.COMPLETE_MISSION} Points)`);
+
+        this.state.pendingModal = {
+          type: 'artifact',
+          cardType: 'Mission Complete! 🏆',
+          title: `Recovered: ${artifact.nickname}`,
+          description: `Outstanding achievement, ${player.name}! You safely returned ${artifact.name} to the ${ERA_NAMES[artifact.era]} and completed your historical directive! (+${SCORING.RETURN_ARTIFACT_CORRECT + SCORING.COMPLETE_MISSION} Total Points)`,
+          image: artifact.cardImage || artifact.image,
+          era: artifact.era
+        };
+      } else {
+        this.state.pendingModal = {
+          type: 'artifact',
+          cardType: 'Relic Restored! 📦',
+          title: `Restored: ${artifact.nickname}`,
+          description: `You returned the ${artifact.name} to the ${ERA_NAMES[artifact.era]} timeline! (+${SCORING.RETURN_ARTIFACT_CORRECT} Points)`,
+          image: artifact.cardImage || artifact.image,
+          era: artifact.era
+        };
       }
 
       // Check if all missions complete
@@ -1257,6 +1292,15 @@ export class GameEngine {
       this.modifyParadox(player, 1);
       this.modifyTimelineMeter(1);
       this.addLog('paradox', `${player.name} placed ${artifact.nickname} in the wrong timeline! Paradox +1, Timeline +1`);
+
+      this.state.pendingModal = {
+        type: 'danger',
+        cardType: 'Temporal Anomaly! ⚠️',
+        title: 'Wrong Era Paradox',
+        description: `The ${artifact.nickname} does not belong to the ${ERA_NAMES[player.currentEra]}! It belongs to the ${ERA_NAMES[artifact.era]}. Temporal Paradox +1, Timeline Meter +1!`,
+        image: artifact.cardImage || artifact.image,
+        era: player.currentEra
+      };
     }
 
     this.notify();

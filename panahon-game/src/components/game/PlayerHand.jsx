@@ -75,22 +75,42 @@ function PlayerHand({
               </div>
             </div>
 
-            <div className="mission-progress">
-              <span className="mission-progress-text">Clue Progress:</span>
-              <div className="mission-progress-bar">
-                <div
-                  className="mission-progress-fill"
-                  style={{
-                    width: `${(Math.min(3, isViewingSelf ? (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) : viewedPlayer.clueCards.length) / 3) * 100}%`
-                  }}
-                ></div>
+            {viewedPlayer.missionComplete ? (
+              <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10B981', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ color: '#34D399', fontWeight: 800, fontSize: '0.85rem' }}>
+                  🏆 MISSION ACCOMPLISHED (+10 PTS)
+                </span>
+                <span style={{ fontSize: '0.72rem', color: '#A7F3D0' }}>
+                  Relic safely returned to {ERA_NAMES[viewedPlayer.mission.targetEra]}
+                </span>
               </div>
-              <span className="mission-progress-text">
-                {isViewingSelf
-                  ? `${viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0}/3 Required Clues`
-                  : `${viewedPlayer.clueCards.length} Clues Collected`}
-              </span>
-            </div>
+            ) : viewedPlayer.artifactCards.some(a => a.id === viewedPlayer.mission.artifactId) ? (
+              <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid #F59E0B', borderRadius: '8px' }}>
+                <div style={{ color: '#FBBF24', fontWeight: 800, fontSize: '0.82rem', marginBottom: '4px' }}>
+                  📦 RELIC IN POSSESSION!
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#FDE68A' }}>
+                  You hold the <strong>{viewedPlayer.mission.artifactNickname}</strong>! Travel to the <strong>{ERA_NAMES[viewedPlayer.mission.targetEra]}</strong> and click <strong>Return Relic</strong> in your action panel to complete your mission.
+                </div>
+              </div>
+            ) : (
+              <div className="mission-progress">
+                <span className="mission-progress-text">Clue Progress:</span>
+                <div className="mission-progress-bar">
+                  <div
+                    className="mission-progress-fill"
+                    style={{
+                      width: `${(Math.min(3, isViewingSelf ? (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) : viewedPlayer.clueCards.length) / 3) * 100}%`
+                    }}
+                  ></div>
+                </div>
+                <span className="mission-progress-text">
+                  {isViewingSelf
+                    ? `${viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0}/3 Required Clues`
+                    : `${viewedPlayer.clueCards.length} Clues Collected`}
+                </span>
+              </div>
+            )}
           </div>
         )}
 

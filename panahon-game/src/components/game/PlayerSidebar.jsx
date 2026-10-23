@@ -109,9 +109,16 @@ function PlayerSidebar({
                   </div>
                 </div>
 
-                <div className="stat-row" style={{ marginTop: "4px", fontSize: "0.7rem", color: "var(--text-secondary)" }}>
+                <div className="stat-row" style={{ marginTop: "4px", fontSize: "0.7rem", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>Era: <strong>{ERA_NAMES[p.currentEra].replace(" Era", "")}</strong></span>
                   <span>Clues: <strong>{p.clueCards.length}/5</strong></span>
+                  {p.missionComplete ? (
+                    <span style={{ color: "#34D399", fontWeight: 700 }}>🏆 Done</span>
+                  ) : p.artifactCards.length > 0 ? (
+                    <span style={{ color: "#F59E0B", fontWeight: 700 }} title={`Carrying: ${p.artifactCards.map(a => a.nickname).join(', ')}`}>
+                      📦 {p.artifactCards.length} Relic{p.artifactCards.length > 1 ? 's' : ''}
+                    </span>
+                  ) : null}
                 </div>
               </div>
             </div>

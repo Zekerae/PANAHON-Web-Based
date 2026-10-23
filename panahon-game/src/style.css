@@ -1372,6 +1372,122 @@ body {
   justify-content: center;
   position: relative;
   overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.board-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+/* Floating Clash-of-Clans Style Zoom HUD (+ / - / Reset) */
+.board-zoom-hud {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 25;
+  pointer-events: auto;
+}
+
+.zoom-hud-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #F8FAFC;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  padding: 0;
+}
+
+.zoom-hud-btn:hover {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: #38BDF8;
+  color: #FFF;
+  transform: scale(1.08);
+}
+
+.zoom-hud-btn:active {
+  transform: scale(0.95);
+}
+
+/* Mobile Dice Roll Animation Overlay */
+.mobile-dice-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+  pointer-events: auto;
+}
+
+.mobile-dice-card {
+  background: linear-gradient(180deg, rgba(26, 32, 53, 0.96) 0%, rgba(15, 23, 42, 0.98) 100%);
+  border: 2px solid rgba(245, 158, 11, 0.6);
+  border-radius: var(--radius-xl, 16px);
+  box-shadow: 0 0 35px rgba(245, 158, 11, 0.35), 0 20px 45px rgba(0, 0, 0, 0.85);
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  max-width: 270px;
+  width: 82%;
+  animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.mobile-dice-header {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #FCD34D;
+  text-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
+  text-transform: uppercase;
+}
+
+.mobile-dice-stage {
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-dice-footer {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.mobile-dice-status-rolling {
+  color: #38BDF8;
+  font-weight: 600;
+  animation: pulse 1s infinite;
+}
+
+.mobile-dice-status-landed {
+  color: #4ADE80;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .board-map-wrapper {
@@ -6115,5 +6231,156 @@ body {
     -webkit-overflow-scrolling: touch !important;
     padding: 10px !important;
     box-sizing: border-box !important;
+  }
+
+  /* Mobile Board Zoom HUD Positioning */
+  .board-zoom-hud {
+    right: 8px !important;
+    bottom: 58px !important;
+    gap: 4px !important;
+  }
+
+  .zoom-hud-btn {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 0.85rem !important;
+    border-radius: 6px !important;
+  }
+
+  /* Responsive Overlays & Modals on Mobile (Card Clue, Hazard/Danger, Event, Choice, Maximize) */
+  .modal-overlay {
+    padding: 8px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+  }
+
+  .modal {
+    max-width: 95% !important;
+    width: 95% !important;
+    max-height: 88vh !important;
+    padding: 16px 14px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: var(--radius-lg, 12px) !important;
+    box-sizing: border-box !important;
+  }
+
+  .modal-title {
+    font-size: 1.05rem !important;
+    margin-bottom: 8px !important;
+    letter-spacing: 1px !important;
+  }
+
+  .card-display {
+    margin: 6px 0 !important;
+  }
+
+  .card-display img {
+    max-height: 150px !important;
+    max-width: 85% !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+    margin: 0 auto !important;
+    display: block !important;
+    border-radius: 8px !important;
+  }
+
+  .card-display-title {
+    font-size: 0.95rem !important;
+    margin-top: 6px !important;
+  }
+
+  .card-display-desc {
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+    margin-top: 4px !important;
+    max-height: 110px !important;
+    overflow-y: auto !important;
+    padding: 6px 8px !important;
+    background: rgba(0, 0, 0, 0.4) !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+  }
+
+  .modal-dice {
+    margin-top: 8px !important;
+    gap: 8px !important;
+  }
+
+  .modal-actions {
+    margin-top: 10px !important;
+    gap: 8px !important;
+  }
+
+  .modal-actions button,
+  .modal-actions .btn {
+    width: 100% !important;
+    min-height: 38px !important;
+    font-size: 0.82rem !important;
+    font-weight: 800 !important;
+    padding: 8px 12px !important;
+  }
+
+  /* ChoiceModal responsive rules on mobile */
+  .mystery-cards-row {
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+  }
+
+  .mystery-card {
+    width: 105px !important;
+    padding: 8px 6px !important;
+  }
+
+  /* Side card notifications on mobile */
+  .side-card-overlay {
+    top: 78px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: none !important;
+    padding: 10px 12px !important;
+    z-index: 1000 !important;
+  }
+
+  .side-card-content-preview {
+    gap: 8px !important;
+  }
+
+  .side-card-thumb {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+}
+
+/* Landscape Mobile Modal Optimization */
+@media (max-height: 500px) {
+  .modal {
+    max-height: 94vh !important;
+    padding: 10px 12px !important;
+  }
+  .card-display img {
+    max-height: 90px !important;
+  }
+  .modal-title {
+    font-size: 0.90rem !important;
+    margin-bottom: 4px !important;
+  }
+  .card-display-desc {
+    max-height: 65px !important;
+    font-size: 0.72rem !important;
+  }
+  .modal-actions {
+    margin-top: 6px !important;
+  }
+  .modal-actions button,
+  .modal-actions .btn {
+    min-height: 32px !important;
+    font-size: 0.75rem !important;
+    padding: 4px 8px !important;
   }
 }

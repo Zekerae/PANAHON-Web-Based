@@ -1,4 +1,4 @@
-import React, { useState, memo } from "react";
+import React, { useState, useRef, useCallback, memo } from "react";
 import sounds from "../../sound.js";
 import {
   ERA_ORDER,
@@ -30,6 +30,192 @@ function GameBoard({
   onMoveToTile
 }) {
   const [cameraMode, setCameraMode] = useState("full");
+  const [zoom, setZoom] = useState(1.0);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+
+  const viewportRef = useRef(null);
+  const mapWrapperRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const touchStartPosRef = useRef({ x: 0, y: 0 });
+  const hasDraggedRef = useRef(false);
+  const initialPinchDistRef = useRef(null);
+  const initialPinchZoomRef = useRef(1.0);
+
+  // Bounds clamping to keep map within accessible limits like Clash of Clans
+  const clampPan = useCallback((x, y, currentZoom) => {
+    if (!viewportRef.current) return { x, y };
+    const vw = viewportRef.current.clientWidth || 800;
+    const vh = viewportRef.current.clientHeight || 600;
+    const bw = Math.min(vw, 960);
+    const bh = (bw * 765) / 1024;
+
+    const maxPanX = Math.max(0, (bw * currentZoom - vw) / 2) + vw * 0.35;
+    const maxPanY = Math.max(0, (bh * currentZoom - vh) / 2) + vh * 0.35;
+
+    return {
+      x: Math.min(maxPanX, Math.max(-maxPanX, x)),
+      y: Math.min(maxPanY, Math.max(-maxPanY, y))
+    };
+  }, []);
+
+  // Preset camera quadrant target calculator
+  const setCameraPreset = useCallback((camId) => {
+    sounds.btnClick();
+    setCameraMode(camId);
+    if (!viewportRef.current) return;
+    const vw = viewportRef.current.clientWidth || 800;
+    const vh = viewportRef.current.clientHeight || 600;
+
+    let targetZoom = 1.0;
+    let targetPan = { x: 0, y: 0 };
+
+    if (camId === 'full') {
+      targetZoom = 1.0;
+      targetPan = { x: 0, y: 0 };
+    } else if (camId === 'focus-spanish') {
+      targetZoom = 2.0;
+      targetPan = clampPan(vw * 0.25, vh * 0.22, 2.0);
+    } else if (camId === 'focus-american') {
+      targetZoom = 2.0;
+      targetPan = clampPan(-vw * 0.25, vh * 0.22, 2.0);
+    } else if (camId === 'focus-japanese') {
+      targetZoom = 2.0;
+      targetPan = clampPan(-vw * 0.25, -vh * 0.22, 2.0);
+    } else if (camId === 'focus-myth') {
+      targetZoom = 2.0;
+      targetPan = clampPan(vw * 0.25, -vh * 0.22, 2.0);
+    } else if (camId === 'auto') {
+      const era = currentPlayer?.currentEra || 'spanish';
+      targetZoom = 2.0;
+      if (era === 'spanish') targetPan = clampPan(vw * 0.25, vh * 0.22, 2.0);
+      else if (era === 'american') targetPan = clampPan(-vw * 0.25, vh * 0.22, 2.0);
+      else if (era === 'japanese') targetPan = clampPan(-vw * 0.25, -vh * 0.22, 2.0);
+      else targetPan = clampPan(vw * 0.25, -vh * 0.22, 2.0);
+    }
+
+    setZoom(targetZoom);
+    setPan(targetPan);
+  }, [currentPlayer?.currentEra, clampPan]);
+
+  const handleZoomStep = (delta) => {
+    sounds.btnClick();
+    setZoom((prev) => {
+      const nextZoom = Math.min(3.2, Math.max(0.85, Number((prev + delta).toFixed(2))));
+      setPan((p) => clampPan(p.x, p.y, nextZoom));
+      return nextZoom;
+    });
+    setCameraMode('custom');
+  };
+
+  const handleResetView = () => {
+    sounds.btnClick();
+    setZoom(1.0);
+    setPan({ x: 0, y: 0 });
+    setCameraMode('full');
+  };
+
+  // Touch gesture handling (1 finger pan, 2 finger pinch-to-zoom)
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 1) {
+      isDraggingRef.current = true;
+      hasDraggedRef.current = false;
+      touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      dragStartRef.current = {
+        x: e.touches[0].clientX - pan.x,
+        y: e.touches[0].clientY - pan.y
+      };
+      setIsDragging(true);
+    } else if (e.touches.length === 2) {
+      isDraggingRef.current = false;
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      initialPinchDistRef.current = dist;
+      initialPinchZoomRef.current = zoom;
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2 && initialPinchDistRef.current) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const scaleFactor = dist / initialPinchDistRef.current;
+      const nextZoom = Math.min(3.2, Math.max(0.85, initialPinchZoomRef.current * scaleFactor));
+      setZoom(nextZoom);
+      setPan((p) => clampPan(p.x, p.y, nextZoom));
+      setCameraMode('custom');
+    } else if (e.touches.length === 1 && isDraggingRef.current) {
+      const dx = e.touches[0].clientX - touchStartPosRef.current.x;
+      const dy = e.touches[0].clientY - touchStartPosRef.current.y;
+      if (Math.hypot(dx, dy) > 6) {
+        hasDraggedRef.current = true;
+      }
+      const rawX = e.touches[0].clientX - dragStartRef.current.x;
+      const rawY = e.touches[0].clientY - dragStartRef.current.y;
+      setPan(clampPan(rawX, rawY, zoom));
+      setCameraMode('custom');
+    }
+  };
+
+  const handleTouchEnd = () => {
+    isDraggingRef.current = false;
+    initialPinchDistRef.current = null;
+    setIsDragging(false);
+    setTimeout(() => {
+      hasDraggedRef.current = false;
+    }, 120);
+  };
+
+  // Mouse drag handling (Desktop)
+  const handleMouseDown = (e) => {
+    if (e.button !== 0) return;
+    isDraggingRef.current = true;
+    hasDraggedRef.current = false;
+    touchStartPosRef.current = { x: e.clientX, y: e.clientY };
+    dragStartRef.current = {
+      x: e.clientX - pan.x,
+      y: e.clientY - pan.y
+    };
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDraggingRef.current) return;
+    const dx = e.clientX - touchStartPosRef.current.x;
+    const dy = e.clientY - touchStartPosRef.current.y;
+    if (Math.hypot(dx, dy) > 6) {
+      hasDraggedRef.current = true;
+    }
+    const rawX = e.clientX - dragStartRef.current.x;
+    const rawY = e.clientY - dragStartRef.current.y;
+    setPan(clampPan(rawX, rawY, zoom));
+    setCameraMode('custom');
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+    setIsDragging(false);
+    setTimeout(() => {
+      hasDraggedRef.current = false;
+    }, 120);
+  };
+
+  // Mouse wheel zoom
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const delta = -e.deltaY * 0.0018;
+    setZoom((prev) => {
+      const nextZoom = Math.min(3.2, Math.max(0.85, prev + delta));
+      setPan((p) => clampPan(p.x, p.y, nextZoom));
+      return nextZoom;
+    });
+    setCameraMode('custom');
+  };
 
   if (!board || !currentPlayer) return null;
 
@@ -38,12 +224,13 @@ function GameBoard({
 
   return (
     <main className="board-container">
+      {/* Top Camera Presets Bar */}
       <div className="board-camera-bar" role="toolbar" aria-label="Board camera controls">
         {CAMERA_OPTIONS.map((cam) => (
           <button
             key={cam.id}
             className={`board-cam-btn ${cameraMode === cam.id ? "active" : ""}`}
-            onClick={() => { sounds.btnClick(); setCameraMode(cam.id); }}
+            onClick={() => setCameraPreset(cam.id)}
             title={cam.label}
             aria-label={cam.label}
           >
@@ -60,8 +247,60 @@ function GameBoard({
         </div>
       )}
 
-      <div className="board-viewport">
-        <div className={`board-map-wrapper ${cameraMode === "auto" ? `focus-${currentPlayer.currentEra}` : (cameraMode === "full" ? "" : cameraMode)}`}>
+      {/* Interactive Clash-of-Clans Pan & Zoom Viewport */}
+      <div
+        ref={viewportRef}
+        className={`board-viewport ${isDragging ? 'is-dragging' : ''}`}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+      >
+        {/* Floating Zoom HUD (+ / - / Reset) */}
+        <div className="board-zoom-hud" role="group" aria-label="Zoom controls">
+          <button
+            type="button"
+            className="zoom-hud-btn"
+            onClick={() => handleZoomStep(0.35)}
+            title="Zoom In (+)"
+            aria-label="Zoom In"
+          >
+            <span>➕</span>
+          </button>
+          <button
+            type="button"
+            className="zoom-hud-btn"
+            onClick={() => handleZoomStep(-0.35)}
+            title="Zoom Out (-)"
+            aria-label="Zoom Out"
+          >
+            <span>➖</span>
+          </button>
+          <button
+            type="button"
+            className="zoom-hud-btn"
+            onClick={handleResetView}
+            title="Reset View (Fit Full Map)"
+            aria-label="Reset View"
+          >
+            <span>⤢</span>
+          </button>
+        </div>
+
+        {/* Freely Translatable & Scalable Board Map */}
+        <div
+          ref={mapWrapperRef}
+          className="board-map-wrapper"
+          style={{
+            transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+            transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)'
+          }}
+        >
           {/* SVG Path lines connecting circle spaces */}
           <svg className="board-paths-svg" viewBox="0 0 1024 765" preserveAspectRatio="none">
             {ERA_ORDER.map(era => {
@@ -179,7 +418,11 @@ function GameBoard({
                     className={`mario-party-space space-${tileType} ${isReachable ? "reachable-space" : ""} ${playersOnTile.length > 0 ? "has-players" : ""}`}
                     style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
                     title={`${(tileType || "").toUpperCase()} (Space #${idx + 1} - ${ERA_NAMES[era] || era})`}
-                    onClick={() => onMoveToTile && onMoveToTile(t.id)}
+                    onClick={() => {
+                      if (!hasDraggedRef.current && onMoveToTile) {
+                        onMoveToTile(t.id);
+                      }
+                    }}
                   >
                     {isReachable && <div className="reachable-arrow-indicator">▼</div>}
                     {TILE_IMAGES?.[tileType] ? (
@@ -208,7 +451,7 @@ function GameBoard({
                             >
                               {isPawnTurn && <div className="pawn-turn-arrow">▼ YOU</div>}
                               <div className="pawn-badge" style={{ background: p.color }}>P{(p.id ?? 0) + 1}</div>
-                              {p.role?.avatar && <img src={p.role.avatar} className="pawn-sprite" alt={p.name} />}
+                              {p.role?.avatar && <img src={p.role.avatar} className="pawn-sprite" alt={p.name} draggable={false} />}
                               <div className="pawn-pedestal" style={{ background: p.color, boxShadow: `0 0 8px ${p.color}` }}></div>
                             </div>
                           );

@@ -6,6 +6,7 @@ import GameBoard from './game/GameBoard.jsx';
 import GameActions from './game/GameActions.jsx';
 import PlayerHand from './game/PlayerHand.jsx';
 import PauseModal from './PauseModal.jsx';
+import Dice from './game/Dice.jsx';
 
 function GameScreen({
   state,
@@ -23,6 +24,7 @@ function GameScreen({
 }) {
   const [activeHandTab, setActiveHandTab] = useState('mission');
   const [inspectedPlayerId, setInspectedPlayerId] = useState(null);
+  const [showMobileDice, setShowMobileDice] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [mobileGameTab, setMobileGameTab] = useState("board");
   const [isPaused, setIsPaused] = useState(false);
@@ -95,6 +97,7 @@ function GameScreen({
   const handleRollDice = useCallback(() => {
     if (isRolling || state.phase !== 'rolling' || !isMyTurn) return;
     setIsRolling(true);
+    setShowMobileDice(true);
     sounds.diceRoll();
 
     setTimeout(() => {
@@ -105,7 +108,11 @@ function GameScreen({
         }
       }
       setIsRolling(false);
-    }, 600);
+      // Auto-hide mobile dice after displaying result so player sees the roll
+      setTimeout(() => {
+        setShowMobileDice(false);
+      }, 950);
+    }, 650);
   }, [isRolling, state.phase, isMyTurn, engine, network]);
 
   // Spacebar shortcut to roll dice
@@ -299,6 +306,40 @@ function GameScreen({
         onMoveToTile={handleMoveToTile}
       />
 
+      {/* MOBILE DICE ROLL OVERLAY */}
+      {showMobileDice && (
+        <div
+          className="mobile-dice-overlay"
+          onClick={() => setShowMobileDice(false)}
+          role="dialog"
+          aria-label="Dice Roll Animation"
+        >
+          <div className="mobile-dice-card" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-dice-header">
+              {isRolling ? 'ROLLING CHRONO DIE...' : `ROLLED ${state.diceResult || 1}!`}
+            </div>
+            <div className="mobile-dice-stage">
+              <Dice
+                value={state.diceResult}
+                isRolling={isRolling}
+                size="lg"
+                theme="chrono"
+                isInteractive={false}
+              />
+            </div>
+            <div className="mobile-dice-footer">
+              {isRolling ? (
+                <span className="mobile-dice-status-rolling">⚡ Quantum flux spinning...</span>
+              ) : (
+                <span className="mobile-dice-status-landed">
+                  {state.movementDirection === 'backward' ? '⏪' : '🚶'} <strong>{state.movesRemaining || state.diceResult || 1}</strong> Moves Granted
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MOBILE BOARD QUICK ACTION DOCK (Floating on map in mobile view) */}
       <div className="mobile-board-quick-dock">
         {isMyTurn ? (
@@ -317,7 +358,7 @@ function GameScreen({
             {state.phase === 'moving' && (
               <div className="mobile-dock-moving-group">
                 <span className="mobile-dock-moves-badge">
-                  {state.movementDirection === 'backward' ? '⏪' : '🚶'} Moves: <strong>{state.movesRemaining}</strong>
+                  🎲 <strong>{state.diceResult || state.movesRemaining}</strong> &bull; {state.movementDirection === 'backward' ? '⏪' : '🚶'} Moves: <strong>{state.movesRemaining}</strong>
                 </span>
 
                 {canReverseTime && (

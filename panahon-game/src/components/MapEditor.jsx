@@ -383,6 +383,23 @@ export default function MapEditor({ onClose }) {
     triggerToast(`Disconnected Tile #${fromIdx + 1} ➔ Tile #${toIdx + 1}`, 'info');
   };
 
+  // Swap connection order for junctions
+  const handleSwapConnectionOrder = (era, idx) => {
+    sounds.btnClick();
+    setConnections(prev => {
+      const next = { ...prev };
+      const eraConns = { ...(next[era] || {}) };
+      const list = [...(eraConns[idx] || [])];
+      if (list.length >= 2) {
+        list.reverse();
+      }
+      eraConns[idx] = list;
+      next[era] = eraConns;
+      return next;
+    });
+    triggerToast('Swapped connection priority!');
+  };
+
   // Auto-chain all tiles sequentially (1 -> 2 -> ... -> N)
   const handleAutoChainEra = (era) => {
     sounds.portal();
@@ -485,22 +502,48 @@ export default function MapEditor({ onClose }) {
     }
   };
 
-  // Path walking simulation preview following the exact node-graph connections
+  // Path walking simulation preview following the exact node-graph connections with smart junction exit
   useEffect(() => {
     if (!isPreviewWalking) return;
     const curEra = activeEra === 'all' ? 'spanish' : activeEra;
     const max = coords[curEra]?.length || 1;
     let step = 0;
+    let prevStep = null;
     setPreviewStep(0);
 
     const timer = setInterval(() => {
       const eraConns = connections[curEra] || {};
       const nextList = eraConns[step];
-      if (Array.isArray(nextList) && nextList.length > 0) {
-        step = nextList[0];
+
+      let next;
+      if (!Array.isArray(nextList) || nextList.length === 0 || (nextList.length === 1 && nextList[0] === prevStep)) {
+        if (prevStep !== null && prevStep > step) {
+          next = step <= 0 ? 1 : step - 1;
+        } else {
+          next = (Array.isArray(nextList) && nextList.length === 1) ? nextList[0] : (step + 1) % max;
+        }
+      } else if (nextList.length === 1) {
+        next = nextList[0];
       } else {
-        step = (step + 1) % max;
+        // Multiple targets (Junction like Tile 15 having [16, 14]):
+        if (prevStep !== null) {
+          if (prevStep > step) {
+            // Coming from loop / higher index (e.g. Tile 25 -> Tile 15): exit to lower index (Tile 14)!
+            const exitBranch = nextList.find(t => t < step && t !== prevStep);
+            if (exitBranch !== undefined) next = exitBranch;
+          } else if (prevStep < step) {
+            // Coming from outward trail / lower index (e.g. Tile 14 -> Tile 15): enter loop (Tile 16)!
+            const forwardBranch = nextList.find(t => t > step && t !== prevStep);
+            if (forwardBranch !== undefined) next = forwardBranch;
+          }
+        }
+        if (next === undefined) {
+          next = nextList.find(t => t !== prevStep) ?? nextList[0];
+        }
       }
+
+      prevStep = step;
+      step = next;
       setPreviewStep(step);
       sounds.moveStep();
     }, 450);
@@ -1055,8 +1098,22 @@ export default function MapEditor({ onClose }) {
                     {/* Connected Targets Badges */}
                     {(() => {
                       const targets = connections[selectedTile.era]?.[selectedTile.index] || [];
+                      const isJunction = targets.length >= 2;
                       return (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginBottom: '4px' }}>
+                        <div>
+                          {isJunction && (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.60rem', color: '#34D399', background: 'rgba(16, 185, 129, 0.15)', padding: '2px 5px', borderRadius: '3px', marginBottom: '4px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                              <span>🔀 Junction: Outward ➔ #${targets[0] + 1} | Return ➔ #${targets[1] + 1}</span>
+                              <button
+                                onClick={() => handleSwapConnectionOrder(selectedTile.era, selectedTile.index)}
+                                style={{ background: '#10B981', color: '#fff', border: 'none', borderRadius: '3px', padding: '1px 4px', fontSize: '0.58rem', cursor: 'pointer', fontWeight: 700 }}
+                                title="Swap which path is outward vs return"
+                              >
+                                ⇄ Swap
+                              </button>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginBottom: '4px' }}>
                           {targets.length === 0 ? (
                             <span style={{ fontSize: '0.60rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
                               No outgoing path (dead end)
@@ -1099,6 +1156,7 @@ export default function MapEditor({ onClose }) {
                               </div>
                             ))
                           )}
+                        </div>
                         </div>
                       );
                     })()}

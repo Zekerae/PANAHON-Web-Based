@@ -341,29 +341,49 @@ export class GameEngine {
     return true;
   }
 
-  // Determine next tile index using the custom node-graph connections (100% data-driven)
+  // Determine next tile index using the custom node-graph connections with smart junction routing
   getNextTileIndex(player, era, currentIdx, dir = 1) {
     const eraTiles = this.state.board[era];
     const total = eraTiles.length;
     const connections = (typeof getActivePathConnections === 'function') ? getActivePathConnections() : {};
     const eraConnections = connections[era];
 
-    if (eraConnections && Array.isArray(eraConnections[currentIdx]) && eraConnections[currentIdx].length > 0) {
-      if (dir > 0) {
-        const targets = eraConnections[currentIdx];
-        if (targets.length === 1) return targets[0];
-        const prev = player.previousTileIndex;
-        const choice = targets.find(t => t !== prev) ?? targets[0];
-        return choice;
-      } else {
-        const incoming = [];
-        for (const [fromStr, toList] of Object.entries(eraConnections)) {
-          if (Array.isArray(toList) && toList.includes(currentIdx)) {
-            incoming.push(parseInt(fromStr, 10));
-          }
+    if (eraConnections) {
+      const targets = eraConnections[currentIdx];
+      const prev = player?.previousTileIndex;
+
+      // Handle return trail if single connection is a U-turn back to prev
+      if (!Array.isArray(targets) || targets.length === 0 || (targets.length === 1 && targets[0] === prev)) {
+        if (prev !== undefined && prev !== null && prev > currentIdx) {
+          return currentIdx <= 0 ? 1 : currentIdx - 1;
         }
-        if (incoming.length > 0) return incoming[0];
+        if (Array.isArray(targets) && targets.length === 1) return targets[0];
+        return dir > 0 ? (currentIdx + 1) % total : (currentIdx - 1 + total) % total;
       }
+
+      if (targets.length === 1) {
+        return targets[0];
+      }
+
+      // Multiple targets (Junction, e.g. Tile 15 having [16, 14]):
+      if (prev !== undefined && prev !== null) {
+        // Arrived from loop / higher index (e.g. from Tile 25 [idx 24] into Tile 15 [idx 14]):
+        // Take exit branch to lower index (e.g. Tile 14 [idx 13])!
+        if (prev > currentIdx) {
+          const exitBranch = targets.find(t => t < currentIdx && t !== prev);
+          if (exitBranch !== undefined) return exitBranch;
+        }
+        // Arrived from outward trail / lower index (e.g. from Tile 14 [idx 13] into Tile 15 [idx 14]):
+        // Continue forward into loop (e.g. Tile 16 [idx 15])!
+        if (prev < currentIdx) {
+          const forwardBranch = targets.find(t => t > currentIdx && t !== prev);
+          if (forwardBranch !== undefined) return forwardBranch;
+        }
+        const nonPrev = targets.find(t => t !== prev);
+        if (nonPrev !== undefined) return nonPrev;
+      }
+
+      return targets[0];
     }
 
     if (dir > 0) {
@@ -386,6 +406,7 @@ export class GameEngine {
 
     // Move
     eraTiles[currentIdx].players = eraTiles[currentIdx].players.filter(id => id !== player.id);
+    player.previousTileIndex = currentIdx;
     player.tileIndex = newIdx;
     eraTiles[newIdx].players.push(player.id);
     this.state.movesRemaining--;
@@ -1183,7 +1204,9 @@ export class GameEngine {
     const step = spaces >= 0 ? 1 : -1;
     let count = Math.abs(spaces);
     while (count > 0) {
-      cur = this.getNextTileIndex(player, player.currentEra, cur, step);
+      const next = this.getNextTileIndex(player, player.currentEra, cur, step);
+      player.previousTileIndex = cur;
+      cur = next;
       count--;
     }
     player.tileIndex = cur;

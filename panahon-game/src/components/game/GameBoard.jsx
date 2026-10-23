@@ -140,7 +140,7 @@ function GameBoard({
                 return (
                   <div
                     key={t.id || `${era}_${idx}`}
-                    className={`mario-party-space space-${tileType} ${isReachable ? "reachable-space" : ""}`}
+                    className={`mario-party-space space-${tileType} ${isReachable ? "reachable-space" : ""} ${playersOnTile.length > 0 ? "has-players" : ""}`}
                     style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
                     title={`${(tileType || "").toUpperCase()} (Space #${idx + 1} - ${ERA_NAMES[era] || era})`}
                     onClick={() => onMoveToTile && onMoveToTile(t.id)}

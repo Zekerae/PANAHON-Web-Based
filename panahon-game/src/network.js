@@ -2,6 +2,7 @@
 
 import sounds from './sound.js';
 import { getSupabaseClient, isSupabaseAvailable } from './supabaseClient.js';
+import { getActiveTileCoordinates, getActiveTileLayouts, getActivePathConnections, getActiveJunctionRules, saveCustomMap } from './gameData.js';
 
 export class NetworkManager {
   constructor(gameEngine) {
@@ -543,7 +544,13 @@ export class NetworkManager {
           id: idx,
           name: p.name,
           roleKey: p.roleKey
-        }))
+        })),
+        customMap: {
+          coords: getActiveTileCoordinates(),
+          layouts: getActiveTileLayouts(),
+          connections: getActivePathConnections(),
+          junctionRules: getActiveJunctionRules()
+        }
       };
 
       this.channel.send({
@@ -720,8 +727,21 @@ export class NetworkManager {
         break;
 
       case 'GAME_START':
+        if (msg.customMap) {
+          try {
+            saveCustomMap(
+              msg.customMap.coords,
+              msg.customMap.layouts,
+              null,
+              null,
+              msg.customMap.connections,
+              msg.customMap.junctionRules
+            );
+            console.log('[Network] Synced Host custom map to guest session!');
+          } catch (_) {}
+        }
         if (this.onGameStart) {
-          this.onGameStart(msg.players);
+          this.onGameStart(msg.players, msg.customMap);
         } else if (this.onStateUpdate && msg.state) {
           this.onStateUpdate(msg.state);
         }

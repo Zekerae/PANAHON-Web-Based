@@ -4,7 +4,8 @@ import { GameEngine } from './gameEngine.js';
 import { NetworkManager } from './network.js';
 import sounds from './sound.js';
 import { aiController } from './aiPlayer.js';
-import { ROLES } from './gameData.js';
+import { ROLES, saveCustomMap } from './gameData.js';
+import { loadMapFromSupabase } from './supabaseClient.js';
 
 import TitleScreen from './components/TitleScreen.jsx';
 import LobbyScreen from './components/LobbyScreen.jsx';
@@ -27,6 +28,23 @@ export default function App() {
   }
   const engine = engineRef.current;
   const network = networkRef.current;
+
+  // Sync map from Supabase Cloud on initial app load
+  useEffect(() => {
+    loadMapFromSupabase().then(cloudMap => {
+      if (cloudMap && cloudMap.coords) {
+        saveCustomMap(
+          cloudMap.coords,
+          cloudMap.layouts,
+          null,
+          null,
+          cloudMap.connections,
+          cloudMap.junctionRules
+        );
+        console.log('[Supabase Cloud Sync] Loaded active custom map from cloud!');
+      }
+    }).catch(() => {});
+  }, []);
 
   // Screen Routing
   const [currentScreen, setCurrentScreen] = useState('title'); // 'title' | 'lobby' | 'game' | 'endgame'

@@ -59,7 +59,7 @@ export default function PauseModal({
   return (
     <div className="modal-overlay pause-modal-overlay" onClick={onResume} style={{ zIndex: 12000 }}>
       <div
-        className="modal pause-modal animate-scale-up"
+        className="modal pause-modal animate-scale-up mobile-compact-pause"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

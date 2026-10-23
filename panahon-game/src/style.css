@@ -1,3 +1,29 @@
+
+/* Firefox and Universal Thin Dark Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56, 189, 248, 0.45) rgba(15, 23, 42, 0.85);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.85);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.45);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.8);
+}
+
 /* ===== PANAHON: CHRONO SHIFT - Design System ===== */
 
 /* --- CSS Variables / Tokens --- */
@@ -6243,5 +6269,358 @@ body {
     max-height: 90vh !important;
     max-height: 90dvh !important;
     padding: 12px 14px !important;
+  }
+}
+
+
+/* ==========================================================================
+   ENHANCED MOBILE LANDSCAPE & COMPACT VIEWPORT POLISH
+   ========================================================================== */
+@media (max-width: 900px), (max-height: 550px) {
+  /* Title Screen: Clean layout, hide central orb to avoid overlapping bug tag & drawer */
+  .duelyst-orb-section {
+    display: none !important;
+  }
+
+  .duelyst-left-section {
+    width: 290px !important;
+    gap: 4px !important;
+    padding: 8px 14px !important;
+    max-height: 98vh !important;
+    justify-content: center !important;
+  }
+
+  .duelyst-logo-wrapper {
+    margin-bottom: 4px !important;
+  }
+
+  .duelyst-logo {
+    font-size: 1.55rem !important;
+    letter-spacing: 2px !important;
+  }
+
+  .duelyst-subtitle {
+    font-size: 0.65rem !important;
+    letter-spacing: 2px !important;
+    margin-top: 1px !important;
+  }
+
+  .duelyst-nav-menu {
+    gap: 2px !important;
+  }
+
+  .duelyst-menu-link {
+    padding: 4px 8px !important;
+    font-size: 0.82rem !important;
+  }
+
+  .duelyst-sub-drawer {
+    padding: 4px 6px !important;
+    gap: 3px !important;
+    max-width: 270px !important;
+    margin: 3px 0 !important;
+  }
+
+  .duelyst-sub-btn {
+    padding: 4px 8px !important;
+  }
+
+  .duelyst-sub-btn .sub-btn-title {
+    font-size: 0.66rem !important;
+  }
+
+  .duelyst-sub-btn .sub-btn-desc {
+    font-size: 0.56rem !important;
+  }
+
+  /* Universal Compact Modal Rules */
+  .modal,
+  .duelyst-modal,
+  .card-preview-modal,
+  .guide-modal-container,
+  .databank-modal,
+  .bug-report-modal {
+    max-height: 96vh !important;
+    max-height: 96dvh !important;
+    padding: 10px 14px !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+  }
+
+  .modal-title {
+    font-size: 1.05rem !important;
+    margin-bottom: 6px !important;
+  }
+
+  .modal-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-right: 4px !important;
+  }
+
+  /* Game Header Round Badge */
+  .game-header-round {
+    white-space: nowrap !important;
+    font-size: 0.72rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Pause Modal Compact 2-Column Grid Layout */
+  .mobile-compact-pause {
+    max-height: 98vh !important;
+    padding: 10px 14px !important;
+  }
+
+  .mobile-compact-pause .pause-icon-badge,
+  .mobile-compact-pause .pause-subtitle,
+  .mobile-compact-pause .pause-footer-hint {
+    display: none !important;
+  }
+
+  .mobile-compact-pause .pause-header {
+    margin-bottom: 4px !important;
+  }
+
+  .mobile-compact-pause .pause-title {
+    font-size: 1.15rem !important;
+    letter-spacing: 1.5px !important;
+    margin: 0 !important;
+  }
+
+  .mobile-compact-pause .pause-telemetry {
+    padding: 4px 10px !important;
+    margin-bottom: 6px !important;
+    gap: 2px !important;
+    font-size: 0.72rem !important;
+  }
+
+  .mobile-compact-pause .pause-telemetry-row {
+    font-size: 0.7rem !important;
+  }
+
+  .mobile-compact-pause .pause-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+  }
+
+  .mobile-compact-pause .pause-btn-resume {
+    grid-column: 1 / -1 !important;
+    padding: 7px 12px !important;
+    font-size: 0.82rem !important;
+    width: 100% !important;
+  }
+
+  .mobile-compact-pause .pause-btn,
+  .mobile-compact-pause .pause-btn-abandon {
+    padding: 6px 10px !important;
+    font-size: 0.72rem !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  /* Collection Modal Responsiveness */
+  .collection-desc {
+    display: none !important;
+  }
+
+  .collection-modal-actions {
+    margin-top: 6px !important;
+  }
+
+  .collection-modal-actions .btn {
+    padding: 4px 10px !important;
+    font-size: 0.75rem !important;
+  }
+
+  .collection-grid {
+    grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .collection-grid > div {
+    padding: 6px 4px !important;
+  }
+
+  .collection-grid img {
+    max-height: 38px !important;
+  }
+
+  .collection-grid div[style*="height: 70px"] {
+    height: 40px !important;
+    margin-bottom: 4px !important;
+  }
+
+  /* DataBank Modal */
+  .databank-header-sub {
+    display: none !important;
+  }
+
+  /* Guide Modal / Field Manual */
+  .guide-header-sub {
+    display: none !important;
+  }
+
+  .guide-modal-container h2 {
+    font-size: 1.05rem !important;
+  }
+
+  .guide-modal-container div[style*="height: 42px"] {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 1rem !important;
+  }
+
+  /* Bug Report Modal */
+  .bug-report-modal .modal-body {
+    overflow-y: auto !important;
+    max-height: calc(96vh - 60px) !important;
+  }
+
+  .bug-report-textarea {
+    min-height: 44px !important;
+    height: 48px !important;
+    padding: 6px 8px !important;
+    font-size: 0.8rem !important;
+  }
+
+  
+  /* Extra compact rules for Bug Report Modal */
+  .bug-report-modal .bug-desc,
+  .bug-report-modal .bug-telemetry {
+    display: none !important;
+  }
+
+  .bug-report-modal form > div {
+    margin-bottom: 6px !important;
+  }
+
+  .bug-report-modal select {
+    padding: 4px 8px !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* Extra compact rules for Lobby Screen */
+  .mobile-compact-lobby .lobby-dossier-card {
+    padding: 8px 12px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .mobile-compact-lobby .lobby-dossier-desc {
+    display: none !important;
+  }
+
+  .mobile-compact-lobby .lobby-slots-list {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .mobile-compact-lobby .lobby-slots-list > div {
+    padding: 6px 8px !important;
+  }
+
+  .mobile-compact-lobby .lobby-actions-footer {
+    padding-top: 6px !important;
+  }
+
+  /* Studio PIN Gate Modal */
+  .studio-pin-card {
+    padding: 10px 14px !important;
+    max-width: 290px !important;
+  }
+
+  .studio-pin-card button[style*="padding: 10px"] {
+    padding: 4px !important;
+    height: 32px !important;
+    font-size: 0.95rem !important;
+  }
+
+  .studio-pin-card input {
+    padding: 4px 8px !important;
+    height: 32px !important;
+  }
+
+  /* Lobby Screen Compactness */
+  .mobile-compact-lobby {
+    padding: 10px 14px 20px !important;
+  }
+
+  .mobile-compact-lobby .lobby-title {
+    font-size: 1.25rem !important;
+    margin-bottom: 2px !important;
+  }
+
+  .mobile-compact-lobby .lobby-subhead {
+    display: none !important;
+  }
+
+  .mobile-compact-lobby div[style*="height: 2px"] {
+    margin: 3px auto 6px !important;
+  }
+
+  .mobile-compact-lobby div[style*="display: grid"][style*="gridTemplateColumns"] {
+    gap: 6px !important;
+  }
+
+  /* Castaways Tab - 2x2 Grid of Operatives */
+  .game-screen.mobile-tab-players .player-sidebar-list {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+  }
+
+  .game-screen.mobile-tab-players .player-card {
+    padding: 6px 8px !important;
+    margin-bottom: 0 !important;
+  }
+
+  .game-screen.mobile-tab-players .player-avatar-small {
+    width: 26px !important;
+    height: 26px !important;
+  }
+
+  .game-screen.mobile-tab-players .stat-row {
+    font-size: 0.66rem !important;
+    margin-bottom: 2px !important;
+  }
+
+  .game-screen.mobile-tab-players .stat-bar {
+    width: 46px !important;
+    height: 4px !important;
+  }
+
+  .game-screen.mobile-tab-players .chat-section,
+  .game-screen.mobile-tab-players .timeline-comms {
+    margin-top: 6px !important;
+    max-height: 90px !important;
+  }
+
+  /* EndGame Screen on Mobile */
+  .endgame-screen {
+    padding: 12px 14px 20px !important;
+  }
+
+  .endgame-screen div[style*="width: 80px"] {
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 1.4rem !important;
+    margin-bottom: 6px !important;
+  }
+
+  .endgame-screen h1 {
+    font-size: 1.15rem !important;
+    margin-bottom: 4px !important;
+  }
+
+  .endgame-screen p {
+    font-size: 0.72rem !important;
+    line-height: 1.3 !important;
+    margin-bottom: 12px !important;
   }
 }

@@ -142,7 +142,7 @@ export default function DataBankModal({ onClose }) {
   return (
     <div className="modal-overlay" style={{ zIndex: 12000 }}>
       <div
-        className="modal duelyst-modal"
+        className="modal duelyst-modal databank-modal"
         style={{
           maxWidth: '980px',
           width: '95%',
@@ -186,7 +186,7 @@ export default function DataBankModal({ onClose }) {
                   {filteredCards.length} RECORDS FOUND
                 </span>
               </h2>
-              <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '2px' }}>
+              <div className="databank-header-sub" style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '2px' }}>
                 Comprehensive archival intelligence on Clues, Historical Events, and Hazard Anomalies
               </div>
             </div>

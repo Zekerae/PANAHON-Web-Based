@@ -80,7 +80,7 @@ export default function LobbyScreen({
 
   return (
     <div
-      className="lobby-screen duelyst-theme"
+      className="lobby-screen duelyst-theme mobile-compact-lobby"
       style={{
         width: "100%",
         minHeight: "100vh",
@@ -97,6 +97,7 @@ export default function LobbyScreen({
       {/* Top Brand Header */}
       <div style={{ textAlign: "center", marginBottom: "20px" }}>
         <h1
+          className="lobby-title"
           style={{
             fontFamily: "var(--font-display)",
             fontSize: "2.2rem",
@@ -114,7 +115,7 @@ export default function LobbyScreen({
           background: "linear-gradient(90deg, transparent, #38BDF8, transparent)",
           margin: "6px auto 8px"
         }} />
-        <div style={{ fontSize: "0.78rem", color: "#94A3B8", letterSpacing: "1px" }}>
+        <div className="lobby-subhead" style={{ fontSize: "0.78rem", color: "#94A3B8", letterSpacing: "1px" }}>
           OPERATIVE CADRE CONFIGURATION & TIMELINE SYNCHRONIZATION
         </div>
       </div>
@@ -180,6 +181,7 @@ export default function LobbyScreen({
 
       {lobbyMode === "local" ? (
         <div
+          className="lobby-dossier-card"
           style={{
             background: "rgba(10, 14, 26, 0.95)",
             backdropFilter: "blur(16px)",
@@ -200,7 +202,7 @@ export default function LobbyScreen({
             </div>
           </div>
 
-          <p style={{ fontSize: "0.78rem", color: "#94A3B8", lineHeight: 1.5, margin: "0 0 14px" }}>
+          <p className="lobby-dossier-desc" style={{ fontSize: "0.78rem", color: "#94A3B8", lineHeight: 1.5, margin: "0 0 14px" }}>
             Configure each slot as <strong>👤 Human Operative</strong>, <strong>🤖 AI Construct</strong>, or <strong>🚫 Deactivated</strong>. Assign roles and calibrate AI parameters:
           </p>
 
@@ -235,7 +237,7 @@ export default function LobbyScreen({
           </div>
 
           {/* Slot Cards List */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
+          <div className="lobby-slots-list" style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
             {localPlayers.map((player, idx) => {
               const isClosed = player.type === "closed";
               const isAi = player.type === "ai";
@@ -456,6 +458,7 @@ export default function LobbyScreen({
         </div>
       ) : (
         <div
+          className="lobby-dossier-card"
           style={{
             background: "rgba(10, 14, 26, 0.95)",
             backdropFilter: "blur(16px)",

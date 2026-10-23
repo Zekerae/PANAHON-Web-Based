@@ -48,7 +48,7 @@ export default function GuideModal({ onClose }) {
       onClick={handleOverlayClick}
     >
       <div
-        className="modal duelyst-modal"
+        className="modal duelyst-modal guide-modal-container"
         style={{
           maxWidth: '860px',
           width: '94%',

@@ -33,7 +33,7 @@ function GameHeader({
           <span>{timerStr}</span>
         </div>
 
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+        <div className="game-header-round" style={{ fontFamily: 'var(--font-display)', fontSize: '0.74rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
           Round <strong style={{ color: 'var(--text-accent)' }}>{turnNumber}</strong>
         </div>
       </div>

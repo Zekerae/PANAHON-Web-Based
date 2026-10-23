@@ -142,6 +142,7 @@ export default function StudioPinModal({ isOpen, onClose, onSuccess }) {
       }}
     >
       <div
+        className="studio-pin-card"
         style={{
           width: '100%',
           maxWidth: '310px',

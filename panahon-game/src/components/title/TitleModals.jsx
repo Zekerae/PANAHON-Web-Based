@@ -328,7 +328,7 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEdi
 
   return (
     <div className="modal-overlay" style={{ zIndex: 12000 }}>
-      <div className="modal duelyst-modal" style={{ maxWidth: '520px', width: '92%' }}>
+      <div className="modal duelyst-modal bug-report-modal" style={{ maxWidth: '520px', width: '92%' }}>
         <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
         <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38BDF8' }}>
           <span>⚙️</span>
@@ -605,7 +605,7 @@ export function CollectionModal({ onClose }) {
         </div>
 
         <div className="modal-body" style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+          <p className="collection-desc" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
             Archival repository of all 16 tangible historical Philippine relics and artifacts scattered throughout the timelines:
           </p>
 
@@ -638,7 +638,7 @@ export function CollectionModal({ onClose }) {
           </div>
 
           {/* Artifacts Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
+          <div className="collection-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
             {filteredArtifacts.map(a => {
               const isSelected = selectedArtifact?.id === a.id;
               return (
@@ -692,7 +692,7 @@ export function CollectionModal({ onClose }) {
           )}
         </div>
 
-        <div className="modal-actions" style={{ marginTop: '16px' }}>
+        <div className="modal-actions collection-modal-actions" style={{ marginTop: '16px' }}>
           <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => { sounds.btnClick(); onClose(); }}>
             Close Codex
           </button>
@@ -721,7 +721,7 @@ export function BugReportModal({ onClose }) {
 
   return (
     <div className="modal-overlay" style={{ zIndex: 12000 }}>
-      <div className="modal duelyst-modal" style={{ maxWidth: '520px', width: '92%' }}>
+      <div className="modal duelyst-modal bug-report-modal" style={{ maxWidth: '520px', width: '92%' }}>
         <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
         <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38BDF8' }}>
           <span>🐞</span>
@@ -739,7 +739,7 @@ export function BugReportModal({ onClose }) {
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+              <p className="bug-desc" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
                 Encountered a timeline glitch or visual tear? Transmit details directly to the dev squad:
               </p>
 
@@ -765,7 +765,8 @@ export function BugReportModal({ onClose }) {
                   Incident Description
                 </label>
                 <textarea
-                  rows={4}
+                  className="bug-report-textarea"
+                  rows={3}
                   required
                   placeholder="Describe what occurred, what you expected, and steps to reproduce..."
                   value={description}
@@ -774,7 +775,7 @@ export function BugReportModal({ onClose }) {
                 />
               </div>
 
-              <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.7rem', color: '#64748B', marginBottom: '16px' }}>
+              <div className="bug-telemetry" style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.7rem', color: '#64748B', marginBottom: '16px' }}>
                 Auto-Telemetry: Version 0.3 Chrono Shift • Linux Client • 60 FPS
               </div>
 

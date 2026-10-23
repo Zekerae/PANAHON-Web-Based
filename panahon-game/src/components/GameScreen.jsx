@@ -44,8 +44,8 @@ function GameScreen({
   const isViewingSelf = viewedPlayer.id === myPlayer.id || !isOnline;
 
   let timelineClass = 'safe';
-  if (timelineLevel >= 8) timelineClass = 'danger';
-  else if (timelineLevel >= 5) timelineClass = 'warning';
+  if (timelineLevel >= 4) timelineClass = 'danger';
+  else if (timelineLevel >= 2) timelineClass = 'warning';
 
   const minutes = typeof state.gameTimeRemaining === 'number' ? Math.floor(state.gameTimeRemaining / 60) : 15;
   const seconds = typeof state.gameTimeRemaining === 'number' ? state.gameTimeRemaining % 60 : 0;

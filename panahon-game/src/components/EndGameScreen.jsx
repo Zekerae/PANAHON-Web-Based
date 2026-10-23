@@ -4,7 +4,7 @@ import sounds from '../sound.js';
 export default function EndGameScreen({ state, onPlayAgain, onBackMenu }) {
   if (!state) return null;
 
-  const isCollapse = state.endReason === 'collapse' || state.timelineMeter >= 10;
+  const isCollapse = state.endReason === 'collapse' || state.timelineMeter > 5;
   const sortedPlayers = [...state.players].sort((a, b) => b.points - a.points);
   const winner = isCollapse ? null : sortedPlayers[0];
 
@@ -14,11 +14,11 @@ export default function EndGameScreen({ state, onPlayAgain, onBackMenu }) {
         className="endgame-title"
         style={{ color: isCollapse ? 'var(--text-danger)' : 'var(--text-accent)' }}
       >
-        {isCollapse ? '💀 TIMELINE COLLAPSE!' : '🏆 MISSION COMPLETE!'}
+        {isCollapse ? '💀 TIMELINES MESSED UP!' : '🏆 MISSION COMPLETE!'}
       </div>
       <div className="endgame-subtitle">
         {isCollapse
-          ? 'The temporal breach reached catastrophic levels. History collapsed and all castaways were lost.'
+          ? 'The timelines are completely messed up! The temporal breach exceeded 5, causing catastrophic spacetime collapse and all castaways were lost.'
           : `Temporal stability restored! Winner: ${winner.name} (${winner.role.name})`}
       </div>
 

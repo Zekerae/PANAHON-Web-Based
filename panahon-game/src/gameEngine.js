@@ -1015,9 +1015,12 @@ export class GameEngine {
   }
 
   modifyTimelineMeter(amount) {
-    this.state.timelineMeter = Math.max(0, Math.min(GAME_CONSTANTS.MAX_TIMELINE, this.state.timelineMeter + amount));
+    this.state.timelineMeter = Math.max(0, this.state.timelineMeter + amount);
     
-    if (this.state.timelineMeter >= GAME_CONSTANTS.MAX_TIMELINE) {
+    // Global timeline meter limit is 5. Once it reaches 6 or goes above 5, game over!
+    if (this.state.timelineMeter > (GAME_CONSTANTS.MAX_TIMELINE || 5)) {
+      this.state.collapseMessage = 'The timelines are completely messed up! The temporal breach exceeded stability limits (above 5), causing catastrophic spacetime collapse.';
+      this.addLog('paradox', `💥 CATASTROPHIC BREACH! The timeline reached ${this.state.timelineMeter} (exceeded 5)! The timelines are completely messed up!`);
       this.endGame('collapse');
     }
   }
@@ -1433,7 +1436,10 @@ export class GameEngine {
 
     if (reason === 'collapse') {
       this.state.winner = null; // Everyone loses
-      this.addLog('system', '💀 THE TIMELINE HAS COLLAPSED! All players lose!');
+      if (!this.state.collapseMessage) {
+        this.state.collapseMessage = 'The timelines are completely messed up! The temporal breach exceeded stability limits (above 5), causing catastrophic spacetime collapse.';
+      }
+      this.addLog('system', '💀 THE TIMELINES ARE MESSED UP! Spacetime collapsed and all castaways were lost!');
     } else {
       // Find winner
       const sorted = [...this.state.players].sort((a, b) => b.points - a.points);

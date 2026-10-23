@@ -21,11 +21,11 @@ function GameHeader({
           <div className="timeline-meter-bar">
             <div
               className={`timeline-meter-fill ${timelineClass}`}
-              style={{ width: `${(timelineLevel / 10) * 100}%` }}
+              style={{ width: `${(Math.min(5, timelineLevel) / 5) * 100}%` }}
             ></div>
           </div>
           <div className="timeline-meter-val" style={{ fontWeight: 800 }}>
-            {timelineLevel} / 10 BREACH
+            {Math.min(5, timelineLevel)} / 5 BREACH
           </div>
         </div>
       </div>

@@ -9,6 +9,7 @@ import {
   CollectionModal,
   BugReportModal
 } from './title/TitleModals.jsx';
+import DataBankModal from './title/DataBankModal.jsx';
 import StudioPinModal from './StudioPinModal.jsx';
 import { isStudioUnlocked } from '../studioAuth.js';
 
@@ -240,6 +241,26 @@ export default function TitleScreen({
               </button>
             </div>
 
+            {/* DATA BANK (Card Codex: Clues, Events, Dangers) */}
+            <div className="nav-item-container">
+              <button
+                className="duelyst-menu-link"
+                onClick={() => { sounds.btnClick(); setActiveModal('databank'); }}
+              >
+                <div className="menu-link-bullet">
+                  <svg viewBox="0 0 24 24" className="constellation-icon">
+                    <circle cx="6" cy="6" r="2.2" fill="currentColor" />
+                    <circle cx="18" cy="12" r="2.2" fill="currentColor" />
+                    <circle cx="6" cy="18" r="2.2" fill="currentColor" />
+                    <line x1="6" y1="6" x2="18" y2="12" stroke="currentColor" strokeWidth="1.5" />
+                    <line x1="6" y1="18" x2="18" y2="12" stroke="currentColor" strokeWidth="1.5" />
+                  </svg>
+                </div>
+                <span className="menu-link-text">DATA BANK</span>
+                <span className="menu-link-tag" style={{ color: '#38BDF8', borderColor: 'rgba(56, 189, 248, 0.35)', background: 'rgba(56, 189, 248, 0.08)' }}>104 CARDS</span>
+              </button>
+            </div>
+
             {/* MANUAL (Rules & Field Guide) */}
             <div className="nav-item-container">
               <button
@@ -372,6 +393,9 @@ export default function TitleScreen({
       )}
       {activeModal === 'collection' && (
         <CollectionModal onClose={() => setActiveModal(null)} />
+      )}
+      {activeModal === 'databank' && (
+        <DataBankModal onClose={() => setActiveModal(null)} />
       )}
       {activeModal === 'bug' && (
         <BugReportModal onClose={() => setActiveModal(null)} />

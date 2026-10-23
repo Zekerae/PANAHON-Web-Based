@@ -241,9 +241,14 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     <div className="modal-overlay" id="active-modal">
       <div className="modal">
         <button className="modal-close" onClick={handleDismiss}>&times;</button>
-        <div className="modal-title" style={{ color: isDanger ? 'var(--text-danger)' : (isEvent ? 'var(--tile-event)' : 'var(--text-accent)') }}>
-          {modal.cardType || modal.title}
+        <div className="modal-title" style={{ color: isDanger ? '#EF4444' : (isEvent ? '#F59E0B' : '#38BDF8'), letterSpacing: '1.5px' }}>
+          {modal.cardType || (isDanger ? 'HAZARD ANOMALY' : (isEvent ? 'TEMPORAL EVENT' : modal.title))}
         </div>
+        {modal.era && (
+          <div style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 800, textAlign: 'center', marginTop: '-8px', marginBottom: '10px' }}>
+            TIMELINE: <span style={{ color: '#F8FAFC' }}>{ERA_NAMES[modal.era]?.toUpperCase() || modal.era}</span>
+          </div>
+        )}
 
         <div className="modal-body">
           <div className="card-display">
@@ -269,8 +274,8 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         </div>
 
         <div className="modal-actions">
-          <button className="btn btn-primary" onClick={handleDismiss}>
-            {engine?.state?.pendingChoice?.type === 'teleportTile' ? 'Choose Destination ➔' : 'Acknowledge'}
+          <button className="btn btn-primary" onClick={handleDismiss} style={{ padding: '10px 24px', fontWeight: 800 }}>
+            {engine?.state?.pendingChoice?.type === 'teleportTile' ? 'Choose Destination ➔' : 'Acknowledge Directive ➔'}
           </button>
         </div>
       </div>

@@ -437,7 +437,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  background: radial-gradient(ellipse at center, #1a1025 0%, #0a0a12 70%);
+  background: radial-gradient(circle at 50% 20%, #0B192C 0%, #060D17 65%, #020617 100%);
   padding: var(--space-lg) var(--space-md) 60px;
   gap: var(--space-md);
   overflow-y: auto !important;
@@ -448,10 +448,11 @@ html, body {
 }
 
 .lobby-title {
-  font-family: var(--font-pirate);
+  font-family: var(--font-display);
   font-size: 2.3rem;
-  color: var(--text-accent);
-  text-shadow: 0 0 15px rgba(232, 197, 71, 0.4);
+  letter-spacing: 3px;
+  color: #F8FAFC;
+  text-shadow: 0 0 25px rgba(56, 189, 248, 0.45);
   margin-top: var(--space-xs);
 }
 
@@ -1827,8 +1828,8 @@ html, body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
+  background: rgba(2, 6, 23, 0.88);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1837,13 +1838,15 @@ html, body {
 }
 
 .modal {
-  background: var(--bg-card);
-  border: 1px solid var(--border-glass);
+  background: rgba(10, 14, 26, 0.96);
+  backdrop-filter: blur(18px);
+  border: 1.5px solid rgba(56, 189, 248, 0.4);
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.85), 0 0 25px rgba(56, 189, 248, 0.18);
   border-radius: var(--radius-xl);
   padding: var(--space-xl);
   max-width: 520px;
   width: 90%;
-  max-height: 80vh;
+  max-height: 85vh;
   overflow: hidden; /* Prevent child UI overflow */
   animation: fadeInScale 0.3s ease;
   position: relative;
@@ -1852,10 +1855,12 @@ html, body {
 .modal-title {
   font-family: var(--font-display);
   font-size: 1.3rem;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 1.5px;
   color: var(--text-accent);
   margin-bottom: var(--space-md);
   text-align: center;
+  text-transform: uppercase;
 }
 
 .modal-body {
@@ -2042,7 +2047,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  background: radial-gradient(ellipse at center, #1a1025 0%, #0a0a12 70%);
+  background: radial-gradient(circle at 50% 25%, #0B192C 0%, #060D17 65%, #020617 100%);
   padding: var(--space-lg) var(--space-md) 60px;
   gap: var(--space-md);
   overflow-y: auto !important;
@@ -2054,10 +2059,11 @@ html, body {
 }
 
 .endgame-title {
-  font-family: var(--font-pirate);
-  font-size: 3rem;
-  color: var(--text-accent);
-  text-shadow: 0 0 30px rgba(232, 197, 71, 0.5);
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  letter-spacing: 3px;
+  color: #F59E0B;
+  text-shadow: 0 0 30px rgba(245, 158, 11, 0.5);
 }
 
 .endgame-subtitle {

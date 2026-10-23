@@ -404,7 +404,7 @@ export const ROLES = {
     id: 'guardian',
     name: 'The Guardian',
     description: 'Protects timeline stability',
-    avatar: 'assets/Characters/Copy of guardian.jpg',
+    avatar: 'assets/Characters/Copy of guardian.png',
     color: '#2ECC71',
     passive: {
       name: 'Aegis Shield',

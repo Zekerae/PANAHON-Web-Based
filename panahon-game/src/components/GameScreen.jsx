@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import sounds from '../sound.js';
 import {
   ERA_NAMES, ERA_ORDER, ROLES, GAME_CONSTANTS, PLAYER_COLORS,
-  ERA_TILE_COORDINATES, getActiveTileCoordinates, getActiveLoopTargets
+  ERA_TILE_COORDINATES, getActiveTileCoordinates, getActiveLoopTargets, getActivePathConnections
 } from '../gameData.js';
 import ChatBox from './ChatBox.jsx';
 
@@ -373,18 +373,35 @@ export default function GameScreen({
               {ERA_ORDER.map(era => {
                 const coords = (activeCoords[era] || ERA_TILE_COORDINATES[era]);
                 if (!coords || coords.length === 0) return null;
-                const loopTargets = (typeof getActiveLoopTargets === 'function') ? getActiveLoopTargets() : {};
-                const targetIdx = loopTargets[era] !== undefined ? loopTargets[era] : (era === 'spanish' ? 14 : 0);
-                const targetCoord = coords[targetIdx];
+                const connections = (typeof getActivePathConnections === 'function') ? getActivePathConnections() : {};
+                const eraConns = connections[era];
+                const isActiveEra = currentPlayer.currentEra === era;
 
-                let d = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${(c.x * 1024) / 100} ${(c.y * 765) / 100}`).join(' ');
-                if (targetIdx === 0) {
-                  d += ' Z';
-                } else if (targetCoord) {
-                  d += ` L ${(targetCoord.x * 1024) / 100} ${(targetCoord.y * 765) / 100}`;
+                if (eraConns && Object.keys(eraConns).length > 0) {
+                  return Object.entries(eraConns).map(([fromStr, toList]) => {
+                    const fromIdx = parseInt(fromStr, 10);
+                    const fromCoord = coords[fromIdx];
+                    if (!fromCoord || !Array.isArray(toList)) return null;
+                    return toList.map(toIdx => {
+                      const toCoord = coords[toIdx];
+                      if (!toCoord) return null;
+                      return (
+                        <line
+                          key={`${era}_${fromIdx}_${toIdx}`}
+                          x1={(fromCoord.x * 1024) / 100}
+                          y1={(fromCoord.y * 765) / 100}
+                          x2={(toCoord.x * 1024) / 100}
+                          y2={(toCoord.y * 765) / 100}
+                          className={`board-path-line ${isActiveEra ? 'active-era-path' : ''}`}
+                          strokeWidth={isActiveEra ? 3 : 2}
+                          opacity={isActiveEra ? 1 : 0.35}
+                        />
+                      );
+                    });
+                  });
                 }
 
-                const isActiveEra = currentPlayer.currentEra === era;
+                let d = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${(c.x * 1024) / 100} ${(c.y * 765) / 100}`).join(' ') + ' Z';
                 return <path key={era} d={d} className={`board-path-line ${isActiveEra ? 'active-era-path' : ''}`} />;
               })}
               {/* Connections from Timegate Spaces to Central Nexus Portal Dial */}

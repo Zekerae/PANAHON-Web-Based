@@ -1,7 +1,7 @@
 // ===== PANAHON: CHRONO SHIFT - Game Engine =====
 
 import {
-  ERAS, ERA_ORDER, ERA_NAMES, TILE_TYPES, ERA_TILE_LAYOUTS, ERA_TILE_COORDINATES, getActiveTileLayouts, getActiveLoopTargets, getActivePathModes,
+  ERAS, ERA_ORDER, ERA_NAMES, TILE_TYPES, ERA_TILE_LAYOUTS, ERA_TILE_COORDINATES, getActiveTileLayouts, getActiveLoopTargets, getActivePathModes, getActivePathConnections,
   ROLES, ROLE_ORDER, ARTIFACTS, ALL_ARTIFACTS, EVENT_CARDS, DANGER_CARDS,
   generateClueCards, generateMissions, GAME_CONSTANTS, SCORING, PLAYER_COLORS
 } from './gameData.js';
@@ -341,56 +341,35 @@ export class GameEngine {
     return true;
   }
 
-  // Determine next tile index respecting era traversal modes ('mario_party' vs 'loop')
+  // Determine next tile index using the custom node-graph connections (100% data-driven)
   getNextTileIndex(player, era, currentIdx, dir = 1) {
     const eraTiles = this.state.board[era];
     const total = eraTiles.length;
-    const pathModes = (typeof getActivePathModes === 'function') ? getActivePathModes() : { spanish: 'mario_party' };
-    const mode = pathModes[era] || (era === 'spanish' ? 'mario_party' : 'loop');
+    const connections = (typeof getActivePathConnections === 'function') ? getActivePathConnections() : {};
+    const eraConnections = connections[era];
 
-    if (mode === 'mario_party') {
-      const isReturn = player.eraReturnPhase === true;
-      if (!isReturn) {
-        if (dir > 0) {
-          if (currentIdx === total - 1) {
-            // Reached Artifact / final tile (Tile 25): turn around to return via Tile 15 (idx 14)
-            player.eraReturnPhase = true;
-            return 14; // Tile 15
-          }
-          return currentIdx + 1;
-        } else {
-          return Math.max(0, currentIdx - 1);
-        }
+    if (eraConnections && Array.isArray(eraConnections[currentIdx]) && eraConnections[currentIdx].length > 0) {
+      if (dir > 0) {
+        const targets = eraConnections[currentIdx];
+        if (targets.length === 1) return targets[0];
+        const prev = player.previousTileIndex;
+        const choice = targets.find(t => t !== prev) ?? targets[0];
+        return choice;
       } else {
-        if (dir > 0) {
-          if (currentIdx === 14) {
-            return 13; // From Tile 15 continue return down to Tile 14 (idx 13)
+        const incoming = [];
+        for (const [fromStr, toList] of Object.entries(eraConnections)) {
+          if (Array.isArray(toList) && toList.includes(currentIdx)) {
+            incoming.push(parseInt(fromStr, 10));
           }
-          if (currentIdx <= 0) {
-            // Reached Start (Tile 1): reset to outward journey
-            player.eraReturnPhase = false;
-            return 1; // Tile 2
-          }
-          return currentIdx - 1;
-        } else {
-          if (currentIdx >= 14) {
-            player.eraReturnPhase = false;
-            return total - 1;
-          }
-          return currentIdx + 1;
         }
+        if (incoming.length > 0) return incoming[0];
       }
+    }
+
+    if (dir > 0) {
+      return (currentIdx + 1) % total;
     } else {
-      const loopTargets = (typeof getActiveLoopTargets === 'function') ? getActiveLoopTargets() : { spanish: 14 };
-      const eraLoopTarget = loopTargets[era] !== undefined ? loopTargets[era] : 0;
-      if (dir > 0 && currentIdx === total - 1) {
-        return eraLoopTarget;
-      } else if (currentIdx + dir < 0) {
-        return total - 1;
-      } else if (currentIdx + dir >= total) {
-        return eraLoopTarget;
-      }
-      return currentIdx + dir;
+      return (currentIdx - 1 + total) % total;
     }
   }
 

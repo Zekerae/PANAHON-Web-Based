@@ -78,26 +78,27 @@ export function resetStudioPinToDefault() {
   }
 }
 
+// In-memory authentication state: strictly resets on page refresh, reload, or tab close
+let studioUnlockedInMemory = false;
+
+// Purge any legacy persistent session storage keys from earlier sessions
+try {
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.removeItem(SESSION_KEY_UNLOCKED);
+  }
+} catch (_) {}
+
 /**
- * Checks if the current session is already authenticated.
+ * Checks if the developer studio is currently authenticated in memory.
+ * Resets to false whenever the browser tab is refreshed or closed.
  */
 export function isStudioUnlocked() {
-  try {
-    return sessionStorage.getItem(SESSION_KEY_UNLOCKED) === 'true';
-  } catch (_) {
-    return false;
-  }
+  return studioUnlockedInMemory;
 }
 
 /**
- * Marks the session as unlocked or locked.
+ * Marks the studio as unlocked or locked in memory for this session.
  */
 export function setStudioUnlocked(unlocked = true) {
-  try {
-    if (unlocked) {
-      sessionStorage.setItem(SESSION_KEY_UNLOCKED, 'true');
-    } else {
-      sessionStorage.removeItem(SESSION_KEY_UNLOCKED);
-    }
-  } catch (_) {}
+  studioUnlockedInMemory = !!unlocked;
 }

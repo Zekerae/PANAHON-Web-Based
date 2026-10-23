@@ -936,6 +936,26 @@ export default function MapEditor({ onClose }) {
             💾 <span className="hide-xs">Save</span>
           </button>
 
+          {/* Lock Studio */}
+          <button
+            className="editor-btn-sm"
+            style={{
+              background: "rgba(239, 68, 68, 0.15)",
+              border: "1.5px solid rgba(239, 68, 68, 0.4)",
+              color: "#FCA5A5",
+              fontWeight: 700
+            }}
+            onClick={() => {
+              sounds.btnClick();
+              setStudioUnlocked(false);
+              setIsUnlocked(false);
+              onClose();
+            }}
+            title="Lock Studio and Exit"
+          >
+            🔒 <span className="hide-xs">Lock</span>
+          </button>
+
           {/* Close */}
           <button
             className="editor-btn-sm close-btn"

@@ -260,6 +260,32 @@ class AiController {
       return;
     }
 
+    if (choiceType === 'clueHandLimit') {
+      const drawnCard = choice.drawnCard;
+      const missionArtifactId = player.mission?.artifactId;
+      let chosenAction = 'discard_drawn';
+
+      if (drawnCard && !drawnCard.isDecoy) {
+        // Discard a decoy in hand first if any
+        const decoyIdx = player.clueCards.findIndex(c => c.isDecoy);
+        if (decoyIdx !== -1) {
+          chosenAction = `discard_hand_${decoyIdx}`;
+        } else if (drawnCard.artifactId === missionArtifactId) {
+          // If drawn matches mission, discard a non-mission card
+          const nonMissionIdx = player.clueCards.findIndex(c => c.artifactId !== missionArtifactId);
+          if (nonMissionIdx !== -1) {
+            chosenAction = `discard_hand_${nonMissionIdx}`;
+          }
+        }
+      }
+
+      sounds.btnClick?.();
+      engine.resolveChoice(chosenAction);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action: chosenAction });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
     if (choiceType === 'guardianRepair') {
       // Repair paradox if high, otherwise recover energy
       const action = player.paradox >= 2 ? 'reduceEnergy' : 'restoreEnergy';

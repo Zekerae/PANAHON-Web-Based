@@ -544,16 +544,54 @@ export class GameEngine {
       if (chosenCard && chosenCard.isDecoy && player.roleKey === 'HISTORIAN' && player.passiveCooldown <= 0) {
         this.addLog('ability', `${player.name} drew a Decoy Card via Clue Decipher, but discarded it with Decoy Discard!`);
         player.passiveCooldown = ROLES.HISTORIAN.passive.cooldown;
-        this.discardCard(chosenCard);
+        this.returnClueToDeck(chosenCard);
+        this.state.phase = returnPhase;
       } else if (chosenCard) {
-        player.clueCards.push(chosenCard);
-        if (!chosenCard.isDecoy && chosenCard.artifactId) {
-          if (!player.clueProgress[chosenCard.artifactId]) {
-            player.clueProgress[chosenCard.artifactId] = 0;
+        if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 5)) {
+          this.promptClueHandLimit(player, chosenCard, returnPhase);
+          return;
+        } else {
+          player.clueCards.push(chosenCard);
+          if (!chosenCard.isDecoy && chosenCard.artifactId) {
+            if (!player.clueProgress[chosenCard.artifactId]) {
+              player.clueProgress[chosenCard.artifactId] = 0;
+            }
+            player.clueProgress[chosenCard.artifactId]++;
           }
-          player.clueProgress[chosenCard.artifactId]++;
+          this.addLog('clue', `${player.name} deciphered and kept a Clue Card: ${chosenCard.hint || 'Mystery Clue'}! (${player.clueCards.length}/5 Clues held)`);
+          this.state.phase = returnPhase;
         }
-        this.addLog('clue', `${player.name} deciphered and kept a Clue Card: ${chosenCard.hint || 'Mystery Clue'}!`);
+      }
+    } else if (choiceType === 'clueHandLimit') {
+      const drawnCard = choice.drawnCard;
+
+      if (action === 'discard_drawn') {
+        this.returnClueToDeck(drawnCard);
+        this.addLog('card', `${player.name} discarded the drawn Clue Card (${drawnCard.hint || drawnCard.description}) back to the ${ERA_NAMES[drawnCard.era]} deck.`);
+      } else if (action && action.startsWith('discard_hand_')) {
+        const discardIdx = parseInt(action.replace('discard_hand_', ''), 10);
+        if (discardIdx >= 0 && discardIdx < player.clueCards.length) {
+          const [discardedCard] = player.clueCards.splice(discardIdx, 1);
+
+          // Adjust clue progress if real clue was discarded
+          if (!discardedCard.isDecoy && discardedCard.artifactId) {
+            if (player.clueProgress[discardedCard.artifactId] > 0) {
+              player.clueProgress[discardedCard.artifactId]--;
+            }
+          }
+          this.returnClueToDeck(discardedCard);
+
+          // Add newly drawn card to hand
+          player.clueCards.push(drawnCard);
+          if (!drawnCard.isDecoy && drawnCard.artifactId) {
+            if (!player.clueProgress[drawnCard.artifactId]) {
+              player.clueProgress[drawnCard.artifactId] = 0;
+            }
+            player.clueProgress[drawnCard.artifactId]++;
+          }
+
+          this.addLog('card', `${player.name} kept the new Clue Card (${drawnCard.hint || drawnCard.description}) and returned ${discardedCard.hint || discardedCard.description} to the ${ERA_NAMES[discardedCard.era]} deck.`);
+        }
       }
 
       this.state.phase = returnPhase;
@@ -565,6 +603,52 @@ export class GameEngine {
       }
     }
 
+    this.notify();
+  }
+
+  // Return a discarded/evicted clue card back to its era clue deck and shuffle
+  returnClueToDeck(card) {
+    if (!card) return;
+    const era = card.era || this.getCurrentPlayer()?.currentEra || "spanish";
+    if (!this.state.clueDecks[era]) {
+      this.state.clueDecks[era] = [];
+    }
+    // Prevent duplicate object entry
+    this.state.clueDecks[era].push(card);
+    this.state.clueDecks[era] = shuffle(this.state.clueDecks[era]);
+  }
+
+  // Present Choice Modal when player reaches Clue Hand Limit (Max 5)
+  promptClueHandLimit(player, card, returnPhase = "action") {
+    const eraName = ERA_NAMES[card.era] || card.era;
+    const cardName = card.isDecoy ? "Decoy Card" : (card.hint || card.description || "Clue Card");
+
+    const options = [
+      {
+        label: `❌ Discard Drawn Card (${cardName}) ➔ Return to ${eraName} Pool`,
+        action: "discard_drawn",
+        type: "danger"
+      },
+      ...player.clueCards.map((handCard, idx) => ({
+        label: `🔄 Keep Drawn Card & Discard #${idx + 1}: ${handCard.hint || handCard.description} (${ERA_NAMES[handCard.era] || handCard.era})`,
+        action: `discard_hand_${idx}`,
+        handIndex: idx,
+        card: handCard
+      }))
+    ];
+
+    this.state.pendingChoice = {
+      type: "clueHandLimit",
+      playerId: player.id,
+      returnPhase: returnPhase,
+      drawnCard: card,
+      handCards: [...player.clueCards],
+      title: "🎴 Clue Hand Limit Reached (Max 5)!",
+      message: `You already hold 5 Clue Cards! You drew: "${cardName}". Choose whether to discard it or keep it and discard 1 card from your hand.`,
+      options
+    };
+
+    this.addLog("card", `${player.name} drew a Clue Card (${cardName}), but hand is full (5/5). Choosing which card to keep...`);
     this.notify();
   }
 
@@ -622,9 +706,15 @@ export class GameEngine {
     if (card.isDecoy && player.roleKey === 'HISTORIAN' && player.passiveCooldown <= 0) {
       this.addLog('ability', `${player.name} used Decoy Discard! Discarded a decoy card.`);
       player.passiveCooldown = ROLES.HISTORIAN.passive.cooldown;
-      this.discardCard(card);
+      this.returnClueToDeck(card);
       this.state.phase = 'action';
       this.notify();
+      return;
+    }
+
+    // Check Hand Limit (Max 5 Clue Cards)
+    if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 5)) {
+      this.promptClueHandLimit(player, card, 'action');
       return;
     }
 
@@ -649,7 +739,7 @@ export class GameEngine {
       era: era
     };
 
-    this.addLog('card', `${player.name} drew a Clue Card from ${ERA_NAMES[era]}.`);
+    this.addLog('card', `${player.name} drew a Clue Card from ${ERA_NAMES[era]}. (${player.clueCards.length}/5 Clues held)`);
     this.state.phase = 'action';
     this.notify();
   }
@@ -1296,6 +1386,10 @@ export class GameEngine {
 
   discardCard(card) {
     if (!card) return;
+    if (card.era && (card.type === 'clue' || card.type === 'decoy' || card.isDecoy !== undefined)) {
+      this.returnClueToDeck(card);
+      return;
+    }
     if (!this.state.discardPile) {
       this.state.discardPile = [];
     }

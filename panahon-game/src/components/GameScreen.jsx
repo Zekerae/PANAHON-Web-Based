@@ -244,7 +244,7 @@ export default function GameScreen({
           className={`mobile-game-tab ${mobileGameTab === 'hand' ? 'active' : ''}`}
           onClick={() => { sounds.btnClick(); setMobileGameTab('hand'); }}
         >
-          📜 Hand ({viewedPlayer.clueCards.length})
+          📜 Hand ({viewedPlayer.clueCards.length}/5)
         </button>
       </div>
 
@@ -313,7 +313,7 @@ export default function GameScreen({
 
                 <div className="stat-row" style={{ marginTop: '4px', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                   <span>Era: <strong>{ERA_NAMES[p.currentEra].replace(' Era', '')}</strong></span>
-                  <span>Clues: <strong>{(!isOnline || isMe) ? p.clueCards.filter(c => !c.isDecoy).length : p.clueCards.length}</strong></span>
+                  <span>Clues: <strong>{p.clueCards.length}/5</strong></span>
                 </div>
               </div>
             </div>
@@ -733,7 +733,7 @@ export default function GameScreen({
               className={`tab-btn ${activeHandTab === 'clues' ? 'active' : ''}`}
               onClick={() => { sounds.btnClick(); setActiveHandTab('clues'); }}
             >
-              🔍 Clues ({viewedPlayer.clueCards.length})
+              🔍 Clues ({viewedPlayer.clueCards.length}/5)
             </button>
             <button
               className={`tab-btn ${activeHandTab === 'artifacts' ? 'active' : ''}`}

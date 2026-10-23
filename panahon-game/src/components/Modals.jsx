@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import sounds from '../sound.js';
 import { ERA_NAMES } from '../gameData.js';
+import Dice from './game/Dice';
 
 export function MaximizedCardPreview({ data, onClose }) {
   if (!data) return null;
@@ -37,9 +38,7 @@ export function MaximizedCardPreview({ data, onClose }) {
 
           {data.diceRoll !== undefined && (
             <div className="modal-dice" style={{ marginTop: '14px' }}>
-              <div className="dice" style={{ borderColor: data.success ? 'var(--text-success)' : 'var(--text-danger)' }}>
-                {data.diceRoll}
-              </div>
+              <Dice value={data.diceRoll} size="sm" theme={data.success ? 'success' : 'hazard'} isInteractive={false} />
               <div className="modal-dice-result">
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Dice Check Roll</div>
                 <div className={`modal-dice-outcome ${data.success ? 'success' : 'failure'}`}>
@@ -238,6 +237,151 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     );
   }
 
+  return (
+    <div className="modal-overlay" id="active-modal">
+      <div className="modal">
+        <button className="modal-close" onClick={handleDismiss}>&times;</button>
+        <div className="modal-title" style={{ color: isDanger ? 'var(--text-danger)' : (isEvent ? 'var(--tile-event)' : 'var(--text-accent)') }}>
+          {modal.cardType || modal.title}
+        </div>
+
+        <div className="modal-body">
+          <div className="card-display">
+            {modal.image && <img src={modal.image} alt={modal.title} />}
+            <div className="card-display-title">{modal.title}</div>
+            <div className="card-display-desc">{modal.description}</div>
+          </div>
+
+          {isDanger && modal.diceRoll !== undefined && (
+            <div className="modal-dice">
+              <Dice value={modal.diceRoll} size="sm" theme={modal.success ? 'success' : 'hazard'} isInteractive={false} />
+              <div className="modal-dice-result">
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Dice Check Roll</div>
+                <div className={`modal-dice-outcome ${modal.success ? 'success' : 'failure'}`}>
+                  {modal.success ? '✓ HAZARD EVADED' : '✗ HAZARD TRIGGERED'}
+                </div>
+                <div style={{ fontSize: '0.8rem', marginTop: '4px', color: modal.success ? 'var(--text-success)' : 'var(--text-danger)' }}>
+                  {modal.success ? modal.successMsg : modal.failMsg}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="modal-actions">
+          <button className="btn btn-primary" onClick={handleDismiss}>Acknowledge</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) {
+  if (!choice) return null;
+
+  const activePlayer = engine.getCurrentPlayer();
+  const isAi = activePlayer?.isAi === true;
+  const isMyTurn = !isAi && network.isMyTurn(engine.state.currentPlayerIndex);
+  const isDecipher = choice.type === 'historianDecipher';
+  const isClueHandLimit = choice.type === 'clueHandLimit';
+
+  useEffect(() => {
+    if (isAi) {
+      const timer = setTimeout(() => {
+        onDismiss();
+      }, 2800);
+      return () => clearTimeout(timer);
+    }
+  }, [isAi, choice]);
+
+  const handleSelect = (action) => {
+    sounds.btnClick();
+    if (action && (action.startsWith('warp_') || ['spanish', 'american', 'japanese', 'myth'].includes(action))) {
+      sounds.portal();
+    }
+    engine.resolveChoice(action);
+    network.sendAction({ type: 'RESOLVE_CHOICE', action });
+    onDismiss();
+  };
+
+  if (isAi) {
+    const targetCard = (isDecipher && choice.drawnCards) ? choice.drawnCards[0] : (isClueHandLimit && choice.drawnCard) ? choice.drawnCard : null;
+
+    return (
+      <div className="side-card-overlay" id="active-modal">
+        <div className="side-card-header">
+          <div className="side-card-title">
+            <span className="bot-badge">🤖 BOT</span>
+            <span>{choice.title}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {targetCard && (
+              <button
+                className="side-card-maximize"
+                title="Click to view card in full screen"
+                onClick={() => {
+                  sounds.btnClick();
+                  onMaximize({
+                    title: targetCard.title || (targetCard.isDecoy ? 'Decoy Card' : 'Clue Card'),
+                    cardType: targetCard.isDecoy ? 'Decoy Card' : 'Clue Card',
+                    description: targetCard.description || targetCard.hint,
+                    image: targetCard.image || targetCard.cardImage,
+                    era: targetCard.era
+                  });
+                }}
+              >
+                🔍
+              </button>
+            )}
+            <button className="side-card-close" title="Dismiss" onClick={() => { sounds.btnClick(); onDismiss(); }}>
+              &times;
+            </button>
+          </div>
+        </div>
+
+        <div className="side-card-body">
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <strong style={{ color: activePlayer.color || '#fff' }}>{activePlayer.name}</strong> evaluated tactical options:
+          </div>
+
+          {isClueHandLimit && choice.drawnCard && (
+            <div style={{ marginTop: "8px", padding: "8px 10px", background: "rgba(239, 68, 68, 0.1)", borderRadius: "6px", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
+              <div style={{ fontSize: "0.72rem", color: "#F87171", fontWeight: 700, textTransform: "uppercase" }}>
+                🎴 Hand Limit (5/5) Reached
+              </div>
+              <div style={{ fontSize: "0.75rem", color: "#E2E8F0", marginTop: "3px" }}>
+                Drawn: <strong>{choice.drawnCard.isDecoy ? "Decoy Card" : (choice.drawnCard.hint || choice.drawnCard.description)}</strong> ({ERA_NAMES[choice.drawnCard.era] || choice.drawnCard.era})
+              </div>
+            </div>
+          )}
+
+          {isDecipher && choice.drawnCards && (
+            <div className="mystery-cards-mini-row side-card-clickable">
+              {choice.drawnCards.map((c, idx) => (
+                <div key={idx} className={`mystery-card-mini ${idx === 0 ? 'selected-by-bot' : ''}`}>
+                  <div style={{ fontSize: '1.4rem' }}>📜</div>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#60A5FA' }}>Card #{idx + 1}</div>
+                  {idx === 0 ? <div className="mini-choice-badge">DECIPHERED</div> : <div style={{ fontSize: '0.6rem', color: '#94A3B8' }}>Deck Return</div>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="side-card-status">
+            <span className="ai-pulse-dot"></span>
+            <span style={{ fontSize: '0.78rem', color: '#93C5FD', fontWeight: 600 }}>
+              {choice.options[0]?.label || 'Resolving automatically...'}
+            </span>
+          </div>
+        </div>
+
+        <div className="overlay-timer-bar">
+          <div className="overlay-timer-fill"></div>
+        </div>
+      </div>
+    );
+  }
+
   if (isClueHandLimit && choice.drawnCard) {
     const drawn = choice.drawnCard;
     const handCards = choice.handCards || activePlayer?.clueCards || [];
@@ -426,153 +570,6 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               </div>
             )}
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="modal-overlay" id="active-modal">
-      <div className="modal">
-        <button className="modal-close" onClick={handleDismiss}>&times;</button>
-        <div className="modal-title" style={{ color: isDanger ? 'var(--text-danger)' : (isEvent ? 'var(--tile-event)' : 'var(--text-accent)') }}>
-          {modal.cardType || modal.title}
-        </div>
-
-        <div className="modal-body">
-          <div className="card-display">
-            {modal.image && <img src={modal.image} alt={modal.title} />}
-            <div className="card-display-title">{modal.title}</div>
-            <div className="card-display-desc">{modal.description}</div>
-          </div>
-
-          {isDanger && modal.diceRoll !== undefined && (
-            <div className="modal-dice">
-              <div className="dice" style={{ borderColor: modal.success ? 'var(--text-success)' : 'var(--text-danger)' }}>
-                {modal.diceRoll}
-              </div>
-              <div className="modal-dice-result">
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Dice Check Roll</div>
-                <div className={`modal-dice-outcome ${modal.success ? 'success' : 'failure'}`}>
-                  {modal.success ? '✓ HAZARD EVADED' : '✗ HAZARD TRIGGERED'}
-                </div>
-                <div style={{ fontSize: '0.8rem', marginTop: '4px', color: modal.success ? 'var(--text-success)' : 'var(--text-danger)' }}>
-                  {modal.success ? modal.successMsg : modal.failMsg}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="modal-actions">
-          <button className="btn btn-primary" onClick={handleDismiss}>Acknowledge</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) {
-  if (!choice) return null;
-
-  const activePlayer = engine.getCurrentPlayer();
-  const isAi = activePlayer?.isAi === true;
-  const isMyTurn = !isAi && network.isMyTurn(engine.state.currentPlayerIndex);
-  const isDecipher = choice.type === 'historianDecipher';
-  const isClueHandLimit = choice.type === 'clueHandLimit';
-
-  useEffect(() => {
-    if (isAi) {
-      const timer = setTimeout(() => {
-        onDismiss();
-      }, 2800);
-      return () => clearTimeout(timer);
-    }
-  }, [isAi, choice]);
-
-  const handleSelect = (action) => {
-    sounds.btnClick();
-    if (action && (action.startsWith('warp_') || ['spanish', 'american', 'japanese', 'myth'].includes(action))) {
-      sounds.portal();
-    }
-    engine.resolveChoice(action);
-    network.sendAction({ type: 'RESOLVE_CHOICE', action });
-    onDismiss();
-  };
-
-  if (isAi) {
-    const targetCard = (isDecipher && choice.drawnCards) ? choice.drawnCards[0] : (isClueHandLimit && choice.drawnCard) ? choice.drawnCard : null;
-
-    return (
-      <div className="side-card-overlay" id="active-modal">
-        <div className="side-card-header">
-          <div className="side-card-title">
-            <span className="bot-badge">🤖 BOT</span>
-            <span>{choice.title}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            {targetCard && (
-              <button
-                className="side-card-maximize"
-                title="Click to view card in full screen"
-                onClick={() => {
-                  sounds.btnClick();
-                  onMaximize({
-                    title: targetCard.title || (targetCard.isDecoy ? 'Decoy Card' : 'Clue Card'),
-                    cardType: targetCard.isDecoy ? 'Decoy Card' : 'Clue Card',
-                    description: targetCard.description || targetCard.hint,
-                    image: targetCard.image || targetCard.cardImage,
-                    era: targetCard.era
-                  });
-                }}
-              >
-                🔍
-              </button>
-            )}
-            <button className="side-card-close" title="Dismiss" onClick={() => { sounds.btnClick(); onDismiss(); }}>
-              &times;
-            </button>
-          </div>
-        </div>
-
-        <div className="side-card-body">
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            <strong style={{ color: activePlayer.color || '#fff' }}>{activePlayer.name}</strong> evaluated tactical options:
-          </div>
-
-          {isClueHandLimit && choice.drawnCard && (
-            <div style={{ marginTop: "8px", padding: "8px 10px", background: "rgba(239, 68, 68, 0.1)", borderRadius: "6px", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
-              <div style={{ fontSize: "0.72rem", color: "#F87171", fontWeight: 700, textTransform: "uppercase" }}>
-                🎴 Hand Limit (5/5) Reached
-              </div>
-              <div style={{ fontSize: "0.75rem", color: "#E2E8F0", marginTop: "3px" }}>
-                Drawn: <strong>{choice.drawnCard.isDecoy ? "Decoy Card" : (choice.drawnCard.hint || choice.drawnCard.description)}</strong> ({ERA_NAMES[choice.drawnCard.era] || choice.drawnCard.era})
-              </div>
-            </div>
-          )}
-
-          {isDecipher && choice.drawnCards && (
-            <div className="mystery-cards-mini-row side-card-clickable">
-              {choice.drawnCards.map((c, idx) => (
-                <div key={idx} className={`mystery-card-mini ${idx === 0 ? 'selected-by-bot' : ''}`}>
-                  <div style={{ fontSize: '1.4rem' }}>📜</div>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#60A5FA' }}>Card #{idx + 1}</div>
-                  {idx === 0 ? <div className="mini-choice-badge">DECIPHERED</div> : <div style={{ fontSize: '0.6rem', color: '#94A3B8' }}>Deck Return</div>}
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="side-card-status">
-            <span className="ai-pulse-dot"></span>
-            <span style={{ fontSize: '0.78rem', color: '#93C5FD', fontWeight: 600 }}>
-              {choice.options[0]?.label || 'Resolving automatically...'}
-            </span>
-          </div>
-        </div>
-
-        <div className="overlay-timer-bar">
-          <div className="overlay-timer-fill"></div>
         </div>
       </div>
     );

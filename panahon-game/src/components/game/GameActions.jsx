@@ -50,20 +50,26 @@ function GameActions({
       <div className="panel-section">
         <div className="panel-section-title">Movement & Dice</div>
         <div className="dice-area">
-          <div
-            id="dice-element"
-            className={`dice ${isRolling ? 'rolling' : ''}`}
-            title="Click to Roll Die"
+          <Dice
+            value={state.diceResult}
+            isRolling={isRolling}
+            size="md"
+            theme="chrono"
             onClick={onRollDice}
-          >
-            {state.diceResult !== null ? state.diceResult : '?'}
-          </div>
-          <div>
+            disabled={!isMyTurn || state.phase !== 'rolling'}
+            isInteractive={isMyTurn && state.phase === 'rolling'}
+            showLabel={isMyTurn && state.phase === 'rolling'}
+          />
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div className="dice-result">
               Phase: <strong style={{ color: 'var(--text-accent)', textTransform: 'uppercase' }}>{state.phase}</strong>
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', marginTop: '2px' }}>
-              {state.phase === 'rolling' ? 'Roll D6 to begin move' : `Moves left: <strong>${state.movesRemaining}</strong>`}
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', marginTop: '4px', lineHeight: 1.35 }}>
+              {state.phase === 'rolling' ? (
+                <span>Click dice or press <kbd style={{ background: 'rgba(0,0,0,0.4)', padding: '1px 5px', borderRadius: '3px', fontSize: '0.72rem', color: '#FACC15', border: '1px solid rgba(250,204,21,0.4)' }}>SPACE</kbd></span>
+              ) : (
+                <span>Rolled <strong>{state.diceResult}</strong> • Moves left: <strong style={{ color: '#FACC15' }}>{state.movesRemaining}</strong></span>
+              )}
             </div>
           </div>
         </div>
@@ -71,12 +77,13 @@ function GameActions({
         {state.phase === 'rolling' && (
           <div>
             <button
-              className="btn btn-primary"
-              style={{ width: '100%', minWidth: 0, marginTop: 'var(--space-sm)', padding: '8px' }}
+              className="btn btn-roll-dice"
+              style={{ width: '100%', minWidth: 0, marginTop: '16px' }}
               disabled={!isMyTurn || isRolling}
               onClick={onRollDice}
             >
-              🎲 Roll Movement Die
+              <span>🎲 ROLL MOVEMENT DIE</span>
+              <kbd>SPACEBAR</kbd>
             </button>
 
             {currentPlayer.roleKey === 'EXPLORER' && isMyTurn && (

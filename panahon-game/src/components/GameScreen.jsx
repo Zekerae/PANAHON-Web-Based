@@ -107,6 +107,24 @@ function GameScreen({
     }, 600);
   }, [isRolling, state.phase, isMyTurn, engine, network]);
 
+  // Spacebar shortcut to roll dice
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = e.target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) {
+        return;
+      }
+      if (e.code === 'Space' || e.key === ' ') {
+        if (state?.phase === 'rolling' && isMyTurn && !isRolling && !isPaused) {
+          e.preventDefault();
+          handleRollDice();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state?.phase, isMyTurn, isRolling, isPaused, handleRollDice]);
+
   const handleStepMove = useCallback(() => {
     if (state.phase !== 'moving' || state.movesRemaining <= 0 || !isMyTurn) return;
     sounds.moveStep();

@@ -4138,3 +4138,256 @@ html, body {
   background: currentColor;
   border-radius: 1px;
 }
+
+/* ==========================================================================
+   CHRONO 3D PIP DICE & ROLLING SYSTEM
+   ========================================================================== */
+
+.chrono-dice-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+  outline: none;
+}
+
+.chrono-dice-container.can-interact {
+  cursor: pointer;
+}
+
+.chrono-dice-container.can-interact:hover {
+  transform: translateY(-3px) scale(1.08);
+}
+
+.chrono-dice-container.can-interact:active {
+  transform: translateY(1px) scale(0.96);
+}
+
+.chrono-dice-container.size-sm { width: 42px; height: 42px; }
+.chrono-dice-container.size-md { width: 58px; height: 58px; }
+.chrono-dice-container.size-lg { width: 78px; height: 78px; }
+
+.chrono-dice-cube {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+/* THEME CHRONO (Obsidian & Amber Gold) */
+.theme-chrono .chrono-dice-cube {
+  background: linear-gradient(145deg, #2D273D 0%, #151221 100%);
+  border: 2px solid rgba(245, 158, 11, 0.7);
+  box-shadow: 
+    0 8px 18px rgba(0, 0, 0, 0.8),
+    inset 0 2px 3px rgba(255, 255, 255, 0.3),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.7),
+    0 0 16px rgba(245, 158, 11, 0.25);
+}
+
+.theme-chrono.can-interact:hover .chrono-dice-cube {
+  border-color: #FBBF24;
+  box-shadow: 
+    0 12px 24px rgba(0, 0, 0, 0.9),
+    inset 0 2px 4px rgba(255, 255, 255, 0.45),
+    0 0 28px rgba(245, 158, 11, 0.6);
+}
+
+/* Ready to Roll Glow Pulse */
+.theme-chrono.can-interact {
+  animation: diceReadyPulse 2s ease-in-out infinite;
+}
+
+@keyframes diceReadyPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 18px rgba(245, 158, 11, 0.75));
+  }
+}
+
+/* THEME HAZARD (Crimson Red for Danger Checks) */
+.theme-hazard .chrono-dice-cube {
+  background: linear-gradient(145deg, #3D1A1A 0%, #1A0A0A 100%);
+  border: 2px solid #EF4444;
+  box-shadow: 
+    0 8px 18px rgba(0, 0, 0, 0.8),
+    inset 0 2px 3px rgba(255, 255, 255, 0.2),
+    0 0 16px rgba(239, 68, 68, 0.4);
+}
+
+/* THEME SUCCESS (Jade Green for Passed Checks) */
+.theme-success .chrono-dice-cube {
+  background: linear-gradient(145deg, #133322 0%, #081C12 100%);
+  border: 2px solid #10B981;
+  box-shadow: 
+    0 8px 18px rgba(0, 0, 0, 0.8),
+    inset 0 2px 3px rgba(255, 255, 255, 0.2),
+    0 0 16px rgba(16, 185, 129, 0.4);
+}
+
+/* 3x3 PIP GRID */
+.chrono-dice-face {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chrono-dice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 100%;
+  height: 100%;
+  gap: 2px;
+}
+
+.chrono-dice-pip-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chrono-dice-pip {
+  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+  transition: all 0.15s ease;
+}
+
+.size-sm .chrono-dice-pip { width: 6px; height: 6px; }
+.size-md .chrono-dice-pip { width: 8.5px; height: 8.5px; }
+.size-lg .chrono-dice-pip { width: 12px; height: 12px; }
+
+.theme-chrono .chrono-dice-pip {
+  background: radial-gradient(circle at 35% 35%, #FFFBEB 0%, #F59E0B 65%, #B45309 100%);
+  box-shadow: 0 0 6px #F59E0B, inset 0 1px 1px #FFF;
+}
+
+.theme-hazard .chrono-dice-pip {
+  background: radial-gradient(circle at 35% 35%, #FEE2E2 0%, #EF4444 65%, #991B1B 100%);
+  box-shadow: 0 0 6px #EF4444, inset 0 1px 1px #FFF;
+}
+
+.theme-success .chrono-dice-pip {
+  background: radial-gradient(circle at 35% 35%, #D1FAE5 0%, #10B981 65%, #065F46 100%);
+  box-shadow: 0 0 6px #10B981, inset 0 1px 1px #FFF;
+}
+
+.chrono-dice-unknown {
+  font-family: var(--font-display, sans-serif);
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #F59E0B;
+  text-shadow: 0 0 12px rgba(245, 158, 11, 0.7);
+  line-height: 1;
+}
+
+.size-lg .chrono-dice-unknown { font-size: 2.2rem; }
+.size-sm .chrono-dice-unknown { font-size: 1.2rem; }
+
+/* ROLLING ANIMATION */
+.is-rolling {
+  pointer-events: none;
+  animation: diceTumbleContainer 0.6s cubic-bezier(0.2, 0.8, 0.4, 1);
+}
+
+.is-rolling .chrono-dice-cube {
+  animation: diceTumble 0.6s cubic-bezier(0.2, 0.8, 0.4, 1);
+}
+
+@keyframes diceTumbleContainer {
+  0% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-16px) scale(1.15); }
+  60% { transform: translateY(-8px) scale(1.1); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes diceTumble {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(90deg) scale(1.18); }
+  50% { transform: rotate(180deg) scale(1.1); }
+  75% { transform: rotate(270deg) scale(1.16); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+/* IMPACT / LANDED BOUNCE */
+.is-landed {
+  animation: diceLandImpact 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes diceLandImpact {
+  0% { transform: scale(0.9); }
+  40% { transform: scale(1.22); filter: drop-shadow(0 0 20px #F59E0B); }
+  70% { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+
+.chrono-dice-keyhint {
+  position: absolute;
+  bottom: -18px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  font-family: monospace;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #FDE047;
+  padding: 1px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+/* Roll Button in Movement Panel */
+.btn-roll-dice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%) !important;
+  border: 1.5px solid rgba(167, 139, 250, 0.6) !important;
+  box-shadow: 0 0 16px rgba(124, 58, 237, 0.35) !important;
+  color: #FFF !important;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-roll-dice:hover:not(:disabled) {
+  box-shadow: 0 0 24px rgba(124, 58, 237, 0.6) !important;
+  transform: translateY(-2px);
+}
+
+.btn-roll-dice:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-roll-dice kbd {
+  font-size: 0.65rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: monospace;
+}

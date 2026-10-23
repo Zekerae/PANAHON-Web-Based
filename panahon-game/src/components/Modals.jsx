@@ -237,6 +237,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     );
   }
 
+<<<<<<< HEAD
   if (isTeleport) {
     const tiles = choice.tiles || [];
     const targetEra = choice.targetEra || 'myth';
@@ -768,6 +769,8 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
     );
   }
 
+=======
+>>>>>>> a73f468e37bdf051f50814a39a564437e5da80f2
   return (
     <div className="modal-overlay" id="active-modal">
       <div className="modal" style={isDecipher ? { maxWidth: '500px', width: '95%' } : {}}>

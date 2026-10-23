@@ -81,13 +81,13 @@ function PlayerHand({
                 <div
                   className="mission-progress-fill"
                   style={{
-                    width: `${(Math.min(3, isViewingSelf ? (viewedPlayer.clueProgress[viewedPlayer.mission.artifactId] || 0) : viewedPlayer.clueCards.length) / 3) * 100}%`
+                    width: `${(Math.min(3, isViewingSelf ? (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) : viewedPlayer.clueCards.length) / 3) * 100}%`
                   }}
                 ></div>
               </div>
               <span className="mission-progress-text">
                 {isViewingSelf
-                  ? `${viewedPlayer.clueProgress[viewedPlayer.mission.artifactId] || 0}/3 Required Clues`
+                  ? `${viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0}/3 Required Clues`
                   : `${viewedPlayer.clueCards.length} Clues Collected`}
               </span>
             </div>

@@ -38,14 +38,14 @@ function PlayerSidebar({
           >
             {isActive && <div className="turn-indicator">▶</div>}
             <div className="player-card-header">
-              <img src={p.role.avatar} className="player-avatar-small" alt={p.name} />
+              <img src={p.role?.avatar || ''} className="player-avatar-small" alt={p.name} />
               <div style={{ flex: 1 }}>
                 <div className="player-card-name" style={{ color: p.color }}>
                   {p.name}
                   {p.isAi ? <span className="bot-badge">🤖 BOT</span> : <span className="human-badge">👤</span>}
                   {isMe && <span style={{ fontSize: '0.65rem', color: 'var(--accent-gold)', fontWeight: 'normal' }}> (You)</span>}
                 </div>
-                <div className="player-card-role">{p.role.name}</div>
+                <div className="player-card-role">{p.role?.name || 'Castaway'}</div>
               </div>
               <div className="player-points">{p.points} PTS</div>
             </div>

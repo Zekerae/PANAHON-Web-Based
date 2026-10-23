@@ -34,11 +34,18 @@ export class GameEngine {
   }
 
   notify(eventType = 'state') {
+    this.version = (this.version || 0) + 1;
     this.listeners.forEach(fn => fn(this.state, eventType));
   }
 
   getState() {
     return this.state;
+  }
+
+  loadState(newState) {
+    if (!newState) return;
+    this.state = newState;
+    this.notify('remote_state');
   }
 
   // --- Initialize Game ---

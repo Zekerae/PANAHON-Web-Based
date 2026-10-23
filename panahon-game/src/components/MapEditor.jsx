@@ -43,6 +43,11 @@ export default function MapEditor({ onClose }) {
   const [showExportModal, setShowExportModal] = useState(false);
   const [saveToast, setSaveToast] = useState(null);
 
+  // Responsive drawer & device detection
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
+  const [sidebarOpen, setSidebarOpen] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
+  const [activeSidebarTab, setActiveSidebarTab] = useState('inspector'); // 'inspector' | 'path' | 'settings'
+
   // Path walking preview state
   const [isPreviewWalking, setIsPreviewWalking] = useState(false);
   const [previewStep, setPreviewStep] = useState(0);
@@ -52,14 +57,55 @@ export default function MapEditor({ onClose }) {
   const dragTileRef = useRef(null);
   const canvasWrapperRef = useRef(null);
 
+  // Screen resize detection
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (!mobile && !sidebarOpen) {
+        setSidebarOpen(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [sidebarOpen]);
+
   // Toast feedback helper
   const triggerToast = (msg, type = 'success') => {
     setSaveToast({ msg, type });
     setTimeout(() => setSaveToast(null), 3000);
   };
 
-  // Drag & drop logic
-  const handleNodeMouseDown = (e, era, index) => {
+  // Node position calculation helper (used by mouse and touch)
+  const updateNodePosition = (clientX, clientY) => {
+    if (!dragTileRef.current || !canvasWrapperRef.current) return;
+    const { era, index } = dragTileRef.current;
+    const rect = canvasWrapperRef.current.getBoundingClientRect();
+
+    let x = ((clientX - rect.left) / rect.width) * 100;
+    let y = ((clientY - rect.top) / rect.height) * 100;
+
+    x = Math.max(1, Math.min(99, x));
+    y = Math.max(1, Math.min(99, y));
+
+    if (snapToGrid) {
+      x = Math.round(x * 2) / 2;
+      y = Math.round(y * 2) / 2;
+    }
+
+    x = parseFloat(x.toFixed(1));
+    y = parseFloat(y.toFixed(1));
+
+    setCoords(prev => {
+      const next = { ...prev };
+      next[era] = [...next[era]];
+      next[era][index] = { x, y };
+      return next;
+    });
+  };
+
+  // Drag start (mouse & touch)
+  const handleNodeStart = (e, era, index) => {
     e.stopPropagation();
     sounds.btnClick();
     setSelectedTile({ era, index });
@@ -68,33 +114,11 @@ export default function MapEditor({ onClose }) {
     dragTileRef.current = { era, index };
   };
 
+  // Mouse & Touch global drag listeners
   useEffect(() => {
     const handleMouseMove = (e) => {
-      if (!dragTileRef.current || !canvasWrapperRef.current) return;
-      const { era, index } = dragTileRef.current;
-      const rect = canvasWrapperRef.current.getBoundingClientRect();
-
-      let x = ((e.clientX - rect.left) / rect.width) * 100;
-      let y = ((e.clientY - rect.top) / rect.height) * 100;
-
-      // Clamp
-      x = Math.max(1, Math.min(99, x));
-      y = Math.max(1, Math.min(99, y));
-
-      if (snapToGrid) {
-        x = Math.round(x * 2) / 2;
-        y = Math.round(y * 2) / 2;
-      }
-
-      x = parseFloat(x.toFixed(1));
-      y = parseFloat(y.toFixed(1));
-
-      setCoords(prev => {
-        const next = { ...prev };
-        next[era] = [...next[era]];
-        next[era][index] = { x, y };
-        return next;
-      });
+      if (!dragTileRef.current) return;
+      updateNodePosition(e.clientX, e.clientY);
     };
 
     const handleMouseUp = () => {
@@ -104,11 +128,32 @@ export default function MapEditor({ onClose }) {
       }
     };
 
+    const handleTouchMove = (e) => {
+      if (!dragTileRef.current) return;
+      if (e.cancelable) e.preventDefault();
+      const touch = e.touches[0];
+      if (touch) {
+        updateNodePosition(touch.clientX, touch.clientY);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (dragTileRef.current) {
+        dragTileRef.current = null;
+        setIsDragging(false);
+      }
+    };
+
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
     };
   }, [snapToGrid]);
 
@@ -291,7 +336,7 @@ export default function MapEditor({ onClose }) {
     sounds.btnClick();
     const ok = saveCustomMap(coords, layouts);
     if (ok) {
-      triggerToast('💾 Custom Map successfully saved! Game will now use these coordinates.');
+      triggerToast('💾 Custom Map saved! Game is now using these coordinates.');
     } else {
       triggerToast('Failed to save to localStorage', 'danger');
     }
@@ -342,31 +387,29 @@ export default function MapEditor({ onClose }) {
 
   return (
     <div className="map-editor-screen">
-      {/* HEADER / TOOLBAR */}
+      {/* RESPONSIVE HEADER */}
       <header className="map-editor-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Left: Title & Era Chips */}
+        <div className="map-editor-header-left">
           <div className="map-editor-title">
             <span>🗺️</span>
-            <span>CHRONO MAP & PATH EDITOR</span>
+            <span className="title-text">MAP EDITOR</span>
           </div>
 
-          {/* Era Filter Tabs */}
-          <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.4)', padding: '2px', borderRadius: '6px' }}>
+          {/* Era Filter Chips */}
+          <div className="map-editor-era-scroll">
             <button
-              className={`btn ${activeEra === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+              className={`era-chip ${activeEra === 'all' ? 'active' : ''}`}
               onClick={() => { sounds.btnClick(); setActiveEra('all'); }}
             >
-              All Eras
+              All
             </button>
             {ERA_ORDER.map(era => (
               <button
                 key={era}
-                className={`btn ${activeEra === era ? 'btn-primary' : 'btn-secondary'}`}
+                className={`era-chip ${activeEra === era ? 'active' : ''}`}
                 style={{
-                  padding: '4px 8px',
-                  fontSize: '0.72rem',
-                  borderBottom: activeEra === era ? `2px solid ${ERA_COLORS[era]}` : 'none'
+                  borderBottom: activeEra === era ? `3px solid ${ERA_COLORS[era]}` : 'none'
                 }}
                 onClick={() => {
                   sounds.btnClick();
@@ -380,46 +423,70 @@ export default function MapEditor({ onClose }) {
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Background Toggle */}
+        {/* Right: Actions Toolbar */}
+        <div className="map-editor-header-actions">
+          {/* Background switcher */}
           <select
-            className="input-field"
-            style={{ padding: '4px 8px', fontSize: '0.72rem', background: 'rgba(0,0,0,0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}
+            className="editor-select-sm"
             value={bgMode}
             onChange={(e) => setBgMode(e.target.value)}
+            title="Map Background Mode"
           >
-            <option value="clean">Clean Map Art</option>
-            <option value="tiles">Reference Tile Art</option>
-            <option value="grid">Dark Blueprint Grid</option>
+            <option value="clean">Clean Art</option>
+            <option value="tiles">Reference Art</option>
+            <option value="grid">Grid</option>
           </select>
 
-          {/* Zoom Selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-            <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => setZoom(prev => Math.max(0.8, prev - 0.2))}>-</button>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', minWidth: '40px', textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
-            <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => setZoom(prev => Math.min(2.0, prev + 0.2))}>+</button>
+          {/* Zoom controls */}
+          <div className="editor-zoom-group">
+            <button className="editor-btn-sm" onClick={() => setZoom(prev => Math.max(0.7, prev - 0.15))}>-</button>
+            <span className="zoom-indicator">{Math.round(zoom * 100)}%</span>
+            <button className="editor-btn-sm" onClick={() => setZoom(prev => Math.min(2.2, prev + 0.15))}>+</button>
           </div>
 
-          {/* Test Walk Button */}
+          {/* Walk simulation button */}
           <button
-            className={`btn ${isPreviewWalking ? 'btn-accent' : 'btn-secondary'}`}
-            style={{ padding: '4px 10px', fontSize: '0.72rem' }}
+            className={`editor-btn-sm ${isPreviewWalking ? 'active-accent' : ''}`}
             onClick={() => setIsPreviewWalking(!isPreviewWalking)}
+            title="Walk Path Preview"
           >
-            {isPreviewWalking ? '⏹️ Stop Walk' : '🚶 Test Path'}
+            {isPreviewWalking ? '⏹️' : '🚶'} <span className="hide-xs">Walk</span>
           </button>
 
-          <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setShowExportModal(true)}>
-            📋 Export Code
+          {/* Inspector Panel Toggle Button */}
+          <button
+            className={`editor-btn-sm ${sidebarOpen ? 'active-panel' : ''}`}
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            title="Toggle Inspector Panel"
+          >
+            📐 <span className="hide-xs">Panel</span>
           </button>
 
-          <button className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700 }} onClick={handleSaveToGame}>
-            💾 Save & Apply
+          {/* Export Code */}
+          <button
+            className="editor-btn-sm"
+            onClick={() => setShowExportModal(true)}
+            title="Export Code"
+          >
+            📋 <span className="hide-xs">Export</span>
           </button>
 
-          <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={onClose}>
-            ✖ Close
+          {/* Save & Apply */}
+          <button
+            className="editor-btn-sm primary-save"
+            onClick={handleSaveToGame}
+            title="Save and Apply to Game"
+          >
+            💾 <span className="hide-xs">Save</span>
+          </button>
+
+          {/* Close */}
+          <button
+            className="editor-btn-sm close-btn"
+            onClick={onClose}
+            title="Exit Map Editor"
+          >
+            ✖
           </button>
         </div>
       </header>
@@ -429,21 +496,7 @@ export default function MapEditor({ onClose }) {
         {/* CANVAS WORKSPACE */}
         <div className="map-editor-canvas-area">
           {saveToast && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '15px',
-                zIndex: 100,
-                background: saveToast.type === 'danger' ? 'rgba(239, 68, 68, 0.9)' : (saveToast.type === 'warning' ? 'rgba(234, 179, 8, 0.9)' : 'rgba(16, 185, 129, 0.9)'),
-                color: '#fff',
-                padding: '8px 16px',
-                borderRadius: '6px',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                animation: 'toastIn 0.2s ease-out'
-              }}
-            >
+            <div className={`map-editor-toast toast-${saveToast.type}`}>
               {saveToast.msg}
             </div>
           )}
@@ -459,13 +512,6 @@ export default function MapEditor({ onClose }) {
           >
             {/* SVG PATHS */}
             <svg className="editor-paths-svg" viewBox="0 0 1024 765" preserveAspectRatio="none">
-              <defs>
-                <marker id="arrow-head" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                  <path d="M 0 1 L 10 5 L 0 9 z" fill="rgba(255,255,255,0.7)" />
-                </marker>
-              </defs>
-
-              {/* Path lines for each era */}
               {ERA_ORDER.map(era => {
                 const eraCoords = coords[era];
                 if (!eraCoords || eraCoords.length === 0) return null;
@@ -548,9 +594,11 @@ export default function MapEditor({ onClose }) {
                       left: `${c.x}%`,
                       top: `${c.y}%`,
                       background: isSelected ? 'rgba(250, 204, 21, 0.35)' : 'rgba(15, 23, 42, 0.85)',
-                      borderColor: isSelected ? '#FACC15' : ERA_COLORS[era]
+                      borderColor: isSelected ? '#FACC15' : ERA_COLORS[era],
+                      touchAction: 'none'
                     }}
-                    onMouseDown={(e) => handleNodeMouseDown(e, era, idx)}
+                    onMouseDown={(e) => handleNodeStart(e, era, idx)}
+                    onTouchStart={(e) => handleNodeStart(e, era, idx)}
                   >
                     {showNumbers && (
                       <span className="editor-node-num" style={{ background: ERA_COLORS[era] }}>
@@ -583,217 +631,260 @@ export default function MapEditor({ onClose }) {
               });
             })}
           </div>
-        </div>
 
-        {/* SIDEBAR: INSPECTOR & CONTROLS */}
-        <aside className="map-editor-sidebar">
-          {/* Quick Click-to-Add Mode Toggle */}
-          <div className="editor-panel-section" style={{ background: clickToAddMode ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.03)', borderColor: clickToAddMode ? '#3B82F6' : 'rgba(255,255,255,0.1)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: clickToAddMode ? '#60A5FA' : 'var(--text-primary)' }}>
-                ➕ Click-to-Add Tile Mode
-              </span>
-              <input
-                type="checkbox"
-                checked={clickToAddMode}
-                onChange={(e) => setClickToAddMode(e.target.checked)}
-                style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
-              />
-            </div>
-            {clickToAddMode && (
-              <div style={{ marginTop: '8px' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  Click anywhere on the map to add this tile type:
-                </div>
-                <select
-                  className="input-field"
-                  style={{ width: '100%', padding: '4px', fontSize: '0.75rem' }}
-                  value={clickAddType}
-                  onChange={(e) => setClickAddType(e.target.value)}
-                >
-                  {Object.keys(TILE_ICONS).map(t => (
-                    <option key={t} value={t}>{TILE_ICONS[t]} {t.toUpperCase()}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-
-          {/* SELECTED NODE INSPECTOR */}
-          {selectedTile && curTileCoords ? (
-            <div className="editor-panel-section" style={{ borderLeft: `4px solid ${ERA_COLORS[selectedTile.era]}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* FLOATING MOBILE MINI DOCK (when sidebar is minimized on small screens) */}
+          {isMobile && !sidebarOpen && selectedTile && curTileCoords && (
+            <div className="editor-mobile-dock">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '1.2rem' }}>{TILE_ICONS[curTileType] || '•'}</span>
                 <div>
-                  <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: ERA_COLORS[selectedTile.era], fontWeight: 800 }}>
-                    {ERA_NAMES[selectedTile.era]}
-                  </span>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, color: '#fff' }}>
-                    Tile #{selectedTile.index + 1} of {coords[selectedTile.era]?.length}
+                  <div style={{ fontSize: '0.72rem', fontWeight: 800, color: ERA_COLORS[selectedTile.era] }}>
+                    #{selectedTile.index + 1} ({curTileType.toUpperCase()})
                   </div>
-                </div>
-                <div style={{ fontSize: '1.6rem' }}>
-                  {TILE_ICONS[curTileType] || '•'}
-                </div>
-              </div>
-
-              {/* Tile Type Selector */}
-              <div style={{ marginTop: '10px' }}>
-                <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Tile Type:</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', marginTop: '4px' }}>
-                  {Object.keys(TILE_ICONS).map(t => (
-                    <button
-                      key={t}
-                      className={`btn ${curTileType === t ? 'btn-primary' : 'btn-secondary'}`}
-                      style={{ padding: '4px 2px', fontSize: '0.68rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}
-                      onClick={() => changeTileType(t)}
-                    >
-                      <span>{TILE_ICONS[t]}</span>
-                      <span style={{ fontSize: '0.58rem', textTransform: 'capitalize' }}>{t}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Exact Coordinates with Stepper Buttons */}
-              <div style={{ marginTop: '12px' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  Tile Position (% of map):
-                </div>
-
-                <div className="editor-coord-row">
-                  <span style={{ width: '45px', fontSize: '0.75rem', fontWeight: 700, color: '#60A5FA' }}>X: {curTileCoords.x}%</span>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button className="coord-stepper-btn" onClick={() => stepPosition('x', -1.0)} title="-1.0%">«</button>
-                    <button className="coord-stepper-btn" onClick={() => stepPosition('x', -0.1)} title="-0.1%">‹</button>
-                    <button className="coord-stepper-btn" onClick={() => stepPosition('x', 0.1)} title="+0.1%">›</button>
-                    <button className="coord-stepper-btn" onClick={() => stepPosition('x', 1.0)} title="+1.0%">»</button>
-                  </div>
-                </div>
-
-                <div className="editor-coord-row">
-                  <span style={{ width: '45px', fontSize: '0.75rem', fontWeight: 700, color: '#34D399' }}>Y: {curTileCoords.y}%</span>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button className="coord-stepper-btn" onClick={() => stepPosition('y', -1.0)} title="-1.0%">«</button>
-                    <button className="coord-stepper-btn" onClick={() => stepPosition('y', -0.1)} title="-0.1%">‹</button>
-                    <button className="coord-stepper-btn" onClick={() => stepPosition('y', 0.1)} title="+0.1%">›</button>
-                    <button className="coord-stepper-btn" onClick={() => stepPosition('y', 1.0)} title="+1.0%">»</button>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                    X:{curTileCoords.x}% Y:{curTileCoords.y}%
                   </div>
                 </div>
               </div>
 
-              {/* Path Order Sequencing */}
-              <div style={{ marginTop: '14px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '10px' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Path Sequencing & Traversal:
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                  <button
-                    className="btn btn-secondary"
-                    style={{ padding: '6px', fontSize: '0.7rem' }}
-                    disabled={selectedTile.index === 0}
-                    onClick={() => moveTileOrder(-1)}
-                  >
-                    ⬆️ Move Earlier
-                  </button>
-                  <button
-                    className="btn btn-secondary"
-                    style={{ padding: '6px', fontSize: '0.7rem' }}
-                    disabled={selectedTile.index >= coords[selectedTile.era].length - 1}
-                    onClick={() => moveTileOrder(1)}
-                  >
-                    ⬇️ Move Later
-                  </button>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '6px' }}>
-                  <button
-                    className="btn btn-secondary"
-                    style={{ padding: '6px', fontSize: '0.7rem' }}
-                    onClick={insertTileAfter}
-                  >
-                    ➕ Insert After
-                  </button>
-                  <button
-                    className="btn btn-danger"
-                    style={{ padding: '6px', fontSize: '0.7rem' }}
-                    onClick={deleteTile}
-                  >
-                    🗑️ Delete Tile
-                  </button>
-                </div>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button className="editor-btn-sm" onClick={() => stepPosition('x', -0.5)}>←</button>
+                <button className="editor-btn-sm" onClick={() => stepPosition('x', 0.5)}>→</button>
+                <button className="editor-btn-sm" onClick={() => stepPosition('y', -0.5)}>↑</button>
+                <button className="editor-btn-sm" onClick={() => stepPosition('y', 0.5)}>↓</button>
+                <button
+                  className="editor-btn-sm active-panel"
+                  onClick={() => setSidebarOpen(true)}
+                  style={{ marginLeft: '4px' }}
+                >
+                  📐 Edit
+                </button>
               </div>
-            </div>
-          ) : (
-            <div className="editor-panel-section" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-              Select any tile on the map to inspect, edit its position, or change its type.
             </div>
           )}
+        </div>
 
-          {/* Global Era Controls */}
-          <div className="editor-panel-section">
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-accent)', marginBottom: '8px' }}>
-              Pathing & Settings
+        {/* SIDEBAR / DRAWER */}
+        {sidebarOpen && (
+          <aside className={`map-editor-sidebar ${isMobile ? 'mobile-drawer' : ''}`}>
+            {/* Mobile Drawer Header */}
+            {isMobile && (
+              <div className="mobile-drawer-header">
+                <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-accent)' }}>
+                  📐 MAP CONTROLS & INSPECTOR
+                </div>
+                <button className="editor-btn-sm" onClick={() => setSidebarOpen(false)}>✖ Minimize</button>
+              </div>
+            )}
+
+            {/* Click-to-Add Mode Toggle */}
+            <div className="editor-panel-section" style={{ background: clickToAddMode ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.03)', borderColor: clickToAddMode ? '#3B82F6' : 'rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: clickToAddMode ? '#60A5FA' : 'var(--text-primary)' }}>
+                  ➕ Click-to-Add Tile Mode
+                </span>
+                <input
+                  type="checkbox"
+                  checked={clickToAddMode}
+                  onChange={(e) => setClickToAddMode(e.target.checked)}
+                  style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
+                />
+              </div>
+              {clickToAddMode && (
+                <div style={{ marginTop: '8px' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    Click anywhere on the map to add this tile type:
+                  </div>
+                  <select
+                    className="input-field"
+                    style={{ width: '100%', padding: '4px', fontSize: '0.75rem' }}
+                    value={clickAddType}
+                    onChange={(e) => setClickAddType(e.target.value)}
+                  >
+                    {Object.keys(TILE_ICONS).map(t => (
+                      <option key={t} value={t}>{TILE_ICONS[t]} {t.toUpperCase()}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {/* SELECTED NODE INSPECTOR */}
+            {selectedTile && curTileCoords ? (
+              <div className="editor-panel-section" style={{ borderLeft: `4px solid ${ERA_COLORS[selectedTile.era]}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: ERA_COLORS[selectedTile.era], fontWeight: 800 }}>
+                      {ERA_NAMES[selectedTile.era]}
+                    </span>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#fff' }}>
+                      Tile #{selectedTile.index + 1} of {coords[selectedTile.era]?.length}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '1.6rem' }}>
+                    {TILE_ICONS[curTileType] || '•'}
+                  </div>
+                </div>
+
+                {/* Tile Type Selector Grid */}
+                <div style={{ marginTop: '10px' }}>
+                  <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Tile Type:</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', marginTop: '4px' }}>
+                    {Object.keys(TILE_ICONS).map(t => (
+                      <button
+                        key={t}
+                        className={`btn ${curTileType === t ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ padding: '6px 2px', fontSize: '0.68rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}
+                        onClick={() => changeTileType(t)}
+                      >
+                        <span style={{ fontSize: '0.9rem' }}>{TILE_ICONS[t]}</span>
+                        <span style={{ fontSize: '0.58rem', textTransform: 'capitalize' }}>{t}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Coordinates & Fine-Tuning */}
+                <div style={{ marginTop: '12px' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    Tile Position (% of map):
+                  </div>
+
+                  <div className="editor-coord-row">
+                    <span style={{ width: '55px', fontSize: '0.75rem', fontWeight: 700, color: '#60A5FA' }}>X: {curTileCoords.x}%</span>
+                    <div style={{ display: 'flex', gap: '3px' }}>
+                      <button className="coord-stepper-btn" onClick={() => stepPosition('x', -1.0)} title="-1.0%">«</button>
+                      <button className="coord-stepper-btn" onClick={() => stepPosition('x', -0.1)} title="-0.1%">‹</button>
+                      <button className="coord-stepper-btn" onClick={() => stepPosition('x', 0.1)} title="+0.1%">›</button>
+                      <button className="coord-stepper-btn" onClick={() => stepPosition('x', 1.0)} title="+1.0%">»</button>
+                    </div>
+                  </div>
+
+                  <div className="editor-coord-row">
+                    <span style={{ width: '55px', fontSize: '0.75rem', fontWeight: 700, color: '#34D399' }}>Y: {curTileCoords.y}%</span>
+                    <div style={{ display: 'flex', gap: '3px' }}>
+                      <button className="coord-stepper-btn" onClick={() => stepPosition('y', -1.0)} title="-1.0%">«</button>
+                      <button className="coord-stepper-btn" onClick={() => stepPosition('y', -0.1)} title="-0.1%">‹</button>
+                      <button className="coord-stepper-btn" onClick={() => stepPosition('y', 0.1)} title="+0.1%">›</button>
+                      <button className="coord-stepper-btn" onClick={() => stepPosition('y', 1.0)} title="+1.0%">»</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Path Order Sequencing */}
+                <div style={{ marginTop: '14px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '10px' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                    Path Order & Manipulation:
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: '6px', fontSize: '0.7rem' }}
+                      disabled={selectedTile.index === 0}
+                      onClick={() => moveTileOrder(-1)}
+                    >
+                      ⬆️ Move Earlier
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: '6px', fontSize: '0.7rem' }}
+                      disabled={selectedTile.index >= coords[selectedTile.era].length - 1}
+                      onClick={() => moveTileOrder(1)}
+                    >
+                      ⬇️ Move Later
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '6px' }}>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ padding: '6px', fontSize: '0.7rem' }}
+                      onClick={insertTileAfter}
+                    >
+                      ➕ Insert After
+                    </button>
+                    <button
+                      className="btn btn-danger"
+                      style={{ padding: '6px', fontSize: '0.7rem' }}
+                      onClick={deleteTile}
+                    >
+                      🗑️ Delete Tile
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="editor-panel-section" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                Select any tile on the map to inspect or reposition.
+              </div>
+            )}
+
+            {/* Pathing & Display Settings */}
+            <div className="editor-panel-section">
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-accent)', marginBottom: '8px' }}>
+                Pathing & Toggles
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <button
+                  className="btn btn-secondary"
+                  style={{ width: '100%', padding: '6px', fontSize: '0.72rem' }}
+                  disabled={activeEra === 'all'}
+                  onClick={reversePathDirection}
+                >
+                  🔄 Reverse Era Path Direction
+                </button>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', cursor: 'pointer', marginTop: '4px' }}>
+                  <input
+                    type="checkbox"
+                    checked={snapToGrid}
+                    onChange={(e) => setSnapToGrid(e.target.checked)}
+                  />
+                  <span>Snap to 0.5% Grid on Drag</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={showNumbers}
+                    onChange={(e) => setShowNumbers(e.target.checked)}
+                  />
+                  <span>Show Tile Number Badges</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={showIcons}
+                    onChange={(e) => setShowIcons(e.target.checked)}
+                  />
+                  <span>Show Space Type Icons</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={showNexusLines}
+                    onChange={(e) => setShowNexusLines(e.target.checked)}
+                  />
+                  <span>Show Central Nexus Portal Lines</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Reset button at bottom */}
+            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <button
                 className="btn btn-secondary"
-                style={{ width: '100%', padding: '6px', fontSize: '0.72rem' }}
-                disabled={activeEra === 'all'}
-                onClick={reversePathDirection}
+                style={{ width: '100%', padding: '6px', fontSize: '0.72rem', color: '#F87171' }}
+                onClick={handleResetDefaults}
               >
-                🔄 Reverse Era Path Direction
+                🔄 Reset All to Factory Defaults
               </button>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', cursor: 'pointer', marginTop: '4px' }}>
-                <input
-                  type="checkbox"
-                  checked={snapToGrid}
-                  onChange={(e) => setSnapToGrid(e.target.checked)}
-                />
-                <span>Snap to 0.5% Grid on Drag</span>
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={showNumbers}
-                  onChange={(e) => setShowNumbers(e.target.checked)}
-                />
-                <span>Show Tile Number Badges</span>
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={showIcons}
-                  onChange={(e) => setShowIcons(e.target.checked)}
-                />
-                <span>Show Space Type Icons</span>
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={showNexusLines}
-                  onChange={(e) => setShowNexusLines(e.target.checked)}
-                />
-                <span>Show Central Nexus Portal Lines</span>
-              </label>
             </div>
-          </div>
-
-          {/* Reset button at bottom */}
-          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <button
-              className="btn btn-secondary"
-              style={{ width: '100%', padding: '6px', fontSize: '0.72rem', color: '#F87171' }}
-              onClick={handleResetDefaults}
-            >
-              🔄 Reset All to Factory Defaults
-            </button>
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
 
       {/* EXPORT CODE MODAL */}

@@ -24,6 +24,7 @@ export default function GameScreen({
   const [inspectedPlayerId, setInspectedPlayerId] = useState(null);
   const [isGameChatOpen, setIsGameChatOpen] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
+  const [mobileGameTab, setMobileGameTab] = useState("board");
 
   if (!state) return null;
 
@@ -155,7 +156,7 @@ export default function GameScreen({
   };
 
   return (
-    <div className="game-screen">
+    <div className={`game-screen mobile-tab-${mobileGameTab}`}>
       {/* HEADER: TIMELINE STATUS & GAUGES */}
       <header className="game-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
@@ -217,6 +218,35 @@ export default function GameScreen({
           </button>
         </div>
       </header>
+
+      {/* MOBILE RESPONSIVE NAVIGATION TABS (< 900px) */}
+      <div className="mobile-game-tabs">
+        <button
+          className={`mobile-game-tab ${mobileGameTab === 'board' ? 'active' : ''}`}
+          onClick={() => { sounds.btnClick(); setMobileGameTab('board'); }}
+        >
+          🗺️ Board
+        </button>
+        <button
+          className={`mobile-game-tab ${mobileGameTab === 'actions' ? 'active' : ''}`}
+          onClick={() => { sounds.btnClick(); setMobileGameTab('actions'); }}
+        >
+          🎲 {isMyTurn ? 'YOUR TURN' : 'Actions'}
+          {isMyTurn && state.phase === 'rolling' && <span className="mobile-turn-pulse">!</span>}
+        </button>
+        <button
+          className={`mobile-game-tab ${mobileGameTab === 'players' ? 'active' : ''}`}
+          onClick={() => { sounds.btnClick(); setMobileGameTab('players'); }}
+        >
+          👥 Castaways
+        </button>
+        <button
+          className={`mobile-game-tab ${mobileGameTab === 'hand' ? 'active' : ''}`}
+          onClick={() => { sounds.btnClick(); setMobileGameTab('hand'); }}
+        >
+          📜 Hand ({viewedPlayer.clueCards.length})
+        </button>
+      </div>
 
       {/* LEFT PANEL: CASTAWAY DOSSIERS */}
       <aside className="left-panel">
@@ -293,6 +323,31 @@ export default function GameScreen({
 
       {/* CENTER: THE FOUR QUADRANTS BOARD */}
       <main className="board-container">
+        {/* Mobile floating quick action on board */}
+        {isMyTurn && (
+          <div className="mobile-floating-action hide-desktop" style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)', zIndex: 30, display: 'flex', gap: '8px' }}>
+            {state.phase === 'rolling' && (
+              <button
+                className="btn btn-primary"
+                style={{ padding: '8px 16px', fontSize: '0.85rem', fontWeight: 800, boxShadow: '0 4px 20px rgba(99, 102, 241, 0.7)' }}
+                disabled={isRolling}
+                onClick={handleRollDice}
+              >
+                🎲 ROLL DIE
+              </button>
+            )}
+            {state.phase === 'action' && (
+              <button
+                className="btn btn-accent"
+                style={{ padding: '8px 16px', fontSize: '0.85rem', fontWeight: 800, boxShadow: '0 4px 20px rgba(234, 179, 8, 0.6)' }}
+                onClick={handleEndTurn}
+              >
+                ⏭️ FINISH TURN
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="board-camera-bar">
           {['full', 'focus-spanish', 'focus-american', 'focus-japanese', 'focus-myth', 'auto'].map((cam) => (
             <button

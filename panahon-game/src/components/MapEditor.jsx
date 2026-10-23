@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import sounds from '../sound.js';
 import { saveMapToSupabase } from '../supabaseClient.js';
 import StudioPinModal from './StudioPinModal.jsx';
+import MapPngExportModal from './map/MapPngExportModal.jsx';
 import { isStudioUnlocked, setStudioUnlocked, updateStudioPin, resetStudioPinToDefault } from '../studioAuth.js';
 import {
   ERAS, ERA_ORDER, ERA_NAMES,
@@ -60,6 +61,7 @@ export default function MapEditor({ onClose }) {
   const [clickToAddMode, setClickToAddMode] = useState(false);
   const [clickAddType, setClickAddType] = useState('clue');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showPngExportModal, setShowPngExportModal] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(() => isStudioUnlocked());
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [showChangePinModal, setShowChangePinModal] = useState(false);
@@ -916,6 +918,24 @@ export default function MapEditor({ onClose }) {
             title="Backup & Restore Tile Layouts"
           >
             📦 <span className="hide-xs">Backups ({backups.length})</span>
+          </button>
+
+          {/* Export PNG for Printing */}
+          <button
+            className="editor-btn-sm"
+            style={{
+              background: 'rgba(56, 189, 248, 0.18)',
+              border: '1.5px solid rgba(56, 189, 248, 0.55)',
+              color: '#38BDF8',
+              fontWeight: 700
+            }}
+            onClick={() => {
+              sounds.btnClick();
+              setShowPngExportModal(true);
+            }}
+            title="Export High-Res PNG for Printing"
+          >
+            🖼️ <span className="hide-xs">Export PNG</span>
           </button>
 
           {/* Export Code */}
@@ -1793,6 +1813,20 @@ export default function MapEditor({ onClose }) {
           </aside>
         )}
       </div>
+
+      {/* EXPORT MAP AS PNG FOR PRINTING */}
+      {showPngExportModal && (
+        <MapPngExportModal
+          isOpen={showPngExportModal}
+          onClose={() => setShowPngExportModal(false)}
+          coords={coords}
+          layouts={layouts}
+          connections={connections}
+          activeEra={activeEra}
+          bgMode={bgMode}
+          triggerToast={triggerToast}
+        />
+      )}
 
       {/* EXPORT CODE MODAL */}
       {showExportModal && (

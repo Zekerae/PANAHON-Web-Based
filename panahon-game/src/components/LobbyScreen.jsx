@@ -241,18 +241,19 @@ export default function LobbyScreen({
             })}
           </div>
 
-          <div style={{ marginTop: 'var(--space-xl)', display: 'flex', gap: 'var(--space-md)', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-secondary" onClick={onBack}>Back</button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                Active Castaways: <strong style={{ color: 'var(--text-accent)', fontSize: '0.95rem' }}>{activeSlots.length} / 4</strong>
-              </span>
+          <div className="lobby-actions">
+            <div className="lobby-status-badge">
+              <span>👥 Active Castaways:</span>
+              <strong>{activeSlots.length} / 4</strong>
+            </div>
+            <div className="lobby-actions-group">
+              <button className="btn btn-secondary btn-back" onClick={onBack}>← Back</button>
               <button
-                className="btn btn-primary"
+                className="btn btn-primary btn-launch"
                 disabled={activeSlots.length === 0}
                 onClick={onStartLocal}
               >
-                Launch Mission ({activeSlots.length} Castaway{activeSlots.length === 1 ? '' : 's'})
+                🚀 Launch Mission ({activeSlots.length})
               </button>
             </div>
           </div>
@@ -377,15 +378,21 @@ export default function LobbyScreen({
                 </button>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-md)', marginTop: 'var(--space-md)' }}>
-                <button className="btn btn-secondary" onClick={onBack}>Back</button>
-                <button
-                  className="btn btn-primary"
-                  disabled={isConnectingOnline}
-                  onClick={() => onConnectOnline(onlineSubMode)}
-                >
-                  {isConnectingOnline ? '🔄 Connecting...' : (onlineSubMode === 'create' ? 'Create Room' : 'Join Room')}
-                </button>
+              <div className="lobby-actions">
+                <div className="lobby-status-badge" style={{ fontSize: '0.8rem' }}>
+                  <span>🌐 Multiplayer:</span>
+                  <strong>{onlineSubMode === 'create' ? 'Host Mission' : 'Join Mission'}</strong>
+                </div>
+                <div className="lobby-actions-group">
+                  <button className="btn btn-secondary btn-back" onClick={onBack}>← Back</button>
+                  <button
+                    className="btn btn-primary btn-launch"
+                    disabled={isConnectingOnline}
+                    onClick={() => onConnectOnline(onlineSubMode)}
+                  >
+                    {isConnectingOnline ? '🔄 Connecting...' : (onlineSubMode === 'create' ? '🚀 Create Room' : '🚪 Join Room')}
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -448,21 +455,27 @@ export default function LobbyScreen({
                 </div>
               </div>
 
-              <div className="waiting-room-actions">
-                <button className="btn btn-secondary" onClick={onLeaveRoom}>Leave Room</button>
-                {network.isHost ? (
-                  <button
-                    className="btn btn-primary"
-                    disabled={currentRoomPlayers.length < 1}
-                    onClick={onStartOnline}
-                  >
-                    Launch Mission ({currentRoomPlayers.length} Players)
-                  </button>
-                ) : (
-                  <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                    Waiting for host to initiate Chrono Shift...
-                  </div>
-                )}
+              <div className="lobby-actions waiting-room-actions">
+                <div className="lobby-status-badge">
+                  <span>Crew:</span>
+                  <strong>{currentRoomPlayers.length} / 4 Ready</strong>
+                </div>
+                <div className="lobby-actions-group">
+                  <button className="btn btn-secondary btn-back" onClick={onLeaveRoom}>Leave Room</button>
+                  {network.isHost ? (
+                    <button
+                      className="btn btn-primary btn-launch"
+                      disabled={currentRoomPlayers.length < 1}
+                      onClick={onStartOnline}
+                    >
+                      🚀 Launch Mission ({currentRoomPlayers.length})
+                    </button>
+                  ) : (
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic', padding: '0 8px' }}>
+                      Waiting for host to initiate Chrono Shift...
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

@@ -3,7 +3,7 @@ import sounds from '../sound.js';
 import {
   ERAS, ERA_ORDER, ERA_NAMES,
   ERA_TILE_COORDINATES, ERA_TILE_LAYOUTS,
-  getActiveTileCoordinates, getActiveTileLayouts,
+  DEFAULT_ERA_LOOP_TARGETS, getActiveTileCoordinates, getActiveTileLayouts, getActiveLoopTargets,
   saveCustomMap, resetCustomMap
 } from '../gameData.js';
 
@@ -40,6 +40,7 @@ export default function MapEditor({ onClose }) {
   // Deep clone initial coordinates and layouts
   const [coords, setCoords] = useState(() => JSON.parse(JSON.stringify(getActiveTileCoordinates())));
   const [layouts, setLayouts] = useState(() => JSON.parse(JSON.stringify(getActiveTileLayouts())));
+  const [loopTargets, setLoopTargets] = useState(() => JSON.parse(JSON.stringify(getActiveLoopTargets())));
 
   const [activeEra, setActiveEra] = useState('spanish');
   const [selectedTile, setSelectedTile] = useState({ era: 'spanish', index: 0 });
@@ -342,10 +343,21 @@ export default function MapEditor({ onClose }) {
     triggerToast(`Reversed path traversal direction for ${ERA_NAMES[activeEra]}`, 'info');
   };
 
+  // Set Loop Target for Era (e.g. Tile 25 loops back to Tile 15 in Spanish Era)
+  const handleSetLoopTarget = (era, targetIndex) => {
+    sounds.btnClick();
+    setLoopTargets(prev => ({
+      ...prev,
+      [era]: targetIndex
+    }));
+    const total = coords[era]?.length || 0;
+    triggerToast(`Connected ${ERA_NAMES[era]} End (Tile #${total}) to Tile #${targetIndex + 1}!`);
+  };
+
   // Save to LocalStorage
   const handleSaveToGame = () => {
     sounds.btnClick();
-    const ok = saveCustomMap(coords, layouts);
+    const ok = saveCustomMap(coords, layouts, loopTargets);
     if (ok) {
       triggerToast('💾 Custom Map saved! Game is now using these coordinates.');
     } else {
@@ -360,6 +372,7 @@ export default function MapEditor({ onClose }) {
       resetCustomMap();
       setCoords(JSON.parse(JSON.stringify(ERA_TILE_COORDINATES)));
       setLayouts(JSON.parse(JSON.stringify(ERA_TILE_LAYOUTS)));
+      setLoopTargets(JSON.parse(JSON.stringify(DEFAULT_ERA_LOOP_TARGETS)));
       triggerToast('Map reset to factory defaults.');
     }
   };
@@ -369,14 +382,18 @@ export default function MapEditor({ onClose }) {
     if (!isPreviewWalking) return;
     const curEra = activeEra === 'all' ? 'spanish' : activeEra;
     const max = coords[curEra]?.length || 1;
+    const loopTarget = loopTargets[curEra] !== undefined ? loopTargets[curEra] : (curEra === 'spanish' ? 14 : 0);
 
     const timer = setInterval(() => {
-      setPreviewStep(prev => (prev + 1) % max);
+      setPreviewStep(prev => {
+        if (prev >= max - 1) return loopTarget;
+        return prev + 1;
+      });
       sounds.moveStep();
     }, 450);
 
     return () => clearInterval(timer);
-  }, [isPreviewWalking, activeEra, coords]);
+  }, [isPreviewWalking, activeEra, coords, loopTargets]);
 
   // Selected tile details
   const curTileCoords = selectedTile ? coords[selectedTile.era]?.[selectedTile.index] : null;
@@ -392,6 +409,8 @@ export default function MapEditor({ onClose }) {
       'export const ERA_TILE_LAYOUTS = ' + JSON.stringify(layouts, null, 2) + ';',
       '',
       'export const ERA_TILE_COORDINATES = ' + JSON.stringify(coords, null, 2) + ';',
+      '',
+      'export const DEFAULT_ERA_LOOP_TARGETS = ' + JSON.stringify(loopTargets, null, 2) + ';',
       ''
     ].join('\n');
   };
@@ -529,7 +548,14 @@ export default function MapEditor({ onClose }) {
                 const isSelectedEra = activeEra === era || activeEra === 'all';
                 const opacity = isSelectedEra ? 1 : 0.25;
 
-                const pathData = eraCoords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${(c.x * 1024) / 100} ${(c.y * 765) / 100}`).join(' ') + ' Z';
+                const targetIdx = loopTargets[era] !== undefined ? loopTargets[era] : (era === 'spanish' ? 14 : 0);
+                const targetCoord = eraCoords[targetIdx];
+                let pathData = eraCoords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${(c.x * 1024) / 100} ${(c.y * 765) / 100}`).join(' ');
+                if (targetIdx === 0) {
+                  pathData += ' Z';
+                } else if (targetCoord) {
+                  pathData += ` L ${(targetCoord.x * 1024) / 100} ${(targetCoord.y * 765) / 100}`;
+                }
 
                 return (
                   <path
@@ -619,6 +645,32 @@ export default function MapEditor({ onClose }) {
 
                     {showIcons && (
                       <span className="editor-node-icon">{icon}</span>
+                    )}
+
+                    {/* Loop Destination Marker Badge */}
+                    {loopTargets[era] === idx && (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          bottom: '-9px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          fontSize: '0.58rem',
+                          background: '#10B981',
+                          color: '#fff',
+                          padding: '0 4px',
+                          borderRadius: '6px',
+                          lineHeight: '12px',
+                          fontWeight: 800,
+                          boxShadow: '0 0 6px rgba(16, 185, 129, 0.8)',
+                          whiteSpace: 'nowrap',
+                          pointerEvents: 'none',
+                          zIndex: 20
+                        }}
+                        title="Loop Destination Space"
+                      >
+                        🔁 Loop
+                      </span>
                     )}
 
                     {/* Test Walker Pawn */}
@@ -810,6 +862,25 @@ export default function MapEditor({ onClose }) {
                       🗑️ Delete
                     </button>
                   </div>
+
+                  {/* Connect Era End to this Space button */}
+                  <button
+                    className="sidebar-btn"
+                    style={{
+                      height: '24px',
+                      fontSize: '0.66rem',
+                      marginTop: '4px',
+                      background: loopTargets[selectedTile.era] === selectedTile.index ? 'rgba(16, 185, 129, 0.28)' : 'rgba(255,255,255,0.06)',
+                      borderColor: loopTargets[selectedTile.era] === selectedTile.index ? '#10B981' : 'rgba(255,255,255,0.18)',
+                      color: loopTargets[selectedTile.era] === selectedTile.index ? '#34D399' : '#fff'
+                    }}
+                    onClick={() => handleSetLoopTarget(selectedTile.era, selectedTile.index)}
+                    title={`Set Tile #${selectedTile.index + 1} as the loop destination for the final space (#${coords[selectedTile.era]?.length})`}
+                  >
+                    {loopTargets[selectedTile.era] === selectedTile.index
+                      ? `✓ Loop Target: Tile #${selectedTile.index + 1}`
+                      : `🔗 Connect End to Tile #${selectedTile.index + 1}`}
+                  </button>
                 </div>
               </div>
             ) : (
@@ -818,16 +889,40 @@ export default function MapEditor({ onClose }) {
               </div>
             )}
 
-            {/* Pathing & Toggles (2x2 Checkbox grid) */}
+            {/* Pathing & Toggles */}
             <div className="editor-panel-section" style={{ padding: '6px 8px' }}>
               <button
                 className="sidebar-btn"
-                style={{ width: '100%', marginBottom: '6px', height: '26px' }}
+                style={{ width: '100%', marginBottom: '5px', height: '25px', fontSize: '0.68rem' }}
                 disabled={activeEra === 'all'}
                 onClick={reversePathDirection}
               >
                 🔄 Reverse Era Path
               </button>
+
+              {/* Era Loop Target selector */}
+              {(() => {
+                const targetEra = activeEra === 'all' ? (selectedTile ? selectedTile.era : 'spanish') : activeEra;
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '5px' }}>
+                    <span style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      🔁 Loop End to:
+                    </span>
+                    <select
+                      className="input-field"
+                      style={{ padding: '1px 4px', fontSize: '0.66rem', height: '23px', flex: 1, minWidth: 0 }}
+                      value={loopTargets[targetEra] ?? (targetEra === 'spanish' ? 14 : 0)}
+                      onChange={(e) => handleSetLoopTarget(targetEra, parseInt(e.target.value, 10))}
+                    >
+                      {(coords[targetEra] || []).map((_, i) => (
+                        <option key={i} value={i}>
+                          Tile #{i + 1} {layouts[targetEra]?.[i] ? `(${layouts[targetEra][i]})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })()}
 
               <div className="editor-checkbox-grid">
                 <label className="editor-checkbox-item">

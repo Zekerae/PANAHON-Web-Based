@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import sounds from '../sound.js';
 import {
   ERA_NAMES, ERA_ORDER, ROLES, GAME_CONSTANTS, PLAYER_COLORS,
-  ERA_TILE_COORDINATES, getActiveTileCoordinates
+  ERA_TILE_COORDINATES, getActiveTileCoordinates, getActiveLoopTargets
 } from '../gameData.js';
 import ChatBox from './ChatBox.jsx';
 
@@ -372,8 +372,18 @@ export default function GameScreen({
             <svg className="board-paths-svg" viewBox="0 0 1024 765" preserveAspectRatio="none">
               {ERA_ORDER.map(era => {
                 const coords = (activeCoords[era] || ERA_TILE_COORDINATES[era]);
-                if (!coords) return null;
-                const d = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${(c.x * 1024) / 100} ${(c.y * 765) / 100}`).join(' ') + ' Z';
+                if (!coords || coords.length === 0) return null;
+                const loopTargets = (typeof getActiveLoopTargets === 'function') ? getActiveLoopTargets() : {};
+                const targetIdx = loopTargets[era] !== undefined ? loopTargets[era] : (era === 'spanish' ? 14 : 0);
+                const targetCoord = coords[targetIdx];
+
+                let d = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${(c.x * 1024) / 100} ${(c.y * 765) / 100}`).join(' ');
+                if (targetIdx === 0) {
+                  d += ' Z';
+                } else if (targetCoord) {
+                  d += ` L ${(targetCoord.x * 1024) / 100} ${(targetCoord.y * 765) / 100}`;
+                }
+
                 const isActiveEra = currentPlayer.currentEra === era;
                 return <path key={era} d={d} className={`board-path-line ${isActiveEra ? 'active-era-path' : ''}`} />;
               })}

@@ -171,6 +171,26 @@ export const ERA_TILE_COORDINATES = {
 };
 
 // Dynamic Map Accessors (Supports in-game Map Editor & Local Storage)
+// Default loop target index for each era (where the last tile connects to)
+// Spanish era: Tile 25 (index 24) connects directly to Tile 15 (index 14) to complete the loop!
+export const DEFAULT_ERA_LOOP_TARGETS = {
+  [ERAS.SPANISH]: 14,   // Tile #15
+  [ERAS.AMERICAN]: 0,   // Tile #1
+  [ERAS.JAPANESE]: 0,   // Tile #1
+  [ERAS.MYTH]: 0        // Tile #1
+};
+
+export function getActiveLoopTargets() {
+  try {
+    const saved = localStorage.getItem('panahon_custom_map_loops');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') return { ...DEFAULT_ERA_LOOP_TARGETS, ...parsed };
+    }
+  } catch (_) {}
+  return { ...DEFAULT_ERA_LOOP_TARGETS };
+}
+
 export function getActiveTileCoordinates() {
   try {
     const saved = localStorage.getItem('panahon_custom_map_coords');
@@ -193,10 +213,11 @@ export function getActiveTileLayouts() {
   return ERA_TILE_LAYOUTS;
 }
 
-export function saveCustomMap(coords, layouts) {
+export function saveCustomMap(coords, layouts, loops) {
   try {
     localStorage.setItem('panahon_custom_map_coords', JSON.stringify(coords));
     localStorage.setItem('panahon_custom_map_layouts', JSON.stringify(layouts));
+    if (loops) localStorage.setItem('panahon_custom_map_loops', JSON.stringify(loops));
     return true;
   } catch (e) {
     console.error('Failed to save custom map to localStorage:', e);
@@ -208,6 +229,7 @@ export function resetCustomMap() {
   try {
     localStorage.removeItem('panahon_custom_map_coords');
     localStorage.removeItem('panahon_custom_map_layouts');
+    localStorage.removeItem('panahon_custom_map_loops');
   } catch (_) {}
 }
 

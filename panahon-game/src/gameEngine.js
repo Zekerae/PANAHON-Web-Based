@@ -1,7 +1,7 @@
 // ===== PANAHON: CHRONO SHIFT - Game Engine =====
 
 import {
-  ERAS, ERA_ORDER, ERA_NAMES, TILE_TYPES, ERA_TILE_LAYOUTS, ERA_TILE_COORDINATES, getActiveTileLayouts,
+  ERAS, ERA_ORDER, ERA_NAMES, TILE_TYPES, ERA_TILE_LAYOUTS, ERA_TILE_COORDINATES, getActiveTileLayouts, getActiveLoopTargets,
   ROLES, ROLE_ORDER, ARTIFACTS, ALL_ARTIFACTS, EVENT_CARDS, DANGER_CARDS,
   generateClueCards, generateMissions, GAME_CONSTANTS, SCORING, PLAYER_COLORS
 } from './gameData.js';
@@ -349,11 +349,20 @@ export class GameEngine {
     const player = this.getCurrentPlayer();
     const eraTiles = this.state.board[player.currentEra];
     const currentIdx = player.tileIndex;
+
+    const loopTargets = (typeof getActiveLoopTargets === 'function') ? getActiveLoopTargets() : { spanish: 14 };
+    const eraLoopTarget = loopTargets[player.currentEra] !== undefined ? loopTargets[player.currentEra] : (player.currentEra === 'spanish' ? 14 : 0);
+
     let newIdx = currentIdx + dir;
 
-    // Wrap around the era
-    if (newIdx < 0) newIdx = eraTiles.length - 1;
-    if (newIdx >= eraTiles.length) newIdx = 0;
+    // Wrap around the era path (e.g. Tile 25 connects back to Tile 15 in Spanish Era)
+    if (dir > 0 && currentIdx === eraTiles.length - 1) {
+      newIdx = eraLoopTarget;
+    } else if (newIdx < 0) {
+      newIdx = eraTiles.length - 1;
+    } else if (newIdx >= eraTiles.length) {
+      newIdx = eraLoopTarget;
+    }
 
     // Move
     eraTiles[currentIdx].players = eraTiles[currentIdx].players.filter(id => id !== player.id);
@@ -1149,11 +1158,25 @@ export class GameEngine {
   movePlayer(player, spaces) {
     const tiles = this.state.board[player.currentEra];
     tiles[player.tileIndex].players = tiles[player.tileIndex].players.filter(id => id !== player.id);
-    let newIdx = player.tileIndex + spaces;
-    if (newIdx < 0) newIdx = Math.max(0, newIdx + tiles.length);
-    if (newIdx >= tiles.length) newIdx = newIdx % tiles.length;
-    player.tileIndex = newIdx;
-    tiles[newIdx].players.push(player.id);
+
+    const loopTargets = (typeof getActiveLoopTargets === 'function') ? getActiveLoopTargets() : { spanish: 14 };
+    const eraLoopTarget = loopTargets[player.currentEra] !== undefined ? loopTargets[player.currentEra] : (player.currentEra === 'spanish' ? 14 : 0);
+
+    let cur = player.tileIndex;
+    const step = spaces >= 0 ? 1 : -1;
+    let count = Math.abs(spaces);
+    while (count > 0) {
+      if (step > 0 && cur === tiles.length - 1) {
+        cur = eraLoopTarget;
+      } else {
+        cur += step;
+        if (cur < 0) cur = tiles.length - 1;
+        if (cur >= tiles.length) cur = eraLoopTarget;
+      }
+      count--;
+    }
+    player.tileIndex = cur;
+    tiles[cur].players.push(player.id);
   }
 
   // --- Turn Management ---

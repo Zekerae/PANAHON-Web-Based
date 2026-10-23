@@ -10,6 +10,7 @@ import {
   BugReportModal
 } from './title/TitleModals.jsx';
 import DataBankModal from './title/DataBankModal.jsx';
+import GuideModal from './GuideModal.jsx';
 import StudioPinModal from './StudioPinModal.jsx';
 import { isStudioUnlocked } from '../studioAuth.js';
 
@@ -269,7 +270,7 @@ export default function TitleScreen({
             <div className="nav-item-container">
               <button
                 className="duelyst-menu-link"
-                onClick={() => { sounds.btnClick(); onOpenGuide(); }}
+                onClick={() => { sounds.btnClick(); setActiveModal('manual'); }}
               >
                 <div className="menu-link-bullet">
                   <svg viewBox="0 0 24 24" className="constellation-icon">
@@ -401,6 +402,9 @@ export default function TitleScreen({
       )}
       {activeModal === 'databank' && (
         <DataBankModal onClose={() => setActiveModal(null)} />
+      )}
+      {activeModal === 'manual' && (
+        <GuideModal onClose={() => setActiveModal(null)} />
       )}
       {activeModal === 'bug' && (
         <BugReportModal onClose={() => setActiveModal(null)} />

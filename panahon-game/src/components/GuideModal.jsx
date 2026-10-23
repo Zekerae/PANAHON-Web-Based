@@ -8,8 +8,8 @@ export default function GuideModal({ onClose }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        sounds.btnClick();
-        onClose();
+        sounds?.btnClick?.();
+        if (typeof onClose === 'function') onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -17,13 +17,13 @@ export default function GuideModal({ onClose }) {
   }, [onClose]);
 
   const handleTab = (tab) => {
-    sounds.btnClick();
+    sounds?.btnClick?.();
     setGuideTab(tab);
   };
 
   const handleClose = () => {
-    sounds.btnClick();
-    onClose();
+    sounds?.btnClick?.();
+    if (typeof onClose === 'function') onClose();
   };
 
   const handleOverlayClick = (e) => {
@@ -33,24 +33,56 @@ export default function GuideModal({ onClose }) {
   };
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 12500 }} onClick={handleOverlayClick}>
+    <div
+      className="modal-overlay"
+      style={{
+        zIndex: 12500,
+        backgroundColor: 'rgba(2, 6, 23, 0.88)',
+        backdropFilter: 'blur(10px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'fixed',
+        inset: 0
+      }}
+      onClick={handleOverlayClick}
+    >
       <div
         className="modal duelyst-modal"
         style={{
-          maxWidth: '820px',
-          width: '95%',
+          maxWidth: '860px',
+          width: '94%',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
           padding: '20px 24px',
-          position: 'relative'
+          position: 'relative',
+          background: 'rgba(10, 15, 28, 0.98)',
+          border: '1.5px solid rgba(56, 189, 248, 0.45)',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.92), 0 0 35px rgba(56, 189, 248, 0.22)',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          boxSizing: 'border-box'
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid rgba(56, 189, 248, 0.25)', paddingBottom: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '1.4rem' }}>📜</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid rgba(56, 189, 248, 0.25)', paddingBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '8px',
+              background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(99, 102, 241, 0.3))',
+              border: '1.5px solid #38BDF8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.4rem',
+              boxShadow: '0 0 16px rgba(56, 189, 248, 0.3)'
+            }}>
+              📜
+            </div>
             <div>
               <h2 style={{
                 margin: 0,
@@ -76,7 +108,24 @@ export default function GuideModal({ onClose }) {
           <button
             className="modal-close"
             onClick={handleClose}
-            style={{ position: 'static', color: '#94A3B8', fontSize: '1.4rem' }}
+            style={{
+              position: 'static',
+              color: '#94A3B8',
+              fontSize: '1.4rem',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#FFF'; e.currentTarget.style.borderColor = '#38BDF8'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#94A3B8'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'; }}
+            title="Close Manual [ESC]"
           >
             &times;
           </button>
@@ -97,17 +146,18 @@ export default function GuideModal({ onClose }) {
                 className={`duelyst-tab-pill ${isActive ? 'is-active' : ''}`}
                 onClick={() => handleTab(tab.id)}
                 style={{
-                  background: isActive ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(99, 102, 241, 0.35))' : 'rgba(15, 23, 42, 0.6)',
+                  background: isActive ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.3), rgba(99, 102, 241, 0.4))' : 'rgba(15, 23, 42, 0.6)',
                   border: isActive ? '1.5px solid #38BDF8' : '1px solid rgba(255, 255, 255, 0.1)',
                   color: isActive ? '#FFF' : '#94A3B8',
-                  padding: '6px 14px',
+                  padding: '7px 14px',
                   borderRadius: '6px',
-                  fontSize: '0.76rem',
+                  fontSize: '0.78rem',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
+                  boxShadow: isActive ? '0 0 15px rgba(56, 189, 248, 0.3)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
               >
@@ -122,15 +172,16 @@ export default function GuideModal({ onClose }) {
         <div style={{
           flex: 1,
           overflowY: 'auto',
-          paddingRight: '8px',
+          paddingRight: '6px',
           fontSize: '0.84rem',
           lineHeight: 1.6,
-          color: '#CBD5E1'
+          color: '#CBD5E1',
+          minHeight: 0
         }}>
           {guideTab === 'overview' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '14px' }}>
-                <h4 style={{ margin: '0 0 6px', color: '#38BDF8', fontFamily: 'var(--font-display)', letterSpacing: '1px' }}>
+                <h4 style={{ margin: '0 0 6px', color: '#38BDF8', fontFamily: 'var(--font-display)', letterSpacing: '1px', fontSize: '0.92rem' }}>
                   MISSION OBJECTIVE
                 </h4>
                 <p style={{ margin: 0, fontSize: '0.82rem', color: '#E2E8F0' }}>
@@ -141,7 +192,7 @@ export default function GuideModal({ onClose }) {
               </div>
 
               <div>
-                <h4 style={{ margin: '0 0 10px', color: '#F59E0B', fontFamily: 'var(--font-display)', letterSpacing: '1px' }}>
+                <h4 style={{ margin: '0 0 8px', color: '#F59E0B', fontFamily: 'var(--font-display)', letterSpacing: '1px', fontSize: '0.88rem' }}>
                   THE 4 HISTORICAL TIMELINES & RELICS
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
@@ -158,18 +209,38 @@ export default function GuideModal({ onClose }) {
                   ))}
                 </div>
               </div>
+
+              <div style={{ background: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '8px', padding: '12px 14px' }}>
+                <h4 style={{ margin: '0 0 6px', color: '#38BDF8', fontFamily: 'var(--font-display)', letterSpacing: '1px', fontSize: '0.88rem' }}>
+                  CORE OPERATIONAL LOOP
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '8px', fontSize: '0.76rem', color: '#94A3B8' }}>
+                  <div style={{ padding: '6px 8px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '4px' }}>
+                    <strong style={{ color: '#F8FAFC' }}>1. Roll & Navigate:</strong> Traverse historical spaces, resolve Event & Danger encounters.
+                  </div>
+                  <div style={{ padding: '6px 8px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '4px' }}>
+                    <strong style={{ color: '#F8FAFC' }}>2. Decipher Clues:</strong> Collect 3 authentic clues matching a relic to unlock excavation.
+                  </div>
+                  <div style={{ padding: '6px 8px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '4px' }}>
+                    <strong style={{ color: '#F8FAFC' }}>3. Cross Gates:</strong> Spend 2 Energy to leap across historical eras via Time Gates.
+                  </div>
+                  <div style={{ padding: '6px 8px', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '4px' }}>
+                    <strong style={{ color: '#F8FAFC' }}>4. Restore Spacetime:</strong> Deliver artifacts to authentic timelines before Breach 6!
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
           {guideTab === 'roles' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
-              {Object.entries(ROLES).map(([key, role]) => (
+              {Object.entries(ROLES || {}).map(([key, role]) => (
                 <div
                   key={key}
                   style={{
                     background: 'rgba(15, 23, 42, 0.8)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderLeft: `4px solid ${role.color || '#38BDF8'}`,
+                    borderLeft: `4px solid ${role?.color || '#38BDF8'}`,
                     borderRadius: '8px',
                     padding: '12px',
                     display: 'flex',
@@ -177,25 +248,27 @@ export default function GuideModal({ onClose }) {
                   }}
                 >
                   <img
-                    src={role.avatar}
-                    alt={role.name}
-                    style={{ width: '52px', height: '52px', borderRadius: '6px', objectFit: 'cover', border: `1px solid ${role.color || '#38BDF8'}` }}
+                    src={role?.avatar}
+                    alt={role?.name || key}
+                    style={{ width: '52px', height: '52px', borderRadius: '6px', objectFit: 'cover', border: `1px solid ${role?.color || '#38BDF8'}` }}
                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   />
                   <div style={{ flex: 1 }}>
-                    <div style={{ color: role.color || '#F8FAFC', fontWeight: 800, fontSize: '0.9rem' }}>
-                      {role.name}
+                    <div style={{ color: role?.color || '#F8FAFC', fontWeight: 800, fontSize: '0.9rem' }}>
+                      {role?.name || key}
                     </div>
                     <div style={{ fontSize: '0.72rem', color: '#64748B', fontStyle: 'italic', marginBottom: '6px' }}>
-                      {role.title || 'Timeline Operative'}
+                      {role?.description || 'Timeline Operative'}
                     </div>
 
                     <div style={{ fontSize: '0.74rem', marginBottom: '4px' }}>
-                      <strong style={{ color: '#38BDF8' }}>Passive ({role.passive.name}):</strong> {role.passive.description}
+                      <strong style={{ color: '#38BDF8' }}>Passive ({role?.passive?.name || 'Inherent'}):</strong> {role?.passive?.description || 'None'}
                     </div>
                     <div style={{ fontSize: '0.74rem' }}>
-                      <strong style={{ color: '#F59E0B' }}>Active ({role.active.name}):</strong> {role.active.description}
-                      <span style={{ color: '#94A3B8', marginLeft: '6px' }}>(Cost: {role.active.energyCost}⚡, CD: {role.active.cooldown}T)</span>
+                      <strong style={{ color: '#F59E0B' }}>Active ({role?.active?.name || 'Protocol'}):</strong> {role?.active?.description || 'None'}
+                      <span style={{ color: '#94A3B8', marginLeft: '6px' }}>
+                        (Cost: {role?.active?.energyCost ?? 0}⚡, CD: {role?.active?.cooldown ?? 0}T)
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -204,7 +277,7 @@ export default function GuideModal({ onClose }) {
           )}
 
           {guideTab === 'mechanics' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px', padding: '12px 14px' }}>
                 <h4 style={{ margin: '0 0 6px', color: '#38BDF8', fontSize: '0.88rem' }}>⚡ ENERGY MANAGEMENT (0 - 10)</h4>
                 <p style={{ margin: 0, fontSize: '0.78rem' }}>
@@ -271,11 +344,22 @@ export default function GuideModal({ onClose }) {
         </div>
 
         {/* Footer */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <div style={{ fontSize: '0.72rem', color: '#64748B' }}>
+            Tip: Press <kbd style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '2px 6px', borderRadius: '4px', color: '#94A3B8' }}>ESC</kbd> anytime to return
+          </div>
           <button
             className="btn btn-primary"
             onClick={handleClose}
-            style={{ padding: '8px 24px', fontSize: '0.84rem' }}
+            style={{
+              padding: '8px 24px',
+              fontSize: '0.84rem',
+              fontWeight: 800,
+              background: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
+              border: '1px solid #38BDF8',
+              boxShadow: '0 0 15px rgba(56, 189, 248, 0.4)',
+              cursor: 'pointer'
+            }}
           >
             Acknowledge Directives
           </button>

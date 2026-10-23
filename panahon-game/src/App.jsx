@@ -1,16 +1,18 @@
-import React, { useRef, useReducer, useCallback } from 'react';
+import React, { useRef, useReducer, useCallback, useEffect } from 'react';
 import './style.css';
 import { GameEngine } from './gameEngine.js';
 import { NetworkManager } from './network.js';
-import sounds from './sound.js';
-import { aiController } from './aiPlayer.js';
-import { ROLES, saveCustomMap } from './gameData.js';
+import { saveCustomMap } from './gameData.js';
 import { loadMapFromSupabase } from './supabaseClient.js';
+import { appReducer, initialAppState } from './state/appReducer.js';
+import { useGameEngine } from './hooks/useGameEngine.js';
+import { useAudio } from './hooks/useAudio.js';
+import { useToast } from './hooks/useToast.js';
+import { useChat } from './hooks/useChat.js';
+import { useNetworkRoom } from './hooks/useNetworkRoom.js';
+import { useTurnAutomation } from './hooks/useTurnAutomation.js';
 
-import TitleScreen from './components/TitleScreen.jsx';
-import LobbyScreen from './components/LobbyScreen.jsx';
-import GameScreen from './components/GameScreen.jsx';
-import EndGameScreen from './components/EndGameScreen.jsx';
+import AppRouter from './components/AppRouter.jsx';
 import GuideModal from './components/GuideModal.jsx';
 import SupabaseConfigModal from './components/SupabaseConfigModal.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
@@ -27,10 +29,9 @@ export default function App() {
   const engine = engineRef.current;
   const network = networkRef.current;
 
-  // Sync map from Supabase Cloud on initial app load
   useEffect(() => {
-    loadMapFromSupabase().then(cloudMap => {
-      if (cloudMap && cloudMap.coords) {
+    loadMapFromSupabase().then((cloudMap) => {
+      if (cloudMap?.coords) {
         saveCustomMap(
           cloudMap.coords,
           cloudMap.layouts,
@@ -39,10 +40,12 @@ export default function App() {
           cloudMap.connections,
           cloudMap.junctionRules
         );
-        console.log('[Supabase Cloud Sync] Loaded active custom map from cloud!');
       }
-    }).catch(() => {});
+    });
   }, []);
+
+  // App Routing & High-level State
+  const [appState, dispatch] = useReducer(appReducer, initialAppState);
 
   // Screen Routing
   const [currentScreen, setCurrentScreen] = useState('title'); // 'title' | 'lobby' | 'game' | 'endgame'

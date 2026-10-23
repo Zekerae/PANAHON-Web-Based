@@ -295,7 +295,7 @@ export function ProfileModal({ onClose }) {
 /* ==========================================================================
    3. SETTINGS MODAL
    ========================================================================== */
-export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEditor }) {
+export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEditor, onReplayIntro }) {
   const [sfxVolume, setSfxVolume] = useState(() => localStorage.getItem('panahon_sfx_vol') || '80');
   const [musicVolume, setMusicVolume] = useState(() => localStorage.getItem('panahon_music_vol') || '75');
   const [particlesActive, setParticlesActive] = useState(() => localStorage.getItem('panahon_particles') !== 'false');
@@ -329,6 +329,23 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEdi
             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#38BDF8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
               🔊 Audio Configuration
             </div>
+
+            {/* Replay Studio Intro */}
+            {onReplayIntro && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: '8px' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#F1F5F9' }}>Studio Intro Cinematic</div>
+                  <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>Replay Pixel Crew intro video & loading sequence</div>
+                </div>
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 14px', fontSize: '0.78rem' }}
+                  onClick={() => { sounds.btnClick(); onClose(); onReplayIntro(); }}
+                >
+                  🎬 REPLAY INTRO
+                </button>
+              </div>
+            )}
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: '8px' }}>
               <div>

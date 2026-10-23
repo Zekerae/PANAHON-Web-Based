@@ -21,7 +21,8 @@ export default function TitleScreen({
   onOpenMapEditor,
   activeSession,
   onReconnect,
-  onDiscardSession
+  onDiscardSession,
+  onReplayIntro
 }) {
   const [showStudioPinModal, setShowStudioPinModal] = useState(false);
 
@@ -383,6 +384,7 @@ export default function TitleScreen({
           soundMuted={soundMuted}
           onToggleSound={onToggleSound}
           onOpenMapEditor={handleLaunchMapStudio}
+          onReplayIntro={onReplayIntro}
         />
       )}
       {activeModal === 'friends' && (

@@ -13,6 +13,7 @@ import { useChat } from './hooks/useChat.js';
 import { useNetworkRoom } from './hooks/useNetworkRoom.js';
 import { useTurnAutomation } from './hooks/useTurnAutomation.js';
 
+import BootSequence from './components/boot/BootSequence.jsx';
 import AppRouter from './components/AppRouter.jsx';
 import GuideModal from './components/GuideModal.jsx';
 import SupabaseConfigModal from './components/SupabaseConfigModal.jsx';
@@ -48,6 +49,7 @@ export default function App() {
   // App Routing & High-level State
   const [appState, dispatch] = useReducer(appReducer, initialAppState);
   const [savedSession, setSavedSession] = useState(() => getActiveSession());
+  const [isBooted, setIsBooted] = useState(false);
 
   // Subsystems & Hooks
   const { toasts, showToast } = useToast();
@@ -209,7 +211,8 @@ export default function App() {
     onToggleSound: toggleSound,
     activeSession: savedSession,
     onReconnect: handleReconnect,
-    onDiscardSession: handleDiscardSession
+    onDiscardSession: handleDiscardSession,
+    onReplayIntro: () => setIsBooted(false)
   };
 
   const lobbyProps = {
@@ -260,6 +263,10 @@ export default function App() {
       dispatch({ type: 'RETURN_TO_TITLE' });
     }
   };
+
+  if (!isBooted) {
+    return <BootSequence onComplete={() => setIsBooted(true)} />;
+  }
 
   return (
     <div className="app-root">

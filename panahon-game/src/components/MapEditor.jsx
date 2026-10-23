@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import sounds from '../sound.js';
 import { saveMapToSupabase } from '../supabaseClient.js';
+import StudioPinModal from './StudioPinModal.jsx';
+import { isStudioUnlocked, setStudioUnlocked, updateStudioPin, resetStudioPinToDefault } from '../studioAuth.js';
 import {
   ERAS, ERA_ORDER, ERA_NAMES,
   ERA_TILE_COORDINATES, ERA_TILE_LAYOUTS,
@@ -58,7 +60,12 @@ export default function MapEditor({ onClose }) {
   const [clickToAddMode, setClickToAddMode] = useState(false);
   const [clickAddType, setClickAddType] = useState('clue');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(() => isStudioUnlocked());
   const [showBackupModal, setShowBackupModal] = useState(false);
+  const [showChangePinModal, setShowChangePinModal] = useState(false);
+  const [newPinInput, setNewPinInput] = useState('');
+  const [confirmPinInput, setConfirmPinInput] = useState('');
+  const [pinChangeError, setPinChangeError] = useState('');
   const [backups, setBackups] = useState(() => getMapBackups());
   const [backupNameInput, setBackupNameInput] = useState('');
   const backupFileInputRef = useRef(null);
@@ -571,6 +578,30 @@ export default function MapEditor({ onClose }) {
     triggerToast(`Connected ${ERA_NAMES[era]} End (Tile #${total}) to Tile #${targetIndex + 1}!`);
   };
 
+  // Handle changing developer PIN
+  const handleChangePin = async (e) => {
+    e.preventDefault();
+    if (!newPinInput || newPinInput.trim().length < 4) {
+      setPinChangeError('PIN must be at least 4 digits');
+      return;
+    }
+    if (newPinInput !== confirmPinInput) {
+      setPinChangeError('PINs do not match');
+      return;
+    }
+    sounds.portal();
+    const ok = await updateStudioPin(newPinInput);
+    if (ok) {
+      triggerToast('🔑 Developer PIN updated! Encrypted hash saved.');
+      setShowChangePinModal(false);
+      setNewPinInput('');
+      setConfirmPinInput('');
+      setPinChangeError('');
+    } else {
+      setPinChangeError('Failed to update PIN');
+    }
+  };
+
   // Auto-backup snapshot on mount if none exist or last is older than 10 mins
   useEffect(() => {
     try {
@@ -782,6 +813,18 @@ export default function MapEditor({ onClose }) {
       ''
     ].join('\n');
   };
+
+  if (!isUnlocked) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: '#020617', zIndex: 99999 }}>
+        <StudioPinModal
+          isOpen={true}
+          onClose={onClose}
+          onSuccess={() => setIsUnlocked(true)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="map-editor-screen">
@@ -1917,14 +1960,114 @@ export default function MapEditor({ onClose }) {
               </div>
             </div>
 
-            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
-              <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
-                {backups.length} snapshot{backups.length === 1 ? '' : 's'} stored in browser
-              </span>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
+                  {backups.length} snapshot{backups.length === 1 ? '' : 's'} stored
+                </span>
+                <button
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.68rem', padding: '3px 8px', borderColor: 'rgba(99, 102, 241, 0.4)', color: '#A5B4FC' }}
+                  onClick={() => { sounds.btnClick(); setShowChangePinModal(true); }}
+                  title="Change developer access PIN"
+                >
+                  🔑 Change Studio PIN
+                </button>
+              </div>
               <button className="btn btn-secondary" onClick={() => setShowBackupModal(false)}>
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* CHANGE PIN MODAL */}
+      {showChangePinModal && (
+        <div className="modal-overlay" style={{ zIndex: 4000, background: 'rgba(2, 6, 23, 0.88)' }}>
+          <div className="modal" style={{ maxWidth: '400px', width: '92%' }}>
+            <button className="modal-close" onClick={() => setShowChangePinModal(false)}>&times;</button>
+            <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>🔑</span> Update Studio Passcode
+            </div>
+
+            <form onSubmit={handleChangePin} className="modal-body">
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '14px', lineHeight: 1.4 }}>
+                Set a custom developer PIN. Your PIN will be encrypted using one-way salted SHA-256 and cannot be viewed through inspect element.
+              </p>
+
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94A3B8', marginBottom: '4px' }}>
+                  New PIN (4–8 digits):
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={8}
+                  placeholder="••••"
+                  value={newPinInput}
+                  onChange={(e) => { setNewPinInput(e.target.value.replace(/[^0-9]/g, '')); setPinChangeError(''); }}
+                  style={{
+                    width: '100%',
+                    background: '#0F172A',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '6px',
+                    color: '#FFF',
+                    fontSize: '1.2rem',
+                    textAlign: 'center',
+                    letterSpacing: '4px',
+                    padding: '8px'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94A3B8', marginBottom: '4px' }}>
+                  Confirm New PIN:
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={8}
+                  placeholder="••••"
+                  value={confirmPinInput}
+                  onChange={(e) => { setConfirmPinInput(e.target.value.replace(/[^0-9]/g, '')); setPinChangeError(''); }}
+                  style={{
+                    width: '100%',
+                    background: '#0F172A',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '6px',
+                    color: '#FFF',
+                    fontSize: '1.2rem',
+                    textAlign: 'center',
+                    letterSpacing: '4px',
+                    padding: '8px'
+                  }}
+                />
+              </div>
+
+              {pinChangeError && (
+                <div style={{ color: '#F87171', fontSize: '0.74rem', fontWeight: 700, marginBottom: '10px' }}>
+                  {pinChangeError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowChangePinModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ background: '#4F46E5', borderColor: '#6366F1' }}
+                >
+                  Save Encrypted PIN
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

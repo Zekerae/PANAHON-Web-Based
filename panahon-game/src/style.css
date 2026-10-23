@@ -5098,3 +5098,9 @@ html, body {
   border: 1.5px solid rgba(56, 189, 248, 0.45);
   box-shadow: 0 16px 50px rgba(0, 0, 0, 0.85), 0 0 25px rgba(56, 189, 248, 0.2);
 }
+
+@keyframes pinShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}

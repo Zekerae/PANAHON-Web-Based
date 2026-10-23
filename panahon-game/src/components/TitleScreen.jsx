@@ -9,6 +9,8 @@ import {
   CollectionModal,
   BugReportModal
 } from './title/TitleModals.jsx';
+import StudioPinModal from './StudioPinModal.jsx';
+import { isStudioUnlocked } from '../studioAuth.js';
 
 export default function TitleScreen({
   onSelectMode,
@@ -20,6 +22,17 @@ export default function TitleScreen({
   onReconnect,
   onDiscardSession
 }) {
+  const [showStudioPinModal, setShowStudioPinModal] = useState(false);
+
+  const handleLaunchMapStudio = () => {
+    sounds.btnClick();
+    if (isStudioUnlocked()) {
+      onOpenMapEditor();
+    } else {
+      setShowStudioPinModal(true);
+    }
+  };
+
   const [activeModal, setActiveModal] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -253,7 +266,7 @@ export default function TitleScreen({
             <span>Pixel Crew • BSIT 3-8 • Version 0.3</span>
             <span style={{ opacity: 0.3 }}>•</span>
             <button
-              onClick={() => { sounds.btnClick(); onOpenMapEditor(); }}
+              onClick={handleLaunchMapStudio}
               style={{
                 background: 'none',
                 border: 'none',
@@ -348,7 +361,7 @@ export default function TitleScreen({
           onClose={() => setActiveModal(null)}
           soundMuted={soundMuted}
           onToggleSound={onToggleSound}
-          onOpenMapEditor={onOpenMapEditor}
+          onOpenMapEditor={handleLaunchMapStudio}
         />
       )}
       {activeModal === 'friends' && (
@@ -363,6 +376,16 @@ export default function TitleScreen({
       {activeModal === 'bug' && (
         <BugReportModal onClose={() => setActiveModal(null)} />
       )}
+
+      {/* Developer Encrypted PIN Gate Modal */}
+      <StudioPinModal
+        isOpen={showStudioPinModal}
+        onClose={() => setShowStudioPinModal(false)}
+        onSuccess={() => {
+          setShowStudioPinModal(false);
+          onOpenMapEditor();
+        }}
+      />
     </div>
   );
 }

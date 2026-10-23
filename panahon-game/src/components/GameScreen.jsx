@@ -1,6 +1,5 @@
 import React, { useState, useCallback, memo } from 'react';
 import sounds from '../sound.js';
-import ChatBox from './ChatBox.jsx';
 import GameHeader from './game/GameHeader.jsx';
 import PlayerSidebar from './game/PlayerSidebar.jsx';
 import GameBoard from './game/GameBoard.jsx';
@@ -24,7 +23,6 @@ function GameScreen({
 }) {
   const [activeHandTab, setActiveHandTab] = useState('mission');
   const [inspectedPlayerId, setInspectedPlayerId] = useState(null);
-  const [isGameChatOpen, setIsGameChatOpen] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [mobileGameTab, setMobileGameTab] = useState("board");
   const [isPaused, setIsPaused] = useState(false);
@@ -45,14 +43,17 @@ function GameScreen({
     }
   }, [engine]);
 
+  // Auto reset unread chat since chat is always visible
+  React.useEffect(() => {
+    if (chatMessages && chatMessages.length > 0 && onResetUnreadChat) {
+      onResetUnreadChat();
+    }
+  }, [chatMessages, onResetUnreadChat]);
+
   // Global ESC key handler
   React.useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        if (isGameChatOpen) {
-          setIsGameChatOpen(false);
-          return;
-        }
         if (isPaused) {
           handleResume();
         } else {
@@ -62,7 +63,7 @@ function GameScreen({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPaused, isGameChatOpen, handleResume, handleOpenPause]);
+  }, [isPaused, handleResume, handleOpenPause]);
 
   if (!state || !engine) return null;
 
@@ -214,14 +215,7 @@ function GameScreen({
     }
   }, [state.phase, isMyTurn, engine, network]);
 
-  const toggleChat = useCallback(() => {
-    sounds.btnClick();
-    setIsGameChatOpen(prev => {
-      const next = !prev;
-      if (next) onResetUnreadChat();
-      return next;
-    });
-  }, [onResetUnreadChat]);
+
 
   return (
     <div className="game-screen">
@@ -242,10 +236,10 @@ function GameScreen({
         viewedPlayerId={viewedPlayer.id}
         isOnline={isOnline}
         myPlayerId={network.playerId}
+        myPlayerName={myPlayer?.name}
         onSelectPlayer={(playerId) => setInspectedPlayerId(playerId)}
-        unreadChatCount={unreadChatCount}
-        onToggleChat={toggleChat}
-        isChatOpen={isGameChatOpen}
+        chatMessages={chatMessages}
+        onSendMessage={(text) => network.sendChatMessage(text)}
       />
 
       {/* 3. CENTER: FOUR QUADRANTS GAME BOARD */}
@@ -291,19 +285,7 @@ function GameScreen({
         onInspectCard={onInspectCard}
       />
 
-      {/* 6. IN-GAME COMMS DRAWER */}
-      {isGameChatOpen && (
-        <ChatBox
-          boxId="game-chat"
-          isFloating={true}
-          messages={chatMessages}
-          onSendMessage={(text) => network.sendChatMessage(text)}
-          onClose={toggleChat}
-          myPlayerId={network.playerId}
-          myPlayerName={myPlayer.name}
-          isOnline={isOnline}
-        />
-      )}
+
       {/* 7. PAUSE MENU MODAL */}
       <PauseModal
         isOpen={isPaused}

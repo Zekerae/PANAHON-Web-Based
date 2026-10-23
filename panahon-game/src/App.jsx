@@ -1,7 +1,9 @@
-import React, { useRef, useReducer, useCallback } from 'react';
+import React, { useRef, useReducer, useCallback, useEffect } from 'react';
 import './style.css';
 import { GameEngine } from './gameEngine.js';
 import { NetworkManager } from './network.js';
+import { saveCustomMap } from './gameData.js';
+import { loadMapFromSupabase } from './supabaseClient.js';
 import { appReducer, initialAppState } from './state/appReducer.js';
 import { useGameEngine } from './hooks/useGameEngine.js';
 import { useAudio } from './hooks/useAudio.js';
@@ -26,6 +28,21 @@ export default function App() {
   }
   const engine = engineRef.current;
   const network = networkRef.current;
+
+  useEffect(() => {
+    loadMapFromSupabase().then((cloudMap) => {
+      if (cloudMap?.coords) {
+        saveCustomMap(
+          cloudMap.coords,
+          cloudMap.layouts,
+          null,
+          null,
+          cloudMap.connections,
+          cloudMap.junctionRules
+        );
+      }
+    });
+  }, []);
 
   // App Routing & High-level State
   const [appState, dispatch] = useReducer(appReducer, initialAppState);

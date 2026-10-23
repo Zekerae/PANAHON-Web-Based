@@ -772,7 +772,7 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
     <div className="modal-overlay" id="active-modal">
       <div className="modal" style={isDecipher ? { maxWidth: '500px', width: '95%' } : {}}>
         <div className="modal-title">{choice.title}</div>
-        <div className="modal-body" style={{ textAlign: 'center', marginBottom: 'var(--space-lg)' }}>
+        <div className="modal-body" style={{ textAlign: 'center', marginBottom: isDecipher ? '4px' : 'var(--space-lg)' }}>
           <p>{choice.message}</p>
           {isDecipher && choice.drawnCards && (
             <div>
@@ -793,7 +793,7 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+              <div style={{ fontSize: '0.82rem', color: '#93C5FD', marginTop: '12px', fontWeight: 600 }}>
                 🔍 Click any face-down mystery card above to keep it!
               </div>
             </div>
@@ -806,19 +806,21 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
           )}
         </div>
 
-        <div className="modal-actions" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-          {choice.options.map((opt, i) => (
-            <button
-              key={i}
-              className="btn btn-secondary choice-btn"
-              style={{ width: '100%' }}
-              disabled={!isMyTurn && network.mode === 'online'}
-              onClick={() => handleSelect(opt.action)}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        {!isDecipher && (
+          <div className="modal-actions" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+            {choice.options.map((opt, i) => (
+              <button
+                key={i}
+                className="btn btn-secondary choice-btn"
+                style={{ width: '100%' }}
+                disabled={!isMyTurn && network.mode === 'online'}
+                onClick={() => handleSelect(opt.action)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

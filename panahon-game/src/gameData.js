@@ -376,6 +376,72 @@ export function resetCustomMap() {
   } catch (_) {}
 }
 
+// ==========================================
+// TILE LAYOUT & MAP BACKUP MANAGEMENT
+// ==========================================
+const MAP_BACKUPS_STORAGE_KEY = 'panahon_map_layout_backups';
+
+export function getMapBackups() {
+  try {
+    const raw = localStorage.getItem(MAP_BACKUPS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (_) {}
+  return [];
+}
+
+export function saveMapBackup(coords, layouts, connections, junctionRules, loopTargets, name = '') {
+  try {
+    const backups = getMapBackups();
+    const now = new Date();
+    const dateStr = now.toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+    const backupName = (name && name.trim()) ? name.trim() : `Backup ${dateStr}`;
+    
+    const newBackup = {
+      id: 'backup_' + Date.now(),
+      name: backupName,
+      timestamp: now.toISOString(),
+      dateStr,
+      coords: JSON.parse(JSON.stringify(coords)),
+      layouts: JSON.parse(JSON.stringify(layouts)),
+      connections: connections ? JSON.parse(JSON.stringify(connections)) : {},
+      junctionRules: junctionRules ? JSON.parse(JSON.stringify(junctionRules)) : {},
+      loopTargets: loopTargets ? JSON.parse(JSON.stringify(loopTargets)) : {}
+    };
+
+    // Keep up to 25 most recent backups
+    const updated = [newBackup, ...backups.slice(0, 24)];
+    localStorage.setItem(MAP_BACKUPS_STORAGE_KEY, JSON.stringify(updated));
+    return newBackup;
+  } catch (e) {
+    console.error('Failed to create map backup:', e);
+    return null;
+  }
+}
+
+export function deleteMapBackup(backupId) {
+  try {
+    const backups = getMapBackups().filter(b => b.id !== backupId);
+    localStorage.setItem(MAP_BACKUPS_STORAGE_KEY, JSON.stringify(backups));
+    return backups;
+  } catch (_) {
+    return [];
+  }
+}
+
+export function clearAllMapBackups() {
+  try {
+    localStorage.removeItem(MAP_BACKUPS_STORAGE_KEY);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 // Roles
 export const ROLES = {
   HISTORIAN: {

@@ -5,7 +5,8 @@ import {
   ERAS, ERA_ORDER, ERA_NAMES,
   ERA_TILE_COORDINATES, ERA_TILE_LAYOUTS,
   DEFAULT_ERA_LOOP_TARGETS, DEFAULT_ERA_PATH_CONNECTIONS, getActivePathConnections, DEFAULT_ERA_JUNCTION_RULES, getActiveJunctionRules, saveCustomJunctionRules, getActiveTileCoordinates, getActiveTileLayouts, getActiveLoopTargets,
-  saveCustomMap, resetCustomMap, TILE_IMAGES
+  saveCustomMap, resetCustomMap, TILE_IMAGES,
+  getMapBackups, saveMapBackup, deleteMapBackup, clearAllMapBackups
 } from '../gameData.js';
 
 const TILE_LABELS = {
@@ -57,6 +58,10 @@ export default function MapEditor({ onClose }) {
   const [clickToAddMode, setClickToAddMode] = useState(false);
   const [clickAddType, setClickAddType] = useState('clue');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showBackupModal, setShowBackupModal] = useState(false);
+  const [backups, setBackups] = useState(() => getMapBackups());
+  const [backupNameInput, setBackupNameInput] = useState('');
+  const backupFileInputRef = useRef(null);
   const [saveToast, setSaveToast] = useState(null);
 
   // Responsive drawer & device detection
@@ -566,6 +571,109 @@ export default function MapEditor({ onClose }) {
     triggerToast(`Connected ${ERA_NAMES[era]} End (Tile #${total}) to Tile #${targetIndex + 1}!`);
   };
 
+  // Auto-backup snapshot on mount if none exist or last is older than 10 mins
+  useEffect(() => {
+    try {
+      const existing = getMapBackups();
+      const last = existing[0];
+      const tenMinutes = 10 * 60 * 1000;
+      const isRecent = last && (Date.now() - new Date(last.timestamp).getTime() < tenMinutes);
+      if (!isRecent) {
+        const autoBkp = saveMapBackup(coords, layouts, connections, junctionRules, loopTargets, 'Auto-Backup (Session Start)');
+        if (autoBkp) setBackups(getMapBackups());
+      }
+    } catch (_) {}
+  }, []);
+
+  // Create Backup Snapshot
+  const handleCreateBackup = (name = '') => {
+    sounds.btnClick();
+    const created = saveMapBackup(coords, layouts, connections, junctionRules, loopTargets, name);
+    if (created) {
+      setBackups(getMapBackups());
+      setBackupNameInput('');
+      triggerToast(`📦 Saved backup "${created.name}"!`);
+    } else {
+      triggerToast('Failed to create backup', 'danger');
+    }
+  };
+
+  // Restore from Backup
+  const handleRestoreBackup = (b) => {
+    if (!b || !b.coords || !b.layouts) {
+      triggerToast('Invalid backup data', 'danger');
+      return;
+    }
+    if (confirm(`Restore map layout from "${b.name}" (${b.dateStr})?\n\nThis will restore all tile coordinates, layouts, and path links.`)) {
+      sounds.portal();
+      setCoords(JSON.parse(JSON.stringify(b.coords)));
+      setLayouts(JSON.parse(JSON.stringify(b.layouts)));
+      if (b.connections) setConnections(JSON.parse(JSON.stringify(b.connections)));
+      if (b.junctionRules) setJunctionRules(JSON.parse(JSON.stringify(b.junctionRules)));
+      if (b.loopTargets) setLoopTargets(JSON.parse(JSON.stringify(b.loopTargets)));
+
+      saveCustomMap(b.coords, b.layouts, b.loopTargets, null, b.connections, b.junctionRules);
+      triggerToast(`↺ Restored layout from "${b.name}"!`);
+      setShowBackupModal(false);
+    }
+  };
+
+  // Delete Backup
+  const handleDeleteBackup = (id, name) => {
+    if (confirm(`Delete backup "${name}"?`)) {
+      sounds.btnClick();
+      const updated = deleteMapBackup(id);
+      setBackups(updated);
+      triggerToast('Backup deleted');
+    }
+  };
+
+  // Download Backup JSON file to PC
+  const handleDownloadBackup = (b) => {
+    sounds.btnClick();
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(b, null, 2));
+    const a = document.createElement('a');
+    a.href = dataStr;
+    const clean = (b.name || 'backup').replace(/[^a-zA-Z0-9_-]/g, '_');
+    a.download = `panahon_map_${clean}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    triggerToast(`📥 Downloaded ${clean}.json!`);
+  };
+
+  // Import Backup JSON file from PC
+  const handleImportBackup = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        if (!parsed.coords || !parsed.layouts) {
+          triggerToast('Invalid backup file: Missing coords or layouts', 'danger');
+          return;
+        }
+        const imported = saveMapBackup(
+          parsed.coords,
+          parsed.layouts,
+          parsed.connections || {},
+          parsed.junctionRules || {},
+          parsed.loopTargets || {},
+          parsed.name ? `Import: ${parsed.name}` : `Import: ${file.name.replace('.json', '')}`
+        );
+        if (imported) {
+          setBackups(getMapBackups());
+          triggerToast(`✅ Imported "${imported.name}"!`);
+        }
+      } catch (_) {
+        triggerToast('Failed to parse JSON file', 'danger');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   // Save to LocalStorage and Cloud
   const handleSaveToGame = async () => {
     sounds.btnClick();
@@ -750,6 +858,21 @@ export default function MapEditor({ onClose }) {
             title="Toggle Inspector Panel"
           >
             📐 <span className="hide-xs">Panel</span>
+          </button>
+
+          {/* Backup & Restore Layouts */}
+          <button
+            className="editor-btn-sm"
+            style={{
+              background: 'rgba(99, 102, 241, 0.22)',
+              border: '1.5px solid rgba(99, 102, 241, 0.55)',
+              color: '#A5B4FC',
+              fontWeight: 700
+            }}
+            onClick={() => { sounds.btnClick(); setShowBackupModal(true); }}
+            title="Backup & Restore Tile Layouts"
+          >
+            📦 <span className="hide-xs">Backups ({backups.length})</span>
           </button>
 
           {/* Export Code */}
@@ -1559,11 +1682,46 @@ export default function MapEditor({ onClose }) {
               </div>
             </div>
 
-            {/* Reset button docked at bottom */}
-            <div style={{ marginTop: 'auto' }}>
+            {/* Backup & Safety Dock at bottom */}
+            <div style={{ marginTop: 'auto', paddingTop: '8px' }}>
+              <div style={{
+                background: 'rgba(99, 102, 241, 0.12)',
+                border: '1px solid rgba(99, 102, 241, 0.35)',
+                borderRadius: '6px',
+                padding: '6px 8px',
+                marginBottom: '6px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                  <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#A5B4FC', textTransform: 'uppercase' }}>
+                    🛡️ Layout Backup
+                  </span>
+                  <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.45)' }}>
+                    {backups.length} snapshot{backups.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    className="sidebar-btn"
+                    style={{ flex: 1, height: '25px', fontSize: '0.62rem', background: '#4F46E5', color: '#fff', fontWeight: 700 }}
+                    onClick={() => handleCreateBackup('')}
+                    title="Take an instant snapshot of all tile coordinates, paths, and layouts"
+                  >
+                    📦 + Backup
+                  </button>
+                  <button
+                    className="sidebar-btn"
+                    style={{ flex: 1, height: '25px', fontSize: '0.62rem', background: 'rgba(255,255,255,0.1)' }}
+                    onClick={() => { sounds.btnClick(); setShowBackupModal(true); }}
+                    title="View, download, or restore saved backups"
+                  >
+                    ↺ Restore
+                  </button>
+                </div>
+              </div>
+
               <button
                 className="sidebar-btn danger"
-                style={{ width: '100%', height: '26px' }}
+                style={{ width: '100%', height: '24px', fontSize: '0.62rem' }}
                 onClick={handleResetDefaults}
               >
                 🔄 Reset Factory Defaults
@@ -1603,6 +1761,168 @@ export default function MapEditor({ onClose }) {
                 }}
               >
                 📋 Copy Code to Clipboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BACKUP & RESTORE MODAL */}
+      {showBackupModal && (
+        <div className="modal-overlay" style={{ zIndex: 3000 }}>
+          <div className="modal" style={{ maxWidth: '640px', width: '94%', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
+            <button className="modal-close" onClick={() => setShowBackupModal(false)}>&times;</button>
+            <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>📦</span> Tile Layout Backups & Snapshots
+            </div>
+
+            <div className="modal-body" style={{ overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: 1.4 }}>
+                Keep your hard work safe! Create snapshots anytime before moving tiles or rerouting. If a layout gets messed up, restore any snapshot with 1 click.
+              </p>
+
+              {/* Create new backup bar */}
+              <div style={{
+                display: 'flex',
+                gap: '6px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                padding: '8px',
+                marginBottom: '14px',
+                alignItems: 'center'
+              }}>
+                <input
+                  type="text"
+                  placeholder="Backup name (e.g. 'Before rearranging 14 to 24')"
+                  value={backupNameInput}
+                  onChange={(e) => setBackupNameInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateBackup(backupNameInput); }}
+                  style={{
+                    flex: 1,
+                    background: '#0F172A',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#FFF',
+                    padding: '6px 10px',
+                    borderRadius: '5px',
+                    fontSize: '0.78rem'
+                  }}
+                />
+                <button
+                  className="btn btn-primary"
+                  style={{ padding: '6px 12px', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                  onClick={() => handleCreateBackup(backupNameInput)}
+                >
+                  + Save Backup
+                </button>
+                <input
+                  type="file"
+                  accept=".json"
+                  ref={backupFileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={handleImportBackup}
+                />
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 10px', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                  onClick={() => backupFileInputRef.current?.click()}
+                  title="Import a saved backup .json file from your computer"
+                >
+                  📁 Import JSON
+                </button>
+              </div>
+
+              {/* Backups List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {backups.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '24px 12px', color: 'rgba(255,255,255,0.45)', fontSize: '0.82rem' }}>
+                    <div style={{ fontSize: '2rem', marginBottom: '6px' }}>📭</div>
+                    No backups saved yet. Click <strong>+ Save Backup</strong> above to save your first snapshot!
+                  </div>
+                ) : (
+                  backups.map((b, idx) => {
+                    const isFirst = idx === 0;
+                    return (
+                      <div
+                        key={b.id || idx}
+                        style={{
+                          background: isFirst ? 'rgba(99, 102, 241, 0.12)' : 'rgba(15, 23, 42, 0.7)',
+                          border: isFirst ? '1px solid rgba(99, 102, 241, 0.45)' : '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '8px',
+                          padding: '10px 12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '10px',
+                          flexWrap: 'wrap'
+                        }}
+                      >
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '0.9rem' }}>📦</span>
+                            <span style={{ fontWeight: 700, fontSize: '0.84rem', color: isFirst ? '#A5B4FC' : '#E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {b.name}
+                            </span>
+                            {isFirst && (
+                              <span style={{ fontSize: '0.55rem', background: '#4F46E5', color: '#fff', padding: '1px 5px', borderRadius: '3px', fontWeight: 800 }}>
+                                LATEST
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.45)', marginTop: '2px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                            <span>🕒 {b.dateStr}</span>
+                            <span>🇪🇸 {b.coords?.spanish?.length || 0} tiles</span>
+                            <span>🇺🇸 {b.coords?.american?.length || 0} tiles</span>
+                            <span>🇯🇵 {b.coords?.japanese?.length || 0} tiles</span>
+                            <span>✨ {b.coords?.myth?.length || 0} tiles</span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '5px', alignItems: 'center', flexShrink: 0 }}>
+                          <button
+                            className="btn btn-primary"
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              background: '#10B981',
+                              borderColor: '#059669'
+                            }}
+                            onClick={() => handleRestoreBackup(b)}
+                            title="Restore this layout to map editor"
+                          >
+                            ↺ Restore
+                          </button>
+                          <button
+                            className="btn btn-secondary"
+                            style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+                            onClick={() => handleDownloadBackup(b)}
+                            title="Download as JSON file to computer"
+                          >
+                            💾 Save File
+                          </button>
+                          <button
+                            className="btn btn-danger"
+                            style={{ padding: '4px 7px', fontSize: '0.72rem', background: 'rgba(239, 68, 68, 0.2)', color: '#F87171', border: '1px solid rgba(239, 68, 68, 0.4)' }}
+                            onClick={() => handleDeleteBackup(b.id, b.name)}
+                            title="Delete this snapshot"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+              <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
+                {backups.length} snapshot{backups.length === 1 ? '' : 's'} stored in browser
+              </span>
+              <button className="btn btn-secondary" onClick={() => setShowBackupModal(false)}>
+                Close
               </button>
             </div>
           </div>

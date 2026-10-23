@@ -1,7 +1,7 @@
 // ===== PANAHON: CHRONO SHIFT - Game Engine =====
 
 import {
-  ERAS, ERA_ORDER, ERA_NAMES, TILE_TYPES, ERA_TILE_LAYOUTS, ERA_TILE_COORDINATES, getActiveTileLayouts, getActiveLoopTargets, getActivePathModes, getActivePathConnections,
+  ERAS, ERA_ORDER, ERA_NAMES, TILE_TYPES, ERA_TILE_LAYOUTS, ERA_TILE_COORDINATES, getActiveTileLayouts, getActiveLoopTargets, getActivePathModes, getActivePathConnections, getActiveJunctionRules,
   ROLES, ROLE_ORDER, ARTIFACTS, ALL_ARTIFACTS, EVENT_CARDS, DANGER_CARDS,
   generateClueCards, generateMissions, GAME_CONSTANTS, SCORING, PLAYER_COLORS
 } from './gameData.js';
@@ -34,11 +34,18 @@ export class GameEngine {
   }
 
   notify(eventType = 'state') {
+    this.version = (this.version || 0) + 1;
     this.listeners.forEach(fn => fn(this.state, eventType));
   }
 
   getState() {
     return this.state;
+  }
+
+  loadState(newState) {
+    if (!newState) return;
+    this.state = newState;
+    this.notify('remote_state');
   }
 
   // --- Initialize Game ---
@@ -341,29 +348,45 @@ export class GameEngine {
     return true;
   }
 
-  // Determine next tile index using the custom node-graph connections (100% data-driven)
+  // Determine next tile index using custom node-graph connections and approach routing rules
   getNextTileIndex(player, era, currentIdx, dir = 1) {
     const eraTiles = this.state.board[era];
     const total = eraTiles.length;
     const connections = (typeof getActivePathConnections === 'function') ? getActivePathConnections() : {};
+    const junctionRules = (typeof getActiveJunctionRules === 'function') ? getActiveJunctionRules() : {};
     const eraConnections = connections[era];
+    const eraRules = junctionRules[era] || {};
+    const prev = player?.previousTileIndex;
 
-    if (eraConnections && Array.isArray(eraConnections[currentIdx]) && eraConnections[currentIdx].length > 0) {
-      if (dir > 0) {
-        const targets = eraConnections[currentIdx];
-        if (targets.length === 1) return targets[0];
-        const prev = player.previousTileIndex;
-        const choice = targets.find(t => t !== prev) ?? targets[0];
-        return choice;
-      } else {
-        const incoming = [];
-        for (const [fromStr, toList] of Object.entries(eraConnections)) {
-          if (Array.isArray(toList) && toList.includes(currentIdx)) {
-            incoming.push(parseInt(fromStr, 10));
-          }
-        }
-        if (incoming.length > 0) return incoming[0];
+    if (eraConnections) {
+      const targets = eraConnections[currentIdx];
+
+      // Fallback if no outgoing targets defined
+      if (!Array.isArray(targets) || targets.length === 0) {
+        return dir > 0 ? (currentIdx + 1) % total : (currentIdx - 1 + total) % total;
       }
+
+      // If single target, strictly follow that single connection (authoritative map graph)
+      if (targets.length === 1) {
+        return targets[0];
+      }
+
+      // Multi-target junction:
+      // 1. Explicit junction rule based on arrival space (currentIdx:prev)
+      if (prev !== undefined && prev !== null) {
+        const ruleKey = `${currentIdx}:${prev}`;
+        const ruleTarget = eraRules[ruleKey];
+        // Only accept the junction rule if its target is actually one of the node's valid outgoing targets
+        if (ruleTarget !== undefined && targets.includes(ruleTarget)) {
+          return ruleTarget;
+        }
+      }
+
+      // 2. Filter out the space we just arrived from to avoid immediate U-turn unless no other choice
+      let candidates = targets.filter(t => t !== prev);
+      if (candidates.length === 0) candidates = targets;
+
+      return candidates[0] !== undefined ? candidates[0] : targets[0];
     }
 
     if (dir > 0) {
@@ -386,6 +409,7 @@ export class GameEngine {
 
     // Move
     eraTiles[currentIdx].players = eraTiles[currentIdx].players.filter(id => id !== player.id);
+    player.previousTileIndex = currentIdx;
     player.tileIndex = newIdx;
     eraTiles[newIdx].players.push(player.id);
     this.state.movesRemaining--;
@@ -518,16 +542,54 @@ export class GameEngine {
       if (chosenCard && chosenCard.isDecoy && player.roleKey === 'HISTORIAN' && player.passiveCooldown <= 0) {
         this.addLog('ability', `${player.name} drew a Decoy Card via Clue Decipher, but discarded it with Decoy Discard!`);
         player.passiveCooldown = ROLES.HISTORIAN.passive.cooldown;
-        this.discardCard(chosenCard);
+        this.returnClueToDeck(chosenCard);
+        this.state.phase = returnPhase;
       } else if (chosenCard) {
-        player.clueCards.push(chosenCard);
-        if (!chosenCard.isDecoy && chosenCard.artifactId) {
-          if (!player.clueProgress[chosenCard.artifactId]) {
-            player.clueProgress[chosenCard.artifactId] = 0;
+        if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 5)) {
+          this.promptClueHandLimit(player, chosenCard, returnPhase);
+          return;
+        } else {
+          player.clueCards.push(chosenCard);
+          if (!chosenCard.isDecoy && chosenCard.artifactId) {
+            if (!player.clueProgress[chosenCard.artifactId]) {
+              player.clueProgress[chosenCard.artifactId] = 0;
+            }
+            player.clueProgress[chosenCard.artifactId]++;
           }
-          player.clueProgress[chosenCard.artifactId]++;
+          this.addLog('clue', `${player.name} deciphered and kept a Clue Card: ${chosenCard.hint || 'Mystery Clue'}! (${player.clueCards.length}/5 Clues held)`);
+          this.state.phase = returnPhase;
         }
-        this.addLog('clue', `${player.name} deciphered and kept a Clue Card: ${chosenCard.hint || 'Mystery Clue'}!`);
+      }
+    } else if (choiceType === 'clueHandLimit') {
+      const drawnCard = choice.drawnCard;
+
+      if (action === 'discard_drawn') {
+        this.returnClueToDeck(drawnCard);
+        this.addLog('card', `${player.name} discarded the drawn Clue Card (${drawnCard.hint || drawnCard.description}) back to the ${ERA_NAMES[drawnCard.era]} deck.`);
+      } else if (action && action.startsWith('discard_hand_')) {
+        const discardIdx = parseInt(action.replace('discard_hand_', ''), 10);
+        if (discardIdx >= 0 && discardIdx < player.clueCards.length) {
+          const [discardedCard] = player.clueCards.splice(discardIdx, 1);
+
+          // Adjust clue progress if real clue was discarded
+          if (!discardedCard.isDecoy && discardedCard.artifactId) {
+            if (player.clueProgress[discardedCard.artifactId] > 0) {
+              player.clueProgress[discardedCard.artifactId]--;
+            }
+          }
+          this.returnClueToDeck(discardedCard);
+
+          // Add newly drawn card to hand
+          player.clueCards.push(drawnCard);
+          if (!drawnCard.isDecoy && drawnCard.artifactId) {
+            if (!player.clueProgress[drawnCard.artifactId]) {
+              player.clueProgress[drawnCard.artifactId] = 0;
+            }
+            player.clueProgress[drawnCard.artifactId]++;
+          }
+
+          this.addLog('card', `${player.name} kept the new Clue Card (${drawnCard.hint || drawnCard.description}) and returned ${discardedCard.hint || discardedCard.description} to the ${ERA_NAMES[discardedCard.era]} deck.`);
+        }
       }
 
       this.state.phase = returnPhase;
@@ -537,8 +599,86 @@ export class GameEngine {
       } else {
         this.state.phase = 'action';
       }
+    } else if (choiceType === 'teleportTile') {
+      const targetEra = choice.targetEra || ERAS.MYTH;
+      const targetTiles = this.state.board[targetEra];
+      const targetIdx = parseInt(action.replace('teleport_', ''), 10);
+      const targetTile = targetTiles && targetTiles[targetIdx] ? targetTiles[targetIdx] : null;
+
+      if (targetTile) {
+        // Remove player from current tile
+        const currentTiles = this.state.board[player.currentEra];
+        if (currentTiles && currentTiles[player.tileIndex]) {
+          currentTiles[player.tileIndex].players = currentTiles[player.tileIndex].players.filter(id => id !== player.id);
+        }
+
+        // Warp player to target era & tile
+        player.currentEra = targetEra;
+        player.tileIndex = targetTile.index;
+        targetTile.players.push(player.id);
+        this.state.currentEra = targetEra;
+
+        this.addLog('travel', `✨ ${player.name} teleported to Space #${targetTile.index + 1} (${targetTile.type.toUpperCase()}) in ${ERA_NAMES[targetEra]} via Anito Guidance!`);
+
+        // Check for enemy trap
+        if (targetTile.trap && targetTile.trap.ownerId !== player.id) {
+          this.triggerTrap(player, targetTile);
+        }
+
+        // Resolve landing on destination tile
+        this.resolveTile(player, targetTile);
+        return;
+      } else {
+        this.state.phase = 'action';
+      }
     }
 
+    this.notify();
+  }
+
+  // Return a discarded/evicted clue card back to its era clue deck and shuffle
+  returnClueToDeck(card) {
+    if (!card) return;
+    const era = card.era || this.getCurrentPlayer()?.currentEra || "spanish";
+    if (!this.state.clueDecks[era]) {
+      this.state.clueDecks[era] = [];
+    }
+    // Prevent duplicate object entry
+    this.state.clueDecks[era].push(card);
+    this.state.clueDecks[era] = shuffle(this.state.clueDecks[era]);
+  }
+
+  // Present Choice Modal when player reaches Clue Hand Limit (Max 5)
+  promptClueHandLimit(player, card, returnPhase = "action") {
+    const eraName = ERA_NAMES[card.era] || card.era;
+    const cardName = card.isDecoy ? "Decoy Card" : (card.hint || card.description || "Clue Card");
+
+    const options = [
+      {
+        label: `❌ Discard Drawn Card (${cardName}) ➔ Return to ${eraName} Pool`,
+        action: "discard_drawn",
+        type: "danger"
+      },
+      ...player.clueCards.map((handCard, idx) => ({
+        label: `🔄 Keep Drawn Card & Discard #${idx + 1}: ${handCard.hint || handCard.description} (${ERA_NAMES[handCard.era] || handCard.era})`,
+        action: `discard_hand_${idx}`,
+        handIndex: idx,
+        card: handCard
+      }))
+    ];
+
+    this.state.pendingChoice = {
+      type: "clueHandLimit",
+      playerId: player.id,
+      returnPhase: returnPhase,
+      drawnCard: card,
+      handCards: [...player.clueCards],
+      title: "🎴 Clue Hand Limit Reached (Max 5)!",
+      message: `You already hold 5 Clue Cards! You drew: "${cardName}". Choose whether to discard it or keep it and discard 1 card from your hand.`,
+      options
+    };
+
+    this.addLog("card", `${player.name} drew a Clue Card (${cardName}), but hand is full (5/5). Choosing which card to keep...`);
     this.notify();
   }
 
@@ -596,9 +736,15 @@ export class GameEngine {
     if (card.isDecoy && player.roleKey === 'HISTORIAN' && player.passiveCooldown <= 0) {
       this.addLog('ability', `${player.name} used Decoy Discard! Discarded a decoy card.`);
       player.passiveCooldown = ROLES.HISTORIAN.passive.cooldown;
-      this.discardCard(card);
+      this.returnClueToDeck(card);
       this.state.phase = 'action';
       this.notify();
+      return;
+    }
+
+    // Check Hand Limit (Max 5 Clue Cards)
+    if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 5)) {
+      this.promptClueHandLimit(player, card, 'action');
       return;
     }
 
@@ -623,7 +769,7 @@ export class GameEngine {
       era: era
     };
 
-    this.addLog('card', `${player.name} drew a Clue Card from ${ERA_NAMES[era]}.`);
+    this.addLog('card', `${player.name} drew a Clue Card from ${ERA_NAMES[era]}. (${player.clueCards.length}/5 Clues held)`);
     this.state.phase = 'action';
     this.notify();
   }
@@ -660,7 +806,9 @@ export class GameEngine {
 
     const result = card.effect(player, this);
     this.addLog('event', `${player.name}: ${card.name} — ${result}`);
-    this.state.phase = 'action';
+    if (!this.state.pendingChoice) {
+      this.state.phase = 'action';
+    }
     this.notify();
   }
 
@@ -892,9 +1040,12 @@ export class GameEngine {
   }
 
   modifyTimelineMeter(amount) {
-    this.state.timelineMeter = Math.max(0, Math.min(GAME_CONSTANTS.MAX_TIMELINE, this.state.timelineMeter + amount));
+    this.state.timelineMeter = Math.max(0, this.state.timelineMeter + amount);
     
-    if (this.state.timelineMeter >= GAME_CONSTANTS.MAX_TIMELINE) {
+    // Global timeline meter limit is 5. Once it reaches 6 or goes above 5, game over!
+    if (this.state.timelineMeter > (GAME_CONSTANTS.MAX_TIMELINE || 5)) {
+      this.state.collapseMessage = 'The timelines are completely messed up! The temporal breach exceeded stability limits (above 5), causing catastrophic spacetime collapse.';
+      this.addLog('paradox', `💥 CATASTROPHIC BREACH! The timeline reached ${this.state.timelineMeter} (exceeded 5)! The timelines are completely messed up!`);
       this.endGame('collapse');
     }
   }
@@ -1143,17 +1294,43 @@ export class GameEngine {
     };
   }
 
-  offerTeleport(player, era) {
-    this.addLog('event', `${player.name} can teleport to any tile in ${ERA_NAMES[era]}.`);
-    // For simplicity, move to a random non-empty tile
+  offerTeleport(player, era = ERAS.MYTH) {
     const tiles = this.state.board[era];
-    const validTiles = tiles.filter(t => t.type !== TILE_TYPES.EMPTY);
-    if (validTiles.length > 0) {
-      const target = validTiles[Math.floor(Math.random() * validTiles.length)];
-      tiles[player.tileIndex].players = tiles[player.tileIndex].players.filter(id => id !== player.id);
-      player.tileIndex = target.index;
-      target.players.push(player.id);
-    }
+    if (!tiles || tiles.length === 0) return;
+
+    const tileOptions = tiles.map(t => {
+      let icon = "•";
+      let typeLabel = (t.type || "").toUpperCase();
+      if (t.type === TILE_TYPES.CLUE) { icon = "🔍"; typeLabel = "Clue"; }
+      else if (t.type === TILE_TYPES.ARTIFACT) { icon = "🏆"; typeLabel = "Artifact"; }
+      else if (t.type === TILE_TYPES.EVENT) { icon = "⚡"; typeLabel = "Event"; }
+      else if (t.type === TILE_TYPES.DANGER) { icon = "⚠️"; typeLabel = "Hazard"; }
+      else if (t.type === TILE_TYPES.TIMEGATE) { icon = "🌀"; typeLabel = "Time Gate"; }
+      else if (t.type === TILE_TYPES.PARADOX) { icon = "⏳"; typeLabel = "Paradox"; }
+      else if (t.type === TILE_TYPES.START) { icon = "🚩"; typeLabel = "Start Station"; }
+      else if (t.type === TILE_TYPES.EMPTY) { icon = "•"; typeLabel = "Quiet Path"; }
+
+      return {
+        index: t.index,
+        type: t.type,
+        icon,
+        typeLabel,
+        id: t.id,
+        label: `${icon} Space #${t.index + 1} (${typeLabel})`,
+        action: `teleport_${t.index}`
+      };
+    });
+
+    this.state.pendingChoice = {
+      type: 'teleportTile',
+      targetEra: era,
+      title: '✨ Anito Guidance: Choose Teleport Destination',
+      message: `The ancient Anito spirits envelop you in ethereal light! Choose any tile in the ${ERA_NAMES[era]} to materialize upon:`,
+      tiles: tileOptions,
+      options: tileOptions
+    };
+
+    this.addLog('event', `${player.name} invoked Anito Guidance: choosing a destination tile in ${ERA_NAMES[era]}!`);
   }
 
   healAllInEra(era, amount) {
@@ -1183,7 +1360,9 @@ export class GameEngine {
     const step = spaces >= 0 ? 1 : -1;
     let count = Math.abs(spaces);
     while (count > 0) {
-      cur = this.getNextTileIndex(player, player.currentEra, cur, step);
+      const next = this.getNextTileIndex(player, player.currentEra, cur, step);
+      player.previousTileIndex = cur;
+      cur = next;
       count--;
     }
     player.tileIndex = cur;
@@ -1268,6 +1447,10 @@ export class GameEngine {
 
   discardCard(card) {
     if (!card) return;
+    if (card.era && (card.type === 'clue' || card.type === 'decoy' || card.isDecoy !== undefined)) {
+      this.returnClueToDeck(card);
+      return;
+    }
     if (!this.state.discardPile) {
       this.state.discardPile = [];
     }
@@ -1304,7 +1487,10 @@ export class GameEngine {
 
     if (reason === 'collapse') {
       this.state.winner = null; // Everyone loses
-      this.addLog('system', '💀 THE TIMELINE HAS COLLAPSED! All players lose!');
+      if (!this.state.collapseMessage) {
+        this.state.collapseMessage = 'The timelines are completely messed up! The temporal breach exceeded stability limits (above 5), causing catastrophic spacetime collapse.';
+      }
+      this.addLog('system', '💀 THE TIMELINES ARE MESSED UP! Spacetime collapsed and all castaways were lost!');
     } else {
       // Find winner
       const sorted = [...this.state.players].sort((a, b) => b.points - a.points);

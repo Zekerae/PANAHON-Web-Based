@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import sounds from '../sound.js';
+import { saveMapToSupabase } from '../supabaseClient.js';
+import StudioPinModal from './StudioPinModal.jsx';
+import { isStudioUnlocked, setStudioUnlocked, updateStudioPin, resetStudioPinToDefault } from '../studioAuth.js';
 import {
   ERAS, ERA_ORDER, ERA_NAMES,
   ERA_TILE_COORDINATES, ERA_TILE_LAYOUTS,
-  DEFAULT_ERA_LOOP_TARGETS, DEFAULT_ERA_PATH_CONNECTIONS, getActivePathConnections, getActiveTileCoordinates, getActiveTileLayouts, getActiveLoopTargets,
-  saveCustomMap, resetCustomMap
+  DEFAULT_ERA_LOOP_TARGETS, DEFAULT_ERA_PATH_CONNECTIONS, getActivePathConnections, DEFAULT_ERA_JUNCTION_RULES, getActiveJunctionRules, saveCustomJunctionRules, getActiveTileCoordinates, getActiveTileLayouts, getActiveLoopTargets,
+  saveCustomMap, resetCustomMap, TILE_IMAGES,
+  getMapBackups, saveMapBackup, deleteMapBackup, clearAllMapBackups
 } from '../gameData.js';
 
 const TILE_LABELS = {
@@ -42,6 +46,7 @@ export default function MapEditor({ onClose }) {
   const [layouts, setLayouts] = useState(() => JSON.parse(JSON.stringify(getActiveTileLayouts())));
   const [loopTargets, setLoopTargets] = useState(() => JSON.parse(JSON.stringify(getActiveLoopTargets())));
   const [connections, setConnections] = useState(() => JSON.parse(JSON.stringify(getActivePathConnections())));
+  const [junctionRules, setJunctionRules] = useState(() => JSON.parse(JSON.stringify(getActiveJunctionRules())));
   const [isConnectingMode, setIsConnectingMode] = useState(false);
 
   const [activeEra, setActiveEra] = useState('spanish');
@@ -55,6 +60,15 @@ export default function MapEditor({ onClose }) {
   const [clickToAddMode, setClickToAddMode] = useState(false);
   const [clickAddType, setClickAddType] = useState('clue');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(() => isStudioUnlocked());
+  const [showBackupModal, setShowBackupModal] = useState(false);
+  const [showChangePinModal, setShowChangePinModal] = useState(false);
+  const [newPinInput, setNewPinInput] = useState('');
+  const [confirmPinInput, setConfirmPinInput] = useState('');
+  const [pinChangeError, setPinChangeError] = useState('');
+  const [backups, setBackups] = useState(() => getMapBackups());
+  const [backupNameInput, setBackupNameInput] = useState('');
+  const backupFileInputRef = useRef(null);
   const [saveToast, setSaveToast] = useState(null);
 
   // Responsive drawer & device detection
@@ -380,7 +394,110 @@ export default function MapEditor({ onClose }) {
       next[era] = eraConns;
       return next;
     });
-    triggerToast(`Disconnected Tile #${fromIdx + 1} ➔ Tile #${toIdx + 1}`, 'info');
+    setJunctionRules(prev => {
+      const next = { ...prev };
+      const eraRules = { ...(next[era] || {}) };
+      let changed = false;
+      Object.keys(eraRules).forEach(key => {
+        if (key.startsWith(`${fromIdx}:`) && eraRules[key] === toIdx) {
+          delete eraRules[key];
+          changed = true;
+        }
+      });
+      if (changed) {
+        next[era] = eraRules;
+        return next;
+      }
+      return prev;
+    });
+    triggerToast(`Disconnected Space #${fromIdx + 1} ➔ Space #${toIdx + 1}`, 'info');
+  };
+
+  // Move connection position up or down (reorder priority)
+  const handleMoveConnection = (era, fromIdx, targetIdx, delta) => {
+    sounds.btnClick();
+    setConnections(prev => {
+      const next = { ...prev };
+      const eraConns = { ...(next[era] || {}) };
+      const list = [...(eraConns[fromIdx] || [])];
+      const curPos = list.indexOf(targetIdx);
+      if (curPos < 0) return prev;
+      const newPos = curPos + delta;
+      if (newPos < 0 || newPos >= list.length) return prev;
+      const [item] = list.splice(curPos, 1);
+      list.splice(newPos, 0, item);
+      eraConns[fromIdx] = list;
+      next[era] = eraConns;
+      return next;
+    });
+  };
+
+  // Set any connection directly as Primary / First-Choice route (moves to index 0)
+  const handleSetPrimaryConnection = (era, fromIdx, targetIdx) => {
+    sounds.btnClick();
+    setConnections(prev => {
+      const next = { ...prev };
+      const eraConns = { ...(next[era] || {}) };
+      const list = [...(eraConns[fromIdx] || [])];
+      const curPos = list.indexOf(targetIdx);
+      if (curPos <= 0) return prev;
+      const [item] = list.splice(curPos, 1);
+      list.unshift(item);
+      eraConns[fromIdx] = list;
+      next[era] = eraConns;
+      return next;
+    });
+    triggerToast(`Set Space #${targetIdx + 1} as Primary Route! ⭐`);
+  };
+
+  // Cycle connection order for multi-way junctions
+  const handleCycleConnectionOrder = (era, idx) => {
+    sounds.btnClick();
+    setConnections(prev => {
+      const next = { ...prev };
+      const eraConns = { ...(next[era] || {}) };
+      const list = [...(eraConns[idx] || [])];
+      if (list.length >= 2) {
+        const first = list.shift();
+        list.push(first);
+      }
+      eraConns[idx] = list;
+      next[era] = eraConns;
+      return next;
+    });
+    triggerToast('Rotated route priority!');
+  };
+
+  // Map specific arrival space to departure space for multi-path junctions
+  const handleSetJunctionRule = (era, junctionIdx, fromIdx, toIdx) => {
+    sounds.btnClick();
+    setJunctionRules(prev => {
+      const next = { ...prev };
+      const eraRules = { ...(next[era] || {}) };
+      eraRules[`${junctionIdx}:${fromIdx}`] = toIdx;
+      next[era] = eraRules;
+      return next;
+    });
+    triggerToast(`Mapped: From Space #${fromIdx + 1} ➔ Space #${toIdx + 1}! 🔀`);
+  };
+
+  // Swap #1 and #2 connection order for junctions
+  const handleSwapConnectionOrder = (era, idx) => {
+    sounds.btnClick();
+    setConnections(prev => {
+      const next = { ...prev };
+      const eraConns = { ...(next[era] || {}) };
+      const list = [...(eraConns[idx] || [])];
+      if (list.length >= 2) {
+        const temp = list[0];
+        list[0] = list[1];
+        list[1] = temp;
+      }
+      eraConns[idx] = list;
+      next[era] = eraConns;
+      return next;
+    });
+    triggerToast('Swapped #1 and #2 route priority!');
   };
 
   // Auto-chain all tiles sequentially (1 -> 2 -> ... -> N)
@@ -461,15 +578,155 @@ export default function MapEditor({ onClose }) {
     triggerToast(`Connected ${ERA_NAMES[era]} End (Tile #${total}) to Tile #${targetIndex + 1}!`);
   };
 
-  // Save to LocalStorage
-  const handleSaveToGame = () => {
-    sounds.btnClick();
-    const ok = saveCustomMap(coords, layouts, loopTargets, null, connections);
-    if (ok) {
-      triggerToast('💾 Custom Map saved! Game is now using these coordinates.');
-    } else {
-      triggerToast('Failed to save to localStorage', 'danger');
+  // Handle changing developer PIN
+  const handleChangePin = async (e) => {
+    e.preventDefault();
+    if (!newPinInput || newPinInput.trim().length < 4) {
+      setPinChangeError('PIN must be at least 4 digits');
+      return;
     }
+    if (newPinInput !== confirmPinInput) {
+      setPinChangeError('PINs do not match');
+      return;
+    }
+    sounds.portal();
+    const ok = await updateStudioPin(newPinInput);
+    if (ok) {
+      triggerToast('🔑 Developer PIN updated! Encrypted hash saved.');
+      setShowChangePinModal(false);
+      setNewPinInput('');
+      setConfirmPinInput('');
+      setPinChangeError('');
+    } else {
+      setPinChangeError('Failed to update PIN');
+    }
+  };
+
+  // Auto-backup snapshot on mount if none exist or last is older than 10 mins
+  useEffect(() => {
+    try {
+      const existing = getMapBackups();
+      const last = existing[0];
+      const tenMinutes = 10 * 60 * 1000;
+      const isRecent = last && (Date.now() - new Date(last.timestamp).getTime() < tenMinutes);
+      if (!isRecent) {
+        const autoBkp = saveMapBackup(coords, layouts, connections, junctionRules, loopTargets, 'Auto-Backup (Session Start)');
+        if (autoBkp) setBackups(getMapBackups());
+      }
+    } catch (_) {}
+  }, []);
+
+  // Create Backup Snapshot
+  const handleCreateBackup = (name = '') => {
+    sounds.btnClick();
+    const created = saveMapBackup(coords, layouts, connections, junctionRules, loopTargets, name);
+    if (created) {
+      setBackups(getMapBackups());
+      setBackupNameInput('');
+      triggerToast(`📦 Saved backup "${created.name}"!`);
+    } else {
+      triggerToast('Failed to create backup', 'danger');
+    }
+  };
+
+  // Restore from Backup
+  const handleRestoreBackup = (b) => {
+    if (!b || !b.coords || !b.layouts) {
+      triggerToast('Invalid backup data', 'danger');
+      return;
+    }
+    if (confirm(`Restore map layout from "${b.name}" (${b.dateStr})?\n\nThis will restore all tile coordinates, layouts, and path links.`)) {
+      sounds.portal();
+      setCoords(JSON.parse(JSON.stringify(b.coords)));
+      setLayouts(JSON.parse(JSON.stringify(b.layouts)));
+      if (b.connections) setConnections(JSON.parse(JSON.stringify(b.connections)));
+      if (b.junctionRules) setJunctionRules(JSON.parse(JSON.stringify(b.junctionRules)));
+      if (b.loopTargets) setLoopTargets(JSON.parse(JSON.stringify(b.loopTargets)));
+
+      saveCustomMap(b.coords, b.layouts, b.loopTargets, null, b.connections, b.junctionRules);
+      triggerToast(`↺ Restored layout from "${b.name}"!`);
+      setShowBackupModal(false);
+    }
+  };
+
+  // Delete Backup
+  const handleDeleteBackup = (id, name) => {
+    if (confirm(`Delete backup "${name}"?`)) {
+      sounds.btnClick();
+      const updated = deleteMapBackup(id);
+      setBackups(updated);
+      triggerToast('Backup deleted');
+    }
+  };
+
+  // Download Backup JSON file to PC
+  const handleDownloadBackup = (b) => {
+    sounds.btnClick();
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(b, null, 2));
+    const a = document.createElement('a');
+    a.href = dataStr;
+    const clean = (b.name || 'backup').replace(/[^a-zA-Z0-9_-]/g, '_');
+    a.download = `panahon_map_${clean}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    triggerToast(`📥 Downloaded ${clean}.json!`);
+  };
+
+  // Import Backup JSON file from PC
+  const handleImportBackup = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        if (!parsed.coords || !parsed.layouts) {
+          triggerToast('Invalid backup file: Missing coords or layouts', 'danger');
+          return;
+        }
+        const imported = saveMapBackup(
+          parsed.coords,
+          parsed.layouts,
+          parsed.connections || {},
+          parsed.junctionRules || {},
+          parsed.loopTargets || {},
+          parsed.name ? `Import: ${parsed.name}` : `Import: ${file.name.replace('.json', '')}`
+        );
+        if (imported) {
+          setBackups(getMapBackups());
+          triggerToast(`✅ Imported "${imported.name}"!`);
+        }
+      } catch (_) {
+        triggerToast('Failed to parse JSON file', 'danger');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // Save to LocalStorage and Cloud
+  const handleSaveToGame = async () => {
+    sounds.btnClick();
+    const ok = saveCustomMap(coords, layouts, loopTargets, null, connections, junctionRules);
+    if (!ok) {
+      triggerToast('Failed to save to localStorage', 'danger');
+      return;
+    }
+    triggerToast('💾 Custom Map saved locally!');
+
+    // Sync to Supabase cloud if available
+    try {
+      const res = await saveMapToSupabase({
+        coords,
+        layouts,
+        connections,
+        junctionRules
+      });
+      if (res && res.success) {
+        triggerToast('☁️ Synced to Supabase Cloud! Available to all Vercel players.');
+      }
+    } catch (_) {}
   };
 
   // Reset
@@ -481,32 +738,59 @@ export default function MapEditor({ onClose }) {
       setLayouts(JSON.parse(JSON.stringify(ERA_TILE_LAYOUTS)));
       setLoopTargets(JSON.parse(JSON.stringify(DEFAULT_ERA_LOOP_TARGETS)));
       setConnections(JSON.parse(JSON.stringify(DEFAULT_ERA_PATH_CONNECTIONS)));
+      setJunctionRules(JSON.parse(JSON.stringify(DEFAULT_ERA_JUNCTION_RULES)));
       triggerToast('Map reset to factory defaults.');
     }
   };
 
-  // Path walking simulation preview following the exact node-graph connections
+  // Path walking simulation preview following exact node-graph connections and approach junction rules
   useEffect(() => {
     if (!isPreviewWalking) return;
     const curEra = activeEra === 'all' ? 'spanish' : activeEra;
     const max = coords[curEra]?.length || 1;
     let step = 0;
+    let prevStep = null;
     setPreviewStep(0);
 
     const timer = setInterval(() => {
       const eraConns = connections[curEra] || {};
-      const nextList = eraConns[step];
-      if (Array.isArray(nextList) && nextList.length > 0) {
-        step = nextList[0];
+      const eraRules = junctionRules[curEra] || {};
+
+      let next;
+      const targets = eraConns[step];
+
+      if (!Array.isArray(targets) || targets.length === 0) {
+        next = (step + 1) % max;
+      } else if (targets.length === 1) {
+        // Strictly follow the single connection
+        next = targets[0];
       } else {
-        step = (step + 1) % max;
+        // Multi-target junction:
+        // 1. Explicit junction rule based on arrival space (step:prevStep)
+        if (prevStep !== null) {
+          const ruleKey = `${step}:${prevStep}`;
+          const ruleTarget = eraRules[ruleKey];
+          // Only accept the junction rule if its target is actually in outgoing links
+          if (ruleTarget !== undefined && targets.includes(ruleTarget)) {
+            next = ruleTarget;
+          }
+        }
+
+        // 2. Filter out prevStep to avoid immediate U-turn unless no other candidate exists
+        if (next === undefined) {
+          const candidates = targets.filter(t => t !== prevStep);
+          next = candidates.length > 0 ? candidates[0] : targets[0];
+        }
       }
+
+      prevStep = step;
+      step = next;
       setPreviewStep(step);
       sounds.moveStep();
     }, 450);
 
     return () => clearInterval(timer);
-  }, [isPreviewWalking, activeEra, coords, connections]);
+  }, [isPreviewWalking, activeEra, coords, connections, junctionRules]);
 
   // Selected tile details
   const curTileCoords = selectedTile ? coords[selectedTile.era]?.[selectedTile.index] : null;
@@ -529,6 +813,18 @@ export default function MapEditor({ onClose }) {
       ''
     ].join('\n');
   };
+
+  if (!isUnlocked) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: '#020617', zIndex: 99999 }}>
+        <StudioPinModal
+          isOpen={true}
+          onClose={onClose}
+          onSuccess={() => setIsUnlocked(true)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="map-editor-screen">
@@ -607,6 +903,21 @@ export default function MapEditor({ onClose }) {
             📐 <span className="hide-xs">Panel</span>
           </button>
 
+          {/* Backup & Restore Layouts */}
+          <button
+            className="editor-btn-sm"
+            style={{
+              background: 'rgba(99, 102, 241, 0.22)',
+              border: '1.5px solid rgba(99, 102, 241, 0.55)',
+              color: '#A5B4FC',
+              fontWeight: 700
+            }}
+            onClick={() => { sounds.btnClick(); setShowBackupModal(true); }}
+            title="Backup & Restore Tile Layouts"
+          >
+            📦 <span className="hide-xs">Backups ({backups.length})</span>
+          </button>
+
           {/* Export Code */}
           <button
             className="editor-btn-sm"
@@ -623,6 +934,26 @@ export default function MapEditor({ onClose }) {
             title="Save and Apply to Game"
           >
             💾 <span className="hide-xs">Save</span>
+          </button>
+
+          {/* Lock Studio */}
+          <button
+            className="editor-btn-sm"
+            style={{
+              background: "rgba(239, 68, 68, 0.15)",
+              border: "1.5px solid rgba(239, 68, 68, 0.4)",
+              color: "#FCA5A5",
+              fontWeight: 700
+            }}
+            onClick={() => {
+              sounds.btnClick();
+              setStudioUnlocked(false);
+              setIsUnlocked(false);
+              onClose();
+            }}
+            title="Lock Studio and Exit"
+          >
+            🔒 <span className="hide-xs">Lock</span>
           </button>
 
           {/* Close */}
@@ -807,7 +1138,11 @@ export default function MapEditor({ onClose }) {
                     )}
 
                     {showIcons && (
-                      <span className="editor-node-icon">{icon}</span>
+                      TILE_IMAGES?.[tileType] ? (
+                        <img src={TILE_IMAGES[tileType]} className="editor-node-tile-img" alt={tileType} draggable={false} />
+                      ) : (
+                        <span className="editor-node-icon">{icon}</span>
+                      )
                     )}
 
                     {/* Outgoing Next Targets Indicators */}
@@ -822,20 +1157,20 @@ export default function MapEditor({ onClose }) {
                             left: '50%',
                             transform: 'translateX(-50%)',
                             fontSize: '0.52rem',
-                            background: '#3B82F6',
+                            background: targets.length > 1 ? '#10B981' : '#3B82F6',
                             color: '#fff',
-                            padding: '0 3px',
+                            padding: '0 4px',
                             borderRadius: '4px',
                             lineHeight: '11px',
                             fontWeight: 800,
-                            boxShadow: '0 0 5px rgba(59, 130, 246, 0.7)',
+                            boxShadow: targets.length > 1 ? '0 0 6px rgba(16, 185, 129, 0.8)' : '0 0 5px rgba(59, 130, 246, 0.7)',
                             whiteSpace: 'nowrap',
                             pointerEvents: 'none',
                             zIndex: 20
                           }}
-                          title={`Flows into Tile: ${targets.map(t => '#' + (t + 1)).join(', ')}`}
+                          title={`Flows into: ${targets.map((t, ti) => (ti === 0 && targets.length > 1 ? `#${t + 1} (Primary ⭐)` : `#${t + 1}`)).join(', ')}`}
                         >
-                          ➔ {targets.map(t => t + 1).join(',')}
+                          ➔ {targets.map((t, ti) => (ti === 0 && targets.length > 1 ? `⭐${t + 1}` : `${t + 1}`)).join(',')}
                         </span>
                       );
                     })()}
@@ -1052,53 +1387,251 @@ export default function MapEditor({ onClose }) {
                       </button>
                     </div>
 
-                    {/* Connected Targets Badges */}
+                    {/* Connected Targets Badges & Multi-Route Junction Manager */}
                     {(() => {
                       const targets = connections[selectedTile.era]?.[selectedTile.index] || [];
+                      const isJunction = targets.length >= 2;
                       return (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginBottom: '4px' }}>
-                          {targets.length === 0 ? (
-                            <span style={{ fontSize: '0.60rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                              No outgoing path (dead end)
-                            </span>
-                          ) : (
-                            targets.map(targetIdx => (
-                              <div
-                                key={targetIdx}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                  background: 'rgba(59, 130, 246, 0.25)',
-                                  border: '1px solid #3B82F6',
-                                  borderRadius: '3px',
-                                  padding: '1px 5px',
-                                  fontSize: '0.62rem',
-                                  color: '#fff'
-                                }}
-                              >
-                                <span>➔ #{targetIdx + 1} ({layouts[selectedTile.era]?.[targetIdx] || 'tile'})</span>
+                        <div style={{ marginBottom: '4px' }}>
+                          {isJunction && (
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              fontSize: '0.58rem',
+                              color: '#34D399',
+                              background: 'rgba(16, 185, 129, 0.12)',
+                              padding: '2px 5px',
+                              borderRadius: '3px',
+                              marginBottom: '4px',
+                              border: '1px solid rgba(16, 185, 129, 0.3)'
+                            }}>
+                              <span style={{ fontWeight: 700 }}>
+                                🔀 Fork ({targets.length} Links): ⭐#{targets[0] + 1}
+                              </span>
+                              <div style={{ display: 'flex', gap: '3px' }}>
                                 <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemoveConnection(selectedTile.era, selectedTile.index, targetIdx);
-                                  }}
-                                  style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: '#F87171',
-                                    cursor: 'pointer',
-                                    padding: '0 2px',
-                                    fontSize: '0.7rem',
-                                    lineHeight: 1
-                                  }}
-                                  title="Remove this connection"
+                                  onClick={() => handleCycleConnectionOrder(selectedTile.era, selectedTile.index)}
+                                  style={{ background: '#10B981', color: '#fff', border: 'none', borderRadius: '2px', padding: '1px 4px', fontSize: '0.55rem', cursor: 'pointer', fontWeight: 700 }}
+                                  title="Rotate all routes (1st -> 2nd -> 3rd)"
                                 >
-                                  &times;
+                                  🔄 Rotate
+                                </button>
+                                <button
+                                  onClick={() => handleSwapConnectionOrder(selectedTile.era, selectedTile.index)}
+                                  style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', borderRadius: '2px', padding: '1px 4px', fontSize: '0.55rem', cursor: 'pointer', fontWeight: 700 }}
+                                  title="Swap #1 and #2 route"
+                                >
+                                  ⇄ Swap
                                 </button>
                               </div>
-                            ))
+                            </div>
                           )}
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            {targets.length === 0 ? (
+                              <span style={{ fontSize: '0.58rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                No outgoing path (dead end)
+                              </span>
+                            ) : (
+                              targets.map((targetIdx, tRank) => {
+                                const isPrimary = tRank === 0;
+                                const isForward = targetIdx > selectedTile.index;
+                                const tileType = layouts[selectedTile.era]?.[targetIdx] || 'tile';
+                                return (
+                                  <div
+                                    key={targetIdx}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      background: isPrimary ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.16)',
+                                      border: `1px solid ${isPrimary ? '#F59E0B' : 'rgba(59, 130, 246, 0.35)'}`,
+                                      borderRadius: '3px',
+                                      padding: '1px 4px',
+                                      fontSize: '0.59rem',
+                                      color: '#fff',
+                                      height: '20px'
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px', minWidth: 0, overflow: 'hidden' }}>
+                                      <span style={{ color: isPrimary ? '#FBBF24' : '#94A3B8', fontWeight: 800, fontSize: '0.56rem' }}>
+                                        {isPrimary ? '⭐ #1' : `#${tRank + 1}`}
+                                      </span>
+                                      <span style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', fontWeight: isPrimary ? 700 : 500 }}>
+                                        ➔ Space #{targetIdx + 1} ({tileType})
+                                      </span>
+                                      <span style={{ fontSize: '0.50rem', color: isForward ? '#34D399' : '#60A5FA', padding: '0 2px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px' }}>
+                                        {isForward ? '↗' : '↙'}
+                                      </span>
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                                      {!isPrimary && (
+                                        <button
+                                          onClick={() => handleSetPrimaryConnection(selectedTile.era, selectedTile.index, targetIdx)}
+                                          style={{
+                                            background: 'rgba(245, 158, 11, 0.25)',
+                                            border: '1px solid rgba(245, 158, 11, 0.5)',
+                                            color: '#FBBF24',
+                                            borderRadius: '2px',
+                                            padding: '0 3px',
+                                            fontSize: '0.54rem',
+                                            cursor: 'pointer',
+                                            lineHeight: '14px',
+                                            height: '16px'
+                                          }}
+                                          title="Set as Primary Route ⭐"
+                                        >
+                                          ⭐
+                                        </button>
+                                      )}
+                                      {tRank > 0 && (
+                                        <button
+                                          onClick={() => handleMoveConnection(selectedTile.era, selectedTile.index, targetIdx, -1)}
+                                          style={{
+                                            background: 'rgba(255,255,255,0.12)',
+                                            border: 'none',
+                                            color: '#fff',
+                                            borderRadius: '2px',
+                                            padding: '0 3px',
+                                            fontSize: '0.52rem',
+                                            cursor: 'pointer',
+                                            lineHeight: '14px',
+                                            height: '16px'
+                                          }}
+                                          title="Move Up"
+                                        >
+                                          ▲
+                                        </button>
+                                      )}
+                                      {tRank < targets.length - 1 && (
+                                        <button
+                                          onClick={() => handleMoveConnection(selectedTile.era, selectedTile.index, targetIdx, 1)}
+                                          style={{
+                                            background: 'rgba(255,255,255,0.12)',
+                                            border: 'none',
+                                            color: '#fff',
+                                            borderRadius: '2px',
+                                            padding: '0 3px',
+                                            fontSize: '0.52rem',
+                                            cursor: 'pointer',
+                                            lineHeight: '14px',
+                                            height: '16px'
+                                          }}
+                                          title="Move Down"
+                                        >
+                                          ▼
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRemoveConnection(selectedTile.era, selectedTile.index, targetIdx);
+                                        }}
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          color: '#F87171',
+                                          cursor: 'pointer',
+                                          padding: '0 2px',
+                                          fontSize: '0.68rem',
+                                          lineHeight: '14px',
+                                          height: '16px'
+                                        }}
+                                        title="Remove connection"
+                                      >
+                                        &times;
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          {/* Approach / Junction Rules Table */}
+                          {(() => {
+                            const curEra = selectedTile.era;
+                            const targetIdx = selectedTile.index;
+                            if (targets.length < 2) return null;
+                            const eraConns = connections[curEra] || {};
+                            const inc = [];
+                            Object.keys(eraConns).forEach(fromStr => {
+                              const fromIdx = parseInt(fromStr, 10);
+                              if (fromIdx !== targetIdx && (eraConns[fromIdx] || []).includes(targetIdx)) {
+                                if (!inc.includes(fromIdx)) inc.push(fromIdx);
+                              }
+                            });
+                            inc.sort((a, b) => a - b);
+
+                            return (
+                              <div style={{
+                                marginTop: '4px',
+                                background: 'rgba(99, 102, 241, 0.12)',
+                                border: '1px solid rgba(99, 102, 241, 0.3)',
+                                borderRadius: '3px',
+                                padding: '3px 5px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '3px'
+                              }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#A5B4FC' }}>
+                                    🔀 Flow by Arrival Space:
+                                  </span>
+                                  <span style={{ fontSize: '0.49rem', color: 'rgba(255,255,255,0.45)' }}>
+                                    Arrival ➔ Destination
+                                  </span>
+                                </div>
+
+                                {inc.length === 0 ? (
+                                  <span style={{ fontSize: '0.52rem', color: 'rgba(255,255,255,0.5)', fontStyle: 'italic', padding: '2px 0' }}>
+                                    No incoming paths enter this space yet. Connect another tile to this space to configure arrival routing.
+                                  </span>
+                                ) : (
+                                  inc.map(incIdx => {
+                                    const ruleKey = `${targetIdx}:${incIdx}`;
+                                    let assignedTarget = junctionRules[curEra]?.[ruleKey];
+                                    if (assignedTarget === undefined || !targets.includes(assignedTarget)) {
+                                      assignedTarget = targets.find(t => t !== incIdx) ?? targets[0];
+                                    }
+
+                                    return (
+                                      <div key={incIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '3px', height: '18px' }}>
+                                        <span style={{ fontSize: '0.56rem', color: '#E2E8F0', whiteSpace: 'nowrap' }}>
+                                          From Space #{incIdx + 1} ➔
+                                        </span>
+                                        <select
+                                          value={assignedTarget !== undefined ? assignedTarget : ''}
+                                          onChange={(e) => {
+                                            const val = parseInt(e.target.value, 10);
+                                            handleSetJunctionRule(curEra, targetIdx, incIdx, val);
+                                          }}
+                                          style={{
+                                            background: '#1E293B',
+                                            color: '#FACC15',
+                                            border: '1px solid rgba(250, 204, 21, 0.4)',
+                                            borderRadius: '2px',
+                                            fontSize: '0.56rem',
+                                            height: '17px',
+                                            padding: '0 2px',
+                                            fontWeight: 700
+                                          }}
+                                        >
+                                          {targets.map(t => (
+                                            <option key={t} value={t}>
+                                              Space #{t + 1} ({layouts[curEra]?.[t] || 'tile'})
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       );
                     })()}
@@ -1212,11 +1745,46 @@ export default function MapEditor({ onClose }) {
               </div>
             </div>
 
-            {/* Reset button docked at bottom */}
-            <div style={{ marginTop: 'auto' }}>
+            {/* Backup & Safety Dock at bottom */}
+            <div style={{ marginTop: 'auto', paddingTop: '8px' }}>
+              <div style={{
+                background: 'rgba(99, 102, 241, 0.12)',
+                border: '1px solid rgba(99, 102, 241, 0.35)',
+                borderRadius: '6px',
+                padding: '6px 8px',
+                marginBottom: '6px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                  <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#A5B4FC', textTransform: 'uppercase' }}>
+                    🛡️ Layout Backup
+                  </span>
+                  <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.45)' }}>
+                    {backups.length} snapshot{backups.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    className="sidebar-btn"
+                    style={{ flex: 1, height: '25px', fontSize: '0.62rem', background: '#4F46E5', color: '#fff', fontWeight: 700 }}
+                    onClick={() => handleCreateBackup('')}
+                    title="Take an instant snapshot of all tile coordinates, paths, and layouts"
+                  >
+                    📦 + Backup
+                  </button>
+                  <button
+                    className="sidebar-btn"
+                    style={{ flex: 1, height: '25px', fontSize: '0.62rem', background: 'rgba(255,255,255,0.1)' }}
+                    onClick={() => { sounds.btnClick(); setShowBackupModal(true); }}
+                    title="View, download, or restore saved backups"
+                  >
+                    ↺ Restore
+                  </button>
+                </div>
+              </div>
+
               <button
                 className="sidebar-btn danger"
-                style={{ width: '100%', height: '26px' }}
+                style={{ width: '100%', height: '24px', fontSize: '0.62rem' }}
                 onClick={handleResetDefaults}
               >
                 🔄 Reset Factory Defaults
@@ -1258,6 +1826,295 @@ export default function MapEditor({ onClose }) {
                 📋 Copy Code to Clipboard
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* BACKUP & RESTORE MODAL */}
+      {showBackupModal && (
+        <div className="modal-overlay" style={{ zIndex: 3000, background: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(6px)' }}>
+          <div className="modal map-editor-compact-modal">
+            {/* Title Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 800, color: '#F1F5F9' }}>
+                <span>📦</span>
+                <span>Tile Layout Backups</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBackupModal(false)}
+                style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '1.2rem', cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '2px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontSize: '0.72rem', color: '#94A3B8', lineHeight: 1.35 }}>
+                Save snapshots before moving tiles. Revert any snapshot with 1 click if a layout gets messed up.
+              </div>
+
+              {/* Snapshot Creator Box */}
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.9)',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
+                borderRadius: '8px',
+                padding: '8px 10px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}>
+                <input
+                  type="text"
+                  placeholder="Snapshot name (optional, e.g. 'Before road fix')"
+                  value={backupNameInput}
+                  onChange={(e) => setBackupNameInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateBackup(backupNameInput); }}
+                  style={{
+                    width: '100%',
+                    background: '#020617',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#F8FAFC',
+                    padding: '5px 8px',
+                    borderRadius: '4px',
+                    fontSize: '0.74rem'
+                  }}
+                />
+                <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                  <input
+                    type="file"
+                    accept=".json"
+                    ref={backupFileInputRef}
+                    style={{ display: 'none' }}
+                    onChange={handleImportBackup}
+                  />
+                  <button
+                    type="button"
+                    className="compact-btn secondary"
+                    onClick={() => backupFileInputRef.current?.click()}
+                    title="Import a saved backup .json file from your computer"
+                  >
+                    📁 Import JSON
+                  </button>
+                  <button
+                    type="button"
+                    className="compact-btn primary"
+                    onClick={() => handleCreateBackup(backupNameInput)}
+                  >
+                    + Save Snapshot
+                  </button>
+                </div>
+              </div>
+
+              {/* Backups List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {backups.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '20px 10px', color: '#64748B', fontSize: '0.75rem' }}>
+                    <div style={{ fontSize: '1.6rem', marginBottom: '4px' }}>📭</div>
+                    No snapshots saved yet. Click <strong>+ Save Snapshot</strong> above!
+                  </div>
+                ) : (
+                  backups.map((b, idx) => {
+                    const isFirst = idx === 0;
+                    return (
+                      <div
+                        key={b.id || idx}
+                        style={{
+                          background: isFirst ? 'rgba(99, 102, 241, 0.12)' : 'rgba(15, 23, 42, 0.75)',
+                          border: isFirst ? '1px solid rgba(99, 102, 241, 0.45)' : '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '6px',
+                          padding: '7px 10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '8px'
+                        }}
+                      >
+                        {/* Info */}
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', overflow: 'hidden' }}>
+                            <span style={{ fontSize: '0.75rem' }}>📦</span>
+                            <span style={{ fontWeight: 700, fontSize: '0.75rem', color: isFirst ? '#A5B4FC' : '#E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {b.name}
+                            </span>
+                            {isFirst && (
+                              <span style={{ fontSize: '0.52rem', background: '#4F46E5', color: '#fff', padding: '1px 4px', borderRadius: '2px', fontWeight: 800 }}>
+                                LATEST
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.62rem', color: '#94A3B8', marginTop: '2px' }}>
+                            🕒 {b.dateStr} • 25 tiles/era
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            className="compact-btn success"
+                            onClick={() => handleRestoreBackup(b)}
+                            title="Restore this layout to map editor"
+                          >
+                            ↺ Restore
+                          </button>
+                          <button
+                            type="button"
+                            className="compact-btn secondary"
+                            onClick={() => handleDownloadBackup(b)}
+                            title="Download JSON file to computer"
+                          >
+                            💾 Save
+                          </button>
+                          <button
+                            type="button"
+                            className="compact-btn danger"
+                            onClick={() => handleDeleteBackup(b.id, b.name)}
+                            title="Delete snapshot"
+                            style={{ padding: '5px 7px' }}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: '10px',
+              paddingTop: '8px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.65rem', color: '#64748B' }}>
+                  {backups.length} snapshot{backups.length === 1 ? '' : 's'}
+                </span>
+                <button
+                  type="button"
+                  className="compact-btn secondary"
+                  style={{ fontSize: '0.62rem', padding: '2px 6px', color: '#A5B4FC' }}
+                  onClick={() => { sounds.btnClick(); setShowChangePinModal(true); }}
+                  title="Change developer access PIN"
+                >
+                  🔑 PIN
+                </button>
+              </div>
+              <button
+                type="button"
+                className="compact-btn secondary"
+                style={{ padding: '5px 16px' }}
+                onClick={() => setShowBackupModal(false)}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CHANGE PIN MODAL */}
+      {showChangePinModal && (
+        <div className="modal-overlay" style={{ zIndex: 4000, background: 'rgba(2, 6, 23, 0.88)' }}>
+          <div className="modal map-editor-compact-modal" style={{ maxWidth: '360px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.92rem', fontWeight: 800, color: '#F1F5F9' }}>
+                <span>🔑</span>
+                <span>Update Studio Passcode</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowChangePinModal(false)}
+                style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '1.2rem', cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePin} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <p style={{ fontSize: '0.72rem', color: '#94A3B8', margin: 0, lineHeight: 1.35 }}>
+                Set a custom developer PIN. Saved as a one-way salted SHA-256 hash.
+              </p>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.68rem', color: '#94A3B8', marginBottom: '3px' }}>
+                  New PIN (4–8 digits):
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={8}
+                  placeholder="••••"
+                  value={newPinInput}
+                  onChange={(e) => { setNewPinInput(e.target.value.replace(/[^0-9]/g, '')); setPinChangeError(''); }}
+                  style={{
+                    width: '100%',
+                    background: '#020617',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '5px',
+                    color: '#FFF',
+                    fontSize: '1.1rem',
+                    textAlign: 'center',
+                    letterSpacing: '4px',
+                    padding: '6px'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.68rem', color: '#94A3B8', marginBottom: '3px' }}>
+                  Confirm New PIN:
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={8}
+                  placeholder="••••"
+                  value={confirmPinInput}
+                  onChange={(e) => { setConfirmPinInput(e.target.value.replace(/[^0-9]/g, '')); setPinChangeError(''); }}
+                  style={{
+                    width: '100%',
+                    background: '#020617',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '5px',
+                    color: '#FFF',
+                    fontSize: '1.1rem',
+                    textAlign: 'center',
+                    letterSpacing: '4px',
+                    padding: '6px'
+                  }}
+                />
+              </div>
+
+              {pinChangeError && (
+                <div style={{ color: '#F87171', fontSize: '0.72rem', fontWeight: 700 }}>
+                  {pinChangeError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  className="compact-btn secondary"
+                  onClick={() => setShowChangePinModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="compact-btn primary"
+                >
+                  Save Encrypted PIN
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

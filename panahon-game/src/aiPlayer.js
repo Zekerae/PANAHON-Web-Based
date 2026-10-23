@@ -260,6 +260,32 @@ class AiController {
       return;
     }
 
+    if (choiceType === 'clueHandLimit') {
+      const drawnCard = choice.drawnCard;
+      const missionArtifactId = player.mission?.artifactId;
+      let chosenAction = 'discard_drawn';
+
+      if (drawnCard && !drawnCard.isDecoy) {
+        // Discard a decoy in hand first if any
+        const decoyIdx = player.clueCards.findIndex(c => c.isDecoy);
+        if (decoyIdx !== -1) {
+          chosenAction = `discard_hand_${decoyIdx}`;
+        } else if (drawnCard.artifactId === missionArtifactId) {
+          // If drawn matches mission, discard a non-mission card
+          const nonMissionIdx = player.clueCards.findIndex(c => c.artifactId !== missionArtifactId);
+          if (nonMissionIdx !== -1) {
+            chosenAction = `discard_hand_${nonMissionIdx}`;
+          }
+        }
+      }
+
+      sounds.btnClick?.();
+      engine.resolveChoice(chosenAction);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action: chosenAction });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
     if (choiceType === 'guardianRepair') {
       // Repair paradox if high, otherwise recover energy
       const action = player.paradox >= 2 ? 'reduceEnergy' : 'restoreEnergy';
@@ -274,6 +300,32 @@ class AiController {
       const best = options[0]?.action || 'drawClue';
       engine.resolveChoice(best);
       network?.sendAction({ type: 'RESOLVE_CHOICE', action: best });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
+    if (choiceType === 'teleportTile') {
+      const tiles = choice.tiles || choice.options || [];
+      const artifactTile = tiles.find(t => t.type === 'artifact');
+      const clueTiles = tiles.filter(t => t.type === 'clue');
+      const safeTiles = tiles.filter(t => t.type !== 'danger' && t.type !== 'paradox');
+
+      let picked = null;
+      if (artifactTile && player.clueCards?.length >= 3) {
+        picked = artifactTile;
+      } else if (clueTiles.length > 0) {
+        picked = clueTiles[Math.floor(Math.random() * clueTiles.length)];
+      } else if (safeTiles.length > 0) {
+        picked = safeTiles[Math.floor(Math.random() * safeTiles.length)];
+      } else {
+        picked = tiles[0];
+      }
+
+      const action = picked?.action || `teleport_${picked?.index || 0}`;
+      sounds.btnClick?.();
+      sounds.portal?.();
+      engine.resolveChoice(action);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
       this.scheduleAiStep(engine, network, 650);
       return;
     }

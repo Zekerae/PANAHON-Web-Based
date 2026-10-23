@@ -2,6 +2,7 @@
 
 import sounds from './sound.js';
 import { getSupabaseClient, isSupabaseAvailable } from './supabaseClient.js';
+import { getActiveTileCoordinates, getActiveTileLayouts, getActivePathConnections, getActiveJunctionRules, saveCustomMap } from './gameData.js';
 
 export class NetworkManager {
   constructor(gameEngine) {
@@ -185,7 +186,7 @@ export class NetworkManager {
               return;
             }
 
-            const roleTaken = activeEntries.some(e => e.roleKey === roleKey);
+            const roleTaken = activeEntries.some(e => e.roleKey === roleKey && e.name !== playerName);
             if (roleTaken) {
               this.cleanup();
               const errorMsg = `Role ${roleKey} is already taken! Choose another role.`;
@@ -275,6 +276,18 @@ export class NetworkManager {
 
     channel.on('broadcast', { event: 'CHAT_MESSAGE' }, ({ payload }) => {
       this.handleMessage({ type: 'CHAT_MESSAGE', ...payload });
+    });
+
+        channel.on('broadcast', { event: 'REQUEST_SYNC' }, () => {
+      if (this.isHost && this.engine && this.engine.getState()) {
+        this.broadcastState(this.engine.getState());
+      }
+    });
+
+    channel.on('broadcast', { event: 'PLAYER_RECONNECTED' }, ({ payload }) => {
+      if (this.onPlayerJoin) {
+        this.onPlayerJoin({ id: payload?.playerId, name: payload?.name, reconnected: true });
+      }
     });
 
     channel.on('broadcast', { event: 'ROOM_CLOSED' }, ({ payload }) => {
@@ -543,7 +556,13 @@ export class NetworkManager {
           id: idx,
           name: p.name,
           roleKey: p.roleKey
-        }))
+        })),
+        customMap: {
+          coords: getActiveTileCoordinates(),
+          layouts: getActiveTileLayouts(),
+          connections: getActivePathConnections(),
+          junctionRules: getActiveJunctionRules()
+        }
       };
 
       this.channel.send({
@@ -561,6 +580,88 @@ export class NetworkManager {
         roomCode: this.roomCode
       });
     }
+  }
+
+  async reconnectOnline(onlineInfo) {
+    if (!onlineInfo || !onlineInfo.roomCode) return;
+    this.mode = 'online';
+    this.roomCode = (onlineInfo.roomCode || '').trim().toUpperCase();
+    this.playerId = typeof onlineInfo.playerId === 'number' ? onlineInfo.playerId : 0;
+    this.isHost = Boolean(onlineInfo.isHost);
+    this.myPlayerName = onlineInfo.playerName || 'Castaway';
+    this.myRoleKey = onlineInfo.roleKey || 'HISTORIAN';
+
+    if (isSupabaseAvailable()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        this.cleanup();
+        this.supabase = supabase;
+        this.relayType = 'supabase';
+
+        const channelName = `panahon-room-${this.roomCode}`;
+        const channel = supabase.channel(channelName, {
+          config: {
+            broadcast: { self: false },
+            presence: { key: `${this.isHost ? "host" : "guest"}-${Date.now()}` }
+          }
+        });
+
+        this.setupSupabaseChannelListeners(channel);
+        this.channel = channel;
+
+        return new Promise((resolve) => {
+          const timeout = setTimeout(() => resolve(this.players), 5000);
+
+          channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+              clearTimeout(timeout);
+              try {
+                const myPlayerObj = {
+                  id: this.playerId,
+                  name: this.myPlayerName,
+                  roleKey: this.myRoleKey,
+                  isHost: this.isHost,
+                  connected: true,
+                  onlineAt: Date.now()
+                };
+                await channel.track(myPlayerObj);
+                this.players = this.buildRosterFromPresence(channel.presenceState(), myPlayerObj);
+
+                if (!this.isHost) {
+                  channel.send({
+                    type: 'broadcast',
+                    event: 'REQUEST_SYNC',
+                    payload: { playerId: this.playerId }
+                  });
+                } else if (this.engine && this.engine.getState()) {
+                  this.broadcastState(this.engine.getState());
+                }
+
+                channel.send({
+                  type: 'broadcast',
+                  event: 'PLAYER_RECONNECTED',
+                  payload: { playerId: this.playerId, name: this.myPlayerName }
+                });
+
+                console.log('[Supabase Realtime] Reconnected to room:', this.roomCode);
+                resolve(this.players);
+              } catch (e) {
+                resolve(this.players);
+              }
+            }
+          });
+        });
+      }
+    }
+
+    // WebSocket fallback
+    this.relayType = 'websocket';
+    await this.connectWebSocket();
+    this.send({
+      type: 'REJOIN_ROOM',
+      roomCode: this.roomCode,
+      playerId: this.playerId
+    });
   }
 
   sendChatMessage(text) {
@@ -697,6 +798,21 @@ export class NetworkManager {
         break;
       }
 
+      case 'ROOM_REJOINED':
+        this.roomCode = msg.roomCode;
+        this.playerId = msg.playerId;
+        if (msg.state && this.engine) {
+          this.engine.loadState(msg.state);
+        }
+        if (this.onReconnectSuccess) this.onReconnectSuccess();
+        break;
+
+      case 'PLAYER_RECONNECTED':
+        if (this.onPlayerJoin) {
+          this.onPlayerJoin({ id: msg.playerId, name: msg.name, reconnected: true });
+        }
+        break;
+
       case 'ROOM_CLOSED':
         this.cleanup();
         if (this.onRoomClosed) this.onRoomClosed(msg.message || 'Room closed by host.');
@@ -720,8 +836,21 @@ export class NetworkManager {
         break;
 
       case 'GAME_START':
+        if (msg.customMap) {
+          try {
+            saveCustomMap(
+              msg.customMap.coords,
+              msg.customMap.layouts,
+              null,
+              null,
+              msg.customMap.connections,
+              msg.customMap.junctionRules
+            );
+            console.log('[Network] Synced Host custom map to guest session!');
+          } catch (_) {}
+        }
         if (this.onGameStart) {
-          this.onGameStart(msg.players);
+          this.onGameStart(msg.players, msg.customMap);
         } else if (this.onStateUpdate && msg.state) {
           this.onStateUpdate(msg.state);
         }

@@ -4,6 +4,17 @@ import sounds from '../sound.js';
 export default function GuideModal({ onClose }) {
   const [guideTab, setGuideTab] = useState('overview');
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        sounds.btnClick();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const handleTab = (tab) => {
     sounds.btnClick();
     setGuideTab(tab);
@@ -14,8 +25,14 @@ export default function GuideModal({ onClose }) {
     onClose();
   };
 
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) {
+      handleClose();
+    }
+  };
+
   return (
-    <div className="modal-overlay" style={{ zIndex: 1500 }}>
+    <div className="modal-overlay" style={{ zIndex: 1500 }} onClick={handleOverlayClick}>
       <div className="modal" style={{ maxWidth: '680px', width: '95%' }}>
         <button className="modal-close" onClick={handleClose}>&times;</button>
         <div className="modal-title">PANAHON FIELD MANUAL (V0.3)</div>
@@ -86,8 +103,8 @@ export default function GuideModal({ onClose }) {
                 <li><strong>Level 5 (Critical Breach):</strong> +2 to Shared Timeline Meter, -3 Points, and meter resets to Level 2.</li>
               </ul>
 
-              <h4 style={{ color: 'var(--text-danger)', marginTop: '10px' }}>Shared Timeline Meter (0 - 10)</h4>
-              <p><strong>Losing Condition:</strong> If the Timeline Meter reaches 10, the timeline collapses and <strong>all players immediately lose!</strong></p>
+              <h4 style={{ color: 'var(--text-danger)', marginTop: '10px' }}>Shared Timeline Meter (0 - 5)</h4>
+              <p><strong>Losing Condition:</strong> The timeline meter max is 5. Once the breach goes above 5 (reaches 6), the timelines become completely messed up and <strong>all players immediately lose!</strong></p>
 
               <h4 style={{ color: 'var(--text-accent)', marginTop: '10px' }}>Artifact Acquisition Rule</h4>
               <p>Players must gather at least <strong>3 Clues</strong> related to a specific artifact before attempting to acquire it from an Artifact Tile.</p>

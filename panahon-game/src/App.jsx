@@ -1,9 +1,10 @@
-import React, { useRef, useReducer, useCallback, useEffect } from 'react';
+import React, { useRef, useReducer, useCallback, useEffect, useState } from 'react';
 import './style.css';
 import { GameEngine } from './gameEngine.js';
 import { NetworkManager } from './network.js';
 import { saveCustomMap } from './gameData.js';
 import { loadMapFromSupabase } from './supabaseClient.js';
+import { getActiveSession, saveActiveSession, clearActiveSession } from './sessionManager.js';
 import { appReducer, initialAppState } from './state/appReducer.js';
 import { useGameEngine } from './hooks/useGameEngine.js';
 import { useAudio } from './hooks/useAudio.js';
@@ -46,6 +47,7 @@ export default function App() {
 
   // App Routing & High-level State
   const [appState, dispatch] = useReducer(appReducer, initialAppState);
+  const [savedSession, setSavedSession] = useState(() => getActiveSession());
 
   // Subsystems & Hooks
   const { toasts, showToast } = useToast();
@@ -60,12 +62,37 @@ export default function App() {
     onGameStartSuccess: () => dispatch({ type: 'START_GAME' })
   });
 
+  // Auto-save active session during gameplay
+  useEffect(() => {
+    if (appState.currentScreen === 'game' && gameState && !gameState.gameOver) {
+      saveActiveSession({
+        mode: network.mode,
+        screen: 'game',
+        playerConfigs: appState.localPlayers,
+        onlineInfo: network.mode === 'online' ? {
+          roomCode: network.roomCode,
+          playerId: network.playerId,
+          playerName: network.myPlayerName,
+          roleKey: network.myRoleKey,
+          isHost: network.isHost,
+          relayType: network.relayType
+        } : null,
+        gameState
+      });
+      setSavedSession(getActiveSession());
+    }
+  }, [gameState, appState.currentScreen, network, appState.localPlayers]);
+
   // Turn Automation (AI Turns and Auto-Movement)
   useTurnAutomation({
     engine,
     network,
     state: gameState,
-    onGameOver: () => dispatch({ type: 'GAME_OVER' })
+    onGameOver: () => {
+      clearActiveSession();
+      setSavedSession(null);
+      dispatch({ type: 'GAME_OVER' });
+    }
   });
 
   // Action Handlers
@@ -121,12 +148,68 @@ export default function App() {
     dispatch({ type: 'START_GAME' });
   }, [gameState, sounds, initGame]);
 
+  const handleReconnect = useCallback(async () => {
+    const session = getActiveSession();
+    if (!session || !session.gameState) {
+      showToast('Session Expired', 'No active game session found.', 'warning');
+      setSavedSession(null);
+      return;
+    }
+
+    sounds.portal();
+    if (session.mode === 'online' && session.onlineInfo) {
+      showToast('Reconnecting Online', `Reconnecting to Room ${session.onlineInfo.roomCode}...`, 'info');
+      engine.loadState(session.gameState);
+      try {
+        await network.reconnectOnline(session.onlineInfo);
+        showToast('Mission Reconnected', `Back in Room ${session.onlineInfo.roomCode}`, 'success');
+      } catch (err) {
+        showToast('Online Notice', `Connected with cached session: ${err.message}`, 'warning');
+      }
+    } else {
+      network.setMode('local');
+      engine.loadState(session.gameState);
+      engine.startTimer();
+      showToast('Mission Resumed', 'Welcome back to the timeline!', 'success');
+    }
+
+    sounds.startBgMusic();
+    dispatch({ type: 'START_GAME' });
+  }, [engine, network, showToast, sounds]);
+
+  const handleDiscardSession = useCallback(() => {
+    clearActiveSession();
+    setSavedSession(null);
+    showToast('Session Cleared', 'Saved mission discarded.', 'info');
+  }, [showToast]);
+
+  const handleSaveAndExit = useCallback(() => {
+    sounds.btnClick();
+    showToast('Mission Saved', 'Progress safely recorded. You can resume anytime!', 'success');
+    dispatch({ type: 'RETURN_TO_TITLE' });
+    setSavedSession(getActiveSession());
+  }, [sounds, showToast]);
+
+  const handleAbandonGame = useCallback(() => {
+    sounds.btnClick();
+    clearActiveSession();
+    setSavedSession(null);
+    if (network.mode === 'online') {
+      network.leaveRoom();
+    }
+    showToast('Mission Abandoned', 'Returned to main menu.', 'info');
+    dispatch({ type: 'RETURN_TO_TITLE' });
+  }, [sounds, network, showToast]);
+
   const titleProps = {
     onSelectMode: handleSelectMode,
     onOpenGuide: () => dispatch({ type: 'OPEN_GUIDE' }),
     onOpenMapEditor: () => dispatch({ type: 'NAVIGATE', screen: 'map-editor' }),
     soundMuted,
-    onToggleSound: toggleSound
+    onToggleSound: toggleSound,
+    activeSession: savedSession,
+    onReconnect: handleReconnect,
+    onDiscardSession: handleDiscardSession
   };
 
   const lobbyProps = {
@@ -164,7 +247,9 @@ export default function App() {
     onInspectCard: (cardData) => dispatch({ type: 'SET_MAXIMIZED_CARD', cardData }),
     chatMessages,
     unreadChatCount,
-    onResetUnreadChat: resetUnread
+    onResetUnreadChat: resetUnread,
+    onSaveAndExit: handleSaveAndExit,
+    onAbandonGame: handleAbandonGame
   };
 
   const endgameProps = {

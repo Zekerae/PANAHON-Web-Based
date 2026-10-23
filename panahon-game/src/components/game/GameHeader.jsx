@@ -10,7 +10,8 @@ function GameHeader({
   soundMuted,
   onToggleChat,
   onOpenGuide,
-  onToggleSound
+  onToggleSound,
+  onOpenPause
 }) {
   return (
     <header className="game-header">
@@ -62,6 +63,17 @@ function GameHeader({
           onClick={onToggleSound}
         >
           {soundMuted ? '🔇' : '🔊'}
+        </button>
+        <button
+          className="btn btn-pause"
+          onClick={() => {
+            sounds.btnClick();
+            if (onOpenPause) onOpenPause();
+          }}
+          title="Pause Game (Esc)"
+        >
+          <span className="pause-bars-icon"><span></span><span></span></span>
+          <span className="pause-btn-text">PAUSE</span>
         </button>
       </div>
     </header>

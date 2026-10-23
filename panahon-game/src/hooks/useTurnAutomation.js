@@ -39,6 +39,12 @@ export function useTurnAutomation({ engine, network, state, onGameOver }) {
     // Reset game over tracker when playing active game
     gameOverHandledRef.current = false;
 
+    // Do not automate turns or move if game is paused
+    if (engine.isPaused || state.isPaused) {
+      clearAutoMove();
+      return;
+    }
+
     // Handle AI turn
     if (aiController.isAiTurn(engine, network)) {
       clearAutoMove();

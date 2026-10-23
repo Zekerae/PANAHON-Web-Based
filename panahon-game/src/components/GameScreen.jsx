@@ -6,6 +6,7 @@ import PlayerSidebar from './game/PlayerSidebar.jsx';
 import GameBoard from './game/GameBoard.jsx';
 import GameActions from './game/GameActions.jsx';
 import PlayerHand from './game/PlayerHand.jsx';
+import PauseModal from './PauseModal.jsx';
 
 function GameScreen({
   state,
@@ -17,13 +18,51 @@ function GameScreen({
   onInspectCard,
   chatMessages,
   unreadChatCount,
-  onResetUnreadChat
+  onResetUnreadChat,
+  onSaveAndExit,
+  onAbandonGame
 }) {
   const [activeHandTab, setActiveHandTab] = useState('mission');
   const [inspectedPlayerId, setInspectedPlayerId] = useState(null);
   const [isGameChatOpen, setIsGameChatOpen] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [mobileGameTab, setMobileGameTab] = useState("board");
+  const [isPaused, setIsPaused] = useState(false);
+
+  const handleResume = useCallback(() => {
+    setIsPaused(false);
+    if (engine) {
+      engine.isPaused = false;
+      engine.startTimer();
+    }
+  }, [engine]);
+
+  const handleOpenPause = useCallback(() => {
+    setIsPaused(true);
+    if (engine) {
+      engine.isPaused = true;
+      engine.stopTimer();
+    }
+  }, [engine]);
+
+  // Global ESC key handler
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isGameChatOpen) {
+          setIsGameChatOpen(false);
+          return;
+        }
+        if (isPaused) {
+          handleResume();
+        } else {
+          handleOpenPause();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPaused, isGameChatOpen, handleResume, handleOpenPause]);
 
   if (!state || !engine) return null;
 
@@ -168,6 +207,7 @@ function GameScreen({
         onToggleChat={toggleChat}
         onOpenGuide={onOpenGuide}
         onToggleSound={onToggleSound}
+        onOpenPause={handleOpenPause}
       />
 
       {/* 2. LEFT PANEL: PLAYER DOSSIERS */}
@@ -235,6 +275,24 @@ function GameScreen({
           isOnline={isOnline}
         />
       )}
+      {/* 7. PAUSE MENU MODAL */}
+      <PauseModal
+        isOpen={isPaused}
+        onResume={handleResume}
+        onOpenGuide={onOpenGuide}
+        soundMuted={soundMuted}
+        onToggleSound={onToggleSound}
+        onSaveAndExit={() => {
+          handleResume();
+          if (onSaveAndExit) onSaveAndExit();
+        }}
+        onAbandonGame={() => {
+          handleResume();
+          if (onAbandonGame) onAbandonGame();
+        }}
+        state={state}
+        network={network}
+      />
     </div>
   );
 }

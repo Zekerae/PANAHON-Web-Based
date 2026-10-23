@@ -1,7 +1,23 @@
 import React from 'react';
 import sounds from '../sound.js';
+import { ROLES } from '../gameData.js';
 
-export default function TitleScreen({ onSelectMode, onOpenGuide, soundMuted, onToggleSound, onOpenMapEditor }) {
+export default function TitleScreen({
+  onSelectMode,
+  onOpenGuide,
+  soundMuted,
+  onToggleSound,
+  onOpenMapEditor,
+  activeSession,
+  onReconnect,
+  onDiscardSession
+}) {
+  const isOnlineSession = activeSession?.mode === 'online';
+  const sessionState = activeSession?.gameState;
+  const currentP = sessionState?.players?.[sessionState?.currentPlayerIndex];
+  const roleName = currentP?.roleKey ? (ROLES[currentP.roleKey]?.name || currentP.roleKey) : '';
+  const roomCode = activeSession?.onlineInfo?.roomCode;
+
   return (
     <div className="title-screen">
       <div className="title-content">
@@ -10,6 +26,49 @@ export default function TitleScreen({ onSelectMode, onOpenGuide, soundMuted, onT
         <div className="title-acronym">Portal Anomaly Navigation and Historical Origin Network</div>
 
         <div className="title-buttons">
+          {/* Active Session Reconnect / Resume Card */}
+          {activeSession && (
+            <div className="title-resume-card animate-pulse-border">
+              <div className="title-resume-header">
+                <span className="title-resume-badge">
+                  {isOnlineSession ? '🌐 ONLINE ANOMALY ACTIVE' : '⚡ RECONNECT AVAILABLE'}
+                </span>
+                <button
+                  className="title-resume-discard-btn"
+                  title="Discard saved session"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    sounds.btnClick();
+                    if (onDiscardSession) onDiscardSession();
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="title-resume-details">
+                {isOnlineSession ? (
+                  <div>Room: <strong>{roomCode}</strong> • Playing as {activeSession?.onlineInfo?.playerName || 'Castaway'}</div>
+                ) : (
+                  <div>Round {sessionState?.turnNumber || 1} • {currentP?.name || 'Player'} ({roleName})</div>
+                )}
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  Breach: {Math.min(5, sessionState?.timelineMeter ?? 0)}/5 • Saved session
+                </div>
+              </div>
+
+              <button
+                className="btn btn-primary title-resume-btn"
+                onClick={() => {
+                  sounds.btnClick();
+                  if (onReconnect) onReconnect();
+                }}
+              >
+                {isOnlineSession ? '🔄 RECONNECT TO ROOM' : '▶ RESUME MISSION'}
+              </button>
+            </div>
+          )}
+
           <button
             className="btn btn-primary"
             style={{

@@ -758,7 +758,7 @@ export const EVENT_CARDS = {
       name: 'Temporal Occurrence!',
       description: 'For the next 2 turns, players draw from any era randomly on Clue, Event, or Danger tiles.',
       era: ERAS.AMERICAN,
-      image: 'assets/Cards/Event Cards/10.png',
+      image: 'assets/Cards/Event Cards/5.png',
       effect: (player, game) => {
         game.activateTemporalOccurrence(2);
         return 'Temporal Disturbance! Drawing from random eras for 2 rounds!';
@@ -819,7 +819,7 @@ export const EVENT_CARDS = {
       name: 'Temporal Occurrence!',
       description: 'For the next 2 turns, players draw from any era randomly on Clue, Event, or Danger tiles.',
       era: ERAS.JAPANESE,
-      image: 'assets/Cards/Event Cards/15.png',
+      image: 'assets/Cards/Event Cards/5.png',
       effect: (player, game) => {
         game.activateTemporalOccurrence(2);
         return 'Temporal Disturbance! Drawing from random eras for 2 rounds!';
@@ -844,7 +844,7 @@ export const EVENT_CARDS = {
       name: 'Anito Guidance',
       description: 'Teleport to any tile within the Myth/Legend timeline.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Event Cards/16.png',
+      image: 'assets/Cards/Event Cards/17.png',
       effect: (player, game) => {
         game.offerTeleport(player, ERAS.MYTH);
         return 'Teleport to any tile in the Myth/Legend timeline!';
@@ -855,7 +855,7 @@ export const EVENT_CARDS = {
       name: 'Enchanted Healing Spring',
       description: 'Restores 3 energy to all players in this timeline.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Event Cards/16.png',
+      image: 'assets/Cards/Event Cards/18.png',
       effect: (player, game) => {
         game.healAllInEra(ERAS.MYTH, 3);
         return 'All players in Myth era restored 3 Energy!';
@@ -866,7 +866,7 @@ export const EVENT_CARDS = {
       name: 'Ancient Relic Harmony',
       description: 'Decreases the Timeline Meter by 1.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Event Cards/16.png',
+      image: 'assets/Cards/Event Cards/19.png',
       effect: (player, game) => {
         game.modifyTimelineMeter(-1);
         return 'Timeline Meter decreased by 1!';
@@ -877,7 +877,7 @@ export const EVENT_CARDS = {
       name: 'Temporal Occurrence!',
       description: 'For the next 2 turns, players draw from any era randomly on Clue, Event, or Danger tiles.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Event Cards/16.png',
+      image: 'assets/Cards/Event Cards/5.png',
       effect: (player, game) => {
         game.activateTemporalOccurrence(2);
         return 'Temporal Disturbance! Drawing from random eras for 2 rounds!';

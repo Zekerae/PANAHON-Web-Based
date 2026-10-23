@@ -11,7 +11,11 @@ function GameHeader({
   return (
     <header className="game-header">
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
-        <div className="game-logo">PANAHON</div>
+        <div className="game-logo-wrapper">
+          <div className="game-logo">PANAHON</div>
+          <div className="game-logo-divider"></div>
+          <div className="game-logo-subtitle">CHRONO SHIFT</div>
+        </div>
         <div className="timeline-meter">
           <div className="timeline-meter-label">TIMELINE INTEGRITY:</div>
           <div className="timeline-meter-bar">

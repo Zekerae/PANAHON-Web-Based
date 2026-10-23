@@ -991,10 +991,47 @@ body {
   z-index: var(--z-ui);
 }
 
-.game-header-title {
-  font-family: var(--font-pirate);
-  font-size: 1.4rem;
-  color: var(--text-accent);
+.game-logo-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  line-height: 1;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.game-logo {
+  font-family: var(--font-pirate), serif;
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: #F8FAFC;
+  letter-spacing: 3px;
+  line-height: 0.95;
+  margin: 0;
+  text-shadow: 0 0 20px rgba(56, 189, 248, 0.55), 0 2px 8px rgba(0, 0, 0, 0.85);
+  transition: text-shadow 0.2s ease;
+}
+
+.game-logo:hover {
+  text-shadow: 0 0 25px rgba(56, 189, 248, 0.85), 0 2px 10px rgba(0, 0, 0, 0.95);
+}
+
+.game-logo-divider {
+  width: 42px;
+  height: 1.5px;
+  background: linear-gradient(90deg, #38BDF8 0%, transparent 100%);
+  margin: 3px 0 2px 0;
+}
+
+.game-logo-subtitle {
+  font-family: var(--font-display);
+  font-size: 0.48rem;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  color: #94A3B8;
+  text-transform: uppercase;
+  line-height: 1;
 }
 
 .header-meters {
@@ -5676,9 +5713,26 @@ body {
     gap: 4px !important;
   }
 
+  .game-header .game-logo-wrapper {
+    flex-shrink: 0 !important;
+    gap: 0 !important;
+  }
+
   .game-header .game-logo {
-    font-size: 0.85rem !important;
-    letter-spacing: 1px !important;
+    font-size: 1.15rem !important;
+    letter-spacing: 1.8px !important;
+    line-height: 0.95 !important;
+  }
+
+  .game-header .game-logo-divider {
+    width: 28px !important;
+    height: 1px !important;
+    margin: 2px 0 1px 0 !important;
+  }
+
+  .game-header .game-logo-subtitle {
+    font-size: 0.40rem !important;
+    letter-spacing: 1.5px !important;
   }
 
   .game-header .timeline-meter {

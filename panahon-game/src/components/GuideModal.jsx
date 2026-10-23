@@ -4,6 +4,17 @@ import sounds from '../sound.js';
 export default function GuideModal({ onClose }) {
   const [guideTab, setGuideTab] = useState('overview');
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        sounds.btnClick();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const handleTab = (tab) => {
     sounds.btnClick();
     setGuideTab(tab);
@@ -14,8 +25,14 @@ export default function GuideModal({ onClose }) {
     onClose();
   };
 
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) {
+      handleClose();
+    }
+  };
+
   return (
-    <div className="modal-overlay" style={{ zIndex: 1500 }}>
+    <div className="modal-overlay" style={{ zIndex: 1500 }} onClick={handleOverlayClick}>
       <div className="modal" style={{ maxWidth: '680px', width: '95%' }}>
         <button className="modal-close" onClick={handleClose}>&times;</button>
         <div className="modal-title">PANAHON FIELD MANUAL (V0.3)</div>

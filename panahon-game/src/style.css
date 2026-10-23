@@ -352,6 +352,7 @@ html, body {
   position: relative;
   overflow: hidden;
   min-width: 260px;
+  box-sizing: border-box; /* include padding and border in width */
 }
 
 .btn::before {
@@ -383,6 +384,9 @@ html, body {
   background: linear-gradient(135deg, rgba(232, 197, 71, 0.2), rgba(212, 160, 23, 0.1));
   border-color: var(--text-accent);
   color: var(--text-accent);
+  padding: 6px 12px; /* Reduce padding to prevent overflow */
+  max-width: 100%;
+  width: auto;
 }
 
 .btn-primary:hover {
@@ -1379,6 +1383,10 @@ html, body {
   z-index: var(--z-ui);
 }
 
+.right-panel .btn {
+  min-width: 0;
+}
+
 .panel-section {
   background: var(--bg-glass);
   border: 1px solid var(--border-glass);
@@ -1404,8 +1412,8 @@ html, body {
 }
 
 .dice {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   background: linear-gradient(135deg, #2C2C3E, #1A1A2E);
   border: 2px solid var(--text-accent);
   border-radius: var(--radius-md);
@@ -1413,7 +1421,7 @@ html, body {
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 1.8rem;
+  font-size: 1.2rem;
   font-weight: 900;
   color: var(--text-accent);
   cursor: pointer;
@@ -1668,7 +1676,7 @@ html, body {
   max-width: 520px;
   width: 90%;
   max-height: 80vh;
-  overflow-y: auto;
+  overflow: hidden; /* Prevent child UI overflow */
   animation: fadeInScale 0.3s ease;
   position: relative;
 }
@@ -3000,7 +3008,6 @@ html, body {
   border: 1px solid rgba(232, 197, 71, 0.5);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8), 0 0 28px rgba(232, 197, 71, 0.25);
 }
-
 
 
 

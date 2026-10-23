@@ -72,7 +72,7 @@ function GameActions({
           <div>
             <button
               className="btn btn-primary"
-              style={{ width: '100%', marginTop: 'var(--space-sm)', padding: '8px' }}
+              style={{ width: '100%', minWidth: 0, marginTop: 'var(--space-sm)', padding: '8px' }}
               disabled={!isMyTurn || isRolling}
               onClick={onRollDice}
             >
@@ -226,7 +226,7 @@ function GameActions({
 
         <button
           className="btn btn-primary"
-          style={{ width: '100%', marginTop: 'var(--space-md)', padding: '8px' }}
+          style={{ width: '100%', minWidth: 0, marginTop: 'var(--space-md)', padding: '8px' }}
           disabled={!isMyTurn || state.phase === 'moving'}
           onClick={onEndTurn}
         >

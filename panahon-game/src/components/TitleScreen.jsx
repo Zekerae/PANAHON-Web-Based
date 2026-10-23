@@ -71,6 +71,9 @@ export default function TitleScreen({
 
   return (
     <div className="title-screen duelyst-theme">
+      {/* Dynamic Panning Map Background Layer */}
+      <div className="duelyst-bg-canvas" aria-hidden="true" />
+
       {/* 1. TOP HUD BAR */}
       <header className="duelyst-top-bar">
         {/* Top Center: Bug Report Pill */}

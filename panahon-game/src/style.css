@@ -2529,152 +2529,10 @@ body {
   box-shadow: inset 0 0 30px rgba(232, 197, 71, 0.1);
 }
 
-/* Responsive Layout */
-@media (max-width: 1100px) {
+/* Responsive Layout: Desktop to Tablet */
+@media (max-width: 1100px) and (min-width: 921px) {
   .game-screen {
     grid-template-columns: 200px 1fr 240px;
-  }
-}
-
-@media (max-width: 900px) {
-  .game-screen {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    height: 100dvh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Header on mobile */
-  .game-header {
-    flex-wrap: wrap;
-    padding: 6px 10px;
-    min-height: 48px;
-    height: auto;
-    gap: 6px;
-    justify-content: space-between;
-    flex-shrink: 0;
-  }
-
-  .game-header-title {
-    font-size: 1.15rem;
-  }
-
-  .header-meters {
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .timeline-meter-label {
-    display: none;
-  }
-
-  .timeline-meter-bar {
-    width: 70px;
-    height: 10px;
-  }
-
-  .timeline-meter-value {
-    font-size: 0.72rem;
-    min-width: 25px;
-  }
-
-  .game-timer {
-    font-size: 0.75rem;
-    gap: 3px;
-  }
-
-  /* Board container on mobile */
-  .board-container {
-    min-height: 340px;
-    height: 44vh;
-    flex-shrink: 0;
-    position: relative;
-    border-bottom: 1px solid var(--border-glass);
-  }
-
-  .board-camera-controls {
-    top: 6px;
-    left: 6px;
-    gap: 4px;
-    flex-wrap: wrap;
-  }
-
-  .board-cam-btn {
-    padding: 3px 6px;
-    font-size: 0.62rem;
-  }
-
-  /* Bottom action panel on mobile */
-  .bottom-panel {
-    flex-shrink: 0;
-    padding: 10px;
-    background: var(--bg-panel);
-    border-top: 1px solid var(--border-glass);
-    order: 2;
-  }
-
-  .action-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .action-controls .btn {
-    min-width: auto;
-    flex: 1 1 calc(50% - 6px);
-    padding: 8px 10px;
-    font-size: 0.78rem;
-    letter-spacing: 1px;
-  }
-
-  .hand-tabs {
-    gap: 4px;
-  }
-
-  .hand-tab-btn {
-    padding: 4px 8px;
-    font-size: 0.7rem;
-  }
-
-  .hand-cards {
-    overflow-x: auto;
-    white-space: nowrap;
-    padding-bottom: 4px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Castaway dossiers on mobile */
-  .left-panel {
-    display: flex;
-    flex-direction: column;
-    padding: 10px;
-    background: var(--bg-panel);
-    border-top: 1px solid var(--border-glass);
-    gap: 6px;
-    order: 3;
-    width: 100%;
-    max-height: none;
-  }
-
-  .player-card {
-    padding: 8px 10px;
-  }
-
-  /* Right panel on mobile */
-  .right-panel {
-    padding: 10px;
-    background: var(--bg-panel);
-    border-top: 1px solid var(--border-glass);
-    order: 4;
-    width: 100%;
-    max-height: none;
-  }
-
-  .log-entries {
-    max-height: 140px;
   }
 }
 
@@ -4117,127 +3975,6 @@ body {
 
   .map-editor-canvas-area {
     padding: 8px;
-  }
-}
-
-/* ==========================================
-   MOBILE GAME SCREEN TABS & LAYOUT
-   ========================================== */
-.mobile-game-tabs {
-  display: none;
-}
-
-@media (max-width: 900px) {
-  .mobile-game-tabs {
-    display: flex;
-    align-items: center;
-    background: rgba(15, 23, 42, 0.95);
-    border-bottom: 1px solid var(--border-glass);
-    padding: 4px 6px;
-    gap: 4px;
-    position: sticky;
-    top: 0;
-    z-index: 15;
-    flex-shrink: 0;
-  }
-
-  .mobile-game-tab {
-    flex: 1;
-    padding: 8px 4px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-align: center;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--text-secondary);
-    border-radius: 6px;
-    cursor: pointer;
-    position: relative;
-    white-space: nowrap;
-    transition: all var(--transition-fast);
-  }
-
-  .mobile-game-tab.active {
-    background: rgba(99, 102, 241, 0.25);
-    border-color: #818CF8;
-    color: #fff;
-  }
-
-  .mobile-turn-pulse {
-    position: absolute;
-    top: 2px;
-    right: 4px;
-    background: #EF4444;
-    color: #fff;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    font-size: 0.6rem;
-    line-height: 14px;
-    font-weight: 800;
-    animation: turnPulse 1s infinite alternate;
-  }
-
-  /* Show/hide panels based on active mobile tab */
-  .game-screen.mobile-tab-board .left-panel,
-  .game-screen.mobile-tab-board .right-panel,
-  .game-screen.mobile-tab-board .bottom-panel {
-    display: none !important;
-  }
-
-  .game-screen.mobile-tab-board .board-container {
-    height: calc(100vh - 120px);
-    height: calc(100dvh - 120px);
-    min-height: auto;
-    border-bottom: none;
-  }
-
-  .game-screen.mobile-tab-actions .left-panel,
-  .game-screen.mobile-tab-actions .board-container,
-  .game-screen.mobile-tab-actions .bottom-panel {
-    display: none !important;
-  }
-
-  .game-screen.mobile-tab-actions .right-panel {
-    display: flex !important;
-    width: 100% !important;
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  .game-screen.mobile-tab-players .board-container,
-  .game-screen.mobile-tab-players .right-panel,
-  .game-screen.mobile-tab-players .bottom-panel {
-    display: none !important;
-  }
-
-  .game-screen.mobile-tab-players .left-panel {
-    display: flex !important;
-    width: 100% !important;
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  .game-screen.mobile-tab-hand .board-container,
-  .game-screen.mobile-tab-hand .left-panel,
-  .game-screen.mobile-tab-hand .right-panel {
-    display: none !important;
-  }
-
-  .game-screen.mobile-tab-hand .bottom-panel {
-    display: flex !important;
-    flex-direction: column;
-    width: 100% !important;
-    flex: 1;
-    height: calc(100vh - 120px);
-    height: calc(100dvh - 120px);
-    overflow-y: auto;
-  }
-}
-
-@media (min-width: 901px) {
-  .hide-desktop {
-    display: none !important;
   }
 }
 
@@ -5881,15 +5618,26 @@ body {
   color: #94A3B8;
 }
 
+
 /* ==========================================================================
-   MOBILE & COMPACT LANDSCAPE RESPONSIVE SYSTEM
+   UNIFIED DEDICATED MOBILE LAYOUT SYSTEM (Portrait & Landscape Mobile)
    ========================================================================== */
 .mobile-board-quick-dock {
   display: none;
 }
+.mobile-game-tabs {
+  display: none;
+}
 
-@media (max-width: 900px), (max-height: 550px) {
-  /* Game Screen Container */
+@media (max-width: 920px), (max-height: 550px) {
+  /* Strictly enforce SINGLE-CONTAINER, ZERO-OUTER-SCROLL for mobile app experience */
+  html, body {
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
   .game-screen {
     display: flex !important;
     flex-direction: column !important;
@@ -5900,28 +5648,32 @@ body {
     position: relative !important;
   }
 
-  /* Compact Game Header - strictly single line */
+  /* Compact Game Header on All Mobile Widths */
   .game-header {
-    min-height: 40px !important;
-    height: 40px !important;
-    max-height: 40px !important;
-    padding: 0 8px !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    max-height: 38px !important;
+    padding: 0 6px !important;
     flex-wrap: nowrap !important;
     flex-shrink: 0 !important;
     overflow: hidden !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
-    gap: 6px !important;
+    gap: 3px !important;
+  }
+
+  .game-header > div {
+    gap: 4px !important;
   }
 
   .game-header .game-logo {
-    font-size: 1rem !important;
+    font-size: 0.85rem !important;
     letter-spacing: 1px !important;
   }
 
   .game-header .timeline-meter {
-    gap: 4px !important;
+    gap: 3px !important;
   }
 
   .game-header .timeline-meter-label {
@@ -5929,54 +5681,65 @@ body {
   }
 
   .game-header .timeline-meter-bar {
-    width: 50px !important;
+    width: 32px !important;
     height: 6px !important;
   }
 
   .game-header .timeline-meter-val {
-    font-size: 0.68rem !important;
+    font-size: 0.65rem !important;
     white-space: nowrap !important;
   }
 
   .game-header .game-timer {
-    font-size: 0.72rem !important;
-    padding: 2px 4px !important;
+    font-size: 0.68rem !important;
+    padding: 1px 3px !important;
+  }
+
+  .game-header-round {
+    white-space: nowrap !important;
+    font-size: 0.68rem !important;
+    flex-shrink: 0 !important;
   }
 
   .game-header .btn {
-    padding: 3px 8px !important;
-    font-size: 0.68rem !important;
+    min-width: auto !important;
+    width: auto !important;
+    padding: 3px 6px !important;
+    font-size: 0.65rem !important;
     white-space: nowrap !important;
   }
 
   .game-header .btn-pause {
-    padding: 3px 8px !important;
-    font-size: 0.68rem !important;
+    min-width: auto !important;
+    width: auto !important;
+    padding: 3px 6px !important;
+    font-size: 0.65rem !important;
     white-space: nowrap !important;
   }
 
-  /* Mobile Tabs Navigation Bar */
+  /* Prominent Mobile Navigation Tabs Bar */
   .mobile-game-tabs {
     display: flex !important;
     align-items: center !important;
     background: rgba(15, 23, 42, 0.96) !important;
-    border-bottom: 1px solid rgba(56, 189, 248, 0.25) !important;
+    border-bottom: 1.5px solid rgba(56, 189, 248, 0.3) !important;
     padding: 3px 6px !important;
     gap: 4px !important;
-    height: 34px !important;
+    height: 38px !important;
     box-sizing: border-box !important;
     flex-shrink: 0 !important;
     z-index: 60 !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
   }
 
   .mobile-game-tab {
     flex: 1 !important;
-    padding: 4px 6px !important;
-    font-size: 0.7rem !important;
-    font-weight: 700 !important;
+    padding: 5px 6px !important;
+    font-size: 0.74rem !important;
+    font-weight: 800 !important;
     text-align: center !important;
     background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
     color: #94A3B8 !important;
     border-radius: 6px !important;
     cursor: pointer !important;
@@ -5986,34 +5749,56 @@ body {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    transition: all 0.15s ease !important;
   }
 
   .mobile-game-tab.active {
-    background: rgba(56, 189, 248, 0.2) !important;
+    background: rgba(56, 189, 248, 0.22) !important;
     border-color: #38BDF8 !important;
     color: #FFF !important;
-    box-shadow: 0 0 10px rgba(56, 189, 248, 0.3) !important;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.35) !important;
   }
 
-  /* Panel Visibility per active Tab */
+  .mobile-turn-pulse {
+    position: absolute !important;
+    top: 2px !important;
+    right: 4px !important;
+    background: #EF4444 !important;
+    color: #fff !important;
+    width: 14px !important;
+    height: 14px !important;
+    border-radius: 50% !important;
+    font-size: 0.6rem !important;
+    line-height: 14px !important;
+    font-weight: 800 !important;
+    animation: turnPulse 1s infinite alternate !important;
+  }
+
+  /* Robust Tab-Panel Rules & Guaranteed Fallback (Zero panel stacking!) */
   .game-screen.mobile-tab-board .left-panel,
   .game-screen.mobile-tab-board .right-panel,
-  .game-screen.mobile-tab-board .bottom-panel {
+  .game-screen.mobile-tab-board .bottom-panel,
+  .game-screen:not(.mobile-tab-actions):not(.mobile-tab-players):not(.mobile-tab-hand) .left-panel,
+  .game-screen:not(.mobile-tab-actions):not(.mobile-tab-players):not(.mobile-tab-hand) .right-panel,
+  .game-screen:not(.mobile-tab-actions):not(.mobile-tab-players):not(.mobile-tab-hand) .bottom-panel {
     display: none !important;
   }
 
-  .game-screen.mobile-tab-board .board-container {
+  .game-screen.mobile-tab-board .board-container,
+  .game-screen:not(.mobile-tab-actions):not(.mobile-tab-players):not(.mobile-tab-hand) .board-container {
     display: flex !important;
     flex: 1 1 auto !important;
     width: 100% !important;
     height: 100% !important;
     min-height: 0 !important;
-    padding: 4px !important;
+    padding: 2px !important;
     position: relative !important;
     overflow: hidden !important;
+    border: none !important;
   }
 
-  .game-screen.mobile-tab-board .board-camera-bar {
+  /* Camera Controls */
+  .board-camera-bar {
     top: 6px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
@@ -6021,19 +5806,20 @@ body {
     gap: 3px !important;
   }
 
-  .game-screen.mobile-tab-board .board-cam-btn {
+  .board-cam-btn {
     padding: 3px 6px !important;
     font-size: 0.65rem !important;
   }
 
-  /* Floating Quick Action Dock on Map */
-  .game-screen.mobile-tab-board .mobile-board-quick-dock {
+  /* Floating Quick Action Dock on Map - FRONT AND CENTER */
+  .game-screen.mobile-tab-board .mobile-board-quick-dock,
+  .game-screen:not(.mobile-tab-actions):not(.mobile-tab-players):not(.mobile-tab-hand) .mobile-board-quick-dock {
     display: block !important;
     position: absolute !important;
-    bottom: 8px !important;
+    bottom: 12px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    z-index: 50 !important;
+    z-index: 100 !important;
     width: auto !important;
     max-width: calc(100% - 20px) !important;
     pointer-events: auto !important;
@@ -6043,54 +5829,77 @@ body {
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
-    background: rgba(15, 23, 42, 0.94) !important;
-    backdrop-filter: blur(10px) !important;
-    padding: 5px 12px !important;
+    background: rgba(15, 23, 42, 0.96) !important;
+    backdrop-filter: blur(12px) !important;
+    padding: 6px 14px !important;
     border-radius: 30px !important;
-    border: 1.5px solid rgba(56, 189, 248, 0.45) !important;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.85), 0 0 18px rgba(56, 189, 248, 0.3) !important;
+    border: 1.5px solid rgba(56, 189, 248, 0.5) !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.9), 0 0 20px rgba(56, 189, 248, 0.35) !important;
   }
 
   .mobile-dock-roll-btn {
     margin-top: 0 !important;
-    padding: 7px 16px !important;
-    font-size: 0.8rem !important;
+    padding: 8px 18px !important;
+    font-size: 0.84rem !important;
+    font-weight: 800 !important;
     border-radius: 20px !important;
+    background: linear-gradient(135deg, #7C3AED, #4F46E5) !important;
+    border: 1.5px solid #A78BFA !important;
+    color: #FFF !important;
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.5), 0 0 10px rgba(167, 139, 250, 0.4) !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
   }
 
   .mobile-dock-moving-group,
   .mobile-dock-action-group {
     display: flex !important;
     align-items: center !important;
-    gap: 6px !important;
+    gap: 8px !important;
   }
 
   .mobile-dock-moves-badge {
-    font-size: 0.74rem !important;
-    color: #FACC15 !important;
-    font-weight: 700 !important;
+    background: rgba(245, 158, 11, 0.2) !important;
+    border: 1px solid #F59E0B !important;
+    border-radius: 14px !important;
+    padding: 4px 10px !important;
+    font-size: 0.78rem !important;
+    color: #FCD34D !important;
+    font-weight: 800 !important;
     white-space: nowrap !important;
   }
 
   .mobile-dock-btn {
-    padding: 5px 10px !important;
-    font-size: 0.72rem !important;
+    padding: 6px 12px !important;
+    font-size: 0.75rem !important;
     border-radius: 20px !important;
     white-space: nowrap !important;
+    font-weight: 700 !important;
+  }
+
+  .mobile-dock-move-btn {
+    background: linear-gradient(135deg, #059669, #10B981) !important;
+    border: 1.5px solid #34D399 !important;
+    color: #FFF !important;
+    font-size: 0.82rem !important;
+    font-weight: 800 !important;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.5) !important;
+    padding: 7px 16px !important;
   }
 
   .mobile-dock-turn-banner {
     display: flex !important;
     align-items: center !important;
     gap: 10px !important;
-    background: rgba(15, 23, 42, 0.94) !important;
-    backdrop-filter: blur(10px) !important;
-    padding: 5px 12px !important;
+    background: rgba(15, 23, 42, 0.96) !important;
+    backdrop-filter: blur(12px) !important;
+    padding: 6px 14px !important;
     border-radius: 20px !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
-    font-size: 0.72rem !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.2) !important;
+    font-size: 0.76rem !important;
     color: #F8FAFC !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8) !important;
+    white-space: nowrap !important;
   }
 
   /* Actions Tab View */
@@ -6105,13 +5914,14 @@ body {
     flex-direction: column !important;
     width: 100% !important;
     flex: 1 1 auto !important;
+    min-height: 0 !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
-    padding: 8px !important;
+    padding: 10px !important;
     box-sizing: border-box !important;
   }
 
-  /* Players Tab View */
+  /* Castaways Tab View */
   .game-screen.mobile-tab-players .board-container,
   .game-screen.mobile-tab-players .right-panel,
   .game-screen.mobile-tab-players .bottom-panel {
@@ -6123,10 +5933,37 @@ body {
     flex-direction: column !important;
     width: 100% !important;
     flex: 1 1 auto !important;
+    min-height: 0 !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
-    padding: 8px !important;
+    padding: 10px !important;
     box-sizing: border-box !important;
+  }
+
+  .game-screen.mobile-tab-players .player-sidebar-list {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .game-screen.mobile-tab-players .player-card {
+    padding: 6px 8px !important;
+    margin-bottom: 0 !important;
+  }
+
+  .game-screen.mobile-tab-players .player-avatar-small {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .game-screen.mobile-tab-players .stat-row {
+    font-size: 0.68rem !important;
+    margin-bottom: 2px !important;
+  }
+
+  .game-screen.mobile-tab-players .stat-bar {
+    width: 48px !important;
+    height: 4px !important;
   }
 
   /* Hand Tab View */
@@ -6141,486 +5978,10 @@ body {
     flex-direction: column !important;
     width: 100% !important;
     flex: 1 1 auto !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    padding: 8px !important;
-    box-sizing: border-box !important;
-  }
-
-  /* Title Screen Mobile Optimization */
-  .duelyst-top-bar {
-    height: 44px !important;
-    padding: 0 10px !important;
-  }
-
-  .top-center-tag {
-    top: 8px !important;
-  }
-
-  .duelyst-bug-btn {
-    padding: 3px 8px !important;
-    font-size: 0.58rem !important;
-    letter-spacing: 1px !important;
-  }
-
-  .duelyst-hex-group {
-    gap: 8px !important;
-  }
-
-  .duelyst-hex-btn .hex-shape {
-    width: 32px !important;
-    height: 36px !important;
-  }
-
-  .duelyst-hex-btn .hex-icon {
-    font-size: 0.8rem !important;
-  }
-
-  .duelyst-hex-btn .hex-label {
-    display: none !important;
-  }
-
-  .duelyst-main-layout {
-    padding: 48px 16px 12px !important;
-    gap: 16px !important;
-    overflow-y: auto !important;
-    justify-content: flex-start !important;
-    align-items: flex-start !important;
-  }
-
-  .duelyst-left-section {
-    width: 300px !important;
-    max-width: 100% !important;
-    justify-content: flex-start !important;
-    height: auto !important;
-  }
-
-  .duelyst-logo-wrapper {
-    margin-bottom: 10px !important;
-  }
-
-  .duelyst-logo {
-    font-size: 2rem !important;
-    letter-spacing: 3px !important;
-  }
-
-  .duelyst-logo-divider {
-    width: 40px !important;
-    margin: 4px 0 2px !important;
-  }
-
-  .duelyst-subtitle {
-    font-size: 0.7rem !important;
-    letter-spacing: 2.5px !important;
-  }
-
-  .duelyst-acronym {
-    display: none !important;
-  }
-
-  .duelyst-nav-menu {
-    gap: 3px !important;
-  }
-
-  .duelyst-menu-link {
-    padding: 5px 10px !important;
-  }
-
-  .duelyst-menu-link .menu-link-text {
-    font-size: 0.88rem !important;
-  }
-
-  .duelyst-menu-link .menu-link-tag {
-    font-size: 0.58rem !important;
-    padding: 1px 4px !important;
-  }
-
-  .duelyst-sub-drawer {
-    padding: 6px !important;
-    gap: 4px !important;
-    max-width: 280px !important;
-  }
-
-  .duelyst-sub-btn {
-    padding: 5px 8px !important;
-  }
-
-  .duelyst-sub-btn .sub-btn-title {
-    font-size: 0.68rem !important;
-  }
-
-  .duelyst-sub-btn .sub-btn-desc {
-    font-size: 0.58rem !important;
-  }
-
-  .duelyst-orb-container {
-    display: none !important;
-  }
-
-  /* Modals on Mobile Landscape */
-  .pause-modal {
-    max-height: 92vh !important;
-    max-height: 92dvh !important;
-    padding: 14px !important;
-  }
-
-  .modal-content,
-  .guide-modal-content {
-    max-height: 90vh !important;
-    max-height: 90dvh !important;
-    padding: 12px 14px !important;
-  }
-}
-
-
-/* ==========================================================================
-   ENHANCED MOBILE LANDSCAPE & COMPACT VIEWPORT POLISH
-   ========================================================================== */
-@media (max-width: 900px), (max-height: 550px) {
-  /* Title Screen: Clean layout, hide central orb to avoid overlapping bug tag & drawer */
-  .duelyst-orb-section {
-    display: none !important;
-  }
-
-  .duelyst-left-section {
-    width: 290px !important;
-    gap: 4px !important;
-    padding: 8px 14px !important;
-    max-height: 98vh !important;
-    justify-content: center !important;
-  }
-
-  .duelyst-logo-wrapper {
-    margin-bottom: 4px !important;
-  }
-
-  .duelyst-logo {
-    font-size: 1.55rem !important;
-    letter-spacing: 2px !important;
-  }
-
-  .duelyst-subtitle {
-    font-size: 0.65rem !important;
-    letter-spacing: 2px !important;
-    margin-top: 1px !important;
-  }
-
-  .duelyst-nav-menu {
-    gap: 2px !important;
-  }
-
-  .duelyst-menu-link {
-    padding: 4px 8px !important;
-    font-size: 0.82rem !important;
-  }
-
-  .duelyst-sub-drawer {
-    padding: 4px 6px !important;
-    gap: 3px !important;
-    max-width: 270px !important;
-    margin: 3px 0 !important;
-  }
-
-  .duelyst-sub-btn {
-    padding: 4px 8px !important;
-  }
-
-  .duelyst-sub-btn .sub-btn-title {
-    font-size: 0.66rem !important;
-  }
-
-  .duelyst-sub-btn .sub-btn-desc {
-    font-size: 0.56rem !important;
-  }
-
-  /* Universal Compact Modal Rules */
-  .modal,
-  .duelyst-modal,
-  .card-preview-modal,
-  .guide-modal-container,
-  .databank-modal,
-  .bug-report-modal {
-    max-height: 96vh !important;
-    max-height: 96dvh !important;
-    padding: 10px 14px !important;
-    border-radius: 12px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    box-sizing: border-box !important;
-  }
-
-  .modal-title {
-    font-size: 1.05rem !important;
-    margin-bottom: 6px !important;
-  }
-
-  .modal-body {
-    flex: 1 1 auto !important;
     min-height: 0 !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
-    padding-right: 4px !important;
-  }
-
-  /* Game Header Round Badge */
-  .game-header-round {
-    white-space: nowrap !important;
-    font-size: 0.72rem !important;
-    flex-shrink: 0 !important;
-  }
-
-  /* Pause Modal Compact 2-Column Grid Layout */
-  .mobile-compact-pause {
-    max-height: 98vh !important;
-    padding: 10px 14px !important;
-  }
-
-  .mobile-compact-pause .pause-icon-badge,
-  .mobile-compact-pause .pause-subtitle,
-  .mobile-compact-pause .pause-footer-hint {
-    display: none !important;
-  }
-
-  .mobile-compact-pause .pause-header {
-    margin-bottom: 4px !important;
-  }
-
-  .mobile-compact-pause .pause-title {
-    font-size: 1.15rem !important;
-    letter-spacing: 1.5px !important;
-    margin: 0 !important;
-  }
-
-  .mobile-compact-pause .pause-telemetry {
-    padding: 4px 10px !important;
-    margin-bottom: 6px !important;
-    gap: 2px !important;
-    font-size: 0.72rem !important;
-  }
-
-  .mobile-compact-pause .pause-telemetry-row {
-    font-size: 0.7rem !important;
-  }
-
-  .mobile-compact-pause .pause-actions {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 6px !important;
-  }
-
-  .mobile-compact-pause .pause-btn-resume {
-    grid-column: 1 / -1 !important;
-    padding: 7px 12px !important;
-    font-size: 0.82rem !important;
-    width: 100% !important;
-  }
-
-  .mobile-compact-pause .pause-btn,
-  .mobile-compact-pause .pause-btn-abandon {
-    padding: 6px 10px !important;
-    font-size: 0.72rem !important;
-    width: 100% !important;
-    margin: 0 !important;
-  }
-
-  /* Collection Modal Responsiveness */
-  .collection-desc {
-    display: none !important;
-  }
-
-  .collection-modal-actions {
-    margin-top: 6px !important;
-  }
-
-  .collection-modal-actions .btn {
-    padding: 4px 10px !important;
-    font-size: 0.75rem !important;
-  }
-
-  .collection-grid {
-    grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)) !important;
-    gap: 6px !important;
-  }
-
-  .collection-grid > div {
-    padding: 6px 4px !important;
-  }
-
-  .collection-grid img {
-    max-height: 38px !important;
-  }
-
-  .collection-grid div[style*="height: 70px"] {
-    height: 40px !important;
-    margin-bottom: 4px !important;
-  }
-
-  /* DataBank Modal */
-  .databank-header-sub {
-    display: none !important;
-  }
-
-  /* Guide Modal / Field Manual */
-  .guide-header-sub {
-    display: none !important;
-  }
-
-  .guide-modal-container h2 {
-    font-size: 1.05rem !important;
-  }
-
-  .guide-modal-container div[style*="height: 42px"] {
-    width: 30px !important;
-    height: 30px !important;
-    font-size: 1rem !important;
-  }
-
-  /* Bug Report Modal */
-  .bug-report-modal .modal-body {
-    overflow-y: auto !important;
-    max-height: calc(96vh - 60px) !important;
-  }
-
-  .bug-report-textarea {
-    min-height: 44px !important;
-    height: 48px !important;
-    padding: 6px 8px !important;
-    font-size: 0.8rem !important;
-  }
-
-  
-  /* Extra compact rules for Bug Report Modal */
-  .bug-report-modal .bug-desc,
-  .bug-report-modal .bug-telemetry {
-    display: none !important;
-  }
-
-  .bug-report-modal form > div {
-    margin-bottom: 6px !important;
-  }
-
-  .bug-report-modal select {
-    padding: 4px 8px !important;
-    font-size: 0.8rem !important;
-  }
-
-  /* Extra compact rules for Lobby Screen */
-  .mobile-compact-lobby .lobby-dossier-card {
-    padding: 8px 12px !important;
-    margin-bottom: 6px !important;
-  }
-
-  .mobile-compact-lobby .lobby-dossier-desc {
-    display: none !important;
-  }
-
-  .mobile-compact-lobby .lobby-slots-list {
-    display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 6px !important;
-    margin-bottom: 8px !important;
-  }
-
-  .mobile-compact-lobby .lobby-slots-list > div {
-    padding: 6px 8px !important;
-  }
-
-  .mobile-compact-lobby .lobby-actions-footer {
-    padding-top: 6px !important;
-  }
-
-  /* Studio PIN Gate Modal */
-  .studio-pin-card {
-    padding: 10px 14px !important;
-    max-width: 290px !important;
-  }
-
-  .studio-pin-card button[style*="padding: 10px"] {
-    padding: 4px !important;
-    height: 32px !important;
-    font-size: 0.95rem !important;
-  }
-
-  .studio-pin-card input {
-    padding: 4px 8px !important;
-    height: 32px !important;
-  }
-
-  /* Lobby Screen Compactness */
-  .mobile-compact-lobby {
-    padding: 10px 14px 20px !important;
-  }
-
-  .mobile-compact-lobby .lobby-title {
-    font-size: 1.25rem !important;
-    margin-bottom: 2px !important;
-  }
-
-  .mobile-compact-lobby .lobby-subhead {
-    display: none !important;
-  }
-
-  .mobile-compact-lobby div[style*="height: 2px"] {
-    margin: 3px auto 6px !important;
-  }
-
-  .mobile-compact-lobby div[style*="display: grid"][style*="gridTemplateColumns"] {
-    gap: 6px !important;
-  }
-
-  /* Castaways Tab - 2x2 Grid of Operatives */
-  .game-screen.mobile-tab-players .player-sidebar-list {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 6px !important;
-  }
-
-  .game-screen.mobile-tab-players .player-card {
-    padding: 6px 8px !important;
-    margin-bottom: 0 !important;
-  }
-
-  .game-screen.mobile-tab-players .player-avatar-small {
-    width: 26px !important;
-    height: 26px !important;
-  }
-
-  .game-screen.mobile-tab-players .stat-row {
-    font-size: 0.66rem !important;
-    margin-bottom: 2px !important;
-  }
-
-  .game-screen.mobile-tab-players .stat-bar {
-    width: 46px !important;
-    height: 4px !important;
-  }
-
-  .game-screen.mobile-tab-players .chat-section,
-  .game-screen.mobile-tab-players .timeline-comms {
-    margin-top: 6px !important;
-    max-height: 90px !important;
-  }
-
-  /* EndGame Screen on Mobile */
-  .endgame-screen {
-    padding: 12px 14px 20px !important;
-  }
-
-  .endgame-screen div[style*="width: 80px"] {
-    width: 44px !important;
-    height: 44px !important;
-    font-size: 1.4rem !important;
-    margin-bottom: 6px !important;
-  }
-
-  .endgame-screen h1 {
-    font-size: 1.15rem !important;
-    margin-bottom: 4px !important;
-  }
-
-  .endgame-screen p {
-    font-size: 0.72rem !important;
-    line-height: 1.3 !important;
-    margin-bottom: 12px !important;
+    padding: 10px !important;
+    box-sizing: border-box !important;
   }
 }

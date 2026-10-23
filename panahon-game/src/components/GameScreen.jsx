@@ -332,7 +332,7 @@ function GameScreen({
 
                 <button
                   type="button"
-                  className="btn btn-primary mobile-dock-btn"
+                  className="btn btn-primary mobile-dock-btn mobile-dock-move-btn"
                   onClick={handleStepMove}
                 >
                   {state.movementDirection === 'backward' ? '⬅️ Step Back' : '➡️ Step Forward'}

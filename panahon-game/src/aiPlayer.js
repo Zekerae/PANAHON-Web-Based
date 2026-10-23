@@ -16,10 +16,15 @@ class AiController {
     }
   }
 
+  stop() {
+    this.clearTimer();
+    this.isActing = false;
+  }
+
   // Determine if AI should be acting right now
   isAiTurn(engine, network) {
     const state = engine?.state;
-    if (!state || state.gameOver) return false;
+    if (!state || state.gameOver || state.isPaused || engine?.isPaused) return false;
 
     const currentPlayer = engine.getCurrentPlayer();
     if (!currentPlayer || !currentPlayer.isAi) return false;

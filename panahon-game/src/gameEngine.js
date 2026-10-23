@@ -185,8 +185,11 @@ export class GameEngine {
     this.timerInterval = setInterval(() => {
       if (!this.state || this.state.gameOver) {
         clearInterval(this.timerInterval);
+        this.timerInterval = null;
         return;
       }
+      if (this.isPaused || this.state.isPaused) return;
+
       this.state.gameTimeRemaining--;
       if (this.state.gameTimeRemaining <= 0) {
         this.endGame('timeout');
@@ -200,6 +203,13 @@ export class GameEngine {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
     }
+  }
+
+  resetGame() {
+    this.stopTimer();
+    this.state = null;
+    this.logEntries = [];
+    this.notify('game_reset');
   }
 
   // --- Logging ---

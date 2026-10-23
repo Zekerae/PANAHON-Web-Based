@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { aiController } from '../aiPlayer.js';
 import sounds from '../sound.js';
 
-export function useTurnAutomation({ engine, network, state, onGameOver }) {
+export function useTurnAutomation({ engine, network, state, onGameOver, isGameActive = true }) {
   const autoMoveTimerRef = useRef(null);
   const gameOverHandledRef = useRef(false);
 
@@ -14,8 +14,9 @@ export function useTurnAutomation({ engine, network, state, onGameOver }) {
   };
 
   useEffect(() => {
-    if (!state || !engine || !network) {
+    if (!state || !engine || !network || !isGameActive) {
       clearAutoMove();
+      aiController.stop();
       return;
     }
 

@@ -12,6 +12,7 @@ import { useToast } from './hooks/useToast.js';
 import { useChat } from './hooks/useChat.js';
 import { useNetworkRoom } from './hooks/useNetworkRoom.js';
 import { useTurnAutomation } from './hooks/useTurnAutomation.js';
+import { aiController } from './aiPlayer.js';
 
 import BootSequence from './components/boot/BootSequence.jsx';
 import AppRouter from './components/AppRouter.jsx';
@@ -85,11 +86,14 @@ export default function App() {
     }
   }, [gameState, appState.currentScreen, network, appState.localPlayers]);
 
-  // Turn Automation (AI Turns and Auto-Movement)
+  // Turn Automation (AI Turns and Auto-Movement - only active when on game screen)
+  const isGameActive = appState.currentScreen === 'game';
+
   useTurnAutomation({
     engine,
     network,
-    state: gameState,
+    state: isGameActive ? gameState : null,
+    isGameActive,
     onGameOver: () => {
       clearActiveSession();
       setSavedSession(null);
@@ -187,13 +191,22 @@ export default function App() {
 
   const handleSaveAndExit = useCallback(() => {
     sounds.btnClick();
+    engine.stopTimer();
+    aiController.stop();
+    if (engine.state) {
+      engine.state.isPaused = true;
+      saveActiveSession(engine.state);
+    }
     showToast('Mission Saved', 'Progress safely recorded. You can resume anytime!', 'success');
     dispatch({ type: 'RETURN_TO_TITLE' });
     setSavedSession(getActiveSession());
-  }, [sounds, showToast]);
+  }, [engine, sounds, showToast]);
 
   const handleAbandonGame = useCallback(() => {
     sounds.btnClick();
+    engine.stopTimer();
+    aiController.stop();
+    engine.resetGame();
     clearActiveSession();
     setSavedSession(null);
     if (network.mode === 'online') {
@@ -201,7 +214,7 @@ export default function App() {
     }
     showToast('Mission Abandoned', 'Returned to main menu.', 'info');
     dispatch({ type: 'RETURN_TO_TITLE' });
-  }, [sounds, network, showToast]);
+  }, [engine, sounds, network, showToast]);
 
   const titleProps = {
     onSelectMode: handleSelectMode,
@@ -260,6 +273,9 @@ export default function App() {
     onPlayAgain: handlePlayAgain,
     onBackMenu: () => {
       sounds.btnClick();
+      engine.stopTimer();
+      aiController.stop();
+      engine.resetGame();
       dispatch({ type: 'RETURN_TO_TITLE' });
     }
   };
@@ -281,8 +297,8 @@ export default function App() {
         }}
       />
 
-      {/* MODAL HOST */}
-      {gameState?.pendingModal && (
+      {/* MODAL HOST - ONLY RENDERED DURING ACTIVE GAMEPLAY */}
+      {isGameActive && gameState?.pendingModal && (
         <CardModal
           modal={gameState.pendingModal}
           engine={engine}
@@ -292,7 +308,7 @@ export default function App() {
         />
       )}
 
-      {!gameState?.pendingModal && gameState?.pendingChoice && (
+      {isGameActive && !gameState?.pendingModal && gameState?.pendingChoice && (
         <ChoiceModal
           choice={gameState.pendingChoice}
           engine={engine}

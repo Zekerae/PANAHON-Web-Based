@@ -47,38 +47,122 @@ export default function App() {
   // App Routing & High-level State
   const [appState, dispatch] = useReducer(appReducer, initialAppState);
 
-  // Subsystems & Hooks
-  const { toasts, showToast } = useToast();
-  const { sounds, soundMuted, toggleSound } = useAudio();
-  const { state: gameState, initGame, dismissModal } = useGameEngine(engine);
-  const { chatMessages, unreadChatCount, resetUnread } = useChat(network);
+  // Screen Routing
+  const [currentScreen, setCurrentScreen] = useState('title'); // 'title' | 'lobby' | 'game' | 'endgame'
+  const [lobbyMode, setLobbyMode] = useState('local'); // 'local' | 'online'
 
-  const networkRoom = useNetworkRoom({
-    network,
-    engine,
-    showToast,
-    onGameStartSuccess: () => dispatch({ type: 'START_GAME' })
-  });
+  // Audio & Modals
+  const [soundMuted, setSoundMuted] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+  const [showMapEditor, setShowMapEditor] = useState(false);
+  const [showSupabaseConfig, setShowSupabaseConfig] = useState(false);
+  const [maximizedCardData, setMaximizedCardData] = useState(null);
 
-  // Turn Automation (AI Turns and Auto-Movement)
-  useTurnAutomation({
-    engine,
-    network,
-    state: gameState,
-    onGameOver: () => dispatch({ type: 'GAME_OVER' })
-  });
+  // Toasts
+  const [toasts, setToasts] = useState([]);
 
-  // Action Handlers
-  const handleSelectMode = useCallback((mode) => {
-    if (mode === 'solo') {
-      dispatch({
-        type: 'SET_LOCAL_PLAYERS',
-        payload: [
-          { name: 'Player 1', roleKey: 'HISTORIAN', type: 'human', difficulty: 'normal' },
-          { name: 'Bot Explorer', roleKey: 'EXPLORER', type: 'ai', difficulty: 'normal' },
-          { name: 'Bot Guardian', roleKey: 'GUARDIAN', type: 'ai', difficulty: 'normal' },
-          { name: 'Bot Strategist', roleKey: 'STRATEGIST', type: 'ai', difficulty: 'normal' }
-        ]
+  // Local Players Setup
+  const [localPlayers, setLocalPlayers] = useState([
+    { name: 'Player 1', roleKey: 'HISTORIAN', type: 'human', difficulty: 'normal' },
+    { name: 'Bot Explorer', roleKey: 'EXPLORER', type: 'ai', difficulty: 'normal' },
+    { name: 'Bot Guardian', roleKey: 'GUARDIAN', type: 'ai', difficulty: 'normal' },
+    { name: 'Bot Strategist', roleKey: 'STRATEGIST', type: 'ai', difficulty: 'normal' }
+  ]);
+
+  // Online Players Setup
+  const [onlinePlayerName, setOnlinePlayerName] = useState('Temporal Castaway');
+  const [onlineSelectedRole, setOnlineSelectedRole] = useState('HISTORIAN');
+  const [onlineRoomCodeInput, setOnlineRoomCodeInput] = useState('');
+  const [currentRoomPlayers, setCurrentRoomPlayers] = useState([]);
+  const [isConnectingOnline, setIsConnectingOnline] = useState(false);
+
+  // Chat
+  const [chatMessages, setChatMessages] = useState([]);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+  // Reactive Game State
+  const [gameState, setGameState] = useState(null);
+
+  const showToast = (title, message, type = 'info') => {
+    const toast = { id: Date.now() + Math.random(), title, message, type };
+    setToasts(prev => [...prev, toast]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== toast.id));
+    }, 4000);
+  };
+
+  const clearAutoMove = () => {
+    if (autoMoveTimerRef.current) {
+      clearTimeout(autoMoveTimerRef.current);
+      autoMoveTimerRef.current = null;
+    }
+  };
+
+  const checkAndTriggerAutoMove = (delayMs = 380) => {
+    const state = engine.state;
+    if (!state || state.gameOver) {
+      clearAutoMove();
+      return;
+    }
+    if (state.phase !== 'moving' || state.movesRemaining <= 0) {
+      clearAutoMove();
+      return;
+    }
+    if (state.pendingModal || state.pendingChoice || state.momentumActive) {
+      clearAutoMove();
+      return;
+    }
+    if (!network.isMyTurn(state.currentPlayerIndex)) {
+      clearAutoMove();
+      return;
+    }
+    if (autoMoveTimerRef.current) return;
+
+    autoMoveTimerRef.current = setTimeout(() => {
+      autoMoveTimerRef.current = null;
+      const cur = engine.state;
+      if (
+        cur?.phase === 'moving' &&
+        cur.movesRemaining > 0 &&
+        !cur.momentumActive &&
+        !cur.pendingModal &&
+        !cur.pendingChoice &&
+        network.isMyTurn(cur.currentPlayerIndex)
+      ) {
+        sounds.moveStep();
+        engine.movePlayerStep();
+        network.sendAction({ type: 'MOVE_STEP' });
+        checkAndTriggerAutoMove(380);
+      }
+    }, delayMs);
+  };
+
+  // Setup Network Callbacks
+  useEffect(() => {
+    network.onRoomCreated = (code) => {
+      setIsConnectingOnline(false);
+      setCurrentRoomPlayers(network.players.slice());
+      setUnreadChatCount(0);
+      showToast('Room Created', `Room Code: ${code}. Share with allies!`, 'success');
+    };
+
+    network.onRoomJoined = (code, players) => {
+      setIsConnectingOnline(false);
+      setCurrentRoomPlayers(players || network.players.slice());
+      setUnreadChatCount(0);
+      showToast('Joined Room', `Connected to Room ${code}`, 'success');
+    };
+
+    network.onRosterUpdate = (players) => {
+      setCurrentRoomPlayers(players || []);
+    };
+
+    network.onPlayerJoin = (player) => {
+      setCurrentRoomPlayers(prev => {
+        if (!prev.some(p => p.id === player.id || (p.name === player.name && p.roleKey === player.roleKey))) {
+          return [...prev, player];
+        }
+        return prev;
       });
       dispatch({ type: 'OPEN_LOBBY', mode: 'local' });
     } else {

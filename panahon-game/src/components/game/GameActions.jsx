@@ -21,6 +21,37 @@ function GameActions({
 }) {
   if (!state || !currentPlayer) return null;
 
+  const isStartOfMovement = state.phase === 'moving' && !state.hasMovedThisTurn && (!state.stepsTakenThisTurn || state.stepsTakenThisTurn === 0);
+  const isMovingBackward = state.movementDirection === 'backward';
+  const canReverseTime = isMyTurn && isStartOfMovement && !isMovingBackward && currentPlayer.reverseTimeCooldown === 0 && currentPlayer.energy >= GAME_CONSTANTS.REVERSE_TIME_COST;
+
+  let reverseTimeBadge = '-3 Energy';
+  let reverseTimeTitle = 'Roll movement die first. Reverse Time can only be activated after rolling at the start of your turn.';
+  let reverseTimeDisabled = true;
+
+  if (currentPlayer.reverseTimeCooldown > 0) {
+    reverseTimeBadge = `CD: ${currentPlayer.reverseTimeCooldown}T`;
+    reverseTimeTitle = `Reverse Time is on cooldown (${currentPlayer.reverseTimeCooldown} turns remaining).`;
+  } else if (isMovingBackward) {
+    reverseTimeBadge = 'Active ⏪';
+    reverseTimeTitle = 'Reverse Time is currently active for this turn.';
+  } else if (state.phase === 'rolling') {
+    reverseTimeBadge = 'Roll Die First';
+    reverseTimeTitle = 'Roll the movement die first! Reverse Time can be activated right after rolling at the start of your turn.';
+  } else if (state.phase === 'moving') {
+    if (!isStartOfMovement) {
+      reverseTimeBadge = 'Moved Already';
+      reverseTimeTitle = 'Reverse Time can only be activated at the start of your turn before moving!';
+    } else if (currentPlayer.energy < GAME_CONSTANTS.REVERSE_TIME_COST) {
+      reverseTimeBadge = 'Need 3 Energy';
+      reverseTimeTitle = `Requires ${GAME_CONSTANTS.REVERSE_TIME_COST} Chrono Energy (You have ${currentPlayer.energy}).`;
+    } else if (isMyTurn) {
+      reverseTimeDisabled = false;
+      reverseTimeBadge = '-3 Energy';
+      reverseTimeTitle = 'Reverse your movement direction! Spend 3 Energy to walk backwards along the timeline.';
+    }
+  }
+
   return (
     <aside className="right-panel">
       {/* TURN BANNER */}
@@ -109,6 +140,44 @@ function GameActions({
 
         {state.phase === 'moving' && (
           <div>
+            {canReverseTime && (
+              <div style={{ marginBottom: '8px', padding: '8px 10px', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.45)', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.74rem', color: '#FACC15', fontWeight: 600, marginBottom: '6px' }}>
+                  <span>⏪ Reverse Time Option</span>
+                  <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>Start of turn only</span>
+                </div>
+                <button
+                  className="btn"
+                  style={{
+                    width: '100%',
+                    padding: '7px 10px',
+                    fontSize: '0.78rem',
+                    fontWeight: 'bold',
+                    background: 'linear-gradient(135deg, #d97706, #b45309)',
+                    border: '1px solid #fbbf24',
+                    color: '#fff',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(217, 119, 6, 0.4)'
+                  }}
+                  onClick={onReverseTime}
+                >
+                  <span>⏪ Reverse Direction (-3 En)</span>
+                  <span style={{ fontSize: '0.7rem', opacity: 0.9 }}>Walk {state.movesRemaining} spaces backward</span>
+                </button>
+              </div>
+            )}
+
+            {isMovingBackward && (
+              <div style={{ marginBottom: '8px', padding: '6px 8px', background: 'rgba(234, 88, 12, 0.2)', border: '1px solid rgba(234, 88, 12, 0.5)', borderRadius: '6px', fontSize: '0.75rem', color: '#FDBA74', textAlign: 'center', fontWeight: 700 }}>
+                ⏪ Reverse Time Active: Moving backwards along path
+              </div>
+            )}
+
             {state.momentumActive ? (
               <div className="momentum-panel" style={{ marginTop: 'var(--space-sm)', padding: '10px', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', borderRadius: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 700, color: '#FACC15', fontSize: '0.85rem' }}>
@@ -140,14 +209,14 @@ function GameActions({
                   disabled={!isMyTurn}
                   onClick={onStepMove}
                 >
-                  Step Forward ➡️ ({state.movesRemaining} left)
+                  {isMovingBackward ? 'Step Backward ⬅️' : 'Step Forward ➡️'} ({state.movesRemaining} left)
                 </button>
               </div>
             ) : (
-              <div style={{ marginTop: 'var(--space-sm)', padding: '10px', background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.35)', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 700, color: '#60A5FA', fontSize: '0.85rem' }}>
-                  <span style={{ display: 'inline-block', animation: 'pawnHop 0.6s infinite alternate' }}>🚶</span>
-                  <span>Auto-Moving... ({state.movesRemaining} left)</span>
+              <div style={{ marginTop: 'var(--space-sm)', padding: '10px', background: isMovingBackward ? 'rgba(234, 88, 12, 0.12)' : 'rgba(59, 130, 246, 0.12)', border: isMovingBackward ? '1px solid rgba(234, 88, 12, 0.35)' : '1px solid rgba(59, 130, 246, 0.35)', borderRadius: '8px', textAlign: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 700, color: isMovingBackward ? '#FB923C' : '#60A5FA', fontSize: '0.85rem' }}>
+                  <span style={{ display: 'inline-block', animation: 'pawnHop 0.6s infinite alternate' }}>{isMovingBackward ? '⏪' : '🚶'}</span>
+                  <span>{isMovingBackward ? 'Auto-Moving in Reverse...' : 'Auto-Moving...'} ({state.movesRemaining} left)</span>
                 </div>
 
                 {currentPlayer.roleKey === 'EXPLORER' && currentPlayer.activeCooldown === 0 && !currentPlayer.usedAbilityThisTurn && currentPlayer.energy >= 2 && isMyTurn && (
@@ -180,15 +249,13 @@ function GameActions({
         <div className="action-buttons">
           <button
             className="action-btn"
-            disabled={!isMyTurn || state.phase === 'moving' || currentPlayer.reverseTimeCooldown > 0 || currentPlayer.energy < GAME_CONSTANTS.REVERSE_TIME_COST}
-            title={`Spend 3 Energy to roll and move backwards (${GAME_CONSTANTS.REVERSE_TIME_COOLDOWN} Turn CD)`}
+            disabled={reverseTimeDisabled}
+            title={reverseTimeTitle}
             onClick={onReverseTime}
           >
             <span className="action-btn-icon">⏪</span>
             <span>Reverse Time</span>
-            <span className="action-btn-cost">
-              {currentPlayer.reverseTimeCooldown > 0 ? `CD: ${currentPlayer.reverseTimeCooldown}T` : '-3 Energy'}
-            </span>
+            <span className="action-btn-cost">{reverseTimeBadge}</span>
           </button>
 
           <button

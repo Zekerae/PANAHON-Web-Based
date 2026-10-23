@@ -286,6 +286,13 @@ export default function GuideModal({ onClose }) {
               </div>
 
               <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '8px', padding: '12px 14px' }}>
+                <h4 style={{ margin: '0 0 6px', color: '#F59E0B', fontSize: '0.88rem' }}>⏪ REVERSE TIME PROTOCOL</h4>
+                <p style={{ margin: 0, fontSize: '0.78rem' }}>
+                  After rolling your movement die at the start of your turn, you can activate <strong>Reverse Time</strong> (-3 Chrono Energy, 2 Turn Cooldown) to flip your movement vector and walk backwards along the timeline using your rolled moves. This can only be activated at the <em>start of the turn</em> before taking any movement steps.
+                </p>
+              </div>
+
+              <div style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '8px', padding: '12px 14px' }}>
                 <h4 style={{ margin: '0 0 6px', color: '#F59E0B', fontSize: '0.88rem' }}>⏳ INDIVIDUAL PARADOX ACCUMULATION (0 - 5)</h4>
                 <div style={{ fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div>&bull; <strong>Level 0-1 (Equilibrium):</strong> Chronological harmony (+2 bonus score at debrief).</div>

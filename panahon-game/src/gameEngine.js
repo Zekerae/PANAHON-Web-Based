@@ -253,6 +253,9 @@ export class GameEngine {
 
     const result = rollDie();
     this.state.diceResult = result;
+    this.state.initialRoll = result;
+    this.state.stepsTakenThisTurn = 0;
+    this.state.hasMovedThisTurn = false;
     this.state.movesRemaining = result + (player.bonusMoves || 0);
     this.state.movementDirection = 'forward';
     if (player.roleKey !== 'EXPLORER' || !this.state.momentumActive) {
@@ -284,20 +287,17 @@ export class GameEngine {
     
     // Strict direction constraint: strictly forward (+1) unless Reverse Time Ability is active (-1)
     const direction = this.state.movementDirection || 'forward';
-    let isStepValid = false;
-    if (direction === 'forward') {
-      isStepValid = targetIdx === (currentIdx + 1) % eraTiles.length;
-    } else if (direction === 'backward') {
-      isStepValid = targetIdx === (currentIdx - 1 + eraTiles.length) % eraTiles.length;
-    }
-
-    if (!isStepValid) return false;
+    const dir = direction === 'backward' ? -1 : 1;
+    const expectedNext = this.getNextTileIndex(player, targetEra, currentIdx, dir);
+    if (targetIdx !== expectedNext) return false;
 
     // Move
     eraTiles[currentIdx].players = eraTiles[currentIdx].players.filter(id => id !== player.id);
     player.tileIndex = targetIdx;
     eraTiles[targetIdx].players.push(player.id);
     this.state.movesRemaining--;
+    this.state.stepsTakenThisTurn = (this.state.stepsTakenThisTurn || 0) + 1;
+    this.state.hasMovedThisTurn = true;
 
     // Check tile interaction
     const tile = eraTiles[targetIdx];
@@ -368,6 +368,24 @@ export class GameEngine {
     const eraRules = junctionRules[era] || {};
     const prev = player?.previousTileIndex;
 
+    if (dir < 0) {
+      if (eraConnections) {
+        const incoming = [];
+        for (const [sourceStr, targetArr] of Object.entries(eraConnections)) {
+          if (Array.isArray(targetArr) && targetArr.includes(currentIdx)) {
+            incoming.push(parseInt(sourceStr, 10));
+          }
+        }
+        if (incoming.length > 0) {
+          if (prev !== undefined && incoming.includes(prev)) {
+            return prev;
+          }
+          return incoming[0];
+        }
+      }
+      return (currentIdx - 1 + total) % total;
+    }
+
     if (eraConnections) {
       const targets = eraConnections[currentIdx];
 
@@ -423,6 +441,8 @@ export class GameEngine {
     player.tileIndex = newIdx;
     eraTiles[newIdx].players.push(player.id);
     this.state.movesRemaining--;
+    this.state.stepsTakenThisTurn = (this.state.stepsTakenThisTurn || 0) + 1;
+    this.state.hasMovedThisTurn = true;
 
     const tile = eraTiles[newIdx];
 
@@ -1205,21 +1225,33 @@ export class GameEngine {
   reverseTime(playerIdx) {
     const player = this.state.players[playerIdx];
     if (this.state.currentPlayerIndex !== playerIdx) return false;
+
+    // Must be activated after a die roll, strictly at the start of the turn before any movement steps
+    if (this.state.phase !== 'moving' || this.state.hasMovedThisTurn || (this.state.stepsTakenThisTurn && this.state.stepsTakenThisTurn > 0)) {
+      this.addLog('warning', 'Reverse Time can only be activated after a die roll at the start of your turn!');
+      return false;
+    }
+
+    if (this.state.movementDirection === 'backward') {
+      this.addLog('warning', 'Reverse Time is already active for this turn!');
+      return false;
+    }
+
     if (player.reverseTimeCooldown > 0) {
       this.addLog('warning', `Reverse Time is on cooldown (${player.reverseTimeCooldown} turns remaining)!`);
       return false;
     }
-    if (player.energy < GAME_CONSTANTS.REVERSE_TIME_COST) return false;
+
+    if (player.energy < GAME_CONSTANTS.REVERSE_TIME_COST) {
+      this.addLog('warning', `Not enough Chrono Energy for Reverse Time! Requires ${GAME_CONSTANTS.REVERSE_TIME_COST} Energy.`);
+      return false;
+    }
 
     this.modifyEnergy(player, -GAME_CONSTANTS.REVERSE_TIME_COST);
     player.reverseTimeCooldown = GAME_CONSTANTS.REVERSE_TIME_COOLDOWN;
-    const roll = rollDie();
-    this.state.diceResult = roll;
-    this.state.movesRemaining = roll;
     this.state.movementDirection = 'backward';
-    this.state.phase = 'moving';
 
-    this.addLog('action', `${player.name} activated Reverse Time! (-3 Energy, moving ${roll} spaces backwards)`);
+    this.addLog('action', `${player.name} activated Reverse Time! (-${GAME_CONSTANTS.REVERSE_TIME_COST} Energy, reversing direction to move ${this.state.movesRemaining} spaces backwards)`);
     this.notify();
     return true;
   }
@@ -1459,7 +1491,10 @@ export class GameEngine {
 
     this.state.phase = 'rolling';
     this.state.diceResult = null;
+    this.state.initialRoll = null;
     this.state.movesRemaining = 0;
+    this.state.stepsTakenThisTurn = 0;
+    this.state.hasMovedThisTurn = false;
     this.state.movementDirection = 'forward';
     this.state.momentumActive = false;
     this.state.momentumUsedMidTile = false;

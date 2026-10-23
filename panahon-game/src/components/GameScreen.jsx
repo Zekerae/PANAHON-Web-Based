@@ -173,13 +173,16 @@ function GameScreen({
   }, [state.currentPlayerIndex, engine, network]);
 
   const handleReverseTime = useCallback(() => {
-    if (state.phase === 'moving' || !isMyTurn) return;
+    if (!isMyTurn) return;
+    if (state.phase !== 'moving' || state.hasMovedThisTurn || (state.stepsTakenThisTurn && state.stepsTakenThisTurn > 0)) {
+      return;
+    }
     sounds.portal();
     const ok = engine.reverseTime(state.currentPlayerIndex);
     if (ok) {
       network.sendAction({ type: 'REVERSE_TIME', playerIdx: state.currentPlayerIndex });
     }
-  }, [state.phase, state.currentPlayerIndex, isMyTurn, engine, network]);
+  }, [state.phase, state.hasMovedThisTurn, state.stepsTakenThisTurn, state.currentPlayerIndex, isMyTurn, engine, network]);
 
   const handleRest = useCallback(() => {
     if (state.phase === 'moving' || !isMyTurn) return;

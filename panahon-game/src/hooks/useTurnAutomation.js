@@ -54,7 +54,7 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
     }
 
     // Handle Auto Movement for Human Turn
-    const checkAndTriggerAutoMove = (delayMs = 380) => {
+    const checkAndTriggerAutoMove = (delayMs) => {
       if (
         state.phase !== 'moving' ||
         state.movesRemaining <= 0 ||
@@ -68,6 +68,21 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
       }
 
       if (autoMoveTimerRef.current) return;
+
+      const isStartOfTurn = !state.hasMovedThisTurn && (!state.stepsTakenThisTurn || state.stepsTakenThisTurn === 0);
+      const currentPlayer = state.players?.[state.currentPlayerIndex];
+      const canReverseTime = isStartOfTurn &&
+        state.movementDirection !== 'backward' &&
+        currentPlayer &&
+        currentPlayer.reverseTimeCooldown === 0 &&
+        currentPlayer.energy >= 3;
+
+      let effectiveDelay = delayMs;
+      if (effectiveDelay === undefined) {
+        // At start of turn, if player can activate Reverse Time, give a 2.2s decision window so they aren't rushed.
+        // Otherwise, standard 650ms initial roll delay, and 380ms for subsequent steps.
+        effectiveDelay = isStartOfTurn ? (canReverseTime ? 2200 : 700) : 380;
+      }
 
       autoMoveTimerRef.current = setTimeout(() => {
         autoMoveTimerRef.current = null;
@@ -85,10 +100,10 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
           network.sendAction({ type: 'MOVE_STEP' });
           checkAndTriggerAutoMove(380);
         }
-      }, delayMs);
+      }, effectiveDelay);
     };
 
-    checkAndTriggerAutoMove(380);
+    checkAndTriggerAutoMove();
 
     return () => {
       clearAutoMove();

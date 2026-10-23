@@ -124,9 +124,29 @@ function GameBoard({
                 } else if (phase === "moving" && movesRemaining > 0 && currentPlayer.currentEra === era) {
                   const cIdx = currentPlayer.tileIndex;
                   const dir = movementDirection === "backward" ? -1 : 1;
-                  if (dir === 1 && idx === (cIdx + 1) % tiles.length) {
-                    isReachable = true;
-                  } else if (dir === -1 && idx === (cIdx - 1 + tiles.length) % tiles.length) {
+                  let expectedTarget = null;
+                  if (dir === 1) {
+                    const eraConns = connections[era];
+                    if (eraConns && eraConns[cIdx] && eraConns[cIdx].length > 0) {
+                      expectedTarget = eraConns[cIdx][0];
+                    } else {
+                      expectedTarget = (cIdx + 1) % tiles.length;
+                    }
+                  } else {
+                    const eraConns = connections[era];
+                    if (eraConns) {
+                      for (const [sourceStr, targetArr] of Object.entries(eraConns)) {
+                        if (Array.isArray(targetArr) && targetArr.includes(cIdx)) {
+                          expectedTarget = parseInt(sourceStr, 10);
+                          break;
+                        }
+                      }
+                    }
+                    if (expectedTarget === null) {
+                      expectedTarget = (cIdx - 1 + tiles.length) % tiles.length;
+                    }
+                  }
+                  if (idx === expectedTarget) {
                     isReachable = true;
                   }
                 }

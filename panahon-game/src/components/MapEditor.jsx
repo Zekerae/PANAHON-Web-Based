@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import sounds from '../sound.js';
+import { saveMapToSupabase } from '../supabaseClient.js';
 import {
   ERAS, ERA_ORDER, ERA_NAMES,
   ERA_TILE_COORDINATES, ERA_TILE_LAYOUTS,
@@ -549,15 +550,28 @@ export default function MapEditor({ onClose }) {
     triggerToast(`Connected ${ERA_NAMES[era]} End (Tile #${total}) to Tile #${targetIndex + 1}!`);
   };
 
-  // Save to LocalStorage
-  const handleSaveToGame = () => {
+  // Save to LocalStorage and Cloud
+  const handleSaveToGame = async () => {
     sounds.btnClick();
     const ok = saveCustomMap(coords, layouts, loopTargets, null, connections, junctionRules);
-    if (ok) {
-      triggerToast('💾 Custom Map saved! Game is now using these coordinates.');
-    } else {
+    if (!ok) {
       triggerToast('Failed to save to localStorage', 'danger');
+      return;
     }
+    triggerToast('💾 Custom Map saved locally!');
+
+    // Sync to Supabase cloud if available
+    try {
+      const res = await saveMapToSupabase({
+        coords,
+        layouts,
+        connections,
+        junctionRules
+      });
+      if (res && res.success) {
+        triggerToast('☁️ Synced to Supabase Cloud! Available to all Vercel players.');
+      }
+    } catch (_) {}
   };
 
   // Reset

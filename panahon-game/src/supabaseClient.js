@@ -98,3 +98,50 @@ export async function testSupabaseConnection(url, key) {
     return { success: false, message: err.message || 'Unknown error' };
   }
 }
+
+// ==========================================
+// SUPABASE CLOUD MAP PERSISTENCE
+// ==========================================
+export async function loadMapFromSupabase() {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from("custom_maps")
+      .select("*")
+      .eq("id", "active_map")
+      .single();
+    if (error || !data) return null;
+    return {
+      coords: data.coords,
+      layouts: data.layouts,
+      connections: data.connections,
+      junctionRules: data.junction_rules
+    };
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function saveMapToSupabase(mapData) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { success: false, message: "Supabase client not available" };
+  try {
+    const { data, error } = await supabase
+      .from("custom_maps")
+      .upsert({
+        id: "active_map",
+        coords: mapData.coords,
+        layouts: mapData.layouts,
+        connections: mapData.connections,
+        junction_rules: mapData.junctionRules,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "id" });
+    if (error) {
+      return { success: false, message: error.message };
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}

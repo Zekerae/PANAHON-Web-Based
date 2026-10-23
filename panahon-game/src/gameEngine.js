@@ -348,7 +348,7 @@ export class GameEngine {
     return true;
   }
 
-  // Determine next tile index using custom node-graph connections, approach routing rules & Mario Party two-way trails
+  // Determine next tile index using custom node-graph connections and approach routing rules
   getNextTileIndex(player, era, currentIdx, dir = 1) {
     const eraTiles = this.state.board[era];
     const total = eraTiles.length;
@@ -358,40 +358,31 @@ export class GameEngine {
     const eraRules = junctionRules[era] || {};
     const prev = player?.previousTileIndex;
 
-    // 1. Explicit junction rule based on arrival space (currentIdx:prev)
-    if (prev !== undefined && prev !== null) {
-      const ruleKey = `${currentIdx}:${prev}`;
-      if (eraRules[ruleKey] !== undefined) {
-        return eraRules[ruleKey];
-      }
-    }
-
-    // 2. Linear return along two-way trail (village road 14 down to 7, or base road 3 down to 1):
-    if (prev !== undefined && prev !== null && prev > currentIdx) {
-      if ((currentIdx >= 6 && currentIdx <= 14) || (currentIdx >= 0 && currentIdx <= 2)) {
-        if (currentIdx === 6) return 3; // From Space 7 exit to Space 4
-        if (currentIdx === 0) return 1; // From Space 1 turn around to Space 2
-        return currentIdx - 1;
-      }
-    }
-
     if (eraConnections) {
       const targets = eraConnections[currentIdx];
 
-      // Handle single connection or return trail if single connection is a U-turn back to prev
-      if (!Array.isArray(targets) || targets.length === 0 || (targets.length === 1 && targets[0] === prev)) {
-        if (prev !== undefined && prev !== null && prev > currentIdx) {
-          return currentIdx <= 0 ? 1 : currentIdx - 1;
-        }
-        if (Array.isArray(targets) && targets.length === 1) return targets[0];
+      // Fallback if no outgoing targets defined
+      if (!Array.isArray(targets) || targets.length === 0) {
         return dir > 0 ? (currentIdx + 1) % total : (currentIdx - 1 + total) % total;
       }
 
+      // If single target, strictly follow that single connection (authoritative map graph)
       if (targets.length === 1) {
         return targets[0];
       }
 
-      // Multiple targets: take first candidate not equal to prev
+      // Multi-target junction:
+      // 1. Explicit junction rule based on arrival space (currentIdx:prev)
+      if (prev !== undefined && prev !== null) {
+        const ruleKey = `${currentIdx}:${prev}`;
+        const ruleTarget = eraRules[ruleKey];
+        // Only accept the junction rule if its target is actually one of the node's valid outgoing targets
+        if (ruleTarget !== undefined && targets.includes(ruleTarget)) {
+          return ruleTarget;
+        }
+      }
+
+      // 2. Filter out the space we just arrived from to avoid immediate U-turn unless no other choice
       let candidates = targets.filter(t => t !== prev);
       if (candidates.length === 0) candidates = targets;
 

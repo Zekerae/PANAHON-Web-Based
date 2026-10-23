@@ -266,8 +266,6 @@ export const DEFAULT_ERA_JUNCTION_RULES = {
     "3:6": 2,   // Space 4: From Space 7 -> Space 3 (return trail to base)
     "6:3": 7,   // Space 7: From Space 4 -> Space 8 (up village road)
     "6:7": 3,   // Space 7: From Space 8 -> Space 4 (down village road to crossroads)
-    "14:13": 15, // Space 15: From Space 14 -> Space 16 (enter mountain loop)
-    "14:24": 13, // Space 15: From Space 25 -> Space 14 (exit mountain loop to village trail)
     "0:1": 1    // Space 1: From Space 2 -> Space 2 (turn around at start)
   },
   [ERAS.AMERICAN]: {},
@@ -282,12 +280,11 @@ export function getActiveJunctionRules() {
       const parsed = JSON.parse(saved);
       if (parsed && typeof parsed === "object") {
         return {
-          ...DEFAULT_ERA_JUNCTION_RULES,
-          ...parsed,
-          [ERAS.SPANISH]: {
-            ...DEFAULT_ERA_JUNCTION_RULES[ERAS.SPANISH],
-            ...(parsed[ERAS.SPANISH] || {})
-          }
+          [ERAS.SPANISH]: {},
+          [ERAS.AMERICAN]: {},
+          [ERAS.JAPANESE]: {},
+          [ERAS.MYTH]: {},
+          ...parsed
         };
       }
     }

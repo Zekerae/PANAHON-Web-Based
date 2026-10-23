@@ -382,7 +382,23 @@ export default function MapEditor({ onClose }) {
       next[era] = eraConns;
       return next;
     });
-    triggerToast(`Disconnected Tile #${fromIdx + 1} ➔ Tile #${toIdx + 1}`, 'info');
+    setJunctionRules(prev => {
+      const next = { ...prev };
+      const eraRules = { ...(next[era] || {}) };
+      let changed = false;
+      Object.keys(eraRules).forEach(key => {
+        if (key.startsWith(`${fromIdx}:`) && eraRules[key] === toIdx) {
+          delete eraRules[key];
+          changed = true;
+        }
+      });
+      if (changed) {
+        next[era] = eraRules;
+        return next;
+      }
+      return prev;
+    });
+    triggerToast(`Disconnected Space #${fromIdx + 1} ➔ Space #${toIdx + 1}`, 'info');
   };
 
   // Move connection position up or down (reorder priority)
@@ -602,38 +618,29 @@ export default function MapEditor({ onClose }) {
       const eraRules = junctionRules[curEra] || {};
 
       let next;
+      const targets = eraConns[step];
 
-      // 1. Explicit junction rule based on arrival space (step:prevStep)
-      if (prevStep !== null) {
-        const ruleKey = `${step}:${prevStep}`;
-        if (eraRules[ruleKey] !== undefined) {
-          next = eraRules[ruleKey];
-        }
-      }
-
-      // 2. Linear return along two-way trail (village road 14 down to 7, or base road 3 down to 1):
-      if (next === undefined && prevStep !== null && prevStep > step) {
-        if ((step >= 6 && step <= 14) || (step >= 0 && step <= 2)) {
-          if (step === 6) next = 3; // From Space 7 exit to Space 4
-          else if (step === 0) next = 1; // From Space 1 turn around to Space 2
-          else next = step - 1;
-        }
-      }
-
-      // 3. Fallback to node-graph targets
-      if (next === undefined) {
-        const nextList = eraConns[step];
-        if (!Array.isArray(nextList) || nextList.length === 0 || (nextList.length === 1 && nextList[0] === prevStep)) {
-          if (prevStep !== null && prevStep > step) {
-            next = step <= 0 ? 1 : step - 1;
-          } else {
-            next = (Array.isArray(nextList) && nextList.length === 1) ? nextList[0] : (step + 1) % max;
+      if (!Array.isArray(targets) || targets.length === 0) {
+        next = (step + 1) % max;
+      } else if (targets.length === 1) {
+        // Strictly follow the single connection
+        next = targets[0];
+      } else {
+        // Multi-target junction:
+        // 1. Explicit junction rule based on arrival space (step:prevStep)
+        if (prevStep !== null) {
+          const ruleKey = `${step}:${prevStep}`;
+          const ruleTarget = eraRules[ruleKey];
+          // Only accept the junction rule if its target is actually in outgoing links
+          if (ruleTarget !== undefined && targets.includes(ruleTarget)) {
+            next = ruleTarget;
           }
-        } else if (nextList.length === 1) {
-          next = nextList[0];
-        } else {
-          const candidates = nextList.filter(t => t !== prevStep);
-          next = candidates.length > 0 ? candidates[0] : nextList[0];
+        }
+
+        // 2. Filter out prevStep to avoid immediate U-turn unless no other candidate exists
+        if (next === undefined) {
+          const candidates = targets.filter(t => t !== prevStep);
+          next = candidates.length > 0 ? candidates[0] : targets[0];
         }
       }
 
@@ -1370,15 +1377,7 @@ export default function MapEditor({ onClose }) {
                                 if (!inc.includes(fromIdx)) inc.push(fromIdx);
                               }
                             });
-                            if (targetIdx === 3) {
-                              [2, 5, 6].forEach(k => { if (!inc.includes(k)) inc.push(k); });
-                            } else if (targetIdx === 6) {
-                              [3, 7].forEach(k => { if (!inc.includes(k)) inc.push(k); });
-                            } else if (targetIdx === 14) {
-                              [13, 24].forEach(k => { if (!inc.includes(k)) inc.push(k); });
-                            }
                             inc.sort((a, b) => a - b);
-                            if (inc.length === 0) return null;
 
                             return (
                               <div style={{
@@ -1389,7 +1388,7 @@ export default function MapEditor({ onClose }) {
                                 padding: '3px 5px',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                gap: '2px'
+                                gap: '3px'
                               }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                   <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#A5B4FC' }}>
@@ -1400,57 +1399,50 @@ export default function MapEditor({ onClose }) {
                                   </span>
                                 </div>
 
-                                {inc.map(incIdx => {
-                                  const ruleKey = `${targetIdx}:${incIdx}`;
-                                  let assignedTarget = junctionRules[curEra]?.[ruleKey];
-                                  if (assignedTarget === undefined) {
-                                    if (targetIdx === 3) {
-                                      if (incIdx === 2) assignedTarget = 4;
-                                      else if (incIdx === 5) assignedTarget = 6;
-                                      else if (incIdx === 6) assignedTarget = 2;
-                                    } else if (targetIdx === 6) {
-                                      if (incIdx === 3) assignedTarget = 7;
-                                      else if (incIdx === 7) assignedTarget = 3;
-                                    } else if (targetIdx === 14) {
-                                      if (incIdx === 13) assignedTarget = 15;
-                                      else if (incIdx === 24) assignedTarget = 13;
-                                    }
-                                    if (assignedTarget === undefined) {
+                                {inc.length === 0 ? (
+                                  <span style={{ fontSize: '0.52rem', color: 'rgba(255,255,255,0.5)', fontStyle: 'italic', padding: '2px 0' }}>
+                                    No incoming paths enter this space yet. Connect another tile to this space to configure arrival routing.
+                                  </span>
+                                ) : (
+                                  inc.map(incIdx => {
+                                    const ruleKey = `${targetIdx}:${incIdx}`;
+                                    let assignedTarget = junctionRules[curEra]?.[ruleKey];
+                                    if (assignedTarget === undefined || !targets.includes(assignedTarget)) {
                                       assignedTarget = targets.find(t => t !== incIdx) ?? targets[0];
                                     }
-                                  }
 
-                                  return (
-                                    <div key={incIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '3px', height: '18px' }}>
-                                      <span style={{ fontSize: '0.56rem', color: '#E2E8F0', whiteSpace: 'nowrap' }}>
-                                        From Space #{incIdx + 1} ➔
-                                      </span>
-                                      <select
-                                        value={assignedTarget !== undefined ? assignedTarget : ''}
-                                        onChange={(e) => {
-                                          const val = parseInt(e.target.value, 10);
-                                          handleSetJunctionRule(curEra, targetIdx, incIdx, val);
-                                        }}
-                                        style={{
-                                          background: '#1E293B',
-                                          color: '#FACC15',
-                                          border: '1px solid rgba(250, 204, 21, 0.4)',
-                                          borderRadius: '2px',
-                                          fontSize: '0.56rem',
-                                          height: '17px',
-                                          padding: '0 2px',
-                                          fontWeight: 700
-                                        }}
-                                      >
-                                        {targets.map(t => (
-                                          <option key={t} value={t}>
-                                            Space #{t + 1} ({layouts[curEra]?.[t] || 'tile'})
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </div>
-                                  );
-                                })}
+                                    return (
+                                      <div key={incIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '3px', height: '18px' }}>
+                                        <span style={{ fontSize: '0.56rem', color: '#E2E8F0', whiteSpace: 'nowrap' }}>
+                                          From Space #{incIdx + 1} ➔
+                                        </span>
+                                        <select
+                                          value={assignedTarget !== undefined ? assignedTarget : ''}
+                                          onChange={(e) => {
+                                            const val = parseInt(e.target.value, 10);
+                                            handleSetJunctionRule(curEra, targetIdx, incIdx, val);
+                                          }}
+                                          style={{
+                                            background: '#1E293B',
+                                            color: '#FACC15',
+                                            border: '1px solid rgba(250, 204, 21, 0.4)',
+                                            borderRadius: '2px',
+                                            fontSize: '0.56rem',
+                                            height: '17px',
+                                            padding: '0 2px',
+                                            fontWeight: 700
+                                          }}
+                                        >
+                                          {targets.map(t => (
+                                            <option key={t} value={t}>
+                                              Space #{t + 1} ({layouts[curEra]?.[t] || 'tile'})
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    );
+                                  })
+                                )}
                               </div>
                             );
                           })()}

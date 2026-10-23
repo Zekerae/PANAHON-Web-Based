@@ -3,7 +3,7 @@ import sounds from '../sound.js';
 import {
   ERAS, ERA_ORDER, ERA_NAMES,
   ERA_TILE_COORDINATES, ERA_TILE_LAYOUTS,
-  DEFAULT_ERA_LOOP_TARGETS, getActiveTileCoordinates, getActiveTileLayouts, getActiveLoopTargets,
+  DEFAULT_ERA_LOOP_TARGETS, DEFAULT_ERA_PATH_MODES, getActivePathModes, getActiveTileCoordinates, getActiveTileLayouts, getActiveLoopTargets,
   saveCustomMap, resetCustomMap
 } from '../gameData.js';
 
@@ -41,6 +41,7 @@ export default function MapEditor({ onClose }) {
   const [coords, setCoords] = useState(() => JSON.parse(JSON.stringify(getActiveTileCoordinates())));
   const [layouts, setLayouts] = useState(() => JSON.parse(JSON.stringify(getActiveTileLayouts())));
   const [loopTargets, setLoopTargets] = useState(() => JSON.parse(JSON.stringify(getActiveLoopTargets())));
+  const [pathModes, setPathModes] = useState(() => JSON.parse(JSON.stringify(getActivePathModes())));
 
   const [activeEra, setActiveEra] = useState('spanish');
   const [selectedTile, setSelectedTile] = useState({ era: 'spanish', index: 0 });
@@ -343,6 +344,20 @@ export default function MapEditor({ onClose }) {
     triggerToast(`Reversed path traversal direction for ${ERA_NAMES[activeEra]}`, 'info');
   };
 
+  // Toggle Path Mode ('mario_party' vs 'loop')
+  const handleTogglePathMode = (era, mode) => {
+    sounds.btnClick();
+    setPathModes(prev => ({
+      ...prev,
+      [era]: mode
+    }));
+    triggerToast(
+      mode === 'mario_party'
+        ? `🎮 Set ${ERA_NAMES[era]} to Mario Party Flow: 25 ➔ 15 ➔ 14... ➔ 1!`
+        : `🔁 Set ${ERA_NAMES[era]} to Circuit Loop Mode`
+    );
+  };
+
   // Set Loop Target for Era (e.g. Tile 25 loops back to Tile 15 in Spanish Era)
   const handleSetLoopTarget = (era, targetIndex) => {
     sounds.btnClick();
@@ -357,7 +372,7 @@ export default function MapEditor({ onClose }) {
   // Save to LocalStorage
   const handleSaveToGame = () => {
     sounds.btnClick();
-    const ok = saveCustomMap(coords, layouts, loopTargets);
+    const ok = saveCustomMap(coords, layouts, loopTargets, pathModes);
     if (ok) {
       triggerToast('💾 Custom Map saved! Game is now using these coordinates.');
     } else {
@@ -373,27 +388,56 @@ export default function MapEditor({ onClose }) {
       setCoords(JSON.parse(JSON.stringify(ERA_TILE_COORDINATES)));
       setLayouts(JSON.parse(JSON.stringify(ERA_TILE_LAYOUTS)));
       setLoopTargets(JSON.parse(JSON.stringify(DEFAULT_ERA_LOOP_TARGETS)));
+      setPathModes(JSON.parse(JSON.stringify(DEFAULT_ERA_PATH_MODES)));
       triggerToast('Map reset to factory defaults.');
     }
   };
 
-  // Path walking simulation preview
+  // Path walking simulation preview with Mario Party return support
   useEffect(() => {
     if (!isPreviewWalking) return;
     const curEra = activeEra === 'all' ? 'spanish' : activeEra;
     const max = coords[curEra]?.length || 1;
-    const loopTarget = loopTargets[curEra] !== undefined ? loopTargets[curEra] : (curEra === 'spanish' ? 14 : 0);
+    const mode = pathModes[curEra] || (curEra === 'spanish' ? 'mario_party' : 'loop');
+
+    let isReturn = false;
+    let step = 0;
+    setPreviewStep(0);
 
     const timer = setInterval(() => {
-      setPreviewStep(prev => {
-        if (prev >= max - 1) return loopTarget;
-        return prev + 1;
-      });
+      if (mode === 'mario_party') {
+        if (!isReturn) {
+          if (step >= max - 1) {
+            // Reached Tile 25 (Artifact): step to Tile 15 and switch to return
+            isReturn = true;
+            step = 14;
+          } else {
+            step++;
+          }
+        } else {
+          if (step === 14) {
+            step = 13; // Tile 15 -> Tile 14
+          } else if (step <= 0) {
+            isReturn = false;
+            step = 1; // Tile 1 -> Tile 2
+          } else {
+            step--;
+          }
+        }
+      } else {
+        const loopTarget = loopTargets[curEra] !== undefined ? loopTargets[curEra] : 0;
+        if (step >= max - 1) {
+          step = loopTarget;
+        } else {
+          step++;
+        }
+      }
+      setPreviewStep(step);
       sounds.moveStep();
     }, 450);
 
     return () => clearInterval(timer);
-  }, [isPreviewWalking, activeEra, coords, loopTargets]);
+  }, [isPreviewWalking, activeEra, coords, loopTargets, pathModes]);
 
   // Selected tile details
   const curTileCoords = selectedTile ? coords[selectedTile.era]?.[selectedTile.index] : null;
@@ -411,6 +455,8 @@ export default function MapEditor({ onClose }) {
       'export const ERA_TILE_COORDINATES = ' + JSON.stringify(coords, null, 2) + ';',
       '',
       'export const DEFAULT_ERA_LOOP_TARGETS = ' + JSON.stringify(loopTargets, null, 2) + ';',
+      '',
+      'export const DEFAULT_ERA_PATH_MODES = ' + JSON.stringify(pathModes, null, 2) + ';',
       ''
     ].join('\n');
   };
@@ -647,30 +693,83 @@ export default function MapEditor({ onClose }) {
                       <span className="editor-node-icon">{icon}</span>
                     )}
 
-                    {/* Loop Destination Marker Badge */}
-                    {loopTargets[era] === idx && (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          bottom: '-9px',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          fontSize: '0.58rem',
-                          background: '#10B981',
-                          color: '#fff',
-                          padding: '0 4px',
-                          borderRadius: '6px',
-                          lineHeight: '12px',
-                          fontWeight: 800,
-                          boxShadow: '0 0 6px rgba(16, 185, 129, 0.8)',
-                          whiteSpace: 'nowrap',
-                          pointerEvents: 'none',
-                          zIndex: 20
-                        }}
-                        title="Loop Destination Space"
-                      >
-                        🔁 Loop
-                      </span>
+                    {/* Mario Party Flow or Loop Destination Badges */}
+                    {(pathModes[era] || (era === 'spanish' ? 'mario_party' : 'loop')) === 'mario_party' ? (
+                      <>
+                        {idx === (eraCoords.length - 1) && (
+                          <span
+                            style={{
+                              position: 'absolute',
+                              bottom: '-9px',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              fontSize: '0.55rem',
+                              background: '#3B82F6',
+                              color: '#fff',
+                              padding: '0 4px',
+                              borderRadius: '5px',
+                              lineHeight: '12px',
+                              fontWeight: 800,
+                              boxShadow: '0 0 6px rgba(59, 130, 246, 0.8)',
+                              whiteSpace: 'nowrap',
+                              pointerEvents: 'none',
+                              zIndex: 20
+                            }}
+                            title="Mario Party: Next space is Tile #15"
+                          >
+                            ➔ 15
+                          </span>
+                        )}
+                        {idx === 14 && (
+                          <span
+                            style={{
+                              position: 'absolute',
+                              bottom: '-9px',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              fontSize: '0.55rem',
+                              background: '#10B981',
+                              color: '#fff',
+                              padding: '0 4px',
+                              borderRadius: '5px',
+                              lineHeight: '12px',
+                              fontWeight: 800,
+                              boxShadow: '0 0 6px rgba(16, 185, 129, 0.8)',
+                              whiteSpace: 'nowrap',
+                              pointerEvents: 'none',
+                              zIndex: 20
+                            }}
+                            title="Mario Party Return: Exits into Tile #14 towards Start"
+                          >
+                            ➔ 14 Return
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      loopTargets[era] === idx && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            bottom: '-9px',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            fontSize: '0.58rem',
+                            background: '#10B981',
+                            color: '#fff',
+                            padding: '0 4px',
+                            borderRadius: '6px',
+                            lineHeight: '12px',
+                            fontWeight: 800,
+                            boxShadow: '0 0 6px rgba(16, 185, 129, 0.8)',
+                            whiteSpace: 'nowrap',
+                            pointerEvents: 'none',
+                            zIndex: 20
+                          }}
+                          title="Loop Destination Space"
+                        >
+                          🔁 Loop
+                        </span>
+                      )
                     )}
 
                     {/* Test Walker Pawn */}
@@ -900,26 +999,54 @@ export default function MapEditor({ onClose }) {
                 🔄 Reverse Era Path
               </button>
 
-              {/* Era Loop Target selector */}
+              {/* Traversal Flow Mode Toggle (Mario Party vs Loop) */}
               {(() => {
                 const targetEra = activeEra === 'all' ? (selectedTile ? selectedTile.era : 'spanish') : activeEra;
+                const curMode = pathModes[targetEra] || (targetEra === 'spanish' ? 'mario_party' : 'loop');
                 return (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '5px' }}>
-                    <span style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                      🔁 Loop End to:
-                    </span>
-                    <select
-                      className="input-field"
-                      style={{ padding: '1px 4px', fontSize: '0.66rem', height: '23px', flex: 1, minWidth: 0 }}
-                      value={loopTargets[targetEra] ?? (targetEra === 'spanish' ? 14 : 0)}
-                      onChange={(e) => handleSetLoopTarget(targetEra, parseInt(e.target.value, 10))}
-                    >
-                      {(coords[targetEra] || []).map((_, i) => (
-                        <option key={i} value={i}>
-                          Tile #{i + 1} {layouts[targetEra]?.[i] ? `(${layouts[targetEra][i]})` : ''}
-                        </option>
-                      ))}
-                    </select>
+                  <div style={{ marginBottom: '5px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '3px' }}>
+                      <button
+                        className={`sidebar-btn ${curMode === 'mario_party' ? 'active' : ''}`}
+                        style={{ height: '25px', fontSize: '0.62rem', padding: '1px 2px' }}
+                        onClick={() => handleTogglePathMode(targetEra, 'mario_party')}
+                        title="Mario Party Mode: Tile 25 connects to 15, then goes to 14 down the line"
+                      >
+                        🎮 Mario Party (➔15➔14)
+                      </button>
+                      <button
+                        className={`sidebar-btn ${curMode === 'loop' ? 'active' : ''}`}
+                        style={{ height: '25px', fontSize: '0.62rem', padding: '1px 2px' }}
+                        onClick={() => handleTogglePathMode(targetEra, 'loop')}
+                        title="Circuit Loop: Tile 25 loops to target tile"
+                      >
+                        🔁 Loop
+                      </button>
+                    </div>
+
+                    {curMode === 'mario_party' ? (
+                      <div style={{ fontSize: '0.63rem', color: '#34D399', fontWeight: 600, background: 'rgba(16, 185, 129, 0.12)', padding: '2px 4px', borderRadius: '3px', border: '1px solid rgba(16, 185, 129, 0.25)', marginTop: '3px', textAlign: 'center' }}>
+                        Flow: 1 ➔ 25 ➔ 15 ➔ 14... ➔ 1
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginTop: '3px' }}>
+                        <span style={{ fontSize: '0.64rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                          🔁 Loop to:
+                        </span>
+                        <select
+                          className="input-field"
+                          style={{ padding: '1px 4px', fontSize: '0.66rem', height: '22px', flex: 1, minWidth: 0 }}
+                          value={loopTargets[targetEra] ?? (targetEra === 'spanish' ? 14 : 0)}
+                          onChange={(e) => handleSetLoopTarget(targetEra, parseInt(e.target.value, 10))}
+                        >
+                          {(coords[targetEra] || []).map((_, i) => (
+                            <option key={i} value={i}>
+                              Tile #{i + 1} {layouts[targetEra]?.[i] ? `(${layouts[targetEra][i]})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 );
               })()}

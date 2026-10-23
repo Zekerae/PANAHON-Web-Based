@@ -1,7 +1,7 @@
 // ===== PANAHON: CHRONO SHIFT - Game Engine =====
 
 import {
-  ERAS, ERA_ORDER, ERA_NAMES, TILE_TYPES, ERA_TILE_LAYOUTS, ERA_TILE_COORDINATES, getActiveTileLayouts, getActiveLoopTargets,
+  ERAS, ERA_ORDER, ERA_NAMES, TILE_TYPES, ERA_TILE_LAYOUTS, ERA_TILE_COORDINATES, getActiveTileLayouts, getActiveLoopTargets, getActivePathModes,
   ROLES, ROLE_ORDER, ARTIFACTS, ALL_ARTIFACTS, EVENT_CARDS, DANGER_CARDS,
   generateClueCards, generateMissions, GAME_CONSTANTS, SCORING, PLAYER_COLORS
 } from './gameData.js';
@@ -341,6 +341,59 @@ export class GameEngine {
     return true;
   }
 
+  // Determine next tile index respecting era traversal modes ('mario_party' vs 'loop')
+  getNextTileIndex(player, era, currentIdx, dir = 1) {
+    const eraTiles = this.state.board[era];
+    const total = eraTiles.length;
+    const pathModes = (typeof getActivePathModes === 'function') ? getActivePathModes() : { spanish: 'mario_party' };
+    const mode = pathModes[era] || (era === 'spanish' ? 'mario_party' : 'loop');
+
+    if (mode === 'mario_party') {
+      const isReturn = player.eraReturnPhase === true;
+      if (!isReturn) {
+        if (dir > 0) {
+          if (currentIdx === total - 1) {
+            // Reached Artifact / final tile (Tile 25): turn around to return via Tile 15 (idx 14)
+            player.eraReturnPhase = true;
+            return 14; // Tile 15
+          }
+          return currentIdx + 1;
+        } else {
+          return Math.max(0, currentIdx - 1);
+        }
+      } else {
+        if (dir > 0) {
+          if (currentIdx === 14) {
+            return 13; // From Tile 15 continue return down to Tile 14 (idx 13)
+          }
+          if (currentIdx <= 0) {
+            // Reached Start (Tile 1): reset to outward journey
+            player.eraReturnPhase = false;
+            return 1; // Tile 2
+          }
+          return currentIdx - 1;
+        } else {
+          if (currentIdx >= 14) {
+            player.eraReturnPhase = false;
+            return total - 1;
+          }
+          return currentIdx + 1;
+        }
+      }
+    } else {
+      const loopTargets = (typeof getActiveLoopTargets === 'function') ? getActiveLoopTargets() : { spanish: 14 };
+      const eraLoopTarget = loopTargets[era] !== undefined ? loopTargets[era] : 0;
+      if (dir > 0 && currentIdx === total - 1) {
+        return eraLoopTarget;
+      } else if (currentIdx + dir < 0) {
+        return total - 1;
+      } else if (currentIdx + dir >= total) {
+        return eraLoopTarget;
+      }
+      return currentIdx + dir;
+    }
+  }
+
   // Move forward/backward in the era path
   movePlayerStep() {
     if (this.state.phase !== 'moving' || this.state.movesRemaining <= 0) return false;
@@ -350,19 +403,7 @@ export class GameEngine {
     const eraTiles = this.state.board[player.currentEra];
     const currentIdx = player.tileIndex;
 
-    const loopTargets = (typeof getActiveLoopTargets === 'function') ? getActiveLoopTargets() : { spanish: 14 };
-    const eraLoopTarget = loopTargets[player.currentEra] !== undefined ? loopTargets[player.currentEra] : (player.currentEra === 'spanish' ? 14 : 0);
-
-    let newIdx = currentIdx + dir;
-
-    // Wrap around the era path (e.g. Tile 25 connects back to Tile 15 in Spanish Era)
-    if (dir > 0 && currentIdx === eraTiles.length - 1) {
-      newIdx = eraLoopTarget;
-    } else if (newIdx < 0) {
-      newIdx = eraTiles.length - 1;
-    } else if (newIdx >= eraTiles.length) {
-      newIdx = eraLoopTarget;
-    }
+    const newIdx = this.getNextTileIndex(player, player.currentEra, currentIdx, dir);
 
     // Move
     eraTiles[currentIdx].players = eraTiles[currentIdx].players.filter(id => id !== player.id);
@@ -1159,20 +1200,11 @@ export class GameEngine {
     const tiles = this.state.board[player.currentEra];
     tiles[player.tileIndex].players = tiles[player.tileIndex].players.filter(id => id !== player.id);
 
-    const loopTargets = (typeof getActiveLoopTargets === 'function') ? getActiveLoopTargets() : { spanish: 14 };
-    const eraLoopTarget = loopTargets[player.currentEra] !== undefined ? loopTargets[player.currentEra] : (player.currentEra === 'spanish' ? 14 : 0);
-
     let cur = player.tileIndex;
     const step = spaces >= 0 ? 1 : -1;
     let count = Math.abs(spaces);
     while (count > 0) {
-      if (step > 0 && cur === tiles.length - 1) {
-        cur = eraLoopTarget;
-      } else {
-        cur += step;
-        if (cur < 0) cur = tiles.length - 1;
-        if (cur >= tiles.length) cur = eraLoopTarget;
-      }
+      cur = this.getNextTileIndex(player, player.currentEra, cur, step);
       count--;
     }
     player.tileIndex = cur;

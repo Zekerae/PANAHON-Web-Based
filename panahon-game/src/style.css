@@ -4391,3 +4391,20 @@ html, body {
   border-radius: 3px;
   font-family: monospace;
 }
+
+/* Anito Guidance Teleport Cards */
+.teleport-tile-card {
+  outline: none;
+  font-family: inherit;
+}
+
+.teleport-tile-card:hover:not(:disabled) {
+  transform: translateY(-3px) scale(1.05);
+  filter: brightness(1.18);
+  box-shadow: 0 0 20px rgba(167, 139, 250, 0.6) !important;
+  z-index: 2;
+}
+
+.teleport-tile-card:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+}

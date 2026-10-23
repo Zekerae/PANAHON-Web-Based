@@ -304,6 +304,32 @@ class AiController {
       return;
     }
 
+    if (choiceType === 'teleportTile') {
+      const tiles = choice.tiles || choice.options || [];
+      const artifactTile = tiles.find(t => t.type === 'artifact');
+      const clueTiles = tiles.filter(t => t.type === 'clue');
+      const safeTiles = tiles.filter(t => t.type !== 'danger' && t.type !== 'paradox');
+
+      let picked = null;
+      if (artifactTile && player.clueCards?.length >= 3) {
+        picked = artifactTile;
+      } else if (clueTiles.length > 0) {
+        picked = clueTiles[Math.floor(Math.random() * clueTiles.length)];
+      } else if (safeTiles.length > 0) {
+        picked = safeTiles[Math.floor(Math.random() * safeTiles.length)];
+      } else {
+        picked = tiles[0];
+      }
+
+      const action = picked?.action || `teleport_${picked?.index || 0}`;
+      sounds.btnClick?.();
+      sounds.portal?.();
+      engine.resolveChoice(action);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
     // Default fallback: choose first available option
     const firstAction = choice.options?.[0]?.action || 'continueMoving';
     engine.resolveChoice(firstAction);

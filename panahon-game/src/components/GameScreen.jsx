@@ -135,13 +135,24 @@ function GameScreen({
   }, [state.phase, state.movesRemaining, isMyTurn, engine, network]);
 
   const handleMoveToTile = useCallback((tileId) => {
+    if (state.pendingChoice?.type === 'teleportTile' && isMyTurn) {
+      const [targetEra, targetIdxStr] = tileId.split('_');
+      const targetIdx = parseInt(targetIdxStr, 10);
+      if (targetEra === (state.pendingChoice.targetEra || 'myth')) {
+        sounds.btnClick();
+        sounds.portal();
+        engine.resolveChoice(`teleport_${targetIdx}`);
+        network.sendAction({ type: 'RESOLVE_CHOICE', action: `teleport_${targetIdx}` });
+        return;
+      }
+    }
     if (state.phase !== 'moving' || state.movesRemaining <= 0 || !isMyTurn) return;
     const ok = engine.moveToTile(tileId);
     if (ok) {
       sounds.moveStep();
       network.sendAction({ type: 'MOVE_TO_TILE', targetTileId: tileId });
     }
-  }, [state.phase, state.movesRemaining, isMyTurn, engine, network]);
+  }, [state.phase, state.movesRemaining, state.pendingChoice, isMyTurn, engine, network]);
 
   const handleTriggerMomentum = useCallback(() => {
     if (state.phase !== 'rolling' && state.phase !== 'moving') return;
@@ -247,6 +258,7 @@ function GameScreen({
         movesRemaining={state.movesRemaining}
         movementDirection={state.movementDirection}
         temporalOccurrence={state.temporalOccurrence}
+        pendingChoice={state.pendingChoice}
         onMoveToTile={handleMoveToTile}
       />
 

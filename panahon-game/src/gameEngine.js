@@ -608,6 +608,38 @@ export class GameEngine {
       } else {
         this.state.phase = 'action';
       }
+    } else if (choiceType === 'teleportTile') {
+      const targetEra = choice.targetEra || ERAS.MYTH;
+      const targetTiles = this.state.board[targetEra];
+      const targetIdx = parseInt(action.replace('teleport_', ''), 10);
+      const targetTile = targetTiles && targetTiles[targetIdx] ? targetTiles[targetIdx] : null;
+
+      if (targetTile) {
+        // Remove player from current tile
+        const currentTiles = this.state.board[player.currentEra];
+        if (currentTiles && currentTiles[player.tileIndex]) {
+          currentTiles[player.tileIndex].players = currentTiles[player.tileIndex].players.filter(id => id !== player.id);
+        }
+
+        // Warp player to target era & tile
+        player.currentEra = targetEra;
+        player.tileIndex = targetTile.index;
+        targetTile.players.push(player.id);
+        this.state.currentEra = targetEra;
+
+        this.addLog('travel', `✨ ${player.name} teleported to Space #${targetTile.index + 1} (${targetTile.type.toUpperCase()}) in ${ERA_NAMES[targetEra]} via Anito Guidance!`);
+
+        // Check for enemy trap
+        if (targetTile.trap && targetTile.trap.ownerId !== player.id) {
+          this.triggerTrap(player, targetTile);
+        }
+
+        // Resolve landing on destination tile
+        this.resolveTile(player, targetTile);
+        return;
+      } else {
+        this.state.phase = 'action';
+      }
     }
 
     this.notify();
@@ -783,7 +815,9 @@ export class GameEngine {
 
     const result = card.effect(player, this);
     this.addLog('event', `${player.name}: ${card.name} — ${result}`);
-    this.state.phase = 'action';
+    if (!this.state.pendingChoice) {
+      this.state.phase = 'action';
+    }
     this.notify();
   }
 
@@ -1269,17 +1303,43 @@ export class GameEngine {
     };
   }
 
-  offerTeleport(player, era) {
-    this.addLog('event', `${player.name} can teleport to any tile in ${ERA_NAMES[era]}.`);
-    // For simplicity, move to a random non-empty tile
+  offerTeleport(player, era = ERAS.MYTH) {
     const tiles = this.state.board[era];
-    const validTiles = tiles.filter(t => t.type !== TILE_TYPES.EMPTY);
-    if (validTiles.length > 0) {
-      const target = validTiles[Math.floor(Math.random() * validTiles.length)];
-      tiles[player.tileIndex].players = tiles[player.tileIndex].players.filter(id => id !== player.id);
-      player.tileIndex = target.index;
-      target.players.push(player.id);
-    }
+    if (!tiles || tiles.length === 0) return;
+
+    const tileOptions = tiles.map(t => {
+      let icon = "•";
+      let typeLabel = (t.type || "").toUpperCase();
+      if (t.type === TILE_TYPES.CLUE) { icon = "🔍"; typeLabel = "Clue"; }
+      else if (t.type === TILE_TYPES.ARTIFACT) { icon = "🏆"; typeLabel = "Artifact"; }
+      else if (t.type === TILE_TYPES.EVENT) { icon = "⚡"; typeLabel = "Event"; }
+      else if (t.type === TILE_TYPES.DANGER) { icon = "⚠️"; typeLabel = "Hazard"; }
+      else if (t.type === TILE_TYPES.TIMEGATE) { icon = "🌀"; typeLabel = "Time Gate"; }
+      else if (t.type === TILE_TYPES.PARADOX) { icon = "⏳"; typeLabel = "Paradox"; }
+      else if (t.type === TILE_TYPES.START) { icon = "🚩"; typeLabel = "Start Station"; }
+      else if (t.type === TILE_TYPES.EMPTY) { icon = "•"; typeLabel = "Quiet Path"; }
+
+      return {
+        index: t.index,
+        type: t.type,
+        icon,
+        typeLabel,
+        id: t.id,
+        label: `${icon} Space #${t.index + 1} (${typeLabel})`,
+        action: `teleport_${t.index}`
+      };
+    });
+
+    this.state.pendingChoice = {
+      type: 'teleportTile',
+      targetEra: era,
+      title: '✨ Anito Guidance: Choose Teleport Destination',
+      message: `The ancient Anito spirits envelop you in ethereal light! Choose any tile in the ${ERA_NAMES[era]} to materialize upon:`,
+      tiles: tileOptions,
+      options: tileOptions
+    };
+
+    this.addLog('event', `${player.name} invoked Anito Guidance: choosing a destination tile in ${ERA_NAMES[era]}!`);
   }
 
   healAllInEra(era, amount) {

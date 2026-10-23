@@ -17,6 +17,7 @@ function GameBoard({
   movesRemaining,
   movementDirection,
   temporalOccurrence,
+  pendingChoice,
   onMoveToTile
 }) {
   const [cameraMode, setCameraMode] = useState("full");
@@ -118,7 +119,9 @@ function GameBoard({
                 const playersOnTile = (players || []).filter(p => p && p.currentEra === era && p.tileIndex === idx);
 
                 let isReachable = false;
-                if (phase === "moving" && movesRemaining > 0 && currentPlayer.currentEra === era) {
+                if (pendingChoice?.type === "teleportTile" && (pendingChoice.targetEra || "myth") === era) {
+                  isReachable = true;
+                } else if (phase === "moving" && movesRemaining > 0 && currentPlayer.currentEra === era) {
                   const cIdx = currentPlayer.tileIndex;
                   const dir = movementDirection === "backward" ? -1 : 1;
                   if (dir === 1 && idx === (cIdx + 1) % tiles.length) {

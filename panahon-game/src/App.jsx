@@ -285,7 +285,7 @@ export default function App() {
         />
       )}
 
-      {gameState?.pendingChoice && (
+      {!gameState?.pendingModal && gameState?.pendingChoice && (
         <ChoiceModal
           choice={gameState.pendingChoice}
           engine={engine}

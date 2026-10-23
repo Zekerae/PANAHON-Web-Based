@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import sounds from '../sound.js';
 import { ERA_NAMES } from '../gameData.js';
 import Dice from './game/Dice';
@@ -237,6 +237,184 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     );
   }
 
+  if (isTeleport) {
+    const tiles = choice.tiles || [];
+    const targetEra = choice.targetEra || 'myth';
+    const eraName = ERA_NAMES[targetEra] || targetEra;
+    const boardTiles = engine?.state?.board?.[targetEra] || [];
+
+    // Filter tiles based on selected pill
+    let filteredTiles = tiles;
+    if (tileFilter === 'clue') filteredTiles = tiles.filter(t => t.type === 'clue');
+    else if (tileFilter === 'artifact') filteredTiles = tiles.filter(t => t.type === 'artifact');
+    else if (tileFilter === 'timegate') filteredTiles = tiles.filter(t => t.type === 'timegate');
+    else if (tileFilter === 'event') filteredTiles = tiles.filter(t => t.type === 'event');
+    else if (tileFilter === 'safe') filteredTiles = tiles.filter(t => t.type !== 'danger' && t.type !== 'paradox');
+
+    return (
+      <div className="modal-overlay" id="active-modal">
+        <div className="modal" style={{ maxWidth: "780px", width: "95%", maxHeight: "90vh", overflowY: "auto", animation: "modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+          <div className="modal-title" style={{ color: "#C084FC", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", fontSize: "1.25rem" }}>
+            <span style={{ filter: "drop-shadow(0 0 8px #A855F7)" }}>✨</span>
+            <span>Anito Guidance — Choose Destination</span>
+          </div>
+
+          <div className="modal-body" style={{ textAlign: "center", marginBottom: "var(--space-md)" }}>
+            <p style={{ fontSize: "0.88rem", color: "var(--text-secondary)", margin: "0 auto 14px", maxWidth: "620px", lineHeight: 1.45 }}>
+              The ancestral Anito spirits open ethereal pathways across time! Choose <strong>any tile</strong> in the <strong>{eraName}</strong> to materialize upon:
+            </p>
+
+            {/* Quick Filters */}
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "6px", marginBottom: "16px" }}>
+              {[
+                { id: 'all', label: `All Spaces (${tiles.length})` },
+                { id: 'artifact', label: `🏆 Artifact Tile` },
+                { id: 'clue', label: `🔍 Clues (${tiles.filter(t => t.type === 'clue').length})` },
+                { id: 'timegate', label: `🌀 Time Gate` },
+                { id: 'event', label: `⚡ Events (${tiles.filter(t => t.type === 'event').length})` },
+                { id: 'safe', label: `🛡️ Safe Spaces` }
+              ].map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => { sounds.btnClick(); setTileFilter(f.id); }}
+                  style={{
+                    background: tileFilter === f.id ? "linear-gradient(135deg, #7C3AED, #4F46E5)" : "rgba(255, 255, 255, 0.06)",
+                    border: tileFilter === f.id ? "1.5px solid #A78BFA" : "1px solid rgba(255, 255, 255, 0.12)",
+                    color: tileFilter === f.id ? "#FFF" : "var(--text-secondary)",
+                    padding: "4px 10px",
+                    borderRadius: "20px",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    transition: "all 0.15s ease"
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Interactive Tile Grid */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))",
+              gap: "10px",
+              maxHeight: "380px",
+              overflowY: "auto",
+              padding: "4px",
+              borderRadius: "8px",
+              background: "rgba(0, 0, 0, 0.25)"
+            }}>
+              {filteredTiles.map((t) => {
+                const bTile = boardTiles[t.index];
+                const occupants = (bTile?.players || []).map(pId => engine.state.players[pId]).filter(Boolean);
+                const isArtifact = t.type === 'artifact';
+                const isClue = t.type === 'clue';
+                const isTimeGate = t.type === 'timegate';
+                const isDanger = t.type === 'danger';
+                const isParadox = t.type === 'paradox';
+
+                let borderStyle = "1px solid rgba(255, 255, 255, 0.12)";
+                let bgStyle = "rgba(15, 23, 42, 0.7)";
+                let glowStyle = "none";
+
+                if (isArtifact) {
+                  borderStyle = "2px solid #F59E0B";
+                  bgStyle = "linear-gradient(145deg, rgba(245, 158, 11, 0.2) 0%, rgba(15, 23, 42, 0.9) 100%)";
+                  glowStyle = "0 0 16px rgba(245, 158, 11, 0.35)";
+                } else if (isClue) {
+                  borderStyle = "1.5px solid #3B82F6";
+                  bgStyle = "linear-gradient(145deg, rgba(59, 130, 246, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)";
+                  glowStyle = "0 0 12px rgba(59, 130, 246, 0.25)";
+                } else if (isTimeGate) {
+                  borderStyle = "1.5px solid #A855F7";
+                  bgStyle = "linear-gradient(145deg, rgba(168, 85, 247, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)";
+                  glowStyle = "0 0 12px rgba(168, 85, 247, 0.25)";
+                } else if (isDanger) {
+                  borderStyle = "1px solid rgba(239, 68, 68, 0.6)";
+                } else if (isParadox) {
+                  borderStyle = "1px solid rgba(139, 92, 246, 0.5)";
+                }
+
+                return (
+                  <button
+                    key={t.index}
+                    className="teleport-tile-card"
+                    style={{
+                      background: bgStyle,
+                      border: borderStyle,
+                      borderRadius: "10px",
+                      padding: "10px 6px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      textAlign: "center",
+                      cursor: (isMyTurn || network.mode !== "online") ? "pointer" : "not-allowed",
+                      position: "relative",
+                      minHeight: "105px",
+                      boxShadow: glowStyle,
+                      transition: "transform 0.18s ease, box-shadow 0.18s ease"
+                    }}
+                    disabled={!isMyTurn && network.mode === "online"}
+                    onClick={() => handleSelect(t.action)}
+                    title={`Click to teleport to Space #${t.index + 1} (${t.typeLabel})`}
+                  >
+                    <div style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.65rem", padding: "0 2px" }}>
+                      <span style={{
+                        background: isArtifact ? "#F59E0B" : (isClue ? "#3B82F6" : "rgba(255, 255, 255, 0.12)"),
+                        color: isArtifact ? "#000" : "#FFF",
+                        fontWeight: 800,
+                        padding: "1px 5px",
+                        borderRadius: "3px"
+                      }}>
+                        #{t.index + 1}
+                      </span>
+                      {isArtifact && <span style={{ fontSize: "0.6rem", color: "#FCD34D", fontWeight: 700 }}>RELIC</span>}
+                    </div>
+
+                    <div style={{ fontSize: isArtifact ? "2rem" : "1.7rem", margin: "4px 0", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}>
+                      {t.icon}
+                    </div>
+
+                    <div style={{ fontSize: "0.72rem", fontWeight: 700, color: isArtifact ? "#FCD34D" : (isClue ? "#93C5FD" : "var(--text-primary)") }}>
+                      {t.typeLabel}
+                    </div>
+
+                    {occupants.length > 0 && (
+                      <div style={{ display: "flex", gap: "2px", marginTop: "4px" }}>
+                        {occupants.map(p => (
+                          <span
+                            key={p.id}
+                            style={{
+                              width: "12px",
+                              height: "12px",
+                              borderRadius: "50%",
+                              background: p.color || "#FFF",
+                              border: "1px solid #000",
+                              display: "inline-block"
+                            }}
+                            title={`Occupant: ${p.name}`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {!isMyTurn && network.mode === "online" && (
+              <div style={{ fontSize: "0.85rem", color: "#60A5FA", marginTop: "14px", fontWeight: 600 }}>
+                ⏳ Waiting for {activePlayer.name} to select destination...
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="modal-overlay" id="active-modal">
       <div className="modal">
@@ -269,7 +447,9 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         </div>
 
         <div className="modal-actions">
-          <button className="btn btn-primary" onClick={handleDismiss}>Acknowledge</button>
+          <button className="btn btn-primary" onClick={handleDismiss}>
+            {engine?.state?.pendingChoice?.type === 'teleportTile' ? 'Choose Destination ➔' : 'Acknowledge'}
+          </button>
         </div>
       </div>
     </div>
@@ -284,6 +464,8 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
   const isMyTurn = !isAi && network.isMyTurn(engine.state.currentPlayerIndex);
   const isDecipher = choice.type === 'historianDecipher';
   const isClueHandLimit = choice.type === 'clueHandLimit';
+  const isTeleport = choice.type === 'teleportTile';
+  const [tileFilter, setTileFilter] = useState('all');
 
   useEffect(() => {
     if (isAi) {
@@ -296,7 +478,7 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
 
   const handleSelect = (action) => {
     sounds.btnClick();
-    if (action && (action.startsWith('warp_') || ['spanish', 'american', 'japanese', 'myth'].includes(action))) {
+    if (action && (action.startsWith('warp_') || action.startsWith('teleport_') || ['spanish', 'american', 'japanese', 'myth'].includes(action))) {
       sounds.portal();
     }
     engine.resolveChoice(action);
@@ -343,6 +525,17 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             <strong style={{ color: activePlayer.color || '#fff' }}>{activePlayer.name}</strong> evaluated tactical options:
           </div>
+
+          {isTeleport && (
+            <div style={{ marginTop: "8px", padding: "8px 10px", background: "rgba(139, 92, 246, 0.12)", borderRadius: "6px", border: "1px solid rgba(139, 92, 246, 0.35)" }}>
+              <div style={{ fontSize: "0.72rem", color: "#A78BFA", fontWeight: 700, textTransform: "uppercase" }}>
+                ✨ Anito Guidance Teleport
+              </div>
+              <div style={{ fontSize: "0.75rem", color: "#E2E8F0", marginTop: "3px" }}>
+                Seeking optimal coordinates in {ERA_NAMES[choice.targetEra] || choice.targetEra}...
+              </div>
+            </div>
+          )}
 
           {isClueHandLimit && choice.drawnCard && (
             <div style={{ marginTop: "8px", padding: "8px 10px", background: "rgba(239, 68, 68, 0.1)", borderRadius: "6px", border: "1px solid rgba(239, 68, 68, 0.3)" }}>

@@ -5,7 +5,7 @@ import {
   ERAS, ERA_ORDER, ERA_NAMES,
   ERA_TILE_COORDINATES, ERA_TILE_LAYOUTS,
   DEFAULT_ERA_LOOP_TARGETS, DEFAULT_ERA_PATH_CONNECTIONS, getActivePathConnections, DEFAULT_ERA_JUNCTION_RULES, getActiveJunctionRules, saveCustomJunctionRules, getActiveTileCoordinates, getActiveTileLayouts, getActiveLoopTargets,
-  saveCustomMap, resetCustomMap
+  saveCustomMap, resetCustomMap, TILE_IMAGES
 } from '../gameData.js';
 
 const TILE_LABELS = {
@@ -945,7 +945,11 @@ export default function MapEditor({ onClose }) {
                     )}
 
                     {showIcons && (
-                      <span className="editor-node-icon">{icon}</span>
+                      TILE_IMAGES?.[tileType] ? (
+                        <img src={TILE_IMAGES[tileType]} className="editor-node-tile-img" alt={tileType} draggable={false} />
+                      ) : (
+                        <span className="editor-node-icon">{icon}</span>
+                      )
                     )}
 
                     {/* Outgoing Next Targets Indicators */}

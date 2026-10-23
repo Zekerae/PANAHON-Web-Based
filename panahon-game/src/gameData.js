@@ -27,6 +27,17 @@ export const TILE_TYPES = {
   EMPTY: 'empty'
 };
 
+// Custom tile artwork assets (paradox is WIP)
+export const TILE_IMAGES = {
+  [TILE_TYPES.CLUE]: '/assets/Tiles/clue_tile.png',
+  [TILE_TYPES.EVENT]: '/assets/Tiles/event_tile.png',
+  [TILE_TYPES.DANGER]: '/assets/Tiles/danger_tile.png',
+  [TILE_TYPES.ARTIFACT]: '/assets/Tiles/artifact_tile.png',
+  [TILE_TYPES.TIMEGATE]: '/assets/Tiles/portal_tile.png',
+  [TILE_TYPES.EMPTY]: '/assets/Tiles/empty_tile.png'
+  // Note: paradox tile is WIP, falls back to paradox space disc
+};
+
 // Tile layout for each era matching Full Map with Tiles.png
 export const ERA_TILE_LAYOUTS = {
   [ERAS.SPANISH]: [

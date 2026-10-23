@@ -5,7 +5,8 @@ import {
   ERA_NAMES,
   ERA_TILE_COORDINATES,
   getActiveTileCoordinates,
-  getActivePathConnections
+  getActivePathConnections,
+  TILE_IMAGES
 } from "../../gameData.js";
 
 function GameBoard({
@@ -145,9 +146,18 @@ function GameBoard({
                     onClick={() => onMoveToTile && onMoveToTile(t.id)}
                   >
                     {isReachable && <div className="reachable-arrow-indicator">▼</div>}
-                    <div className="space-disc">
-                      <span className="space-icon">{icon}</span>
-                    </div>
+                    {TILE_IMAGES?.[tileType] ? (
+                      <img
+                        src={TILE_IMAGES[tileType]}
+                        className="space-tile-image"
+                        alt={tileType}
+                        draggable={false}
+                      />
+                    ) : (
+                      <div className="space-disc">
+                        <span className="space-icon">{icon}</span>
+                      </div>
+                    )}
                     {t.trap && <span className="tile-trap-indicator" title="Temporal Trap!">💣</span>}
 
                     {playersOnTile.length > 0 && (

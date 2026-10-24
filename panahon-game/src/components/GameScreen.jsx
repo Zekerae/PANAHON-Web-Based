@@ -12,6 +12,10 @@ function GameScreen({
   state,
   engine,
   network,
+  isSpectator = false,
+  spectators = [],
+  simulationSpeed = 1,
+  onChangeSimulationSpeed,
   soundMuted,
   onToggleSound,
   onOpenGuide,
@@ -28,6 +32,8 @@ function GameScreen({
   const [isRolling, setIsRolling] = useState(false);
   const [mobileGameTab, setMobileGameTab] = useState("board");
   const [isPaused, setIsPaused] = useState(false);
+  const [autoFollow, setAutoFollow] = useState(true);
+  const [omniscientIntel, setOmniscientIntel] = useState(true);
 
   const handleResume = useCallback(() => {
     setIsPaused(false);
@@ -69,11 +75,24 @@ function GameScreen({
 
   if (!state || !engine) return null;
 
+  const effectiveIsSpectator = Boolean(
+    isSpectator ||
+    network.isSpectator ||
+    (state.players?.length > 0 && state.players.every(p => p.isAi))
+  );
+
+  // Auto-follow current turn operative in spectator mode
+  React.useEffect(() => {
+    if (effectiveIsSpectator && autoFollow && state.currentPlayerIndex !== undefined && state.players?.[state.currentPlayerIndex]) {
+      setInspectedPlayerId(state.players[state.currentPlayerIndex].id);
+    }
+  }, [effectiveIsSpectator, autoFollow, state.currentPlayerIndex, state.players]);
+
   const currentPlayer = engine.getCurrentPlayer();
   const timelineLevel = state.timelineMeter;
   const isOnline = network.mode === 'online';
   const isAiCurrent = currentPlayer?.isAi === true;
-  const isMyTurn = !isAiCurrent && (!isOnline || currentPlayer.id === network.playerId);
+  const isMyTurn = !effectiveIsSpectator && !isAiCurrent && (!isOnline || currentPlayer.id === network.playerId);
 
   const myPlayer = isOnline
     ? (state.players.find(p => p.id === network.playerId) || currentPlayer)
@@ -83,7 +102,7 @@ function GameScreen({
     ? state.players.find(p => p.id === inspectedPlayerId)
     : null) || myPlayer;
 
-  const isViewingSelf = viewedPlayer.id === myPlayer.id || !isOnline;
+  const isViewingSelf = !effectiveIsSpectator && (viewedPlayer.id === myPlayer.id || !isOnline);
 
   let timelineClass = 'safe';
   if (timelineLevel >= 4) timelineClass = 'danger';
@@ -225,6 +244,15 @@ function GameScreen({
     }
   }, [state.phase, isMyTurn, engine, network]);
 
+  const handleTimeWarp = useCallback(() => {
+    if (state.phase !== 'action' || !isMyTurn) return;
+    sounds.portal();
+    const ok = engine.timeWarp(state.currentPlayerIndex);
+    if (ok) {
+      network.sendAction({ type: 'TIME_WARP', playerIdx: state.currentPlayerIndex });
+    }
+  }, [state.phase, state.currentPlayerIndex, isMyTurn, engine, network]);
+
 
 
   const canReverseTime = isMyTurn &&
@@ -234,6 +262,20 @@ function GameScreen({
     state.movementDirection !== 'backward' &&
     currentPlayer?.reverseTimeCooldown === 0 &&
     (currentPlayer?.energy || 0) >= 3;
+
+  const role = currentPlayer?.role || {};
+  const activeSkill = role.active || {};
+  const activeCost = activeSkill.energyCost || 0;
+  const hasEnoughEnergy = (currentPlayer?.energy || 0) >= activeCost;
+  const isAbilityOnCooldown = (currentPlayer?.activeCooldown || 0) > 0;
+  const hasUsedAbilityThisTurn = Boolean(currentPlayer?.usedAbilityThisTurn);
+  const canUseAbilityNow = isMyTurn && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && hasEnoughEnergy;
+
+  const currentTile = state.board?.[currentPlayer?.currentEra]?.[currentPlayer?.tileIndex];
+  const isOnTimeGate = currentTile?.type === 'timeGate';
+  const timeGateCost = currentPlayer?.roleKey === 'EXPLORER' ? 1 : 2;
+  const canTimeWarp = isMyTurn && isOnTimeGate && (currentPlayer?.energy || 0) >= timeGateCost;
+  const matchingArtifact = currentPlayer?.artifactCards?.find(a => a.era === currentPlayer?.currentEra);
 
   return (
     <div className={`game-screen mobile-tab-${mobileGameTab}`}>
@@ -245,6 +287,8 @@ function GameScreen({
         turnNumber={state.turnNumber}
         onOpenGuide={onOpenGuide}
         onOpenPause={handleOpenPause}
+        isSpectator={effectiveIsSpectator}
+        spectatorCount={spectators?.length || 0}
       />
 
       {/* MOBILE SCREEN TABS BAR */}
@@ -261,7 +305,7 @@ function GameScreen({
           className={`mobile-game-tab ${mobileGameTab === "actions" ? "active" : ""}`}
           onClick={() => { sounds.btnClick(); setMobileGameTab("actions"); }}
         >
-          ⚡ Actions & Die
+          {effectiveIsSpectator ? '👁️ Observatory' : '⚡ Actions & Die'}
           {isMyTurn && state.phase === 'rolling' && <span className="mobile-turn-pulse">!</span>}
         </button>
         <button
@@ -291,6 +335,8 @@ function GameScreen({
         onSelectPlayer={(playerId) => setInspectedPlayerId(playerId)}
         chatMessages={chatMessages}
         onSendMessage={(text) => network.sendChatMessage(text)}
+        isSpectator={effectiveIsSpectator}
+        spectators={spectators}
       />
 
       {/* 3. CENTER: FOUR QUADRANTS GAME BOARD */}
@@ -345,14 +391,36 @@ function GameScreen({
         {isMyTurn ? (
           <div className="mobile-dock-inner">
             {state.phase === 'rolling' && (
-              <button
-                type="button"
-                className="btn btn-roll-dice mobile-dock-roll-btn"
-                disabled={isRolling}
-                onClick={handleRollDice}
-              >
-                <span>🎲 ROLL MOVEMENT DIE</span>
-              </button>
+              <div className="mobile-dock-roll-group" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  type="button"
+                  className="btn btn-roll-dice mobile-dock-roll-btn"
+                  disabled={isRolling}
+                  onClick={handleRollDice}
+                >
+                  <span>🎲 ROLL DIE</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-accent mobile-dock-btn"
+                  style={{
+                    background: canUseAbilityNow ? 'linear-gradient(135deg, #8B5CF6, #6D28D9)' : 'rgba(255,255,255,0.08)',
+                    border: canUseAbilityNow ? '1.5px solid #A78BFA' : '1px solid rgba(255,255,255,0.15)',
+                    color: canUseAbilityNow ? '#FFF' : '#94A3B8',
+                    opacity: canUseAbilityNow ? 1 : 0.6,
+                    cursor: canUseAbilityNow ? 'pointer' : 'not-allowed'
+                  }}
+                  disabled={!canUseAbilityNow}
+                  title={activeSkill?.description}
+                  onClick={handleUseSkill}
+                >
+                  <span>✨ {activeSkill?.name || 'Ability'}</span>
+                  <span style={{ fontSize: '0.68rem', opacity: 0.9 }}>
+                    {hasUsedAbilityThisTurn ? '✓ Used' : (isAbilityOnCooldown ? `CD:${currentPlayer.activeCooldown}` : (currentPlayer.energy < activeCost ? `Need ${activeCost}En` : `-${activeCost}En`))}
+                  </span>
+                </button>
+              </div>
             )}
 
             {state.phase === 'moving' && (
@@ -383,9 +451,58 @@ function GameScreen({
 
             {state.phase === 'action' && (
               <div className="mobile-dock-action-group">
+                {canUseAbilityNow && (
+                  <button
+                    type="button"
+                    className="btn btn-accent mobile-dock-btn"
+                    style={{
+                      background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)',
+                      border: '1.5px solid #A78BFA',
+                      color: '#FFF'
+                    }}
+                    onClick={handleUseSkill}
+                  >
+                    <span>✨ {activeSkill?.name}</span>
+                    <span style={{ fontSize: '0.68rem', opacity: 0.9 }}>-{activeCost}En</span>
+                  </button>
+                )}
+
+                {matchingArtifact && (
+                  <button
+                    type="button"
+                    className="btn mobile-dock-btn"
+                    style={{
+                      background: 'linear-gradient(135deg, #10B981, #059669)',
+                      border: '1.5px solid #34D399',
+                      color: '#FFF'
+                    }}
+                    onClick={handleReturnArtifact}
+                  >
+                    <span>📦 Relic (+5)</span>
+                  </button>
+                )}
+
+                {canTimeWarp && (
+                  <button
+                    type="button"
+                    className="btn mobile-dock-btn"
+                    style={{
+                      background: 'linear-gradient(135deg, #7C3AED, #5B21B6)',
+                      border: '1.5px solid #A78BFA',
+                      color: '#FFF'
+                    }}
+                    onClick={handleTimeWarp}
+                  >
+                    <span>🌀 Warp</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   className="btn btn-primary mobile-dock-btn"
+                  style={{
+                    boxShadow: '0 0 12px rgba(56, 189, 248, 0.5)'
+                  }}
                   onClick={handleEndTurn}
                 >
                   🏁 Finish Turn
@@ -431,6 +548,16 @@ function GameScreen({
         onUseSkill={handleUseSkill}
         onReturnArtifact={handleReturnArtifact}
         onEndTurn={handleEndTurn}
+        onTimeWarp={handleTimeWarp}
+        isSpectator={effectiveIsSpectator}
+        viewedPlayerId={viewedPlayer.id}
+        onSelectPlayer={(id) => setInspectedPlayerId(id)}
+        autoFollow={autoFollow}
+        onToggleAutoFollow={(val) => setAutoFollow(val)}
+        omniscientIntel={omniscientIntel}
+        onToggleOmniscientIntel={(val) => setOmniscientIntel(val)}
+        simulationSpeed={simulationSpeed}
+        onChangeSimulationSpeed={onChangeSimulationSpeed}
       />
 
       {/* 5. BOTTOM PANEL: HAND & MISSIONS */}
@@ -442,6 +569,8 @@ function GameScreen({
         onChangeTab={(tab) => setActiveHandTab(tab)}
         onViewMyHand={() => setInspectedPlayerId(null)}
         onInspectCard={onInspectCard}
+        isSpectator={effectiveIsSpectator}
+        omniscientIntel={omniscientIntel}
       />
 
 

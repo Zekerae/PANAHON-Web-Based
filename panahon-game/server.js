@@ -56,23 +56,68 @@ function getPublicPlayers(room) {
   }));
 }
 
-function broadcast(room, message, excludeWs = null) {
-  if (!room || !Array.isArray(room.players)) return;
-  const data = typeof message === 'string' ? message : JSON.stringify(message);
-  room.players.forEach(player => {
-    if (player && player.ws !== excludeWs && player.ws && player.ws.readyState === 1) {
-      try {
-        player.ws.send(data);
-      } catch (err) {
-        console.error(`Broadcast error to player ${player.id}:`, err?.message || err);
-      }
-    }
-  });
+function getPublicSpectators(room) {
+  if (!room || !Array.isArray(room.spectators)) return [];
+  return room.spectators.filter(s => s && s.connected).map(s => ({
+    id: s.id,
+    name: s.name,
+    connected: s.connected
+  }));
 }
 
-function handlePlayerExit(room, playerId, ws) {
+function broadcast(room, message, excludeWs = null) {
+  if (!room) return;
+  const data = typeof message === 'string' ? message : JSON.stringify(message);
+  if (Array.isArray(room.players)) {
+    room.players.forEach(player => {
+      if (player && player.ws !== excludeWs && player.ws && player.ws.readyState === 1) {
+        try {
+          player.ws.send(data);
+        } catch (err) {
+          console.error(`Broadcast error to player ${player.id}:`, err?.message || err);
+        }
+      }
+    });
+  }
+  if (Array.isArray(room.spectators)) {
+    room.spectators.forEach(spec => {
+      if (spec && spec.ws !== excludeWs && spec.ws && spec.ws.readyState === 1) {
+        try {
+          spec.ws.send(data);
+        } catch (err) {
+          console.error(`Broadcast error to spectator ${spec.id}:`, err?.message || err);
+        }
+      }
+    });
+  }
+}
+
+function handlePlayerExit(room, playerId, ws, spectatorId = null) {
   try {
-    if (!room || playerId === null || !Array.isArray(room.players)) return;
+    if (!room) return;
+
+    if (spectatorId && Array.isArray(room.spectators)) {
+      const spec = room.spectators.find(s => s.id === spectatorId || s.ws === ws);
+      room.spectators = room.spectators.filter(s => s.id !== spectatorId && s.ws !== ws);
+      if (spec) {
+        broadcast(room, {
+          type: 'SPECTATOR_COUNT_UPDATE',
+          spectators: getPublicSpectators(room),
+          spectatorLeft: { id: spec.id, name: spec.name }
+        }, ws);
+        console.log(`[Spectator] ${spec.name} left room ${room.code}. Remaining: ${room.spectators.length}`);
+      }
+    }
+
+    if (playerId === null || !Array.isArray(room.players)) {
+      const activeCount = (room.players || []).filter(p => p && p.connected && p.ws && p.ws.readyState === 1).length;
+      const specCount = (room.spectators || []).filter(s => s && s.connected && s.ws && s.ws.readyState === 1).length;
+      if (activeCount === 0 && specCount === 0) {
+        rooms.delete(room.code);
+        console.log(`Room ${room.code} deleted (empty)`);
+      }
+      return;
+    }
 
     if (!room.gameStarted) {
       // Before game starts:
@@ -131,9 +176,10 @@ function handlePlayerExit(room, playerId, ws) {
 
     // Clean up if room is completely empty
     const activeCount = room.players.filter(p => p && p.connected && p.ws && p.ws.readyState === 1).length;
-    if (activeCount === 0) {
+    const specCount = (room.spectators || []).filter(s => s && s.connected && s.ws && s.ws.readyState === 1).length;
+    if (activeCount === 0 && specCount === 0) {
       rooms.delete(room.code);
-      console.log(`Room ${room.code} deleted (all players departed)`);
+      console.log(`Room ${room.code} deleted (all players & spectators departed)`);
     }
   } catch (err) {
     console.error('Error in handlePlayerExit:', err);
@@ -166,6 +212,7 @@ wss.on('connection', (ws) => {
 
   let currentRoom = null;
   let currentPlayerId = null;
+  let currentSpectatorId = null;
   let msgCount = 0;
   let lastRateReset = Date.now();
 
@@ -221,6 +268,7 @@ wss.on('connection', (ws) => {
               ws,
               connected: true
             }],
+            spectators: [],
             gameStarted: false,
             state: null,
             messages: []
@@ -261,11 +309,21 @@ wss.on('connection', (ws) => {
           }
 
           if (room.players.length >= 4) {
-            ws.send(JSON.stringify({ type: 'ERROR', message: 'Room is full! (Max 4 players)' }));
+            ws.send(JSON.stringify({
+              type: 'CAN_SPECTATE',
+              roomCode,
+              reason: 'full',
+              message: 'Room is full! (Max 4 players). Would you like to watch as a spectator?'
+            }));
             return;
           }
           if (room.gameStarted) {
-            ws.send(JSON.stringify({ type: 'ERROR', message: 'Game already in progress!' }));
+            ws.send(JSON.stringify({
+              type: 'CAN_SPECTATE',
+              roomCode,
+              reason: 'in_progress',
+              message: 'Game is already in progress! Would you like to watch live as a spectator?'
+            }));
             return;
           }
 
@@ -344,10 +402,65 @@ wss.on('connection', (ws) => {
           break;
         }
 
+        case 'SPECTATE_ROOM': {
+          if (currentRoom) {
+            handlePlayerExit(currentRoom, currentPlayerId, ws, currentSpectatorId);
+            currentRoom = null;
+            currentPlayerId = null;
+            currentSpectatorId = null;
+          }
+
+          const roomCode = (msg.roomCode || '').trim().toUpperCase();
+          const room = rooms.get(roomCode);
+          if (!room) {
+            ws.send(JSON.stringify({ type: 'ERROR', message: `Room "${roomCode}" not found!` }));
+            return;
+          }
+
+          if (!room.spectators) room.spectators = [];
+          const spectatorId = `spec_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+          const specName = (msg.spectatorName || 'Chronos Observer').trim();
+          const spectator = {
+            id: spectatorId,
+            name: specName,
+            ws,
+            connected: true
+          };
+
+          room.spectators.push(spectator);
+          currentRoom = room;
+          currentSpectatorId = spectatorId;
+
+          const roster = getPublicPlayers(room);
+          const spectatorsList = getPublicSpectators(room);
+
+          ws.send(JSON.stringify({
+            type: 'SPECTATOR_JOINED',
+            roomCode,
+            spectatorId,
+            spectatorName: spectator.name,
+            players: roster,
+            spectators: spectatorsList,
+            gameStarted: room.gameStarted,
+            state: room.state,
+            messages: room.messages || []
+          }));
+
+          broadcast(room, {
+            type: 'SPECTATOR_COUNT_UPDATE',
+            spectators: spectatorsList,
+            spectatorJoined: { id: spectatorId, name: spectator.name }
+          }, ws);
+
+          console.log(`[Spectator] ${spectator.name} (${spectatorId}) is spectating room ${roomCode}`);
+          break;
+        }
+
         case 'LEAVE_ROOM': {
-          handlePlayerExit(currentRoom, currentPlayerId, ws);
+          handlePlayerExit(currentRoom, currentPlayerId, ws, currentSpectatorId);
           currentRoom = null;
           currentPlayerId = null;
+          currentSpectatorId = null;
           break;
         }
 
@@ -356,12 +469,16 @@ wss.on('connection', (ws) => {
           const text = (msg.text || '').trim();
           if (!text) return;
 
-          const player = currentRoom.players.find(p => p.id === currentPlayerId);
+          const isSpectator = Boolean(currentSpectatorId || msg.isSpectator);
+          const player = isSpectator ? null : currentRoom.players.find(p => p.id === currentPlayerId);
+          const spec = isSpectator ? currentRoom.spectators?.find(s => s.id === currentSpectatorId) : null;
+
           const chatMsg = {
             type: 'CHAT_MESSAGE',
-            senderId: currentPlayerId,
-            senderName: player?.name || msg.senderName || 'Castaway',
-            roleKey: player?.roleKey || msg.roleKey || 'HISTORIAN',
+            senderId: isSpectator ? currentSpectatorId : currentPlayerId,
+            senderName: isSpectator ? (spec?.name || msg.senderName || 'Observer') : (player?.name || msg.senderName || 'Castaway'),
+            roleKey: isSpectator ? 'SPECTATOR' : (player?.roleKey || msg.roleKey || 'HISTORIAN'),
+            isSpectator,
             text: text.slice(0, 300),
             timestamp: Date.now()
           };
@@ -407,7 +524,7 @@ wss.on('connection', (ws) => {
         }
 
         case 'GAME_ACTION': {
-          if (!currentRoom) return;
+          if (!currentRoom || currentSpectatorId) return;
           broadcast(currentRoom, {
             type: 'GAME_ACTION',
             playerId: currentPlayerId,
@@ -433,12 +550,13 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     try {
-      handlePlayerExit(currentRoom, currentPlayerId, ws);
+      handlePlayerExit(currentRoom, currentPlayerId, ws, currentSpectatorId);
     } catch (err) {
       console.error('Error in close handler:', err);
     }
     currentRoom = null;
     currentPlayerId = null;
+    currentSpectatorId = null;
   });
 });
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import sounds from '../sound.js';
 import { ERA_NAMES } from '../gameData.js';
 import Dice from './game/Dice';
@@ -65,40 +65,123 @@ export function MaximizedCardPreview({ data, onClose }) {
 export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   if (!modal) return null;
 
-  const activePlayer = engine.getCurrentPlayer();
-  const drawingPlayer = (modal.playerId !== undefined && engine.state?.players[modal.playerId])
+  const activePlayer = engine?.getCurrentPlayer?.() || engine?.state?.players?.[engine?.state?.currentPlayerIndex];
+  const drawingPlayer = (modal.playerId !== undefined && engine?.state?.players?.[modal.playerId])
     ? engine.state.players[modal.playerId]
-    : activePlayer;
+    : (modal.drawingPlayer || activePlayer);
+
   const isAi = drawingPlayer?.isAi === true;
+  const isSpectator = network?.isSpectator === true;
+  const isOnline = network?.mode === 'online';
+
+  // In online mode, drawing player id matches network.playerId; in local mode, human player is taking turn
+  const isMyCard = !isSpectator && (
+    isOnline
+      ? (drawingPlayer?.id !== undefined ? drawingPlayer.id === network.playerId : false)
+      : (!isAi && activePlayer?.id === drawingPlayer?.id)
+  );
+
+  const isOtherPlayer = !isMyCard;
 
   const isDanger = modal.type === 'danger';
   const isEvent = modal.type === 'event';
   const isArtifact = modal.type === 'artifact';
   const isClue = modal.isClue || modal.cardType === 'Clue Card' || modal.cardType === 'Decoy Card';
 
-  // In online multiplayer, hide other players' clue cards
-  const isSecretToMe = (network.mode === 'online') && isClue && (modal.playerId !== undefined) && (modal.playerId !== network.playerId);
+  // In online multiplayer, hide other players' clue cards (unless observing as spectator)
+  const isSecretToMe = isOnline && isClue && (modal.playerId !== undefined) && (modal.playerId !== network.playerId) && !isSpectator;
 
-  // Auto-dismiss for AI bot card draw after 3s
+  // Duration: 6.0 seconds for Event / Danger cards, 5.5s for Artifacts, 4.5s for Clues/Info
+  const speed = engine?.simulationSpeed || 1;
+  const durationMs = (isDanger || isEvent)
+    ? Math.max(3000, Math.round(6000 / speed))
+    : (isArtifact ? Math.max(2600, Math.round(5500 / speed)) : Math.max(2200, Math.round(4500 / speed)));
+
+  const [isHovered, setIsHovered] = useState(false);
+  const startTimeRef = useRef(Date.now());
+  const elapsedRef = useRef(0);
+  const timerRef = useRef(null);
+
   useEffect(() => {
-    if (isAi) {
-      const timer = setTimeout(() => {
-        onDismiss();
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [isAi, modal]);
+    startTimeRef.current = Date.now();
+    elapsedRef.current = 0;
+  }, [modal?.title, modal?._timestamp]);
 
-  if (isAi) {
+  // Tell engine when user is hovering so AI bots and auto-move pause
+  useEffect(() => {
+    if (engine) {
+      engine._isModalHovered = isHovered;
+    }
+    return () => {
+      if (engine) {
+        engine._isModalHovered = false;
+      }
+    };
+  }, [isHovered, engine]);
+
+  // High-performance single timer without 100ms polling/re-rendering
+  useEffect(() => {
+    if (!isOtherPlayer) return;
+
+    if (isHovered) {
+      elapsedRef.current += Date.now() - startTimeRef.current;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      return;
+    }
+
+    startTimeRef.current = Date.now();
+    const remaining = Math.max(400, durationMs - elapsedRef.current);
+
+    timerRef.current = setTimeout(() => {
+      onDismiss();
+    }, remaining);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [isOtherPlayer, isHovered, durationMs, onDismiss]);
+
+  const handleDismiss = () => {
+    sounds.btnClick();
+    if (!network.isSpectator && (network.mode !== 'online' || modal.playerId === undefined || modal.playerId === network.playerId)) {
+      engine.dismissModal();
+      network.sendAction({ type: 'DISMISS_MODAL' });
+    }
+    onDismiss();
+  };
+
+  if (isOtherPlayer) {
+    const cardClass = isDanger ? 'danger-card' : (isEvent ? 'event-card' : (isArtifact ? 'artifact-card' : 'clue-card'));
+    const timerFillGradient = isDanger
+      ? 'linear-gradient(90deg, #EF4444, #F97316)'
+      : (isEvent ? 'linear-gradient(90deg, #F59E0B, #FCD34D)' : (isArtifact ? 'linear-gradient(90deg, #10B981, #34D399)' : 'linear-gradient(90deg, #3B82F6, #60A5FA)'));
+
     return (
-      <div className="side-card-overlay" id="active-modal">
+      <div
+        className={`side-card-overlay ${cardClass} ${isHovered ? 'paused' : ''}`}
+        id="active-modal"
+        style={{ '--timer-duration': `${durationMs}ms` }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <div className="side-card-header">
           <div className="side-card-title">
-            <span className="bot-badge">🤖 BOT</span>
+            {isAi ? (
+              <span className="bot-badge">🤖 BOT</span>
+            ) : isSpectator ? (
+              <span className="bot-badge" style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38BDF8', borderColor: 'rgba(56, 189, 248, 0.4)' }}>
+                👁️ OBSERVED
+              </span>
+            ) : (
+              <span className="bot-badge" style={{ background: 'rgba(168, 85, 247, 0.2)', color: '#C084FC', borderColor: 'rgba(168, 85, 247, 0.4)' }}>
+                👤 {drawingPlayer?.name || 'Player'}
+              </span>
+            )}
             <span style={{ color: isDanger ? 'var(--text-danger)' : (isEvent ? 'var(--tile-event)' : 'var(--text-accent)') }}>
               {modal.cardType || modal.title}
             </span>
           </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <button
               className="side-card-maximize"
@@ -107,7 +190,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                 sounds.btnClick();
                 onMaximize({
                   title: modal.title,
-                  cardType: modal.cardType || (isDanger ? 'Hazard Anomaly' : 'Event Card'),
+                  cardType: modal.cardType || (isDanger ? 'Hazard Anomaly' : (isEvent ? 'Temporal Event' : 'Intel Card')),
                   description: modal.description,
                   image: modal.image,
                   diceRoll: modal.diceRoll,
@@ -129,8 +212,13 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         </div>
 
         <div className="side-card-body">
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-            <strong style={{ color: drawingPlayer?.color || '#fff' }}>{drawingPlayer?.name || modal.playerName || 'Bot'}</strong> drew a card:
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <strong style={{ color: drawingPlayer?.color || '#fff' }}>{drawingPlayer?.name || modal.playerName || 'Bot'}</strong> landed on {isDanger ? 'Hazard' : (isEvent ? 'Event' : 'Tile')}:
+            </div>
+            {modal.era && (
+              <span style={{ fontSize: '0.7rem', color: '#94A3B8' }}>{ERA_NAMES[modal.era] || modal.era}</span>
+            )}
           </div>
 
           <div
@@ -139,7 +227,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               sounds.btnClick();
               onMaximize({
                 title: modal.title,
-                cardType: modal.cardType || (isDanger ? 'Hazard Anomaly' : 'Event Card'),
+                cardType: modal.cardType || (isDanger ? 'Hazard Anomaly' : (isEvent ? 'Temporal Event' : 'Intel Card')),
                 description: modal.description,
                 image: modal.image,
                 diceRoll: modal.diceRoll,
@@ -153,58 +241,80 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
             }}
           >
             {modal.image && <img src={modal.image} className="side-card-thumb" alt={modal.title} />}
-            <div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-primary)' }}>{modal.title}</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.3, marginTop: '2px' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.35, marginTop: '2px' }}>
                 {modal.description || ''}
               </div>
             </div>
           </div>
 
-          <div
-            style={{ fontSize: '0.68rem', color: '#60A5FA', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
-            onClick={() => {
-              sounds.btnClick();
-              onMaximize({
-                title: modal.title,
-                cardType: modal.cardType || (isDanger ? 'Hazard Anomaly' : 'Event Card'),
-                description: modal.description,
-                image: modal.image,
-                diceRoll: modal.diceRoll,
-                success: modal.success,
-                successMsg: modal.successMsg,
-                failMsg: modal.failMsg,
-                isDanger,
-                isEvent,
-                era: modal.era
-              });
-            }}
-          >
-            <span>🔍</span> Click card to view in full size
-          </div>
-
           {isDanger && modal.diceRoll !== undefined && (
-            <div style={{ marginTop: '6px', fontSize: '0.75rem', color: modal.success ? 'var(--text-success)' : 'var(--text-danger)', fontWeight: 700 }}>
+            <div style={{
+              marginTop: '6px',
+              padding: '6px 8px',
+              background: modal.success ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+              border: `1px solid ${modal.success ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              color: modal.success ? 'var(--text-success)' : 'var(--text-danger)',
+              fontWeight: 700
+            }}>
               🎲 Rolled {modal.diceRoll}: {modal.success ? '✓ Hazard Evaded' : '✗ Hazard Triggered'}
+              <div style={{ fontSize: '0.7rem', fontWeight: 500, marginTop: '2px', color: '#E2E8F0' }}>
+                {modal.success ? modal.successMsg : modal.failMsg}
+              </div>
             </div>
           )}
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.68rem' }}>
+            <span
+              style={{ color: '#60A5FA', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+              onClick={() => {
+                sounds.btnClick();
+                onMaximize({
+                  title: modal.title,
+                  cardType: modal.cardType || (isDanger ? 'Hazard Anomaly' : (isEvent ? 'Temporal Event' : 'Intel Card')),
+                  description: modal.description,
+                  image: modal.image,
+                  diceRoll: modal.diceRoll,
+                  success: modal.success,
+                  successMsg: modal.successMsg,
+                  failMsg: modal.failMsg,
+                  isDanger,
+                  isEvent,
+                  era: modal.era
+                });
+              }}
+            >
+              <span>🔍</span> Click card to expand
+            </span>
+
+            {isHovered ? (
+              <span style={{ color: '#FCD34D', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                ⏸️ Paused (Hovering)
+              </span>
+            ) : (
+              <span style={{ color: '#94A3B8' }}>
+                ⏱️ Auto-closing (Hover to pause)
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="overlay-timer-bar">
-          <div className="overlay-timer-fill"></div>
+          <div
+            className="overlay-timer-fill"
+            style={{
+              background: timerFillGradient,
+              animationDuration: `${durationMs}ms`,
+              animationPlayState: isHovered ? 'paused' : 'running'
+            }}
+          ></div>
         </div>
       </div>
     );
   }
-
-  const handleDismiss = () => {
-    sounds.btnClick();
-    if (network.mode !== 'online' || modal.playerId === undefined || modal.playerId === network.playerId) {
-      engine.dismissModal();
-      network.sendAction({ type: 'DISMISS_MODAL' });
-    }
-    onDismiss();
-  };
 
   if (isSecretToMe) {
     return (
@@ -286,24 +396,61 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
 export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) {
   if (!choice) return null;
 
-  const activePlayer = engine.getCurrentPlayer();
+  const activePlayer = engine?.getCurrentPlayer?.() || engine?.state?.players?.[engine?.state?.currentPlayerIndex];
   const isAi = activePlayer?.isAi === true;
-  const isMyTurn = !isAi && network.isMyTurn(engine.state.currentPlayerIndex);
+  const isSpectator = network?.isSpectator === true;
+  const isMyTurn = !isAi && !isSpectator && network.isMyTurn(engine?.state?.currentPlayerIndex);
   const isDecipher = choice.type === 'historianDecipher';
   const isClueHandLimit = choice.type === 'clueHandLimit';
   const isTeleport = choice.type === 'teleportTile';
   const [tileFilter, setTileFilter] = useState('all');
 
+  const speed = engine?.simulationSpeed || 1;
+  const durationMs = Math.max(2400, Math.round(4200 / speed));
+  const [isHovered, setIsHovered] = useState(false);
+  const startTimeRef = useRef(Date.now());
+  const elapsedRef = useRef(0);
+  const timerRef = useRef(null);
+
   useEffect(() => {
-    if (isAi) {
-      const timer = setTimeout(() => {
-        onDismiss();
-      }, 2800);
-      return () => clearTimeout(timer);
+    startTimeRef.current = Date.now();
+    elapsedRef.current = 0;
+  }, [choice?.title]);
+
+  useEffect(() => {
+    if (isAi && engine) {
+      engine._isModalHovered = isHovered;
     }
-  }, [isAi, choice]);
+    return () => {
+      if (isAi && engine) {
+        engine._isModalHovered = false;
+      }
+    };
+  }, [isHovered, isAi, engine]);
+
+  useEffect(() => {
+    if (!isAi) return;
+
+    if (isHovered) {
+      elapsedRef.current += Date.now() - startTimeRef.current;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      return;
+    }
+
+    startTimeRef.current = Date.now();
+    const remaining = Math.max(400, durationMs - elapsedRef.current);
+
+    timerRef.current = setTimeout(() => {
+      onDismiss();
+    }, remaining);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [isAi, isHovered, durationMs, onDismiss]);
 
   const handleSelect = (action) => {
+    if (network.isSpectator) return;
     sounds.btnClick();
     if (action && (action.startsWith('warp_') || action.startsWith('teleport_') || ['spanish', 'american', 'japanese', 'myth'].includes(action))) {
       sounds.portal();
@@ -315,9 +462,14 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
 
   if (isAi) {
     const targetCard = (isDecipher && choice.drawnCards) ? choice.drawnCards[0] : (isClueHandLimit && choice.drawnCard) ? choice.drawnCard : null;
-
     return (
-      <div className="side-card-overlay" id="active-modal">
+      <div
+        className={`side-card-overlay ${isHovered ? 'paused' : ''}`}
+        id="active-modal"
+        style={{ '--timer-duration': `${durationMs}ms` }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <div className="side-card-header">
           <div className="side-card-title">
             <span className="bot-badge">🤖 BOT</span>
@@ -350,7 +502,7 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
 
         <div className="side-card-body">
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            <strong style={{ color: activePlayer.color || '#fff' }}>{activePlayer.name}</strong> evaluated tactical options:
+            <strong style={{ color: activePlayer?.color || '#fff' }}>{activePlayer?.name || 'Bot'}</strong> evaluated tactical options:
           </div>
 
           {isTeleport && (
@@ -387,16 +539,33 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
             </div>
           )}
 
-          <div className="side-card-status">
-            <span className="ai-pulse-dot"></span>
-            <span style={{ fontSize: '0.78rem', color: '#93C5FD', fontWeight: 600 }}>
-              {choice.options[0]?.label || 'Resolving automatically...'}
-            </span>
+          <div className="side-card-status" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="ai-pulse-dot"></span>
+              <span style={{ fontSize: '0.78rem', color: '#93C5FD', fontWeight: 600 }}>
+                {choice.options?.[0]?.label || 'Resolving automatically...'}
+              </span>
+            </div>
+            {isHovered ? (
+              <span style={{ color: '#FCD34D', fontSize: '0.68rem', fontWeight: 700 }}>
+                ⏸️ Paused
+              </span>
+            ) : (
+              <span style={{ color: '#94A3B8', fontSize: '0.68rem' }}>
+                ⏱️ Resolving...
+              </span>
+            )}
           </div>
         </div>
 
         <div className="overlay-timer-bar">
-          <div className="overlay-timer-fill"></div>
+          <div
+            className="overlay-timer-fill"
+            style={{
+              animationDuration: `${durationMs}ms`,
+              animationPlayState: isHovered ? 'paused' : 'running'
+            }}
+          ></div>
         </div>
       </div>
     );

@@ -6,7 +6,9 @@ function GameHeader({
   timelineClass,
   timerStr,
   turnNumber,
-  onOpenPause
+  onOpenPause,
+  isSpectator = false,
+  spectatorCount = 0
 }) {
   return (
     <header className="game-header">
@@ -31,6 +33,38 @@ function GameHeader({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+        {isSpectator && (
+          <div className="spectator-live-indicator" style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(56, 189, 248, 0.2))',
+            border: '1px solid #C084FC',
+            boxShadow: '0 0 15px rgba(168, 85, 247, 0.35)',
+            padding: '4px 10px',
+            borderRadius: '20px',
+            fontSize: '0.72rem',
+            fontWeight: 800,
+            color: '#F5D0FE',
+            letterSpacing: '1px'
+          }}>
+            <span className="spectator-pulse-dot" style={{
+              width: '7px',
+              height: '7px',
+              borderRadius: '50%',
+              background: '#EF4444',
+              boxShadow: '0 0 8px #EF4444',
+              display: 'inline-block'
+            }} />
+            <span>👁️ SPECTATING LIVE</span>
+            {spectatorCount > 1 && (
+              <span style={{ fontSize: '0.66rem', color: '#CBD5E1', marginLeft: '4px' }}>
+                ({spectatorCount} watching)
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="game-timer">
           <span>⏱️</span>
           <span>{timerStr}</span>

@@ -503,7 +503,7 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEdi
 /* ==========================================================================
    4. FRIENDS & ALLIES MODAL
    ========================================================================== */
-export function FriendsModal({ onClose, onSelectMode }) {
+export function FriendsModal({ onClose, onSelectMode, onSpectateOnline }) {
   const [roomCodeInput, setRoomCodeInput] = useState('');
 
   const handleJoin = (e) => {
@@ -512,6 +512,14 @@ export function FriendsModal({ onClose, onSelectMode }) {
       sounds.btnClick();
       onClose();
       onSelectMode('online');
+    }
+  };
+
+  const handleSpectate = () => {
+    if (roomCodeInput.trim()) {
+      sounds.portal();
+      onClose();
+      onSpectateOnline?.(roomCodeInput.trim().toUpperCase());
     }
   };
 
@@ -546,8 +554,23 @@ export function FriendsModal({ onClose, onSelectMode }) {
                 maxLength={6}
                 style={{ flex: 1, padding: '8px 12px', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', color: '#FFF', fontSize: '0.95rem', letterSpacing: '2px', textAlign: 'center', fontFamily: 'monospace' }}
               />
-              <button type="submit" className="btn btn-primary" style={{ padding: '8px 18px', fontSize: '0.82rem' }}>
+              <button type="submit" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.82rem' }}>
                 Join Link
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={handleSpectate}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '0.82rem',
+                  background: 'linear-gradient(135deg, #8B5CF6, #6366F1)',
+                  color: '#FFF',
+                  border: '1px solid #C084FC',
+                  fontWeight: 800
+                }}
+              >
+                👁️ Watch
               </button>
             </form>
           </div>

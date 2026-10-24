@@ -17,13 +17,19 @@ export default function LobbyScreen({
   setOnlineRoomCodeInput,
   network,
   currentRoomPlayers,
+  spectators = [],
+  isSpectator = false,
+  canSpectatePrompt = null,
   isConnectingOnline,
   onStartLocal,
+  onStartSpectatorSimulation,
   onConnectOnline,
+  onSpectateOnline,
+  onAcceptCanSpectate,
+  onDismissCanSpectatePrompt,
   onLeaveRoom,
   onStartOnline,
   onBack,
-  onOpenSupabaseConfig
 }) {
   const [onlineSubMode, setOnlineSubMode] = useState("create");
   const roleKeys = ROLE_ORDER;
@@ -58,6 +64,16 @@ export default function LobbyScreen({
       { name: "Player 2", roleKey: "EXPLORER", type: "human", difficulty: "normal" },
       { name: "Player 3", roleKey: "GUARDIAN", type: "human", difficulty: "normal" },
       { name: "Player 4", roleKey: "STRATEGIST", type: "human", difficulty: "normal" }
+    ]);
+  };
+
+  const applyPresetSpectator = () => {
+    sounds.btnClick();
+    setLocalPlayers([
+      { name: "Bot Historian", roleKey: "HISTORIAN", type: "ai", difficulty: "normal" },
+      { name: "Bot Explorer", roleKey: "EXPLORER", type: "ai", difficulty: "normal" },
+      { name: "Bot Guardian", roleKey: "GUARDIAN", type: "ai", difficulty: "normal" },
+      { name: "Bot Strategist", roleKey: "STRATEGIST", type: "ai", difficulty: "normal" }
     ]);
   };
 
@@ -209,9 +225,10 @@ export default function LobbyScreen({
           {/* Tactical Preset Bar */}
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
             {[
-              { label: "⚔️ Solo Operative (1 Human + 3 AI)", fn: applyPreset1v3 },
-              { label: "🤝 Dual Strike (2 Humans + 2 AI)", fn: applyPreset2v2 },
+              { label: "⚔️ Solo (1 Human + 3 AI)", fn: applyPreset1v3 },
+              { label: "🤝 Dual Strike (2H + 2 AI)", fn: applyPreset2v2 },
               { label: "👥 Full Cadre (4 Humans)", fn: applyPreset4Human },
+              { label: "👁️ Spectator Sim (4 AI Bots)", fn: applyPresetSpectator },
               { label: "🎲 Rebalance Roles", fn: applyPresetRandom }
             ].map((p, i) => (
               <button
@@ -441,19 +458,37 @@ export default function LobbyScreen({
               ← Return to Headquarters
             </button>
 
-            <button
-              className="btn btn-primary"
-              disabled={activeSlots.length === 0}
-              onClick={onStartLocal}
-              style={{
-                padding: "10px 24px",
-                fontSize: "0.88rem",
-                fontWeight: 800,
-                letterSpacing: "1px"
-              }}
-            >
-              🚀 INITIATE EXPEDITION ({activeSlots.length}) ➔
-            </button>
+            {activeSlots.length > 0 && activeSlots.every(p => p.type === 'ai') ? (
+              <button
+                className="btn btn-primary"
+                onClick={() => onStartLocal(undefined, true)}
+                style={{
+                  padding: "10px 24px",
+                  fontSize: "0.88rem",
+                  fontWeight: 800,
+                  letterSpacing: "1px",
+                  background: "linear-gradient(135deg, #8B5CF6, #3B82F6)",
+                  boxShadow: "0 0 20px rgba(139, 92, 246, 0.4)",
+                  border: "1px solid #C084FC"
+                }}
+              >
+                👁️ SPECTATE AI EXPEDITION ({activeSlots.length} BOTS) ➔
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary"
+                disabled={activeSlots.length === 0}
+                onClick={() => onStartLocal()}
+                style={{
+                  padding: "10px 24px",
+                  fontSize: "0.88rem",
+                  fontWeight: 800,
+                  letterSpacing: "1px"
+                }}
+              >
+                🚀 INITIATE EXPEDITION ({activeSlots.length}) ➔
+              </button>
+            )}
           </div>
         </div>
       ) : (
@@ -470,6 +505,55 @@ export default function LobbyScreen({
             boxShadow: "0 16px 50px rgba(0, 0, 0, 0.7)"
           }}
         >
+          {canSpectatePrompt && (
+            <div style={{
+              background: "linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(56, 189, 248, 0.2))",
+              border: "1.5px solid #A855F7",
+              borderRadius: "8px",
+              padding: "14px 16px",
+              marginBottom: "16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+              boxShadow: "0 0 25px rgba(168, 85, 247, 0.3)"
+            }}>
+              <div>
+                <div style={{ fontSize: "0.88rem", fontWeight: 800, color: "#E9D5FF", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span>👁️</span> Live Match Available to Spectate
+                </div>
+                <div style={{ fontSize: "0.78rem", color: "#CBD5E1", marginTop: "2px" }}>
+                  {canSpectatePrompt.message || "This match is ongoing or full. You can join the observatory deck to watch!"}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  className="btn"
+                  onClick={onAcceptCanSpectate}
+                  style={{
+                    background: "linear-gradient(135deg, #A855F7, #6366F1)",
+                    color: "#FFF",
+                    fontWeight: 800,
+                    fontSize: "0.8rem",
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    border: "none",
+                    cursor: "pointer"
+                  }}
+                >
+                  👁️ Watch Match
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={onDismissCanSpectatePrompt}
+                  style={{ padding: "8px 12px", fontSize: "0.76rem" }}
+                >
+                  ✕ Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
           {!isRoomActive && (
             <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
               <button
@@ -481,12 +565,12 @@ export default function LobbyScreen({
                   border: onlineSubMode === "create" ? "1.5px solid #38BDF8" : "1px solid rgba(255, 255, 255, 0.1)",
                   borderRadius: "6px",
                   color: onlineSubMode === "create" ? "#FFF" : "#94A3B8",
-                  fontSize: "0.8rem",
+                  fontSize: "0.78rem",
                   fontWeight: 800,
                   cursor: "pointer"
                 }}
               >
-                🚀 HOST TIMELINE ROOM
+                🚀 HOST ROOM
               </button>
               <button
                 onClick={() => { sounds.btnClick(); setOnlineSubMode("join"); }}
@@ -497,12 +581,28 @@ export default function LobbyScreen({
                   border: onlineSubMode === "join" ? "1.5px solid #38BDF8" : "1px solid rgba(255, 255, 255, 0.1)",
                   borderRadius: "6px",
                   color: onlineSubMode === "join" ? "#FFF" : "#94A3B8",
-                  fontSize: "0.8rem",
+                  fontSize: "0.78rem",
                   fontWeight: 800,
                   cursor: "pointer"
                 }}
               >
-                🚪 JOIN EXISTING ANOMALY
+                🚪 JOIN AS PLAYER
+              </button>
+              <button
+                onClick={() => { sounds.btnClick(); setOnlineSubMode("spectate"); }}
+                style={{
+                  flex: 1,
+                  padding: "8px",
+                  background: onlineSubMode === "spectate" ? "rgba(168, 85, 247, 0.3)" : "rgba(255, 255, 255, 0.05)",
+                  border: onlineSubMode === "spectate" ? "1.5px solid #C084FC" : "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "6px",
+                  color: onlineSubMode === "spectate" ? "#F5D0FE" : "#94A3B8",
+                  fontSize: "0.78rem",
+                  fontWeight: 800,
+                  cursor: "pointer"
+                }}
+              >
+                👁️ SPECTATE MATCH
               </button>
             </div>
           )}
@@ -532,11 +632,12 @@ export default function LobbyScreen({
                 />
               </div>
 
-              {/* Role Selection Grid */}
-              <div>
-                <label style={{ fontSize: "0.74rem", color: "#94A3B8", fontWeight: 800, letterSpacing: "1px", marginBottom: "6px", display: "block" }}>
-                  SELECT OPERATIVE DISCIPLINE:
-                </label>
+              {/* Role Selection Grid (Only if creating or joining as player) */}
+              {onlineSubMode !== "spectate" && (
+                <div>
+                  <label style={{ fontSize: "0.74rem", color: "#94A3B8", fontWeight: 800, letterSpacing: "1px", marginBottom: "6px", display: "block" }}>
+                    SELECT OPERATIVE DISCIPLINE:
+                  </label>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "8px" }}>
                   {roleKeys.map(rk => {
                     const role = ROLES[rk];
@@ -571,8 +672,25 @@ export default function LobbyScreen({
                   })}
                 </div>
               </div>
+              )}
 
-              {onlineSubMode === "join" && (
+              {onlineSubMode === "spectate" && (
+                <div style={{
+                  background: "rgba(168, 85, 247, 0.1)",
+                  border: "1px dashed rgba(168, 85, 247, 0.4)",
+                  borderRadius: "8px",
+                  padding: "12px 14px"
+                }}>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 800, color: "#D8B4FE", marginBottom: "4px" }}>
+                    👁️ CHRONOS OBSERVATORY SUITE
+                  </div>
+                  <div style={{ fontSize: "0.74rem", color: "#94A3B8", lineHeight: 1.45 }}>
+                    Enter the Room Code of an ongoing match or staging lobby. As an observer, you can watch player movements, track clue discoveries and anomalies, view secret cards, and communicate in timeline comms.
+                  </div>
+                </div>
+              )}
+
+              {(onlineSubMode === "join" || onlineSubMode === "spectate") && (
                 <div>
                   <label style={{ fontSize: "0.74rem", color: "#94A3B8", fontWeight: 800, letterSpacing: "1px" }}>
                     ANOMALY ROOM CODE:
@@ -600,40 +718,29 @@ export default function LobbyScreen({
                 </div>
               )}
 
-              {/* Supabase Status Banner */}
+              {/* Network Relay Status Indicator */}
               <div
                 style={{
-                  padding: "10px 14px",
-                  background: hasSupabase ? "rgba(16, 185, 129, 0.12)" : "rgba(56, 189, 248, 0.1)",
-                  border: `1px solid ${hasSupabase ? "rgba(16, 185, 129, 0.35)" : "rgba(56, 189, 248, 0.3)"}`,
+                  padding: "8px 14px",
+                  background: hasSupabase ? "rgba(16, 185, 129, 0.1)" : "rgba(56, 189, 248, 0.1)",
+                  border: `1px solid ${hasSupabase ? "rgba(16, 185, 129, 0.3)" : "rgba(56, 189, 248, 0.25)"}`,
                   borderRadius: "8px",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "space-between",
                   gap: "10px"
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "1.1rem" }}>{hasSupabase ? "⚡" : "☁️"}</span>
-                  <div style={{ fontSize: "0.74rem", lineHeight: "1.3" }}>
-                    <strong style={{ color: hasSupabase ? "#34D399" : "#60A5FA" }}>
-                      {hasSupabase ? "Supabase Realtime Relay Active": "WebSocket Relay Channel"}:
-                    </strong>{" "}
-                    <span style={{ color: "#94A3B8" }}>
-                      {hasSupabase
-                        ? "Zero cold starts, instant peer synchronization, and automatic presence."
-                        : "Using WebSocket server. Enter your Supabase credentials in settings for instant serverless play."}
-                    </span>
-                  </div>
+                <span style={{ fontSize: "1.1rem" }}>{hasSupabase ? "⚡" : "☁️"}</span>
+                <div style={{ fontSize: "0.74rem", lineHeight: "1.3" }}>
+                  <strong style={{ color: hasSupabase ? "#34D399" : "#60A5FA" }}>
+                    {hasSupabase ? "Supabase Realtime Relay Active": "WebSocket Relay Channel Active"}
+                  </strong> &bull;{" "}
+                  <span style={{ color: "#94A3B8" }}>
+                    {hasSupabase
+                      ? "Zero cold starts, instant peer synchronization (Configured in config.js / .env)."
+                      : "Using WebSocket relay server."}
+                  </span>
                 </div>
-
-                <button
-                  className="btn btn-secondary"
-                  style={{ padding: "4px 10px", fontSize: "0.72rem", whiteSpace: "nowrap" }}
-                  onClick={onOpenSupabaseConfig}
-                >
-                  ⚙️ Settings
-                </button>
               </div>
 
               {/* Action Buttons */}
@@ -644,10 +751,26 @@ export default function LobbyScreen({
                 <button
                   className="btn btn-primary"
                   disabled={isConnectingOnline}
-                  onClick={() => onConnectOnline(onlineSubMode)}
-                  style={{ padding: "10px 24px", fontSize: "0.88rem", fontWeight: 800 }}
+                  onClick={() => {
+                    if (onlineSubMode === "spectate") {
+                      onSpectateOnline(onlineRoomCodeInput, onlinePlayerName);
+                    } else {
+                      onConnectOnline(onlineSubMode);
+                    }
+                  }}
+                  style={{
+                    padding: "10px 24px",
+                    fontSize: "0.88rem",
+                    fontWeight: 800,
+                    background: onlineSubMode === "spectate" ? "linear-gradient(135deg, #A855F7, #6366F1)" : undefined,
+                    borderColor: onlineSubMode === "spectate" ? "#C084FC" : undefined
+                  }}
                 >
-                  {isConnectingOnline ? "🔄 Synchronizing Relay...": (onlineSubMode === "create" ? "🚀 Host Room" : "🚪 Enter Room")}
+                  {isConnectingOnline
+                    ? "🔄 Synchronizing Relay..."
+                    : (onlineSubMode === "create"
+                      ? "🚀 Host Room"
+                      : (onlineSubMode === "spectate" ? "👁️ Enter Observatory" : "🚪 Enter Room"))}
                 </button>
               </div>
             </div>
@@ -680,6 +803,23 @@ export default function LobbyScreen({
                       Transmit this frequency code to up to 3 crew members
                     </div>
                   </div>
+
+                  {isSpectator && (
+                    <div style={{
+                      background: "rgba(168, 85, 247, 0.15)",
+                      border: "1px solid rgba(168, 85, 247, 0.5)",
+                      borderRadius: "6px",
+                      padding: "8px 12px",
+                      fontSize: "0.78rem",
+                      color: "#E9D5FF",
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px"
+                    }}>
+                      <span>👁️</span> SPECTATOR MODE ACTIVE &bull; Waiting for host to launch Chrono Shift...
+                    </div>
+                  )}
 
                   {/* Connected Operatives List */}
                   <div>
@@ -728,10 +868,36 @@ export default function LobbyScreen({
                 </div>
               </div>
 
+                  {/* Spectators List */}
+                  {spectators && spectators.length > 0 && (
+                    <div style={{ marginTop: "12px" }}>
+                      <div style={{ fontSize: "0.72rem", color: "#C084FC", fontWeight: 800, marginBottom: "6px" }}>
+                        TIMELINE OBSERVERS ({spectators.length})
+                      </div>
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        {spectators.map((s, idx) => (
+                          <span
+                            key={s.id || idx}
+                            style={{
+                              background: "rgba(168, 85, 247, 0.12)",
+                              border: "1px solid rgba(168, 85, 247, 0.3)",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              fontSize: "0.72rem",
+                              color: "#DDD6FE"
+                            }}
+                          >
+                            👁️ {s.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
               {/* Waiting Room Action Bar */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "14px", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
                 <button className="btn btn-secondary" onClick={onLeaveRoom} style={{ padding: "10px 20px", fontSize: "0.82rem" }}>
-                  Leave Anomaly Room
+                  {isSpectator ? "Leave Observatory" : "Leave Anomaly Room"}
                 </button>
 
                 {network.isHost ? (
@@ -744,8 +910,10 @@ export default function LobbyScreen({
                     🚀 INITIATE CHRONO SHIFT ({currentRoomPlayers.length}) ➔
                   </button>
                 ) : (
-                  <div style={{ fontSize: "0.78rem", color: "#94A3B8", fontStyle: "italic" }}>
-                    Waiting for expedition host to initiate Chrono Shift...
+                  <div style={{ fontSize: "0.78rem", color: isSpectator ? "#C084FC" : "#94A3B8", fontStyle: "italic" }}>
+                    {isSpectator
+                      ? "Observing frequency transmission... Match will start once host initiates Chrono Shift."
+                      : "Waiting for expedition host to initiate Chrono Shift..."}
                   </div>
                 )}
               </div>

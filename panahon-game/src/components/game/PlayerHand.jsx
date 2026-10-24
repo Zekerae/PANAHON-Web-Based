@@ -9,9 +9,13 @@ function PlayerHand({
   activeHandTab,
   onChangeTab,
   onViewMyHand,
-  onInspectCard
+  onInspectCard,
+  isSpectator = false,
+  omniscientIntel = true
 }) {
   if (!viewedPlayer) return null;
+
+  const canReveal = isViewingSelf || isSpectator || omniscientIntel;
 
   return (
     <section className="bottom-panel">
@@ -38,8 +42,11 @@ function PlayerHand({
         </div>
 
         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>Viewing: <strong style={{ color: viewedPlayer.color }}>{viewedPlayer.name}{isViewingSelf && isOnline ? ' (You)' : ''}</strong>'s Hand</span>
-          {!isViewingSelf && (
+          <span>
+            Viewing: <strong style={{ color: viewedPlayer.color }}>{viewedPlayer.name}{isViewingSelf && isOnline ? ' (You)' : ''}</strong>'s Hand
+            {isSpectator && <span style={{ color: '#C084FC', fontWeight: 700, marginLeft: '4px' }}>[OBSERVER]</span>}
+          </span>
+          {!isViewingSelf && !isSpectator && (
             <button
               className="btn"
               style={{ padding: '2px 8px', fontSize: '0.65rem', background: 'var(--accent-gold)', color: '#000', borderRadius: '4px', fontWeight: 700, cursor: 'pointer' }}
@@ -58,12 +65,12 @@ function PlayerHand({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div className="mission-title">
-                  {isViewingSelf
+                  {canReveal
                     ? `Mission: Retrieve ${viewedPlayer.mission.artifactNickname || viewedPlayer.mission.artifactName || 'Classified Relic'}`
                     : `Mission: Classified Objective (${viewedPlayer.name})`}
                 </div>
                 <div className="mission-objective">
-                  {isViewingSelf
+                  {canReveal
                     ? viewedPlayer.mission.description
                     : `Historical mission details and clues are classified to ${viewedPlayer.name}.`}
                 </div>
@@ -122,7 +129,7 @@ function PlayerHand({
               </div>
             ) : (
               viewedPlayer.clueCards.map(c => {
-                if (isViewingSelf) {
+                if (canReveal) {
                   const cardImg = c.cardImage || c.image || '';
                   const cardDesc = c.description || c.hint || (c.isDecoy ? 'Decoy Hint' : 'Clue Card');
                   return (

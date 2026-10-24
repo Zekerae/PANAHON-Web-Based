@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, memo } from "react";
+import React, { useState, useRef, useCallback, useMemo, memo } from "react";
 import sounds from "../../sound.js";
 import {
   ERA_ORDER,
@@ -43,7 +43,13 @@ function GameBoard({
   const initialPinchDistRef = useRef(null);
   const initialPinchZoomRef = useRef(1.0);
 
-  // Bounds clamping to keep map within accessible limits like Clash of Clans
+  // High-performance direct RAF transform tracking (Zero React re-renders during gesture)
+  const panRef = useRef({ x: 0, y: 0 });
+  const zoomRef = useRef(1.0);
+  const rafIdRef = useRef(null);
+  const wheelTimeoutRef = useRef(null);
+
+  // Bounds clamping to keep map within accessible limits
   const clampPan = useCallback((x, y, currentZoom) => {
     if (!viewportRef.current) return { x, y };
     const vw = viewportRef.current.clientWidth || 800;
@@ -58,6 +64,20 @@ function GameBoard({
       x: Math.min(maxPanX, Math.max(-maxPanX, x)),
       y: Math.min(maxPanY, Math.max(-maxPanY, y))
     };
+  }, []);
+
+  // Update DOM transform directly in RAF (60-120fps smooth on mobile)
+  const updateTransformDirect = useCallback((newPan, newZoom) => {
+    panRef.current = newPan;
+    zoomRef.current = newZoom;
+    if (!rafIdRef.current) {
+      rafIdRef.current = requestAnimationFrame(() => {
+        if (mapWrapperRef.current) {
+          mapWrapperRef.current.style.transform = `translate3d(${panRef.current.x}px, ${panRef.current.y}px, 0) scale(${zoomRef.current})`;
+        }
+        rafIdRef.current = null;
+      });
+    }
   }, []);
 
   // Preset camera quadrant target calculator
@@ -95,6 +115,8 @@ function GameBoard({
       else targetPan = clampPan(vw * 0.25, -vh * 0.22, 2.0);
     }
 
+    panRef.current = targetPan;
+    zoomRef.current = targetZoom;
     setZoom(targetZoom);
     setPan(targetPan);
   }, [currentPlayer?.currentEra, clampPan]);
@@ -103,7 +125,10 @@ function GameBoard({
     sounds.btnClick();
     setZoom((prev) => {
       const nextZoom = Math.min(3.2, Math.max(0.85, Number((prev + delta).toFixed(2))));
-      setPan((p) => clampPan(p.x, p.y, nextZoom));
+      const nextPan = clampPan(panRef.current.x, panRef.current.y, nextZoom);
+      panRef.current = nextPan;
+      zoomRef.current = nextZoom;
+      setPan(nextPan);
       return nextZoom;
     });
     setCameraMode('custom');
@@ -111,6 +136,8 @@ function GameBoard({
 
   const handleResetView = () => {
     sounds.btnClick();
+    panRef.current = { x: 0, y: 0 };
+    zoomRef.current = 1.0;
     setZoom(1.0);
     setPan({ x: 0, y: 0 });
     setCameraMode('full');
@@ -123,18 +150,18 @@ function GameBoard({
       hasDraggedRef.current = false;
       touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       dragStartRef.current = {
-        x: e.touches[0].clientX - pan.x,
-        y: e.touches[0].clientY - pan.y
+        x: e.touches[0].clientX - panRef.current.x,
+        y: e.touches[0].clientY - panRef.current.y
       };
       setIsDragging(true);
     } else if (e.touches.length === 2) {
-      isDraggingRef.current = false;
+      isDraggingRef.current = true;
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
       initialPinchDistRef.current = dist;
-      initialPinchZoomRef.current = zoom;
+      initialPinchZoomRef.current = zoomRef.current;
     }
   };
 
@@ -146,9 +173,8 @@ function GameBoard({
       );
       const scaleFactor = dist / initialPinchDistRef.current;
       const nextZoom = Math.min(3.2, Math.max(0.85, initialPinchZoomRef.current * scaleFactor));
-      setZoom(nextZoom);
-      setPan((p) => clampPan(p.x, p.y, nextZoom));
-      setCameraMode('custom');
+      const nextPan = clampPan(panRef.current.x, panRef.current.y, nextZoom);
+      updateTransformDirect(nextPan, nextZoom);
     } else if (e.touches.length === 1 && isDraggingRef.current) {
       const dx = e.touches[0].clientX - touchStartPosRef.current.x;
       const dy = e.touches[0].clientY - touchStartPosRef.current.y;
@@ -157,18 +183,28 @@ function GameBoard({
       }
       const rawX = e.touches[0].clientX - dragStartRef.current.x;
       const rawY = e.touches[0].clientY - dragStartRef.current.y;
-      setPan(clampPan(rawX, rawY, zoom));
-      setCameraMode('custom');
+      const nextPan = clampPan(rawX, rawY, zoomRef.current);
+      updateTransformDirect(nextPan, zoomRef.current);
     }
   };
 
-  const handleTouchEnd = () => {
-    isDraggingRef.current = false;
-    initialPinchDistRef.current = null;
-    setIsDragging(false);
-    setTimeout(() => {
-      hasDraggedRef.current = false;
-    }, 120);
+  const handleDragEnd = () => {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      setIsDragging(false);
+      initialPinchDistRef.current = null;
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+      // Commit final position to React state once
+      setPan({ ...panRef.current });
+      setZoom(zoomRef.current);
+      setCameraMode('custom');
+      setTimeout(() => {
+        hasDraggedRef.current = false;
+      }, 120);
+    }
   };
 
   // Mouse drag handling (Desktop)
@@ -178,8 +214,8 @@ function GameBoard({
     hasDraggedRef.current = false;
     touchStartPosRef.current = { x: e.clientX, y: e.clientY };
     dragStartRef.current = {
-      x: e.clientX - pan.x,
-      y: e.clientY - pan.y
+      x: e.clientX - panRef.current.x,
+      y: e.clientY - panRef.current.y
     };
     setIsDragging(true);
   };
@@ -193,34 +229,86 @@ function GameBoard({
     }
     const rawX = e.clientX - dragStartRef.current.x;
     const rawY = e.clientY - dragStartRef.current.y;
-    setPan(clampPan(rawX, rawY, zoom));
-    setCameraMode('custom');
-  };
-
-  const handleMouseUp = () => {
-    isDraggingRef.current = false;
-    setIsDragging(false);
-    setTimeout(() => {
-      hasDraggedRef.current = false;
-    }, 120);
+    const nextPan = clampPan(rawX, rawY, zoomRef.current);
+    updateTransformDirect(nextPan, zoomRef.current);
   };
 
   // Mouse wheel zoom
   const handleWheel = (e) => {
     e.preventDefault();
     const delta = -e.deltaY * 0.0018;
-    setZoom((prev) => {
-      const nextZoom = Math.min(3.2, Math.max(0.85, prev + delta));
-      setPan((p) => clampPan(p.x, p.y, nextZoom));
-      return nextZoom;
-    });
-    setCameraMode('custom');
+    const nextZoom = Math.min(3.2, Math.max(0.85, zoomRef.current + delta));
+    const nextPan = clampPan(panRef.current.x, panRef.current.y, nextZoom);
+    updateTransformDirect(nextPan, nextZoom);
+    if (wheelTimeoutRef.current) clearTimeout(wheelTimeoutRef.current);
+    wheelTimeoutRef.current = setTimeout(() => {
+      setPan({ ...panRef.current });
+      setZoom(zoomRef.current);
+      setCameraMode('custom');
+    }, 150);
   };
 
-  if (!board || !currentPlayer) return null;
+  const activeCoords = useMemo(() => {
+    return (typeof getActiveTileCoordinates === "function" ? getActiveTileCoordinates() : null) || ERA_TILE_COORDINATES;
+  }, []);
 
-  const activeCoords = (typeof getActiveTileCoordinates === "function" ? getActiveTileCoordinates() : null) || ERA_TILE_COORDINATES;
-  const connections = (typeof getActivePathConnections === "function" ? getActivePathConnections() : {}) || {};
+  const connections = useMemo(() => {
+    return (typeof getActivePathConnections === "function" ? getActivePathConnections() : {}) || {};
+  }, []);
+
+  // Precompute players by tile key in O(P) once per render, avoiding 96 O(P) filter calls
+  const playersByTileKey = useMemo(() => {
+    const map = {};
+    if (!players) return map;
+    for (let i = 0; i < players.length; i++) {
+      const p = players[i];
+      if (p && p.currentEra && p.tileIndex !== undefined) {
+        const k = `${p.currentEra}_${p.tileIndex}`;
+        if (!map[k]) map[k] = [];
+        map[k].push(p);
+      }
+    }
+    return map;
+  }, [players]);
+
+  // Precompute reachable target tile once per state change, avoiding O(N) connections looping per tile
+  const reachableTileKey = useMemo(() => {
+    if (pendingChoice?.type === "teleportTile") {
+      return "all_" + (pendingChoice.targetEra || "myth");
+    }
+    if (phase === "moving" && movesRemaining > 0 && currentPlayer) {
+      const era = currentPlayer.currentEra;
+      const cIdx = currentPlayer.tileIndex;
+      const dir = movementDirection === "backward" ? -1 : 1;
+      const tiles = board?.[era] || [];
+      let target = null;
+      if (dir === 1) {
+        const eraConns = connections[era];
+        if (eraConns && eraConns[cIdx] && eraConns[cIdx].length > 0) {
+          target = eraConns[cIdx][0];
+        } else {
+          target = (cIdx + 1) % tiles.length;
+        }
+      } else {
+        const eraConns = connections[era];
+        if (eraConns) {
+          for (const [sourceStr, targetArr] of Object.entries(eraConns)) {
+            if (Array.isArray(targetArr) && targetArr.includes(cIdx)) {
+              target = parseInt(sourceStr, 10);
+              break;
+            }
+          }
+        }
+        if (target === null) {
+          target = (cIdx - 1 + tiles.length) % tiles.length;
+        }
+      }
+      return `${era}_${target}`;
+    }
+    return null;
+  }, [pendingChoice, phase, movesRemaining, currentPlayer, movementDirection, board, connections]);
+
+  if (!board || !currentPlayer) return null;
 
   return (
     <main className="board-container">
@@ -253,12 +341,12 @@ function GameBoard({
         className={`board-viewport ${isDragging ? 'is-dragging' : ''}`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
+        onTouchEnd={handleDragEnd}
+        onTouchCancel={handleDragEnd}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseUp={handleDragEnd}
+        onMouseLeave={handleDragEnd}
         onWheel={handleWheel}
       >
         {/* Floating Zoom HUD (+ / - / Reset) */}
@@ -298,7 +386,8 @@ function GameBoard({
           className="board-map-wrapper"
           style={{
             transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
-            transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)'
+            transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)',
+            willChange: isDragging ? 'transform' : 'auto'
           }}
         >
           {/* SVG Path lines connecting circle spaces */}
@@ -368,40 +457,9 @@ function GameBoard({
                 const coord = coords[idx];
                 if (!coord || typeof coord.x !== "number" || typeof coord.y !== "number") return null;
                 const tileType = t.type;
-                const playersOnTile = (players || []).filter(p => p && p.currentEra === era && p.tileIndex === idx);
-
-                let isReachable = false;
-                if (pendingChoice?.type === "teleportTile" && (pendingChoice.targetEra || "myth") === era) {
-                  isReachable = true;
-                } else if (phase === "moving" && movesRemaining > 0 && currentPlayer.currentEra === era) {
-                  const cIdx = currentPlayer.tileIndex;
-                  const dir = movementDirection === "backward" ? -1 : 1;
-                  let expectedTarget = null;
-                  if (dir === 1) {
-                    const eraConns = connections[era];
-                    if (eraConns && eraConns[cIdx] && eraConns[cIdx].length > 0) {
-                      expectedTarget = eraConns[cIdx][0];
-                    } else {
-                      expectedTarget = (cIdx + 1) % tiles.length;
-                    }
-                  } else {
-                    const eraConns = connections[era];
-                    if (eraConns) {
-                      for (const [sourceStr, targetArr] of Object.entries(eraConns)) {
-                        if (Array.isArray(targetArr) && targetArr.includes(cIdx)) {
-                          expectedTarget = parseInt(sourceStr, 10);
-                          break;
-                        }
-                      }
-                    }
-                    if (expectedTarget === null) {
-                      expectedTarget = (cIdx - 1 + tiles.length) % tiles.length;
-                    }
-                  }
-                  if (idx === expectedTarget) {
-                    isReachable = true;
-                  }
-                }
+                const tileKey = `${era}_${idx}`;
+                const playersOnTile = playersByTileKey[tileKey] || [];
+                const isReachable = reachableTileKey === `all_${era}` || reachableTileKey === tileKey;
 
                 let icon = "•";
                 if (tileType === "clue") icon = "🔍";
@@ -414,7 +472,7 @@ function GameBoard({
 
                 return (
                   <div
-                    key={t.id || `${era}_${idx}`}
+                    key={t.id || tileKey}
                     className={`mario-party-space space-${tileType} ${isReachable ? "reachable-space" : ""} ${playersOnTile.length > 0 ? "has-players" : ""}`}
                     style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
                     title={`${(tileType || "").toUpperCase()} (Space #${idx + 1} - ${ERA_NAMES[era] || era})`}
@@ -431,6 +489,7 @@ function GameBoard({
                         className="space-tile-image"
                         alt={tileType}
                         draggable={false}
+                        loading="lazy"
                       />
                     ) : (
                       <div className="space-disc">

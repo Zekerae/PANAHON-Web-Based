@@ -2,6 +2,7 @@
 
 import sounds from './sound.js';
 import { getSupabaseClient, isSupabaseAvailable } from './supabaseClient.js';
+import { APP_CONFIG } from './config.js';
 import { getActiveTileCoordinates, getActiveTileLayouts, getActivePathConnections, getActiveJunctionRules, saveCustomMap } from './gameData.js';
 
 export class NetworkManager {
@@ -23,8 +24,13 @@ export class NetworkManager {
     this.isConnecting = false;
     this.heartbeatTimer = null;
     this.presenceCheckTimer = null;
+    this.isSpectator = false;
+    this.spectators = [];
 
     // Callbacks
+    this.onSpectatorJoined = null;
+    this.onSpectatorCountUpdate = null;
+    this.onCanSpectate = null;
     this.onStateUpdate = null;
     this.onPlayerJoin = null;
     this.onPlayerLeave = null;
@@ -43,6 +49,7 @@ export class NetworkManager {
   }
 
   isMyTurn(playerIdx) {
+    if (this.isSpectator) return false;
     if (this.mode === 'local') return true;
     return playerIdx === this.playerId;
   }
@@ -260,6 +267,26 @@ export class NetworkManager {
     return list;
   }
 
+  buildSpectatorsFromPresence(presenceState) {
+    const list = [];
+    const seen = new Set();
+    Object.values(presenceState).forEach(entries => {
+      if (Array.isArray(entries)) {
+        entries.forEach(e => {
+          if (e && (e.isSpectator || typeof e.id === 'string') && !seen.has(e.id || e.name)) {
+            seen.add(e.id || e.name);
+            list.push({
+              id: e.id,
+              name: e.name,
+              connected: true
+            });
+          }
+        });
+      }
+    });
+    return list;
+  }
+
   setupSupabaseChannelListeners(channel) {
     // Broadcast Listeners
     channel.on('broadcast', { event: 'GAME_ACTION' }, ({ payload }) => {
@@ -299,17 +326,28 @@ export class NetworkManager {
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState();
       const updatedRoster = this.buildRosterFromPresence(state);
+      const updatedSpectators = this.buildSpectatorsFromPresence(state);
       if (updatedRoster.length > 0) {
         this.players = updatedRoster;
         if (this.onRosterUpdate) this.onRosterUpdate(this.players);
       }
+      this.spectators = updatedSpectators;
+      if (this.onSpectatorCountUpdate) this.onSpectatorCountUpdate(this.spectators);
     });
 
     channel.on('presence', { event: 'join' }, ({ newPresences }) => {
       if (Array.isArray(newPresences)) {
         newPresences.forEach(p => {
           if (p.id !== this.playerId) {
-            if (this.onPlayerJoin) this.onPlayerJoin(p);
+            if (p.isSpectator) {
+              this.spectators = this.buildSpectatorsFromPresence(channel.presenceState());
+              if (this.onSpectatorCountUpdate) this.onSpectatorCountUpdate(this.spectators, p);
+              if (this.isHost && this.engine?.state) {
+                this.broadcastState(this.engine.getState());
+              }
+            } else {
+              if (this.onPlayerJoin) this.onPlayerJoin(p);
+            }
           }
         });
       }
@@ -322,7 +360,12 @@ export class NetworkManager {
             this.cleanup();
             if (this.onRoomClosed) this.onRoomClosed('Host has disconnected. Room disbanded.');
           } else if (p.id !== this.playerId) {
-            if (this.onPlayerLeave) this.onPlayerLeave(p);
+            if (p.isSpectator) {
+              this.spectators = this.buildSpectatorsFromPresence(channel.presenceState());
+              if (this.onSpectatorCountUpdate) this.onSpectatorCountUpdate(this.spectators, null, p);
+            } else {
+              if (this.onPlayerLeave) this.onPlayerLeave(p);
+            }
           }
         });
       }
@@ -341,7 +384,7 @@ export class NetworkManager {
     const envUrl = import.meta.env?.VITE_RELAY_SERVER_URL;
     if (envUrl && envUrl.trim()) return [envUrl.trim()];
 
-    const primaryCloud = 'wss://panahon-relay-server.onrender.com';
+    const primaryCloud = APP_CONFIG.relayServerUrl || 'wss://panahon-relay-server.onrender.com';
     const isLocal = window.location.hostname === 'localhost' ||
                     window.location.hostname === '127.0.0.1' ||
                     window.location.hostname.startsWith('192.168.');
@@ -519,6 +562,133 @@ export class NetworkManager {
     }
   }
 
+  async spectateRoomSupabase(roomCode, spectatorName) {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please enter your Supabase URL & Anon Key.');
+    }
+
+    this.cleanup();
+    this.supabase = supabase;
+    this.relayType = 'supabase';
+    this.mode = 'online';
+    this.isHost = false;
+    this.isSpectator = true;
+    this.myPlayerName = spectatorName || 'Chronos Observer';
+    this.myRoleKey = 'SPECTATOR';
+    this.roomCode = roomCode.trim().toUpperCase();
+
+    const channelName = `panahon-room-${this.roomCode}`;
+    const channel = supabase.channel(channelName, {
+      config: {
+        broadcast: { self: false },
+        presence: { key: `spec-${Date.now()}-${Math.floor(Math.random() * 1000)}` }
+      }
+    });
+
+    this.setupSupabaseChannelListeners(channel);
+    this.channel = channel;
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.cleanup();
+        reject(new Error(`Room ${this.roomCode} not found or host is offline.`));
+      }, 7000);
+
+      channel.subscribe(async (status, err) => {
+        if (status === 'SUBSCRIBED') {
+          setTimeout(async () => {
+            clearTimeout(timeout);
+            const presenceState = channel.presenceState();
+            const activeEntries = [];
+            Object.values(presenceState).forEach(list => {
+              if (Array.isArray(list)) list.forEach(entry => activeEntries.push(entry));
+            });
+
+            const hasHost = activeEntries.some(e => e.isHost);
+            if (!hasHost) {
+              this.cleanup();
+              const errorMsg = `Room ${this.roomCode} not found or host is inactive.`;
+              if (this.onError) this.onError(errorMsg);
+              reject(new Error(errorMsg));
+              return;
+            }
+
+            const specId = `spec_${Date.now()}`;
+            this.playerId = specId;
+
+            await channel.track({
+              id: specId,
+              name: this.myPlayerName,
+              roleKey: 'SPECTATOR',
+              isSpectator: true,
+              isHost: false,
+              onlineAt: Date.now()
+            });
+
+            this.players = this.buildRosterFromPresence(channel.presenceState());
+            this.spectators = this.buildSpectatorsFromPresence(channel.presenceState());
+
+            console.log('[Supabase Realtime] Spectating room:', this.roomCode);
+            try {
+              channel.send({
+                type: 'broadcast',
+                event: 'REQUEST_SYNC',
+                payload: { spectatorId: specId }
+              });
+            } catch (_) {}
+            if (this.onSpectatorJoined) {
+              this.onSpectatorJoined({
+                roomCode: this.roomCode,
+                spectatorId: specId,
+                spectatorName: this.myPlayerName,
+                players: this.players,
+                spectators: this.spectators
+              });
+            }
+            resolve(this.players);
+          }, 600);
+        } else if (status === 'CHANNEL_ERROR') {
+          clearTimeout(timeout);
+          reject(err || new Error('Failed to subscribe to room channel'));
+        }
+      });
+    });
+  }
+
+  async spectateRoom(roomCode, spectatorName) {
+    if (isSupabaseAvailable()) {
+      try {
+        console.log('[Network] Spectating room via Supabase Realtime...');
+        return await this.spectateRoomSupabase(roomCode, spectatorName);
+      } catch (err) {
+        console.warn('[Network] Supabase spectate failed, trying WebSocket fallback:', err.message);
+      }
+    }
+
+    this.mode = 'online';
+    this.relayType = 'websocket';
+    this.isHost = false;
+    this.isSpectator = true;
+    this.myPlayerName = spectatorName || 'Chronos Observer';
+    this.myRoleKey = 'SPECTATOR';
+    this.roomCode = roomCode.trim().toUpperCase();
+
+    try {
+      await this.connectWebSocket();
+      this.send({
+        type: 'SPECTATE_ROOM',
+        roomCode: this.roomCode,
+        spectatorName: this.myPlayerName
+      });
+    } catch (err) {
+      console.error('[Network] Failed to spectate room via WebSocket:', err);
+      if (this.onError) {
+        this.onError('Unable to reach relay server. Please check your room code.');
+      }
+    }
+  }
+
   leaveRoom() {
     if (this.relayType === 'supabase' && this.channel) {
       if (this.isHost) {
@@ -666,12 +836,14 @@ export class NetworkManager {
 
   sendChatMessage(text) {
     if (!text || !text.trim()) return;
+    const isSpec = Boolean(this.isSpectator);
     const msg = {
       type: 'CHAT_MESSAGE',
       roomCode: this.roomCode,
       senderId: this.playerId,
-      senderName: this.myPlayerName || 'Castaway',
-      roleKey: this.myRoleKey || 'HISTORIAN',
+      senderName: this.myPlayerName || (isSpec ? 'Observer' : 'Castaway'),
+      roleKey: isSpec ? 'SPECTATOR' : (this.myRoleKey || 'HISTORIAN'),
+      isSpectator: isSpec,
       text: text.trim().slice(0, 300),
       timestamp: Date.now()
     };
@@ -697,6 +869,7 @@ export class NetworkManager {
   }
 
   sendAction(action) {
+    if (this.isSpectator) return false;
     if (this.mode === 'local') return true;
 
     if (this.relayType === 'supabase' && this.channel) {
@@ -751,6 +924,37 @@ export class NetworkManager {
     if (!msg || typeof msg !== 'object') return;
 
     switch (msg.type) {
+      case 'SPECTATOR_JOINED':
+        this.isSpectator = true;
+        this.roomCode = msg.roomCode;
+        this.playerId = msg.spectatorId;
+        this.myPlayerName = msg.spectatorName || this.myPlayerName;
+        this.isHost = false;
+        this.players = msg.players || [];
+        this.spectators = msg.spectators || [];
+        if (Array.isArray(msg.messages)) {
+          this.chatMessages = msg.messages;
+        }
+        if (msg.state && this.engine) {
+          this.engine.loadState(msg.state);
+        }
+        if (this.onSpectatorJoined) this.onSpectatorJoined(msg);
+        break;
+
+      case 'SPECTATOR_COUNT_UPDATE':
+        this.spectators = msg.spectators || [];
+        if (this.onSpectatorCountUpdate) {
+          this.onSpectatorCountUpdate(this.spectators, msg.spectatorJoined, msg.spectatorLeft);
+        }
+        break;
+
+      case 'CAN_SPECTATE':
+        if (this.onCanSpectate) {
+          this.onCanSpectate(msg);
+        } else if (this.onError) {
+          this.onError(msg.message);
+        }
+        break;
       case 'ROOM_CREATED':
         this.roomCode = msg.roomCode;
         this.playerId = msg.playerId;
@@ -960,6 +1164,8 @@ export class NetworkManager {
     this.roomCode = null;
     this.playerId = null;
     this.players = [];
+    this.spectators = [];
+    this.isSpectator = false;
     this.chatMessages = [];
     this.isConnecting = false;
   }

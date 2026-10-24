@@ -17,7 +17,9 @@ function PlayerSidebar({
   myPlayerName,
   onSelectPlayer,
   chatMessages = [],
-  onSendMessage
+  onSendMessage,
+  isSpectator = false,
+  spectators = []
 }) {
   const [inputText, setInputText] = useState("");
   const chatFeedRef = useRef(null);
@@ -142,15 +144,16 @@ function PlayerSidebar({
             </div>
           ) : (
             chatMessages.map((m, idx) => {
+              const isSpec = Boolean(m.isSpectator || m.roleKey === 'SPECTATOR');
               const senderPlayer = players.find(p => p.id === m.senderId || p.name === m.senderName);
-              const playerColor = senderPlayer?.color || PLAYER_COLORS[(m.senderId ?? 0) % PLAYER_COLORS.length] || "var(--accent-gold)";
+              const playerColor = isSpec ? '#C084FC' : (senderPlayer?.color || PLAYER_COLORS[(m.senderId ?? 0) % PLAYER_COLORS.length] || "var(--accent-gold)");
               const timeStr = formatChatTime(m.timestamp);
 
               return (
                 <div key={idx} className="sidebar-chat-entry">
                   {timeStr && <span className="sidebar-chat-time">[{timeStr}]</span>}{" "}
                   <span className="sidebar-chat-sender" style={{ color: playerColor }}>
-                    [{m.senderName}]
+                    [{isSpec ? '👁️ ' : ''}{m.senderName}{isSpec ? ' (Observer)' : ''}]
                   </span>{" "}
                   <span className="sidebar-chat-text">{m.text}</span>
                 </div>
@@ -159,11 +162,20 @@ function PlayerSidebar({
           )}
         </div>
 
+        {spectators && spectators.length > 0 && (
+          <div style={{ fontSize: "0.65rem", color: "#C084FC", padding: "2px 8px", background: "rgba(168, 85, 247, 0.1)", borderRadius: "4px", marginBottom: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
+            <span>👁️ {spectators.length} Spectator{spectators.length > 1 ? 's' : ''}:</span>
+            <span style={{ color: "#DDD6FE", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {spectators.map(s => s.name).join(', ')}
+            </span>
+          </div>
+        )}
+
         <form className="sidebar-chat-input-row" onSubmit={handleSend}>
           <input
             type="text"
             className="sidebar-chat-input"
-            placeholder="Transmit to timeline..."
+            placeholder={isSpectator ? "Transmit as observer..." : "Transmit to timeline..."}
             maxLength={250}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}

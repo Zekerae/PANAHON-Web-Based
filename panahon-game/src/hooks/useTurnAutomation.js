@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { aiController } from '../aiPlayer.js';
 import sounds from '../sound.js';
 
-export function useTurnAutomation({ engine, network, state, onGameOver, isGameActive = true }) {
+export function useTurnAutomation({ engine, network, state, onGameOver, isGameActive = true, simulationSpeed = 1 }) {
   const autoMoveTimerRef = useRef(null);
   const gameOverHandledRef = useRef(false);
 
@@ -49,7 +49,8 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
     // Handle AI turn
     if (aiController.isAiTurn(engine, network)) {
       clearAutoMove();
-      aiController.scheduleAiStep(engine, network, 750);
+      const stepDelay = Math.max(260, Math.round(750 / (simulationSpeed || 1)));
+      aiController.scheduleAiStep(engine, network, stepDelay);
       return;
     }
 

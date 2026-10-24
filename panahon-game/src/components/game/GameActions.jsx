@@ -17,7 +17,17 @@ function GameActions({
   onRest,
   onUseSkill,
   onReturnArtifact,
-  onEndTurn
+  onEndTurn,
+  onTimeWarp,
+  isSpectator = false,
+  viewedPlayerId = null,
+  onSelectPlayer = null,
+  autoFollow = true,
+  onToggleAutoFollow = null,
+  omniscientIntel = true,
+  onToggleOmniscientIntel = null,
+  simulationSpeed = 1,
+  onChangeSimulationSpeed = null
 }) {
   if (!state || !currentPlayer) return null;
 
@@ -52,6 +62,257 @@ function GameActions({
     }
   }
 
+  const role = currentPlayer.role || {};
+  const activeSkill = role.active || {};
+  const activeCost = activeSkill.energyCost || 0;
+  const hasEnoughEnergy = (currentPlayer.energy || 0) >= activeCost;
+  const isAbilityOnCooldown = (currentPlayer.activeCooldown || 0) > 0;
+  const hasUsedAbilityThisTurn = Boolean(currentPlayer.usedAbilityThisTurn);
+  const canUseAbilityNow = isMyTurn && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && hasEnoughEnergy;
+
+  let abilityBadge = `-${activeCost} En`;
+  let abilityStatusText = activeSkill.description || 'Activate operative ability.';
+  if (hasUsedAbilityThisTurn) {
+    abilityBadge = 'Used this turn';
+    abilityStatusText = 'Ability already activated this turn.';
+  } else if (isAbilityOnCooldown) {
+    abilityBadge = `CD: ${currentPlayer.activeCooldown}T`;
+    abilityStatusText = `On cooldown for ${currentPlayer.activeCooldown} more turn(s).`;
+  } else if (!hasEnoughEnergy) {
+    abilityBadge = `Need ${activeCost} En`;
+    abilityStatusText = `Requires ${activeCost} Chrono Energy (You have ${currentPlayer.energy || 0}).`;
+  }
+
+  const currentTile = state.board?.[currentPlayer.currentEra]?.[currentPlayer.tileIndex];
+  const isOnTimeGate = currentTile?.type === 'timeGate';
+  const timeGateCost = currentPlayer.roleKey === 'EXPLORER' ? 1 : 2;
+  const canTimeWarp = isMyTurn && isOnTimeGate && (currentPlayer.energy || 0) >= timeGateCost;
+
+  const matchingArtifact = currentPlayer.artifactCards?.find(a => a.era === currentPlayer.currentEra);
+
+  if (isSpectator) {
+    const players = state.players || [];
+    return (
+      <aside className="right-panel spectator-panel">
+        {/* OBSERVATORY HEADER */}
+        <div className="panel-section" style={{
+          borderLeft: '4px solid #C084FC',
+          background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <span style={{
+              fontSize: '0.68rem',
+              fontWeight: 800,
+              letterSpacing: '1.2px',
+              color: '#D8B4FE',
+              textTransform: 'uppercase',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#EF4444', display: 'inline-block', boxShadow: '0 0 6px #EF4444' }} />
+              CHRONO OBSERVATORY
+            </span>
+            <span style={{
+              fontSize: '0.64rem',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              background: 'rgba(168, 85, 247, 0.2)',
+              border: '1px solid rgba(168, 85, 247, 0.4)',
+              color: '#F5D0FE',
+              fontWeight: 700
+            }}>
+              LIVE SPECTATOR
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                Active Operative:
+              </div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, color: currentPlayer.color }}>
+                {currentPlayer.name} {isAiCurrent ? '🤖' : '👤'}
+              </div>
+            </div>
+            <img src={currentPlayer.role.avatar} style={{ width: '36px', height: '36px', borderRadius: 'var(--radius-sm)', objectFit: 'contain' }} alt="role" />
+          </div>
+
+          <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+            Location: <strong style={{ color: '#FFF' }}>{ERA_NAMES[currentPlayer.currentEra]}</strong> (Tile #{currentPlayer.tileIndex})
+          </div>
+
+          <div style={{
+            marginTop: '8px',
+            padding: '6px 10px',
+            background: 'rgba(0, 0, 0, 0.4)',
+            borderRadius: '6px',
+            fontSize: '0.74rem',
+            color: '#93C5FD',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <span>Phase: <strong style={{ textTransform: 'uppercase', color: '#FACC15' }}>{state.phase}</strong></span>
+            {state.phase === 'moving' && (
+              <span>Moves: <strong style={{ color: '#FACC15' }}>{state.movesRemaining}</strong> / {state.diceResult || 1}</span>
+            )}
+            {state.phase === 'rolling' && (
+              <span style={{ color: '#94A3B8' }}>Awaiting roll...</span>
+            )}
+            {state.phase === 'action' && (
+              <span style={{ color: '#34D399' }}>Resolving action...</span>
+            )}
+          </div>
+        </div>
+
+        {/* OPERATIVE PERSPECTIVE SWITCHER */}
+        <div className="panel-section">
+          <div className="panel-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Operative Focus</span>
+            <span style={{ fontSize: '0.65rem', color: '#94A3B8', textTransform: 'none' }}>Click to view hand</span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '6px' }}>
+            {players.map((p, idx) => {
+              const isTurn = idx === state.currentPlayerIndex;
+              const isViewed = (viewedPlayerId === p.id) || (viewedPlayerId === null && isTurn);
+              return (
+                <button
+                  key={p.id ?? idx}
+                  onClick={() => onSelectPlayer?.(p.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    background: isViewed
+                      ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(56, 189, 248, 0.2))'
+                      : 'rgba(15, 23, 42, 0.6)',
+                    border: isViewed ? `1.5px solid ${p.color}` : '1px solid rgba(255, 255, 255, 0.1)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    color: '#FFF'
+                  }}
+                >
+                  <img src={p.role.avatar} style={{ width: '22px', height: '22px', borderRadius: '4px' }} alt="" />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: '0.74rem', fontWeight: 800, color: p.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.name}
+                    </div>
+                    <div style={{ fontSize: '0.62rem', color: '#94A3B8' }}>
+                      {p.points} pts &bull; {p.clueCards.length}/5
+                    </div>
+                  </div>
+                  {isTurn && <span style={{ fontSize: '0.65rem' }}>▶</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* OBSERVATORY CONTROLS */}
+        <div className="panel-section">
+          <div className="panel-section-title">Spectator Controls</div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '0.76rem',
+              color: '#E2E8F0',
+              cursor: 'pointer',
+              background: 'rgba(0,0,0,0.25)',
+              padding: '6px 10px',
+              borderRadius: '6px'
+            }}>
+              <span>🎥 Auto-Follow Active Turn</span>
+              <input
+                type="checkbox"
+                checked={Boolean(autoFollow)}
+                onChange={(e) => onToggleAutoFollow?.(e.target.checked)}
+                style={{ cursor: 'pointer', accentColor: '#A855F7' }}
+              />
+            </label>
+
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '0.76rem',
+              color: '#E2E8F0',
+              cursor: 'pointer',
+              background: 'rgba(0,0,0,0.25)',
+              padding: '6px 10px',
+              borderRadius: '6px'
+            }}>
+              <span>👁️ Omniscient Intel (Reveal All)</span>
+              <input
+                type="checkbox"
+                checked={Boolean(omniscientIntel)}
+                onChange={(e) => onToggleOmniscientIntel?.(e.target.checked)}
+                style={{ cursor: 'pointer', accentColor: '#38BDF8' }}
+              />
+            </label>
+
+            {/* Simulation Speed Buttons */}
+            {onChangeSimulationSpeed && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'rgba(0,0,0,0.25)',
+                padding: '6px 10px',
+                borderRadius: '6px'
+              }}>
+                <span style={{ fontSize: '0.74rem', color: '#CBD5E1' }}>⚡ Pacing Speed:</span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {[1, 1.5, 2].map((spd) => (
+                    <button
+                      key={spd}
+                      onClick={() => onChangeSimulationSpeed(spd)}
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        borderRadius: '4px',
+                        background: simulationSpeed === spd ? '#A855F7' : 'rgba(255,255,255,0.08)',
+                        color: simulationSpeed === spd ? '#FFF' : '#94A3B8',
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {spd === 2 ? 'Turbo' : `${spd}x`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* TIMELINE CHRONICLE */}
+        <div className="panel-section timeline-chronicle-section" style={{ flex: 1, minHeight: '160px', display: 'flex', flexDirection: 'column', marginBottom: 0 }}>
+          <div className="panel-section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span>Live Chronicle</span>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'none', fontWeight: 500 }}>
+              {logEntries.length} entries
+            </span>
+          </div>
+          <div id="game-log-feed" className="game-log" style={{ flex: 1, maxHeight: 'none', minHeight: 0 }}>
+            {logEntries.slice().reverse().map((l, i) => (
+              <div key={i} className="log-entry">
+                <span className="log-player">[{l.type.toUpperCase()}]</span> {l.message}
+              </div>
+            ))}
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside className="right-panel">
       {/* TURN BANNER */}
@@ -78,238 +339,439 @@ function GameActions({
         )}
       </div>
 
-      {/* DICE & MOVEMENT */}
-      <div className="panel-section">
-        <div className="panel-section-title">Movement & Dice</div>
-        <div className="dice-area">
-          <Dice
-            value={state.diceResult}
-            isRolling={isRolling}
-            size="md"
-            theme="chrono"
-            onClick={onRollDice}
-            disabled={!isMyTurn || state.phase !== 'rolling'}
-            isInteractive={isMyTurn && state.phase === 'rolling'}
-            showLabel={isMyTurn && state.phase === 'rolling'}
-          />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="dice-result">
-              Phase: <strong style={{ color: 'var(--text-accent)', textTransform: 'uppercase' }}>{state.phase}</strong>
+      {/* ============================================================== */}
+      {/* PHASE 1: ROLL PHASE                                            */}
+      {/* ============================================================== */}
+      {state.phase === 'rolling' && (
+        <div className="panel-section phase-card phase-roll-card" style={{
+          borderLeft: '4px solid #8B5CF6',
+          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(15, 23, 42, 0.75) 100%)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '1rem' }}>🎲</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.8px', color: '#C4B5FD', textTransform: 'uppercase' }}>
+                Phase 1: Roll Phase
+              </span>
             </div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', marginTop: '4px', lineHeight: 1.35 }}>
-              {state.phase === 'rolling' ? (
-                <span>Click dice or press <kbd style={{ background: 'rgba(0,0,0,0.4)', padding: '1px 5px', borderRadius: '3px', fontSize: '0.72rem', color: '#FACC15', border: '1px solid rgba(250,204,21,0.4)' }}>SPACE</kbd></span>
-              ) : (
-                <span>Rolled <strong>{state.diceResult}</strong> • Moves left: <strong style={{ color: '#FACC15' }}>{state.movesRemaining}</strong></span>
-              )}
-            </div>
+            <span style={{ fontSize: '0.64rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.25)', border: '1px solid rgba(139, 92, 246, 0.45)', color: '#DDD6FE', fontWeight: 700 }}>
+              AWAITING ROLL
+            </span>
           </div>
-        </div>
 
-        {state.phase === 'rolling' && (
-          <div>
-            <button
-              className="btn btn-roll-dice"
-              style={{ width: '100%', minWidth: 0, marginTop: '16px' }}
-              disabled={!isMyTurn || isRolling}
-              onClick={onRollDice}
-            >
-              <span>🎲 ROLL MOVEMENT DIE</span>
-              <kbd>SPACEBAR</kbd>
-            </button>
+          <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginBottom: '12px', lineHeight: 1.35 }}>
+            Activate your ability right away before rolling, or roll the movement die to proceed.
+          </div>
 
-            {currentPlayer.roleKey === 'EXPLORER' && isMyTurn && (
-              <div>
-                {state.momentumActive ? (
-                  <div style={{ marginTop: '6px', padding: '6px', background: 'rgba(234, 179, 8, 0.2)', border: '1px solid rgba(234, 179, 8, 0.4)', borderRadius: '6px', fontSize: '0.75rem', color: '#FACC15', textAlign: 'center', fontWeight: 600 }}>
-                    🏃 Momentum Activated! Roll to move manually.
-                  </div>
-                ) : (currentPlayer.activeCooldown === 0 && !currentPlayer.usedAbilityThisTurn && currentPlayer.energy >= 2 && (
-                  <button
-                    className="btn btn-accent"
-                    style={{ width: '100%', marginTop: '6px', padding: '6px', fontSize: '0.75rem' }}
-                    onClick={onTriggerMomentum}
-                  >
-                    🏃 Activate Momentum First (-2 Energy, Manual Move)
-                  </button>
-                ))}
+          {/* PRE-ROLL ABILITY ACTIVATION BOX */}
+          <div style={{
+            marginBottom: '12px',
+            padding: '10px',
+            borderRadius: '8px',
+            background: 'rgba(0, 0, 0, 0.35)',
+            border: canUseAbilityNow ? '1px solid rgba(139, 92, 246, 0.5)' : '1px solid rgba(255, 255, 255, 0.08)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#E2E8F0', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span>✨</span>
+                <span>Pre-Roll Ability:</span>
+                <strong style={{ color: currentPlayer.color }}>{activeSkill.name}</strong>
+              </span>
+              <span style={{
+                fontSize: '0.64rem',
+                fontWeight: 700,
+                padding: '2px 6px',
+                borderRadius: '4px',
+                background: canUseAbilityNow ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                border: canUseAbilityNow ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+                color: canUseAbilityNow ? '#6EE7B7' : '#FCA5A5'
+              }}>
+                {abilityBadge}
+              </span>
+            </div>
+
+            <div style={{ fontSize: '0.7rem', color: '#CBD5E1', marginBottom: '8px', lineHeight: 1.3 }}>
+              {currentPlayer.roleKey === 'HISTORIAN' && '📜 Clue Decipher: Reveal 3 clues & keep 1 before rolling.'}
+              {currentPlayer.roleKey === 'EXPLORER' && '🏃 Momentum: Prime manual movement to pause & interact with any space.'}
+              {currentPlayer.roleKey === 'GUARDIAN' && '🛡️ Temporal Repair: Spend 2 Energy for -1 Paradox, or gain +1 Energy.'}
+              {currentPlayer.roleKey === 'STRATEGIST' && '⏳ Temporal Trap: Plant a hazard trap on this tile before rolling away!'}
+            </div>
+
+            {currentPlayer.roleKey === 'EXPLORER' && state.momentumActive ? (
+              <div style={{ padding: '6px 8px', borderRadius: '6px', background: 'rgba(234, 179, 8, 0.2)', border: '1px solid rgba(234, 179, 8, 0.45)', color: '#FACC15', fontSize: '0.72rem', fontWeight: 700, textAlign: 'center' }}>
+                ✓ Momentum Primed! Roll the die to step manually.
               </div>
+            ) : (
+              <button
+                className="btn btn-accent"
+                style={{
+                  width: '100%',
+                  padding: '7px 10px',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  opacity: canUseAbilityNow ? 1 : 0.55,
+                  cursor: canUseAbilityNow ? 'pointer' : 'not-allowed'
+                }}
+                disabled={!canUseAbilityNow}
+                title={abilityStatusText}
+                onClick={onUseSkill}
+              >
+                <span>✨ Activate {activeSkill.name} Right Away</span>
+              </button>
             )}
           </div>
-        )}
 
-        {state.phase === 'moving' && (
-          <div>
-            {canReverseTime && (
-              <div style={{ marginBottom: '8px', padding: '8px 10px', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.45)', borderRadius: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.74rem', color: '#FACC15', fontWeight: 600, marginBottom: '6px' }}>
-                  <span>⏪ Reverse Time Option</span>
-                  <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>Start of turn only</span>
+          {/* DICE ROLLING SECTION */}
+          <div className="dice-area" style={{ marginBottom: '12px' }}>
+            <Dice
+              value={state.diceResult}
+              isRolling={isRolling}
+              size="md"
+              theme="chrono"
+              onClick={onRollDice}
+              disabled={!isMyTurn || isRolling}
+              isInteractive={isMyTurn && !isRolling}
+              showLabel={isMyTurn && !isRolling}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#FACC15' }}>
+                Roll Movement Die
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '2px' }}>
+                Click dice or press <kbd style={{ background: 'rgba(0,0,0,0.5)', padding: '1px 5px', borderRadius: '3px', fontSize: '0.68rem', color: '#FACC15', border: '1px solid rgba(250,204,21,0.4)' }}>SPACE</kbd>
+              </div>
+            </div>
+          </div>
+
+          <button
+            className="btn btn-roll-dice"
+            style={{ width: '100%', minWidth: 0, marginBottom: '10px' }}
+            disabled={!isMyTurn || isRolling}
+            onClick={onRollDice}
+          >
+            <span>🎲 ROLL MOVEMENT DIE</span>
+            <kbd>SPACEBAR</kbd>
+          </button>
+
+          {/* REST (SKIP TURN) ALTERNATIVE */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              className="action-btn"
+              style={{ flex: 1, padding: '7px', fontSize: '0.75rem' }}
+              disabled={!isMyTurn || isRolling}
+              title="Skip your turn to recover +3 Chrono Energy"
+              onClick={onRest}
+            >
+              <span className="action-btn-icon">💤</span>
+              <span>Rest (Skip Turn)</span>
+              <span className="action-btn-cost">+3 Energy</span>
+            </button>
+          </div>
+
+          <div style={{ marginTop: '8px', fontSize: '0.66rem', color: '#64748B', textAlign: 'center', fontStyle: 'italic' }}>
+            Turn completion ("End Turn") will be available in Phase 2 after moving.
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MOVEMENT IN PROGRESS                                           */}
+      {/* ============================================================== */}
+      {state.phase === 'moving' && (
+        <div className="panel-section phase-card phase-moving-card" style={{
+          borderLeft: '4px solid #38BDF8',
+          background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(15, 23, 42, 0.75) 100%)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '1rem' }}>🚶</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.8px', color: '#7DD3FC', textTransform: 'uppercase' }}>
+                Moving Along Timeline
+              </span>
+            </div>
+            <span style={{ fontSize: '0.64rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.25)', border: '1px solid rgba(56, 189, 248, 0.45)', color: '#BAE6FD', fontWeight: 700 }}>
+              {state.movesRemaining} / {state.diceResult || 1} MOVES LEFT
+            </span>
+          </div>
+
+          {canReverseTime && (
+            <div style={{ marginBottom: '8px', padding: '8px 10px', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.45)', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.74rem', color: '#FACC15', fontWeight: 600, marginBottom: '6px' }}>
+                <span>⏪ Reverse Time Option</span>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>Start of turn only</span>
+              </div>
+              <button
+                className="btn"
+                style={{
+                  width: '100%',
+                  padding: '7px 10px',
+                  fontSize: '0.78rem',
+                  fontWeight: 'bold',
+                  background: 'linear-gradient(135deg, #d97706, #b45309)',
+                  border: '1px solid #fbbf24',
+                  color: '#fff',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(217, 119, 6, 0.4)'
+                }}
+                onClick={onReverseTime}
+              >
+                <span>⏪ Reverse Direction (-3 En)</span>
+                <span style={{ fontSize: '0.7rem', opacity: 0.9 }}>Walk {state.movesRemaining} spaces backward</span>
+              </button>
+            </div>
+          )}
+
+          {isMovingBackward && (
+            <div style={{ marginBottom: '8px', padding: '6px 8px', background: 'rgba(234, 88, 12, 0.2)', border: '1px solid rgba(234, 88, 12, 0.5)', borderRadius: '6px', fontSize: '0.75rem', color: '#FDBA74', textAlign: 'center', fontWeight: 700 }}>
+              ⏪ Reverse Time Active: Moving backwards along path
+            </div>
+          )}
+
+          {state.momentumActive ? (
+            <div className="momentum-panel" style={{ marginTop: 'var(--space-sm)', padding: '10px', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 700, color: '#FACC15', fontSize: '0.85rem' }}>
+                <span>🏃 Momentum Active!</span>
+                <span className="badge" style={{ background: '#FACC15', color: '#000', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>Manual Move</span>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '6px 0' }}>
+                Moves left: <strong>{state.movesRemaining}</strong> spaces. Pause & interact with any tile!
+              </div>
+
+              {!state.momentumUsedMidTile && state.board[currentPlayer.currentEra][currentPlayer.tileIndex].type !== 'start' ? (
+                <button
+                  className="btn btn-accent"
+                  style={{ width: '100%', marginBottom: '6px', padding: '8px', fontSize: '0.8rem' }}
+                  disabled={!isMyTurn}
+                  onClick={onInteractMomentum}
+                >
+                  ✨ Interact with Current Space ({state.board[currentPlayer.currentEra][currentPlayer.tileIndex].type.toUpperCase()})
+                </button>
+              ) : (state.momentumUsedMidTile && (
+                <div style={{ fontSize: '0.7rem', color: '#10B981', marginBottom: '6px' }}>
+                  ✓ Tile interaction used! Continue moving to finish.
+                </div>
+              ))}
+
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '8px', fontSize: '0.85rem' }}
+                disabled={!isMyTurn}
+                onClick={onStepMove}
+              >
+                {isMovingBackward ? 'Step Backward ⬅️' : 'Step Forward ➡️'} ({state.movesRemaining} left)
+              </button>
+            </div>
+          ) : (
+            <div style={{ marginTop: 'var(--space-sm)', padding: '10px', background: isMovingBackward ? 'rgba(234, 88, 12, 0.12)' : 'rgba(59, 130, 246, 0.12)', border: isMovingBackward ? '1px solid rgba(234, 88, 12, 0.35)' : '1px solid rgba(59, 130, 246, 0.35)', borderRadius: '8px', textAlign: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 700, color: isMovingBackward ? '#FB923C' : '#60A5FA', fontSize: '0.85rem' }}>
+                <span style={{ display: 'inline-block', animation: 'pawnHop 0.6s infinite alternate' }}>{isMovingBackward ? '⏪' : '🚶'}</span>
+                <span>{isMovingBackward ? 'Auto-Moving in Reverse...' : 'Auto-Moving...'} ({state.movesRemaining} left)</span>
+              </div>
+
+              {currentPlayer.roleKey === 'EXPLORER' && currentPlayer.activeCooldown === 0 && !currentPlayer.usedAbilityThisTurn && currentPlayer.energy >= 2 && isMyTurn && (
+                <button
+                  className="btn btn-accent"
+                  style={{ width: '100%', marginTop: '8px', padding: '6px 8px', fontSize: '0.75rem' }}
+                  onClick={onTriggerMomentum}
+                >
+                  ⚡ Pause & Activate Momentum (-2 En)
+                </button>
+              )}
+
+              <button
+                className="btn btn-secondary"
+                style={{ width: '100%', marginTop: '6px', padding: '5px', fontSize: '0.72rem', opacity: 0.85 }}
+                disabled={!isMyTurn}
+                onClick={onStepMove}
+              >
+                ⏩ Step Immediately
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* PHASE 2: ACTION PHASE                                          */}
+      {/* ============================================================== */}
+      {state.phase === 'action' && (
+        <div className="panel-section phase-card phase-action-card" style={{
+          borderLeft: '4px solid #10B981',
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(15, 23, 42, 0.75) 100%)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '1rem' }}>⚡</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.8px', color: '#6EE7B7', textTransform: 'uppercase' }}>
+                Phase 2: Action Phase
+              </span>
+            </div>
+            <span style={{ fontSize: '0.64rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.25)', border: '1px solid rgba(16, 185, 129, 0.45)', color: '#A7F3D0', fontWeight: 700 }}>
+              READY FOR ACTION
+            </span>
+          </div>
+
+          <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginBottom: '10px', lineHeight: 1.35 }}>
+            Movement complete. Activate your ability (if not yet used), resolve tile actions, or end your turn.
+          </div>
+
+          {/* POST-MOVE ABILITY ACTIVATION */}
+          <div style={{
+            marginBottom: '10px',
+            padding: '9px 10px',
+            borderRadius: '8px',
+            background: 'rgba(0, 0, 0, 0.35)',
+            border: canUseAbilityNow ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#E2E8F0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>✨</span>
+                <span>Operative Ability:</span>
+                <strong style={{ color: currentPlayer.color }}>{activeSkill.name}</strong>
+              </span>
+              <span style={{
+                fontSize: '0.64rem',
+                fontWeight: 700,
+                padding: '2px 6px',
+                borderRadius: '4px',
+                background: hasUsedAbilityThisTurn ? 'rgba(59, 130, 246, 0.2)' : (canUseAbilityNow ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'),
+                border: hasUsedAbilityThisTurn ? '1px solid rgba(59, 130, 246, 0.4)' : (canUseAbilityNow ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)'),
+                color: hasUsedAbilityThisTurn ? '#93C5FD' : (canUseAbilityNow ? '#6EE7B7' : '#FCA5A5')
+              }}>
+                {hasUsedAbilityThisTurn ? '✓ Used in Roll Phase' : abilityBadge}
+              </span>
+            </div>
+
+            {hasUsedAbilityThisTurn ? (
+              <div style={{ fontSize: '0.7rem', color: '#94A3B8', fontStyle: 'italic' }}>
+                ✓ {activeSkill.name} was already activated during the Roll Phase this turn.
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: '0.7rem', color: '#CBD5E1', marginBottom: '8px', lineHeight: 1.3 }}>
+                  {activeSkill.description}
                 </div>
                 <button
-                  className="btn"
+                  className="btn btn-accent"
                   style={{
                     width: '100%',
                     padding: '7px 10px',
                     fontSize: '0.78rem',
-                    fontWeight: 'bold',
-                    background: 'linear-gradient(135deg, #d97706, #b45309)',
-                    border: '1px solid #fbbf24',
-                    color: '#fff',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(217, 119, 6, 0.4)'
+                    fontWeight: 700,
+                    opacity: canUseAbilityNow ? 1 : 0.55,
+                    cursor: canUseAbilityNow ? 'pointer' : 'not-allowed'
                   }}
-                  onClick={onReverseTime}
+                  disabled={!canUseAbilityNow}
+                  title={abilityStatusText}
+                  onClick={onUseSkill}
                 >
-                  <span>⏪ Reverse Direction (-3 En)</span>
-                  <span style={{ fontSize: '0.7rem', opacity: 0.9 }}>Walk {state.movesRemaining} spaces backward</span>
+                  <span>✨ Activate {activeSkill.name} ({abilityBadge})</span>
                 </button>
-              </div>
-            )}
-
-            {isMovingBackward && (
-              <div style={{ marginBottom: '8px', padding: '6px 8px', background: 'rgba(234, 88, 12, 0.2)', border: '1px solid rgba(234, 88, 12, 0.5)', borderRadius: '6px', fontSize: '0.75rem', color: '#FDBA74', textAlign: 'center', fontWeight: 700 }}>
-                ⏪ Reverse Time Active: Moving backwards along path
-              </div>
-            )}
-
-            {state.momentumActive ? (
-              <div className="momentum-panel" style={{ marginTop: 'var(--space-sm)', padding: '10px', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)', borderRadius: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 700, color: '#FACC15', fontSize: '0.85rem' }}>
-                  <span>🏃 Momentum Active!</span>
-                  <span className="badge" style={{ background: '#FACC15', color: '#000', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>Manual Move</span>
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '6px 0' }}>
-                  Moves left: <strong>{state.movesRemaining}</strong> spaces. Pause & interact with any tile!
-                </div>
-
-                {!state.momentumUsedMidTile && state.board[currentPlayer.currentEra][currentPlayer.tileIndex].type !== 'start' ? (
-                  <button
-                    className="btn btn-accent"
-                    style={{ width: '100%', marginBottom: '6px', padding: '8px', fontSize: '0.8rem' }}
-                    disabled={!isMyTurn}
-                    onClick={onInteractMomentum}
-                  >
-                    ✨ Interact with Current Space ({state.board[currentPlayer.currentEra][currentPlayer.tileIndex].type.toUpperCase()})
-                  </button>
-                ) : (state.momentumUsedMidTile && (
-                  <div style={{ fontSize: '0.7rem', color: '#10B981', marginBottom: '6px' }}>
-                    ✓ Tile interaction used! Continue moving to finish.
-                  </div>
-                ))}
-
-                <button
-                  className="btn btn-primary"
-                  style={{ width: '100%', padding: '8px', fontSize: '0.85rem' }}
-                  disabled={!isMyTurn}
-                  onClick={onStepMove}
-                >
-                  {isMovingBackward ? 'Step Backward ⬅️' : 'Step Forward ➡️'} ({state.movesRemaining} left)
-                </button>
-              </div>
-            ) : (
-              <div style={{ marginTop: 'var(--space-sm)', padding: '10px', background: isMovingBackward ? 'rgba(234, 88, 12, 0.12)' : 'rgba(59, 130, 246, 0.12)', border: isMovingBackward ? '1px solid rgba(234, 88, 12, 0.35)' : '1px solid rgba(59, 130, 246, 0.35)', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 700, color: isMovingBackward ? '#FB923C' : '#60A5FA', fontSize: '0.85rem' }}>
-                  <span style={{ display: 'inline-block', animation: 'pawnHop 0.6s infinite alternate' }}>{isMovingBackward ? '⏪' : '🚶'}</span>
-                  <span>{isMovingBackward ? 'Auto-Moving in Reverse...' : 'Auto-Moving...'} ({state.movesRemaining} left)</span>
-                </div>
-
-                {currentPlayer.roleKey === 'EXPLORER' && currentPlayer.activeCooldown === 0 && !currentPlayer.usedAbilityThisTurn && currentPlayer.energy >= 2 && isMyTurn && (
-                  <button
-                    className="btn btn-accent"
-                    style={{ width: '100%', marginTop: '8px', padding: '6px 8px', fontSize: '0.75rem' }}
-                    onClick={onTriggerMomentum}
-                  >
-                    ⚡ Pause & Activate Momentum (-2 En)
-                  </button>
-                )}
-
-                <button
-                  className="btn btn-secondary"
-                  style={{ width: '100%', marginTop: '6px', padding: '5px', fontSize: '0.72rem', opacity: 0.85 }}
-                  disabled={!isMyTurn}
-                  onClick={onStepMove}
-                >
-                  ⏩ Step Immediately
-                </button>
-              </div>
+              </>
             )}
           </div>
-        )}
-      </div>
 
-      {/* SPECIAL ACTIONS */}
-      <div className="panel-section">
-        <div className="panel-section-title">Temporal Actions</div>
-        <div className="action-buttons">
-          <button
-            className="action-btn"
-            disabled={reverseTimeDisabled}
-            title={reverseTimeTitle}
-            onClick={onReverseTime}
-          >
-            <span className="action-btn-icon">⏪</span>
-            <span>Reverse Time</span>
-            <span className="action-btn-cost">{reverseTimeBadge}</span>
-          </button>
-
-          <button
-            className="action-btn"
-            disabled={!isMyTurn || state.phase === 'moving'}
-            title="Rest your entire turn to recover +3 Energy"
-            onClick={onRest}
-          >
-            <span className="action-btn-icon">💤</span>
-            <span>Rest (Skip)</span>
-            <span className="action-btn-cost">+3 Energy</span>
-          </button>
-
-          <button
-            className="action-btn"
-            disabled={!isMyTurn || state.phase === 'moving' || currentPlayer.usedAbilityThisTurn || currentPlayer.activeCooldown > 0 || currentPlayer.energy < (currentPlayer.role.active.energyCost || 0)}
-            title={currentPlayer.role.active.description}
-            onClick={onUseSkill}
-          >
-            <span className="action-btn-icon">✨</span>
-            <span>{currentPlayer.role.active.name}</span>
-            <span className="action-btn-cost">
-              {currentPlayer.usedAbilityThisTurn ? 'Used this turn' : (currentPlayer.activeCooldown > 0 ? `CD: ${currentPlayer.activeCooldown}T` : `-${currentPlayer.role.active.energyCost || 0} En`)}
-            </span>
-          </button>
-
-          {(() => {
-            const matchingArt = currentPlayer.artifactCards.find(a => a.era === currentPlayer.currentEra);
-            return (
+          {/* CONTEXTUAL ACTIONS: RELIC RETURN & TIME WARP */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+            {matchingArtifact && (
               <button
-                className="action-btn"
-                disabled={!isMyTurn || !matchingArt}
-                title="Return matching artifact to this timeline for points!"
+                className="btn"
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  background: 'linear-gradient(135deg, #10B981, #059669)',
+                  border: '1px solid #34D399',
+                  color: '#FFF',
+                  borderRadius: '6px',
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+                disabled={!isMyTurn}
                 onClick={onReturnArtifact}
               >
-                <span className="action-btn-icon">📦</span>
-                <span>Return Relic</span>
-                <span className="action-btn-cost">+5 Points</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>📦</span>
+                  <span>Return Matching Relic: <strong>{matchingArtifact.name}</strong></span>
+                </span>
+                <span style={{ fontSize: '0.72rem', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px' }}>
+                  +5 Points
+                </span>
               </button>
-            );
-          })()}
+            )}
+
+            {isOnTimeGate && (
+              <button
+                className="btn"
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  background: canTimeWarp ? 'linear-gradient(135deg, #8B5CF6, #6D28D9)' : 'rgba(15, 23, 42, 0.6)',
+                  border: canTimeWarp ? '1px solid #A78BFA' : '1px solid rgba(255, 255, 255, 0.1)',
+                  color: '#FFF',
+                  borderRadius: '6px',
+                  cursor: canTimeWarp ? 'pointer' : 'not-allowed',
+                  opacity: canTimeWarp ? 1 : 0.6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+                disabled={!canTimeWarp}
+                title={canTimeWarp ? `Warp through the Time Gate to another era (-${timeGateCost} En)` : `Requires ${timeGateCost} Energy to warp`}
+                onClick={onTimeWarp}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>🌀</span>
+                  <span>Time Warp (Time Gate)</span>
+                </span>
+                <span style={{ fontSize: '0.72rem', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px' }}>
+                  -{timeGateCost} Energy
+                </span>
+              </button>
+            )}
+          </div>
+
+          {/* PRIMARY FINISH TURN BUTTON */}
+          <button
+            className="btn btn-primary"
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              fontSize: '0.88rem',
+              fontWeight: 800,
+              letterSpacing: '0.5px',
+              borderRadius: '8px',
+              boxShadow: isMyTurn ? '0 0 15px rgba(56, 189, 248, 0.4), 0 4px 12px rgba(0, 0, 0, 0.5)' : 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              cursor: isMyTurn ? 'pointer' : 'not-allowed'
+            }}
+            disabled={!isMyTurn}
+            onClick={onEndTurn}
+          >
+            <span>🏁 End Turn ⏭️</span>
+          </button>
         </div>
+      )}
 
-        <button
-          className="btn btn-primary"
-          style={{ width: '100%', minWidth: 0, marginTop: 'var(--space-md)', padding: '8px' }}
-          disabled={!isMyTurn || state.phase === 'moving'}
-          onClick={onEndTurn}
-        >
-          Finish Turn ⏭️
-        </button>
-      </div>
-
-      {/* TIMELINE CHRONICLE LOG FEED - EXTENDED TO BOTTOM */}
+      {/* TIMELINE CHRONICLE LOG FEED */}
       <div className="panel-section timeline-chronicle-section" style={{ flex: 1, minHeight: '160px', display: 'flex', flexDirection: 'column', marginBottom: 0 }}>
         <div className="panel-section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
           <span>Timeline Chronicle</span>

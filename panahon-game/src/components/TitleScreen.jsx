@@ -11,6 +11,7 @@ import {
 } from './title/TitleModals.jsx';
 import DataBankModal from './title/DataBankModal.jsx';
 import GuideModal from './GuideModal.jsx';
+import SpectatorHubModal from './title/SpectatorHubModal.jsx';
 import StudioPinModal from './StudioPinModal.jsx';
 import { isStudioUnlocked } from '../studioAuth.js';
 
@@ -23,7 +24,9 @@ export default function TitleScreen({
   activeSession,
   onReconnect,
   onDiscardSession,
-  onReplayIntro
+  onReplayIntro,
+  onStartSpectatorSimulation,
+  onSpectateOnline
 }) {
   const [showStudioPinModal, setShowStudioPinModal] = useState(false);
 
@@ -220,6 +223,22 @@ export default function TitleScreen({
                       <div className="sub-btn-desc">Local pass-and-play match configuration</div>
                     </div>
                   </button>
+
+                  <button
+                    className="duelyst-sub-btn"
+                    style={{ border: "1.5px solid rgba(168, 85, 247, 0.5)", background: "rgba(168, 85, 247, 0.12)" }}
+                    onClick={() => {
+                      sounds.btnClick();
+                      setIsPlayDrawerOpen(false);
+                      setActiveModal('spectatorHub');
+                    }}
+                  >
+                    <span className="sub-btn-icon">🔭</span>
+                    <div className="sub-btn-content">
+                      <div className="sub-btn-title" style={{ color: "#E9D5FF" }}>CHRONO OBSERVATORY</div>
+                      <div className="sub-btn-desc">Spectate online match or 4-bot AI simulation</div>
+                    </div>
+                  </button>
                 </div>
               )}
             </div>
@@ -376,6 +395,13 @@ export default function TitleScreen({
       </div>
 
       {/* 3. INTERACTIVE MODALS */}
+      {activeModal === 'spectatorHub' && (
+        <SpectatorHubModal
+          onClose={() => setActiveModal(null)}
+          onStartSpectatorSimulation={onStartSpectatorSimulation}
+          onSpectateOnline={onSpectateOnline}
+        />
+      )}
       {activeModal === 'quests' && (
         <QuestsModal onClose={() => setActiveModal(null)} />
       )}
@@ -395,6 +421,7 @@ export default function TitleScreen({
         <FriendsModal
           onClose={() => setActiveModal(null)}
           onSelectMode={onSelectMode}
+          onSpectateOnline={onSpectateOnline}
         />
       )}
       {activeModal === 'collection' && (

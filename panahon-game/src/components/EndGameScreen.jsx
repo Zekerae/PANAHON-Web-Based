@@ -1,7 +1,7 @@
 import React from 'react';
 import sounds from '../sound.js';
 
-export default function EndGameScreen({ state, onPlayAgain, onBackMenu }) {
+export default function EndGameScreen({ state, onPlayAgain, onBackMenu, isSpectator = false }) {
   if (!state) return null;
 
   const isCollapse = state.endReason === 'collapse' || state.timelineMeter > 5;
@@ -24,6 +24,26 @@ export default function EndGameScreen({ state, onPlayAgain, onBackMenu }) {
         overflowY: 'auto'
       }}
     >
+      {isSpectator && (
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(56, 189, 248, 0.2))',
+          border: '1px solid #C084FC',
+          boxShadow: '0 0 20px rgba(168, 85, 247, 0.35)',
+          padding: '6px 16px',
+          borderRadius: '24px',
+          fontSize: '0.78rem',
+          fontWeight: 800,
+          color: '#F5D0FE',
+          letterSpacing: '1px',
+          marginBottom: '16px'
+        }}>
+          <span>👁️</span> OBSERVER TELEMETRY COMPLETED
+        </div>
+      )}
+
       {/* Top Chrono Orb Emblem */}
       <div style={{
         width: '80px',
@@ -214,10 +234,12 @@ export default function EndGameScreen({ state, onPlayAgain, onBackMenu }) {
             padding: '12px 28px',
             fontSize: '0.9rem',
             fontWeight: 800,
-            letterSpacing: '1px'
+            letterSpacing: '1px',
+            background: isSpectator ? 'linear-gradient(135deg, #8B5CF6, #3B82F6)' : undefined,
+            border: isSpectator ? '1px solid #C084FC' : undefined
           }}
         >
-          🚀 LAUNCH NEW EXPEDITION ➔
+          {isSpectator ? '👁️ SPECTATE NEXT EXPEDITION ➔' : '🚀 LAUNCH NEW EXPEDITION ➔'}
         </button>
 
         <button

@@ -883,18 +883,27 @@ export function FriendsModal({ onClose, onSelectMode, onSpectateOnline }) {
                   boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.7)'
                 }}
               />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                gap: '8px',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
                 <button
                   type="submit"
                   className="btn btn-primary"
                   style={{
-                    padding: '10px 12px',
+                    minWidth: 0,
+                    width: '100%',
+                    padding: '10px 10px',
                     fontSize: '0.72rem',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    boxSizing: 'border-box'
                   }}
                   disabled={!roomCodeInput.trim()}
                 >
@@ -905,7 +914,9 @@ export function FriendsModal({ onClose, onSelectMode, onSpectateOnline }) {
                   className="btn"
                   onClick={handleSpectate}
                   style={{
-                    padding: '10px 12px',
+                    minWidth: 0,
+                    width: '100%',
+                    padding: '10px 10px',
                     fontSize: '0.72rem',
                     background: 'linear-gradient(180deg, #3B2852 0%, #221533 100%)',
                     color: '#C084FC',
@@ -914,7 +925,8 @@ export function FriendsModal({ onClose, onSelectMode, onSpectateOnline }) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    boxSizing: 'border-box'
                   }}
                   disabled={!roomCodeInput.trim()}
                 >
@@ -941,6 +953,7 @@ export function FriendsModal({ onClose, onSelectMode, onSpectateOnline }) {
             <button
               className="btn btn-primary"
               style={{
+                minWidth: 0,
                 width: '100%',
                 padding: '12px 16px',
                 fontSize: '0.74rem',
@@ -964,7 +977,7 @@ export function FriendsModal({ onClose, onSelectMode, onSpectateOnline }) {
         <div className="modal-actions" style={{ marginTop: '16px' }}>
           <button
             className="btn btn-secondary"
-            style={{ width: '100%', padding: '10px 16px', fontSize: '0.74rem', boxSizing: 'border-box' }}
+            style={{ minWidth: 0, width: '100%', padding: '10px 16px', fontSize: '0.74rem', boxSizing: 'border-box' }}
             onClick={() => { sounds.btnClick(); onClose(); }}
           >
             CLOSE

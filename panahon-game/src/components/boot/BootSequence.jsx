@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import sounds from "../../sound.js";
+import AnimatedLogo from "../common/AnimatedLogo.jsx";
 
 export default function BootSequence({ onComplete }) {
   const [stage, setStage] = useState("video"); // "video" | "loading"
@@ -277,24 +278,9 @@ export default function BootSequence({ onComplete }) {
         transition: "opacity 0.45s ease-in-out"
       }}
     >
-      {/* Central Animated Chrono Logo (Black knocked out via mix-blend-mode: screen) */}
+      {/* Central Animated Chrono Logo (Hardware-accelerated transparent canvas) */}
       <div className="splash-logo-container">
-        <video
-          className="splash-logo-video"
-          autoPlay
-          loop
-          muted
-          playsInline
-          poster="/assets/panahon_chrono_shift_logo.png"
-        >
-          <source src="/assets/panahon_chrono_shift_logo_anim.mp4" type="video/mp4" />
-          <source src="/assets/panahon-logo.mp4" type="video/mp4" />
-          <img
-            src="/assets/panahon_chrono_shift_logo.png"
-            alt="PANAHON: Chrono Shift"
-            className="splash-logo-fallback"
-          />
-        </video>
+        <AnimatedLogo className="splash-logo-video" alt="PANAHON: Chrono Shift" />
       </div>
       <div
         style={{

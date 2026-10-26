@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import sounds from '../sound.js';
+import AnimatedLogo from './common/AnimatedLogo.jsx';
 import { ROLES } from '../gameData.js';
 import {
   QuestsModal,
@@ -124,24 +125,9 @@ export default function TitleScreen({
       <div className="duelyst-main-layout">
         {/* Left Column: Brand & Vertical Menu */}
         <div className="duelyst-left-section">
-          {/* Main Menu Animated Logo Video (Black knocked out via mix-blend-mode: screen) */}
+          {/* Main Menu Animated Logo (Hardware-accelerated transparent canvas) */}
           <div className="duelyst-logo-wrapper">
-            <video
-              className="main-menu-logo-video"
-              autoPlay
-              loop
-              muted
-              playsInline
-              poster="/assets/panahon_chrono_shift_logo.png"
-            >
-              <source src="/assets/panahon_chrono_shift_logo_anim.mp4" type="video/mp4" />
-              <source src="/assets/panahon-logo.mp4" type="video/mp4" />
-              <img
-                src="/assets/panahon_chrono_shift_logo.png"
-                alt="PANAHON: Chrono Shift"
-                className="main-menu-logo"
-              />
-            </video>
+            <AnimatedLogo className="main-menu-logo-video" alt="PANAHON: Chrono Shift" />
           </div>
 
           {/* Vertical Menu Items */}

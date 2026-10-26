@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 
 /**
- * AnimatedLogo
+ * AnimatedLogo (Procedural Chrono Shift Engine)
  * 
- * Hardware-accelerated canvas renderer for the Panahon Chrono Shift animated logo.
- * Eliminates the solid black background in real-time using a WebGL fragment shader,
- * rendering crisp, glowing logo graphics with genuine alpha transparency over the
- * panning background map or loading screen.
+ * Replaces the AI video with a native, high-performance procedural animation:
+ * - 100% genuine RGBA transparency (zero black background, zero compression artifacts)
+ * - Boundless temporal particles, solar embers, and cyan binary data streams
+ * - Concentric expanding portal shockwaves behind the logo
+ * - Rotating solar rays behind the Baybayin sun gear
+ * - Smooth 60fps organic levitation preserving authentic pixel art lettering with zero clutter
  */
 export default function AnimatedLogo({
   className = "main-menu-logo-video",
@@ -14,185 +16,213 @@ export default function AnimatedLogo({
   alt = "PANAHON: Chrono Shift"
 }) {
   const canvasRef = useRef(null);
-  const videoRef = useRef(null);
+  const containerRef = useRef(null);
   const animFrameRef = useRef(null);
-  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isLogoLoaded, setIsLogoLoaded] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const video = videoRef.current;
-    if (!canvas || !video) return;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     let isDestroyed = false;
-    let gl = null;
-    let program = null;
-    let texture = null;
-    let positionBuffer = null;
-    let texCoordBuffer = null;
-    let ctx2d = null;
 
-    canvas.width = 1280;
-    canvas.height = 720;
+    // High-DPI canvas dimensions
+    const BASE_W = 1400;
+    const BASE_H = 890;
+    canvas.width = BASE_W;
+    canvas.height = BASE_H;
 
-    // 1. Initialize WebGL Shader Pipeline
-    try {
-      gl = canvas.getContext("webgl", {
-        alpha: true,
-        premultipliedAlpha: false,
-        antialias: true
-      }) || canvas.getContext("experimental-webgl", {
-        alpha: true,
-        premultipliedAlpha: false
+    // 1. Preload Logo Image
+    const logoImg = new Image();
+    logoImg.src = "/assets/panahon_chrono_shift_logo.png";
+    logoImg.onload = () => {
+      if (!isDestroyed) setIsLogoLoaded(true);
+    };
+
+    // 2. Boundless Particle System (Solar Embers + Cyber Binary Bits)
+    const PARTICLE_COUNT = 38;
+    const particles = [];
+    const emberColors = ["#F5C442", "#FFD700", "#F97316", "#FB923C", "#FDE047"];
+    const cyanColors = ["#38BDF8", "#0EA5E9", "#7DD3FC", "#A5F3FC", "#E0F2FE"];
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const isCyan = i < 18;
+      particles.push({
+        isCyan,
+        isBinary: isCyan && Math.random() > 0.45,
+        char: Math.random() > 0.5 ? "1" : "0",
+        x: isCyan ? (0.16 + Math.random() * 0.34) : (0.48 + Math.random() * 0.38),
+        y: 0.20 + Math.random() * 0.62,
+        vx: (Math.random() - 0.5) * (isCyan ? 0.0009 : 0.0015),
+        vy: -0.0007 - Math.random() * 0.0016,
+        size: Math.random() > 0.6 ? 3 : 2,
+        color: isCyan
+          ? cyanColors[Math.floor(Math.random() * cyanColors.length)]
+          : emberColors[Math.floor(Math.random() * emberColors.length)],
+        maxAlpha: 0.35 + Math.random() * 0.55,
+        life: Math.floor(Math.random() * 120),
+        maxLife: 85 + Math.floor(Math.random() * 95)
       });
-    } catch {
-      gl = null;
     }
 
-    if (gl) {
-      const vsSource = `
-        attribute vec2 a_position;
-        attribute vec2 a_texCoord;
-        varying vec2 v_texCoord;
-        void main() {
-          gl_Position = vec4(a_position, 0.0, 1.0);
-          v_texCoord = a_texCoord;
-        }
-      `;
+    // 3. Shockwave Wavepool (Behind the logo)
+    const shockwaves = [
+      { progress: 0.0, speed: 0.0055 },
+      { progress: 0.35, speed: 0.0055 },
+      { progress: 0.70, speed: 0.0055 }
+    ];
 
-      const fsSource = `
-        precision mediump float;
-        uniform sampler2D u_image;
-        varying vec2 v_texCoord;
-        void main() {
-          vec4 color = texture2D(u_image, v_texCoord);
-          float brightness = max(color.r, max(color.g, color.b));
-          // Key out black background smoothly:
-          // Brightness <= 0.04 -> completely transparent (alpha = 0.0)
-          // Brightness >= 0.16 -> completely opaque
-          float alpha = smoothstep(0.04, 0.16, brightness);
-          gl_FragColor = vec4(color.rgb, color.a * alpha);
-        }
-      `;
+    let startTime = performance.now();
 
-      const createShader = (type, source) => {
-        const shader = gl.createShader(type);
-        gl.shaderSource(shader, source);
-        gl.compileShader(shader);
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-          gl.deleteShader(shader);
-          return null;
-        }
-        return shader;
-      };
-
-      const vs = createShader(gl.VERTEX_SHADER, vsSource);
-      const fs = createShader(gl.FRAGMENT_SHADER, fsSource);
-
-      if (vs && fs) {
-        program = gl.createProgram();
-        gl.attachShader(program, vs);
-        gl.attachShader(program, fs);
-        gl.linkProgram(program);
-
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-          program = null;
-        }
-      }
-
-      if (program) {
-        gl.useProgram(program);
-
-        const positions = new Float32Array([
-          -1.0,  1.0,
-           1.0,  1.0,
-          -1.0, -1.0,
-           1.0, -1.0
-        ]);
-        positionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-
-        const aPositionLocation = gl.getAttribLocation(program, "a_position");
-        gl.enableVertexAttribArray(aPositionLocation);
-        gl.vertexAttribPointer(aPositionLocation, 2, gl.FLOAT, false, 0, 0);
-
-        const texCoords = new Float32Array([
-          0.0, 0.0,
-          1.0, 0.0,
-          0.0, 1.0,
-          1.0, 1.0
-        ]);
-        texCoordBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
-
-        const aTexCoordLocation = gl.getAttribLocation(program, "a_texCoord");
-        gl.enableVertexAttribArray(aTexCoordLocation);
-        gl.vertexAttribPointer(aTexCoordLocation, 2, gl.FLOAT, false, 0, 0);
-
-        texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.clearColor(0.0, 0.0, 0.0, 0.0);
-      } else {
-        gl = null;
-      }
-    }
-
-    if (!gl) {
-      ctx2d = canvas.getContext("2d", { willReadFrequently: true });
-    }
-
-    // 2. Continuous Render Loop
-    let hasTriggeredPlaying = false;
-
-    const render = () => {
+    // 4. Main Render Loop
+    const render = (now) => {
       if (isDestroyed) return;
 
-      if (video.readyState >= 2 && !video.paused) {
-        if (!hasTriggeredPlaying) {
-          hasTriggeredPlaying = true;
-          setIsVideoPlaying(true);
+      const elapsed = (now - startTime) * 0.001; // seconds
+
+      ctx.clearRect(0, 0, BASE_W, BASE_H);
+
+      // Logo layout metrics inside the 1400x890 bounding canvas
+      const logoW = 1200;
+      const logoH = Math.round(logoW * (1358 / 2128)); // ~765px
+      const baseLx = (BASE_W - logoW) / 2;
+      const baseLy = (BASE_H - logoH) / 2 + 10;
+
+      // Subtle organic breathing float
+      const bobY = Math.sin(elapsed * 1.5) * 5.0;
+      const breatheScale = 1.0 + Math.sin(elapsed * 1.2) * 0.008;
+
+      const lx = baseLx;
+      const ly = baseLy + bobY;
+
+      // Nexus Portal Coordinates (where the cyan loop meets the orange sun gear)
+      const ncx = lx + logoW * 0.478;
+      const ncy = ly + logoH * 0.474;
+
+      // --- LAYER A: AMBIENT VORTEX NEBULA & ROTATING SOLAR RAYS (BEHIND LOGO) ---
+      // A1. Cyan Ambient Glow (Left realm)
+      const cyanGlowR = 210 + Math.sin(elapsed * 2.0) * 22;
+      const cyanGrad = ctx.createRadialGradient(ncx - 80, ncy, 10, ncx - 80, ncy, cyanGlowR);
+      cyanGrad.addColorStop(0, "rgba(56, 189, 248, 0.35)");
+      cyanGrad.addColorStop(0.5, "rgba(14, 165, 233, 0.15)");
+      cyanGrad.addColorStop(1, "rgba(56, 189, 248, 0.0)");
+      ctx.fillStyle = cyanGrad;
+      ctx.beginPath();
+      ctx.arc(ncx - 80, ncy, cyanGlowR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // A2. Solar Amber Glow (Right realm)
+      const amberGlowR = 230 + Math.cos(elapsed * 2.2) * 25;
+      const amberGrad = ctx.createRadialGradient(ncx + 80, ncy, 10, ncx + 80, ncy, amberGlowR);
+      amberGrad.addColorStop(0, "rgba(245, 158, 11, 0.32)");
+      amberGrad.addColorStop(0.5, "rgba(234, 88, 12, 0.14)");
+      amberGrad.addColorStop(1, "rgba(245, 158, 11, 0.0)");
+      ctx.fillStyle = amberGrad;
+      ctx.beginPath();
+      ctx.arc(ncx + 80, ncy, amberGlowR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // A3. Rotating Solar Rays behind Baybayin Gear
+      const gearCenterX = ncx + logoW * 0.19;
+      const gearCenterY = ncy;
+      ctx.save();
+      ctx.translate(gearCenterX, gearCenterY);
+      ctx.rotate(elapsed * 0.08); // slow clockwise rotation
+      const rayCount = 14;
+      for (let i = 0; i < rayCount; i++) {
+        const angle = (i * Math.PI * 2) / rayCount;
+        const rayLen = 195 + Math.sin(elapsed * 3 + i) * 18;
+        const rayGrad = ctx.createLinearGradient(0, 0, Math.cos(angle) * rayLen, Math.sin(angle) * rayLen);
+        rayGrad.addColorStop(0, "rgba(254, 240, 138, 0.24)");
+        rayGrad.addColorStop(0.65, "rgba(245, 158, 11, 0.10)");
+        rayGrad.addColorStop(1, "rgba(245, 158, 11, 0.0)");
+        ctx.strokeStyle = rayGrad;
+        ctx.lineWidth = 4.5;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(angle) * rayLen, Math.sin(angle) * rayLen);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // A4. Expanding Temporal Shockwave Rings from the Nexus
+      for (let i = 0; i < shockwaves.length; i++) {
+        const sw = shockwaves[i];
+        sw.progress += sw.speed;
+        if (sw.progress > 1.0) sw.progress = 0.0;
+
+        const maxRadius = 280;
+        const radius = 15 + sw.progress * maxRadius;
+        const alpha = Math.sin((1.0 - sw.progress) * Math.PI * 0.5) * 0.65;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ncx, ncy, radius, 0, Math.PI * 2);
+        const waveGrad = ctx.createLinearGradient(ncx - radius, ncy, ncx + radius, ncy);
+        waveGrad.addColorStop(0, `rgba(56, 189, 248, ${alpha * 0.9})`);
+        waveGrad.addColorStop(0.48, `rgba(255, 255, 255, ${alpha})`);
+        waveGrad.addColorStop(1, `rgba(245, 196, 66, ${alpha * 0.9})`);
+        ctx.strokeStyle = waveGrad;
+        ctx.lineWidth = Math.max(1, 3.5 * (1.0 - sw.progress));
+        ctx.shadowColor = sw.progress < 0.5 ? "#38BDF8" : "#F5C442";
+        ctx.shadowBlur = 8;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // --- LAYER B: THE CORE LOGO ARTWORK (UNTOUCHED PIXEL ART) ---
+      if (logoImg.complete && logoImg.naturalWidth > 0) {
+        ctx.save();
+        ctx.translate(BASE_W / 2, BASE_H / 2 + bobY);
+        ctx.scale(breatheScale, breatheScale);
+        ctx.translate(-BASE_W / 2, -(BASE_H / 2 + bobY));
+
+        ctx.imageSmoothingEnabled = false; // preserve authentic pixel art sharpness
+        ctx.drawImage(logoImg, lx, ly, logoW, logoH);
+        ctx.restore();
+      }
+
+      // --- LAYER C: BOUNDLESS PARTICLES & BINARY DATA STREAM ---
+      ctx.font = "bold 11px monospace";
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life++;
+
+        if (p.life > p.maxLife || p.x < 0.02 || p.x > 0.98 || p.y < 0.02) {
+          p.x = p.isCyan ? (0.16 + Math.random() * 0.34) : (0.48 + Math.random() * 0.38);
+          p.y = 0.22 + Math.random() * 0.58;
+          p.vx = (Math.random() - 0.5) * (p.isCyan ? 0.0010 : 0.0018);
+          p.vy = -0.0008 - Math.random() * 0.0016;
+          p.life = 0;
+          p.maxLife = 85 + Math.floor(Math.random() * 95);
         }
 
-        if (gl && program && texture) {
-          gl.clear(gl.COLOR_BUFFER_BIT);
-          gl.bindTexture(gl.TEXTURE_2D, texture);
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-        } else if (ctx2d) {
-          ctx2d.clearRect(0, 0, canvas.width, canvas.height);
-          ctx2d.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const frame = ctx2d.getImageData(0, 0, canvas.width, canvas.height);
-          const data = frame.data;
-          for (let i = 0; i < data.length; i += 4) {
-            const r = data[i], g = data[i + 1], b = data[i + 2];
-            const maxVal = r > g ? (r > b ? r : b) : (g > b ? g : b);
-            if (maxVal < 14) {
-              data[i + 3] = 0;
-            } else if (maxVal < 36) {
-              data[i + 3] = Math.round(((maxVal - 14) / 22) * 255);
-            }
-          }
-          ctx2d.putImageData(frame, 0, 0);
+        const progress = p.life / p.maxLife;
+        const currentAlpha = Math.sin(progress * Math.PI) * p.maxAlpha;
+        const px = Math.round(p.x * BASE_W);
+        const py = Math.round(p.y * BASE_H);
+
+        ctx.save();
+        ctx.globalAlpha = currentAlpha;
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 5;
+
+        if (p.isBinary) {
+          ctx.fillText(p.char, px, py);
+        } else {
+          ctx.fillRect(px, py, p.size, p.size);
         }
+        ctx.restore();
       }
 
       animFrameRef.current = requestAnimationFrame(render);
     };
-
-    const startPlay = () => {
-      video.play().catch(() => {});
-    };
-
-    video.addEventListener("loadeddata", startPlay);
-    video.addEventListener("canplay", startPlay);
-    startPlay();
 
     animFrameRef.current = requestAnimationFrame(render);
 
@@ -201,67 +231,49 @@ export default function AnimatedLogo({
       if (animFrameRef.current) {
         cancelAnimationFrame(animFrameRef.current);
       }
-      video.removeEventListener("loadeddata", startPlay);
-      video.removeEventListener("canplay", startPlay);
-      video.pause();
-      if (gl) {
-        if (texture) gl.deleteTexture(texture);
-        if (positionBuffer) gl.deleteBuffer(positionBuffer);
-        if (texCoordBuffer) gl.deleteBuffer(texCoordBuffer);
-        if (program) gl.deleteProgram(program);
-      }
     };
   }, []);
 
   return (
     <div
+      ref={containerRef}
       className={className}
       style={{
         position: "relative",
         display: "block",
         lineHeight: 0,
+        overflow: "visible",
+        userSelect: "none",
+        pointerEvents: "none",
         ...style
       }}
+      aria-label={alt}
     >
-      <video
-        ref={videoRef}
-        playsInline
-        autoPlay
-        loop
-        muted
-        crossOrigin="anonymous"
-        style={{ display: "none" }}
-        poster="/assets/panahon_chrono_shift_logo.png"
-      >
-        <source src="/assets/panahon_chrono_shift_logo_anim.webm" type="video/webm" />
-        <source src="/assets/panahon_chrono_shift_logo_anim.mp4" type="video/mp4" />
-        <source src="/assets/panahon-logo.mp4" type="video/mp4" />
-      </video>
+      {/* Static Fallback shown until canvas is mounted & loaded */}
+      {!isLogoLoaded && (
+        <img
+          src="/assets/panahon_chrono_shift_logo.png"
+          alt={alt}
+          style={{
+            width: "100%",
+            height: "auto",
+            display: "block",
+            pointerEvents: "none",
+            userSelect: "none",
+            imageRendering: "pixelated"
+          }}
+        />
+      )}
 
-      {/* Instant static poster before video stream starts */}
-      <img
-        src="/assets/panahon_chrono_shift_logo.png"
-        alt={alt}
-        style={{
-          width: "100%",
-          height: "auto",
-          display: isVideoPlaying ? "none" : "block",
-          pointerEvents: "none",
-          userSelect: "none"
-        }}
-      />
-
-      {/* Real-time hardware-keyed transparent canvas */}
+      {/* Main Procedural Chrono Shift Animation Canvas */}
       <canvas
         ref={canvasRef}
         style={{
           width: "100%",
           height: "auto",
-          display: isVideoPlaying ? "block" : "none",
-          pointerEvents: "none",
-          userSelect: "none"
+          display: isLogoLoaded ? "block" : "none",
+          imageRendering: "auto"
         }}
-        aria-label={alt}
       />
     </div>
   );

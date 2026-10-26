@@ -1789,15 +1789,16 @@ body {
 
 .reachable-arrow-indicator {
   position: absolute;
-  top: -20px;
+  top: -22px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   color: #FFD700;
   font-weight: 900;
   animation: arrowDown 0.5s ease-in-out infinite alternate;
   pointer-events: none;
-  text-shadow: 0 0 6px #000, 0 0 10px #FFD700;
+  text-shadow: 0 0 6px #000, 0 0 12px #FFD700;
+  z-index: 45;
 }
 
 @keyframes arrowDown {

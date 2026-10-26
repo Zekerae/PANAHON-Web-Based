@@ -121,6 +121,8 @@ export default function App() {
       } else {
         setObservedModal(null);
       }
+    } else {
+      setObservedModal(null);
     }
   }, [gameState?.pendingModal, gameState?.currentPlayerIndex, network?.playerId, network?.isSpectator, network?.mode]);
 
@@ -135,6 +137,13 @@ export default function App() {
       engine._hasActivePreview = Boolean(appState.maximizedCardData);
     }
   }, [appState.maximizedCardData, engine]);
+
+  const handleDismissObservedModal = useCallback(() => {
+    setObservedModal(null);
+    if (engine?.state?.pendingModal) {
+      dismissModal();
+    }
+  }, [engine, dismissModal]);
 
   const isGameActive = appState.currentScreen === 'game';
 
@@ -404,12 +413,7 @@ export default function App() {
           modal={observedModal}
           engine={engine}
           network={network}
-          onDismiss={() => {
-            setObservedModal(null);
-            if (engine?.state?.pendingModal) {
-              dismissModal();
-            }
-          }}
+          onDismiss={handleDismissObservedModal}
           onMaximize={(cardData) => dispatch({ type: 'SET_MAXIMIZED_CARD', cardData })}
         />
       )}

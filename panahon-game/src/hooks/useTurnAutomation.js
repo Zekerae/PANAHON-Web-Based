@@ -13,6 +13,19 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
     }
   };
 
+  const isPhaseMoving = state?.phase === "moving";
+  const movesRemaining = state?.movesRemaining || 0;
+  const currentPlayerIndex = state?.currentPlayerIndex;
+  const isPaused = Boolean(engine?.isPaused || state?.isPaused);
+  const gameOver = Boolean(state?.gameOver);
+  const endReason = state?.endReason;
+  const momentumActive = Boolean(state?.momentumActive);
+  const hasPendingModal = Boolean(state?.pendingModal);
+  const hasPendingChoice = Boolean(state?.pendingChoice);
+  const movementDirection = state?.movementDirection;
+  const hasMovedThisTurn = Boolean(state?.hasMovedThisTurn);
+  const stepsTakenThisTurn = state?.stepsTakenThisTurn || 0;
+
   useEffect(() => {
     if (!state || !engine || !network || !isGameActive) {
       clearAutoMove();
@@ -21,11 +34,11 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
     }
 
     // Handle Game Over sound & screen transition
-    if (state.gameOver) {
+    if (gameOver) {
       clearAutoMove();
       if (!gameOverHandledRef.current) {
         gameOverHandledRef.current = true;
-        if (state.endReason === 'collapse') {
+        if (endReason === "collapse") {
           sounds.collapse();
         } else {
           sounds.victory();
@@ -41,7 +54,7 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
     gameOverHandledRef.current = false;
 
     // Do not automate turns or move if game is paused
-    if (engine.isPaused || state.isPaused) {
+    if (isPaused) {
       clearAutoMove();
       return;
     }
@@ -57,12 +70,12 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
     // Handle Auto Movement for Human Turn
     const checkAndTriggerAutoMove = (delayMs) => {
       if (
-        state.phase !== 'moving' ||
-        state.movesRemaining <= 0 ||
-        state.momentumActive ||
-        state.pendingModal ||
-        state.pendingChoice ||
-        !network.isMyTurn(state.currentPlayerIndex)
+        !isPhaseMoving ||
+        movesRemaining <= 0 ||
+        momentumActive ||
+        hasPendingModal ||
+        hasPendingChoice ||
+        !network.isMyTurn(currentPlayerIndex)
       ) {
         clearAutoMove();
         return;
@@ -70,18 +83,16 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
 
       if (autoMoveTimerRef.current) return;
 
-      const isStartOfTurn = !state.hasMovedThisTurn && (!state.stepsTakenThisTurn || state.stepsTakenThisTurn === 0);
-      const currentPlayer = state.players?.[state.currentPlayerIndex];
+      const isStartOfTurn = !hasMovedThisTurn && stepsTakenThisTurn === 0;
+      const currentPlayer = state.players?.[currentPlayerIndex];
       const canReverseTime = isStartOfTurn &&
-        state.movementDirection !== 'backward' &&
+        movementDirection !== "backward" &&
         currentPlayer &&
         currentPlayer.reverseTimeCooldown === 0 &&
         currentPlayer.energy >= 3;
 
       let effectiveDelay = delayMs;
       if (effectiveDelay === undefined) {
-        // At start of turn, if player can activate Reverse Time, give a 2.2s decision window so they aren't rushed.
-        // Otherwise, standard 650ms initial roll delay, and 380ms for subsequent steps.
         effectiveDelay = isStartOfTurn ? (canReverseTime ? 2200 : 700) : 380;
       }
 
@@ -89,7 +100,7 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
         autoMoveTimerRef.current = null;
         const cur = engine.getState();
         if (
-          cur?.phase === 'moving' &&
+          cur?.phase === "moving" &&
           cur.movesRemaining > 0 &&
           !cur.momentumActive &&
           !cur.pendingModal &&
@@ -98,7 +109,7 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
         ) {
           sounds.moveStep();
           engine.movePlayerStep();
-          network.sendAction({ type: 'MOVE_STEP' });
+          network.sendAction({ type: "MOVE_STEP" });
           checkAndTriggerAutoMove(380);
         }
       }, effectiveDelay);
@@ -109,7 +120,25 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
     return () => {
       clearAutoMove();
     };
-  }, [state, engine, network, onGameOver]);
+  }, [
+    isPhaseMoving,
+    movesRemaining,
+    currentPlayerIndex,
+    isPaused,
+    gameOver,
+    endReason,
+    momentumActive,
+    hasPendingModal,
+    hasPendingChoice,
+    movementDirection,
+    hasMovedThisTurn,
+    stepsTakenThisTurn,
+    isGameActive,
+    simulationSpeed,
+    engine,
+    network,
+    onGameOver
+  ]);
 
   return {
     clearAutoMove

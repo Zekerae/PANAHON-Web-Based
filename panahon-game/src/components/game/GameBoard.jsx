@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo, memo } from "react";
 import sounds from "../../sound.js";
+import { getNextTileIndex } from "../../gameEngine.js";
 import {
   ERA_ORDER,
   ERA_NAMES,
@@ -256,7 +257,7 @@ function GameBoard({
     return (typeof getActivePathConnections === "function" ? getActivePathConnections() : {}) || {};
   }, []);
 
-  // Precompute players by tile key in O(P) once per render, avoiding 96 O(P) filter calls
+  // Precompute players by tile key once per render
   const playersByTileKey = useMemo(() => {
     const map = {};
     if (!players) return map;
@@ -269,9 +270,9 @@ function GameBoard({
       }
     }
     return map;
-  }, [players]);
+  }, [players, currentPlayer?.tileIndex, currentPlayer?.currentEra]);
 
-  // Precompute reachable target tile once per state change, avoiding O(N) connections looping per tile
+  // Precompute reachable target tile using authoritative getNextTileIndex
   const reachableTileKey = useMemo(() => {
     if (pendingChoice?.type === "teleportTile") {
       return "all_" + (pendingChoice.targetEra || "myth");
@@ -281,32 +282,22 @@ function GameBoard({
       const cIdx = currentPlayer.tileIndex;
       const dir = movementDirection === "backward" ? -1 : 1;
       const tiles = board?.[era] || [];
-      let target = null;
-      if (dir === 1) {
-        const eraConns = connections[era];
-        if (eraConns && eraConns[cIdx] && eraConns[cIdx].length > 0) {
-          target = eraConns[cIdx][0];
-        } else {
-          target = (cIdx + 1) % tiles.length;
-        }
-      } else {
-        const eraConns = connections[era];
-        if (eraConns) {
-          for (const [sourceStr, targetArr] of Object.entries(eraConns)) {
-            if (Array.isArray(targetArr) && targetArr.includes(cIdx)) {
-              target = parseInt(sourceStr, 10);
-              break;
-            }
-          }
-        }
-        if (target === null) {
-          target = (cIdx - 1 + tiles.length) % tiles.length;
-        }
+      const target = getNextTileIndex(currentPlayer, era, cIdx, dir, tiles.length);
+      if (target !== null && target !== undefined) {
+        return `${era}_${target}`;
       }
-      return `${era}_${target}`;
     }
     return null;
-  }, [pendingChoice, phase, movesRemaining, currentPlayer, movementDirection, board, connections]);
+  }, [
+    pendingChoice,
+    phase,
+    movesRemaining,
+    currentPlayer?.currentEra,
+    currentPlayer?.tileIndex,
+    currentPlayer?.previousTileIndex,
+    movementDirection,
+    board
+  ]);
 
   if (!board || !currentPlayer) return null;
 

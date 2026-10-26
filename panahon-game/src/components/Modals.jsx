@@ -101,11 +101,16 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   const startTimeRef = useRef(Date.now());
   const elapsedRef = useRef(0);
   const timerRef = useRef(null);
+  const onDismissRef = useRef(onDismiss);
+
+  useEffect(() => {
+    onDismissRef.current = onDismiss;
+  }, [onDismiss]);
 
   useEffect(() => {
     startTimeRef.current = Date.now();
     elapsedRef.current = 0;
-  }, [modal?.title, modal?._timestamp]);
+  }, [modal?.title, modal?._timestamp, modal?.id]);
 
   // Tell engine when user is hovering so AI bots and auto-move pause
   useEffect(() => {
@@ -119,35 +124,44 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     };
   }, [isHovered, engine]);
 
-  // High-performance single timer without 100ms polling/re-rendering
+  // High-performance timer with pause/resume support
   useEffect(() => {
     if (!isOtherPlayer) return;
 
     if (isHovered) {
-      elapsedRef.current += Date.now() - startTimeRef.current;
-      if (timerRef.current) clearTimeout(timerRef.current);
+      elapsedRef.current += (Date.now() - startTimeRef.current);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
       return;
     }
 
     startTimeRef.current = Date.now();
-    const remaining = Math.max(400, durationMs - elapsedRef.current);
+    const remaining = Math.max(100, durationMs - elapsedRef.current);
 
     timerRef.current = setTimeout(() => {
-      onDismiss();
+      timerRef.current = null;
+      onDismissRef.current?.();
     }, remaining);
 
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
     };
-  }, [isOtherPlayer, isHovered, durationMs, onDismiss]);
+  }, [isOtherPlayer, isHovered, durationMs, modal?.title, modal?._timestamp, modal?.id]);
 
   const handleDismiss = () => {
     sounds.btnClick();
-    if (!network.isSpectator && (network.mode !== 'online' || modal.playerId === undefined || modal.playerId === network.playerId)) {
-      engine.dismissModal();
-      network.sendAction({ type: 'DISMISS_MODAL' });
+    if (!network?.isSpectator && (network?.mode !== 'online' || modal.playerId === undefined || modal.playerId === network.playerId)) {
+      if (typeof engine?.dismissModal === 'function') {
+        engine.dismissModal();
+      }
+      network?.sendAction?.({ type: 'DISMISS_MODAL' });
     }
-    onDismiss();
+    onDismissRef.current?.();
   };
 
   if (isOtherPlayer) {
@@ -205,7 +219,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
             >
               🔍
             </button>
-            <button className="side-card-close" title="Dismiss" onClick={() => { sounds.btnClick(); onDismiss(); }}>
+            <button className="side-card-close" title="Dismiss" onClick={handleDismiss}>
               &times;
             </button>
           </div>
@@ -309,6 +323,11 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               background: timerFillGradient,
               animationDuration: `${durationMs}ms`,
               animationPlayState: isHovered ? 'paused' : 'running'
+            }}
+            onAnimationEnd={() => {
+              if (!isHovered) {
+                onDismissRef.current?.();
+              }
             }}
           ></div>
         </div>

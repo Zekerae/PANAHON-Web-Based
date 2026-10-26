@@ -22,7 +22,11 @@ export function useGameEngine(engine) {
     const currentVersion = engine.version || 0;
     if (currentVersion !== lastVersionRef.current || !snapshotRef.current) {
       lastVersionRef.current = currentVersion;
-      snapshotRef.current = { ...currentState };
+      snapshotRef.current = {
+        ...currentState,
+        players: currentState.players ? currentState.players.map(p => ({ ...p })) : [],
+        board: currentState.board ? { ...currentState.board } : null
+      };
     }
     return snapshotRef.current;
   }, [engine]);
@@ -75,6 +79,9 @@ export function useGameEngine(engine) {
   }, [engine]);
 
   const dismissModal = useCallback(() => {
+    if (typeof engine?.dismissModal === 'function') {
+      return engine.dismissModal();
+    }
     if (!engine?.state) return;
     engine.state.pendingModal = null;
     engine.notify('modal_dismiss');

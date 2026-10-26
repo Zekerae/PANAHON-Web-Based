@@ -19,6 +19,63 @@ function rollDie() {
   return Math.floor(Math.random() * 6) + 1;
 }
 
+export function getNextTileIndex(player, era, currentIdx, dir = 1, total = 25) {
+  const connections = (typeof getActivePathConnections === 'function') ? getActivePathConnections() : {};
+  const junctionRules = (typeof getActiveJunctionRules === 'function') ? getActiveJunctionRules() : {};
+  const eraConnections = connections[era];
+  const eraRules = junctionRules[era] || {};
+  const prev = player?.previousTileIndex;
+   if (dir < 0) {
+    if (eraConnections) {
+      const incoming = [];
+      for (const [sourceStr, targetArr] of Object.entries(eraConnections)) {
+        if (Array.isArray(targetArr) && targetArr.includes(currentIdx)) {
+          incoming.push(parseInt(sourceStr, 10));
+        }
+      }
+      if (incoming.length > 0) {
+        if (prev !== undefined && incoming.includes(prev)) {
+          return prev;
+        }
+        return incoming[0];
+      }
+    }
+    return (currentIdx - 1 + total) % total;
+  }
+   if (eraConnections) {
+    const targets = eraConnections[currentIdx];
+     // Fallback if no outgoing targets defined
+    if (!Array.isArray(targets) || targets.length === 0) {
+      return dir > 0 ? (currentIdx + 1) % total : (currentIdx - 1 + total) % total;
+    }
+     // If single target, strictly follow that single connection (authoritative map graph)
+    if (targets.length === 1) {
+      return targets[0];
+    }
+     // Multi-target junction:
+    // 1. Explicit junction rule based on arrival space (currentIdx:prev)
+    if (prev !== undefined && prev !== null) {
+      const ruleKey = `${currentIdx}:${prev}`;
+      const ruleTarget = eraRules[ruleKey];
+      // Only accept the junction rule if its target is actually one of the node's valid outgoing targets
+      if (ruleTarget !== undefined && targets.includes(ruleTarget)) {
+        return ruleTarget;
+      }
+    }
+     // 2. Filter out the space we just arrived from to avoid immediate U-turn unless no other choice
+    let candidates = targets.filter(t => t !== prev);
+    if (candidates.length === 0) candidates = targets;
+     return candidates[0] !== undefined ? candidates[0] : targets[0];
+  }
+   if (dir > 0) {
+    return (currentIdx + 1) % total;
+  } else {
+    return (currentIdx - 1 + total) % total;
+  }
+}
+
+
+
 export class GameEngine {
   constructor() {
     this.state = null;
@@ -293,6 +350,7 @@ export class GameEngine {
 
     // Move
     eraTiles[currentIdx].players = eraTiles[currentIdx].players.filter(id => id !== player.id);
+    player.previousTileIndex = currentIdx;
     player.tileIndex = targetIdx;
     eraTiles[targetIdx].players.push(player.id);
     this.state.movesRemaining--;
@@ -360,68 +418,8 @@ export class GameEngine {
 
   // Determine next tile index using custom node-graph connections and approach routing rules
   getNextTileIndex(player, era, currentIdx, dir = 1) {
-    const eraTiles = this.state.board[era];
-    const total = eraTiles.length;
-    const connections = (typeof getActivePathConnections === 'function') ? getActivePathConnections() : {};
-    const junctionRules = (typeof getActiveJunctionRules === 'function') ? getActiveJunctionRules() : {};
-    const eraConnections = connections[era];
-    const eraRules = junctionRules[era] || {};
-    const prev = player?.previousTileIndex;
-
-    if (dir < 0) {
-      if (eraConnections) {
-        const incoming = [];
-        for (const [sourceStr, targetArr] of Object.entries(eraConnections)) {
-          if (Array.isArray(targetArr) && targetArr.includes(currentIdx)) {
-            incoming.push(parseInt(sourceStr, 10));
-          }
-        }
-        if (incoming.length > 0) {
-          if (prev !== undefined && incoming.includes(prev)) {
-            return prev;
-          }
-          return incoming[0];
-        }
-      }
-      return (currentIdx - 1 + total) % total;
-    }
-
-    if (eraConnections) {
-      const targets = eraConnections[currentIdx];
-
-      // Fallback if no outgoing targets defined
-      if (!Array.isArray(targets) || targets.length === 0) {
-        return dir > 0 ? (currentIdx + 1) % total : (currentIdx - 1 + total) % total;
-      }
-
-      // If single target, strictly follow that single connection (authoritative map graph)
-      if (targets.length === 1) {
-        return targets[0];
-      }
-
-      // Multi-target junction:
-      // 1. Explicit junction rule based on arrival space (currentIdx:prev)
-      if (prev !== undefined && prev !== null) {
-        const ruleKey = `${currentIdx}:${prev}`;
-        const ruleTarget = eraRules[ruleKey];
-        // Only accept the junction rule if its target is actually one of the node's valid outgoing targets
-        if (ruleTarget !== undefined && targets.includes(ruleTarget)) {
-          return ruleTarget;
-        }
-      }
-
-      // 2. Filter out the space we just arrived from to avoid immediate U-turn unless no other choice
-      let candidates = targets.filter(t => t !== prev);
-      if (candidates.length === 0) candidates = targets;
-
-      return candidates[0] !== undefined ? candidates[0] : targets[0];
-    }
-
-    if (dir > 0) {
-      return (currentIdx + 1) % total;
-    } else {
-      return (currentIdx - 1 + total) % total;
-    }
+    const total = this.state?.board?.[era]?.length || 25;
+    return getNextTileIndex(player, era, currentIdx, dir, total);
   }
 
   // Move forward/backward in the era path

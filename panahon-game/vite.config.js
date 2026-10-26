@@ -6,10 +6,16 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          supabase: ['@supabase/supabase-js'],
-          peer: ['peerjs'],
+        manualChunks(id) {
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) {
+            return "vendor";
+          }
+          if (id.includes("node_modules/@supabase")) {
+            return "supabase";
+          }
+          if (id.includes("node_modules/peerjs")) {
+            return "peer";
+          }
         },
       },
     },

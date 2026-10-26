@@ -571,10 +571,34 @@ function GameActions({
               </button>
             </div>
           ) : (
-            <div style={{ marginTop: 'var(--space-sm)', padding: '10px', background: isMovingBackward ? 'rgba(234, 88, 12, 0.12)' : 'rgba(59, 130, 246, 0.12)', border: isMovingBackward ? '1px solid rgba(234, 88, 12, 0.35)' : '1px solid rgba(59, 130, 246, 0.35)', borderRadius: '8px', textAlign: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 700, color: isMovingBackward ? '#FB923C' : '#60A5FA', fontSize: '0.85rem' }}>
+            <div style={{ marginTop: 'var(--space-sm)', padding: '12px', background: isMovingBackward ? 'rgba(234, 88, 12, 0.12)' : 'rgba(59, 130, 246, 0.12)', border: isMovingBackward ? '1px solid rgba(234, 88, 12, 0.35)' : '1px solid rgba(59, 130, 246, 0.35)', borderRadius: '8px' }}>
+              <button
+                className="btn btn-primary"
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  fontSize: '0.92rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  background: isMovingBackward ? 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)' : undefined,
+                  boxShadow: isMovingBackward ? '0 4px 14px rgba(234, 88, 12, 0.45)' : '0 4px 14px rgba(59, 130, 246, 0.45)'
+                }}
+                disabled={!isMyTurn}
+                onClick={onStepMove}
+              >
+                <span>{isMovingBackward ? '⬅️ Step Backward' : '➡️ Move Forward'}</span>
+                <span style={{ fontSize: '0.72rem', background: 'rgba(255, 255, 255, 0.22)', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>
+                  {state.movesRemaining} {state.movesRemaining === 1 ? 'step left' : 'steps left'}
+                </span>
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.72rem', color: isMovingBackward ? '#FB923C' : '#93C5FD', marginTop: '8px', textAlign: 'center' }}>
                 <span style={{ display: 'inline-block', animation: 'pawnHop 0.6s infinite alternate' }}>{isMovingBackward ? '⏪' : '🚶'}</span>
-                <span>{isMovingBackward ? 'Auto-Moving in Reverse...' : 'Auto-Moving...'} ({state.movesRemaining} left)</span>
+                <span>{isMovingBackward ? 'Moving in Reverse' : 'Stepping along timeline'} &bull; Click tile or press <strong>Space</strong></span>
               </div>
 
               {currentPlayer.roleKey === 'EXPLORER' && currentPlayer.activeCooldown === 0 && !currentPlayer.usedAbilityThisTurn && currentPlayer.energy >= 2 && isMyTurn && (
@@ -586,15 +610,6 @@ function GameActions({
                   ⚡ Pause & Activate Momentum (-2 En)
                 </button>
               )}
-
-              <button
-                className="btn btn-secondary"
-                style={{ width: '100%', marginTop: '6px', padding: '5px', fontSize: '0.72rem', opacity: 0.85 }}
-                disabled={!isMyTurn}
-                onClick={onStepMove}
-              >
-                ⏩ Step Immediately
-              </button>
             </div>
           )}
         </div>

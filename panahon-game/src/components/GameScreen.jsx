@@ -134,7 +134,16 @@ function GameScreen({
     }, 650);
   }, [isRolling, state.phase, isMyTurn, engine, network]);
 
-  // Spacebar shortcut to roll dice
+  const handleStepMove = useCallback(() => {
+    if (state.phase !== 'moving' || state.movesRemaining <= 0 || !isMyTurn) return;
+    sounds.moveStep();
+    const ok = engine.movePlayerStep();
+    if (ok) {
+      network.sendAction({ type: 'MOVE_STEP' });
+    }
+  }, [state.phase, state.movesRemaining, isMyTurn, engine, network]);
+
+  // Spacebar, Enter, or Arrow key shortcuts to roll dice or step move
   React.useEffect(() => {
     const handleKeyDown = (e) => {
       const tag = e.target?.tagName?.toLowerCase();
@@ -145,21 +154,25 @@ function GameScreen({
         if (state?.phase === 'rolling' && isMyTurn && !isRolling && !isPaused) {
           e.preventDefault();
           handleRollDice();
+          return;
+        }
+        if (state?.phase === 'moving' && isMyTurn && !isPaused && (state?.movesRemaining || 0) > 0) {
+          e.preventDefault();
+          handleStepMove();
+          return;
+        }
+      }
+      if (e.key === 'Enter' || e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        if (state?.phase === 'moving' && isMyTurn && !isPaused && (state?.movesRemaining || 0) > 0) {
+          e.preventDefault();
+          handleStepMove();
+          return;
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state?.phase, isMyTurn, isRolling, isPaused, handleRollDice]);
-
-  const handleStepMove = useCallback(() => {
-    if (state.phase !== 'moving' || state.movesRemaining <= 0 || !isMyTurn) return;
-    sounds.moveStep();
-    const ok = engine.movePlayerStep();
-    if (ok) {
-      network.sendAction({ type: 'MOVE_STEP' });
-    }
-  }, [state.phase, state.movesRemaining, isMyTurn, engine, network]);
+  }, [state?.phase, state?.movesRemaining, isMyTurn, isRolling, isPaused, handleRollDice, handleStepMove]);
 
   const handleMoveToTile = useCallback((tileId) => {
     if (state.pendingChoice?.type === 'teleportTile' && isMyTurn) {

@@ -134,33 +134,8 @@ class AiController {
         return;
       }
 
-      // 4. Rolling Phase
+      // 4. Rolling Phase (Abilities are strictly used post-movement in Action Phase)
       if (state.phase === 'rolling') {
-        // Evaluate pre-roll ability activation for all 4 roles
-        if (!player.usedAbilityThisTurn && player.activeCooldown === 0) {
-          let activatePreRoll = false;
-
-          if (player.roleKey === 'EXPLORER' && player.energy >= 2 && Math.random() < 0.5) {
-            activatePreRoll = true;
-          } else if (player.roleKey === 'HISTORIAN' && player.energy >= 2 && (state.clueDecks[player.currentEra]?.length || 0) > 0 && player.clueCards.length < 5 && Math.random() < 0.5) {
-            activatePreRoll = true;
-          } else if (player.roleKey === 'GUARDIAN' && (player.paradox >= 2 || player.energy <= 2) && Math.random() < 0.6) {
-            activatePreRoll = true;
-          } else if (player.roleKey === 'STRATEGIST' && player.energy >= 2 && !state.board[player.currentEra][player.tileIndex]?.trap && Math.random() < 0.4) {
-            activatePreRoll = true;
-          }
-
-          if (activatePreRoll) {
-            sounds.portal?.();
-            const used = engine.useActiveAbility(player.id);
-            if (used) {
-              network?.sendAction({ type: 'USE_ABILITY', playerIdx: player.id });
-              this.scheduleAiStep(engine, network, 650);
-              return;
-            }
-          }
-        }
-
         // Roll the die
         sounds.diceRoll?.();
         const result = engine.rollDice();
@@ -217,6 +192,11 @@ class AiController {
           } else if (player.roleKey === 'STRATEGIST') {
             const currentTile = state.board[player.currentEra][player.tileIndex];
             if (currentTile.type === TILE_TYPES.CLUE || currentTile.type === TILE_TYPES.ARTIFACT) {
+              shouldCast = true;
+            }
+          } else if (player.roleKey === 'EXPLORER') {
+            // Explorer uses Momentum (+2 Bonus Movement steps) post-movement
+            if (player.energy >= 2 && Math.random() < 0.6) {
               shouldCast = true;
             }
           }

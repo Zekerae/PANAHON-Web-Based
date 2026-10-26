@@ -194,15 +194,6 @@ function GameScreen({
     }
   }, [state.phase, state.movesRemaining, state.pendingChoice, isMyTurn, engine, network]);
 
-  const handleTriggerMomentum = useCallback(() => {
-    if (state.phase !== 'rolling' && state.phase !== 'moving') return;
-    sounds.btnClick();
-    const ok = engine.useActiveAbility(state.currentPlayerIndex);
-    if (ok) {
-      network.sendAction({ type: 'USE_ABILITY', playerIdx: state.currentPlayerIndex });
-    }
-  }, [state.phase, state.currentPlayerIndex, engine, network]);
-
   const handleInteractMomentum = useCallback(() => {
     sounds.btnClick();
     const ok = engine.interactMomentumTile(state.currentPlayerIndex);
@@ -231,7 +222,7 @@ function GameScreen({
   }, [state.phase, state.currentPlayerIndex, isMyTurn, engine, network]);
 
   const handleUseSkill = useCallback(() => {
-    if (state.phase === 'moving' || !isMyTurn) return;
+    if (state.phase !== 'action' || !isMyTurn) return;
     sounds.btnClick();
     engine.useActiveAbility(state.currentPlayerIndex);
     network.sendAction({ type: 'USE_ABILITY', playerIdx: state.currentPlayerIndex });
@@ -282,7 +273,7 @@ function GameScreen({
   const hasEnoughEnergy = (currentPlayer?.energy || 0) >= activeCost;
   const isAbilityOnCooldown = (currentPlayer?.activeCooldown || 0) > 0;
   const hasUsedAbilityThisTurn = Boolean(currentPlayer?.usedAbilityThisTurn);
-  const canUseAbilityNow = isMyTurn && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && hasEnoughEnergy;
+  const canUseAbilityNow = isMyTurn && state.phase === 'action' && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && hasEnoughEnergy;
 
   const currentTile = state.board?.[currentPlayer?.currentEra]?.[currentPlayer?.tileIndex];
   const isOnTimeGate = currentTile?.type === 'timeGate';
@@ -413,26 +404,6 @@ function GameScreen({
                 >
                   <span>🎲 ROLL DIE</span>
                 </button>
-
-                <button
-                  type="button"
-                  className="btn btn-accent mobile-dock-btn"
-                  style={{
-                    background: canUseAbilityNow ? 'linear-gradient(135deg, #8B5CF6, #6D28D9)' : 'rgba(255,255,255,0.08)',
-                    border: canUseAbilityNow ? '1.5px solid #A78BFA' : '1px solid rgba(255,255,255,0.15)',
-                    color: canUseAbilityNow ? '#FFF' : '#94A3B8',
-                    opacity: canUseAbilityNow ? 1 : 0.6,
-                    cursor: canUseAbilityNow ? 'pointer' : 'not-allowed'
-                  }}
-                  disabled={!canUseAbilityNow}
-                  title={activeSkill?.description}
-                  onClick={handleUseSkill}
-                >
-                  <span>✨ {activeSkill?.name || 'Ability'}</span>
-                  <span style={{ fontSize: '0.68rem', opacity: 0.9 }}>
-                    {hasUsedAbilityThisTurn ? '✓ Used' : (isAbilityOnCooldown ? `CD:${currentPlayer.activeCooldown}` : (currentPlayer.energy < activeCost ? `Need ${activeCost}En` : `-${activeCost}En`))}
-                  </span>
-                </button>
               </div>
             )}
 
@@ -554,7 +525,6 @@ function GameScreen({
         logEntries={engine.logEntries}
         onRollDice={handleRollDice}
         onStepMove={handleStepMove}
-        onTriggerMomentum={handleTriggerMomentum}
         onInteractMomentum={handleInteractMomentum}
         onReverseTime={handleReverseTime}
         onRest={handleRest}

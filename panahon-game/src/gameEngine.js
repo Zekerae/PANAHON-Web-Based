@@ -1102,6 +1102,10 @@ export class GameEngine {
 
   // --- Abilities ---
   useActiveAbility(playerIdx) {
+    if (this.state.phase !== 'action') {
+      this.addLog('warning', 'Character abilities can only be activated during the Action Phase after movement!');
+      return false;
+    }
     const player = this.state.players[playerIdx];
     if (this.state.currentPlayerIndex !== playerIdx) return false;
     if (player.usedAbilityThisTurn) {
@@ -1144,7 +1148,7 @@ export class GameEngine {
         break;
 
       case 'EXPLORER':
-        // Momentum
+        // Momentum (Action Phase): Surge forward with +2 Bonus Movement steps!
         if (player.energy < 2) {
           this.addLog('warning', 'Not enough Energy for Momentum!');
           return false;
@@ -1152,9 +1156,13 @@ export class GameEngine {
         this.modifyEnergy(player, -2);
         player.usedAbilityThisTurn = true;
         player.activeCooldown = ROLES.EXPLORER.active.cooldown;
-        this.state.momentumActive = true;
-        this.state.momentumUsedMidTile = false;
-        this.addLog('ability', `${player.name} activated Momentum! (Manual movement enabled: pause & interact with any space along your path).`);
+        this.state.movesRemaining = 2;
+        this.state.diceResult = 2;
+        this.state.stepsTakenThisTurn = 0;
+        this.state.hasMovedThisTurn = false;
+        this.state.phase = 'moving';
+        this.state.movementDirection = 'forward';
+        this.addLog('ability', `${player.name} activated Momentum! Surges forward with +2 Bonus Movement steps!`);
         break;
 
       case 'GUARDIAN':

@@ -475,7 +475,7 @@ export const ROLES = {
     },
     active: {
       name: 'Momentum',
-      description: 'Pause movement to interact with a tile, then continue moving remaining rolled spaces (2 Turn CD, 2 Energy Cost)',
+      description: 'Surge forward with +2 Bonus Movement steps along the timeline (2 Turn CD, 2 Energy Cost)',
       cooldown: 2,
       energyCost: 2
     }

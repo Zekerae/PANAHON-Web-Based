@@ -11,7 +11,6 @@ function GameActions({
   logEntries,
   onRollDice,
   onStepMove,
-  onTriggerMomentum,
   onInteractMomentum,
   onReverseTime,
   onRest,
@@ -68,7 +67,7 @@ function GameActions({
   const hasEnoughEnergy = (currentPlayer.energy || 0) >= activeCost;
   const isAbilityOnCooldown = (currentPlayer.activeCooldown || 0) > 0;
   const hasUsedAbilityThisTurn = Boolean(currentPlayer.usedAbilityThisTurn);
-  const canUseAbilityNow = isMyTurn && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && hasEnoughEnergy;
+  const canUseAbilityNow = isMyTurn && state.phase === 'action' && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && hasEnoughEnergy;
 
   let abilityBadge = `-${activeCost} En`;
   let abilityStatusText = activeSkill.description || 'Activate operative ability.';
@@ -360,69 +359,7 @@ function GameActions({
           </div>
 
           <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginBottom: '12px', lineHeight: 1.35 }}>
-            Activate your ability right away before rolling, or roll the movement die to proceed.
-          </div>
-
-          {/* PRE-ROLL ABILITY ACTIVATION BOX */}
-          <div style={{
-            marginBottom: '12px',
-            padding: '10px',
-            borderRadius: '8px',
-            background: 'rgba(0, 0, 0, 0.35)',
-            border: canUseAbilityNow ? '1px solid rgba(139, 92, 246, 0.5)' : '1px solid rgba(255, 255, 255, 0.08)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#E2E8F0', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span>✨</span>
-                <span>Pre-Roll Ability:</span>
-                <strong style={{ color: currentPlayer.color }}>{activeSkill.name}</strong>
-              </span>
-              <span style={{
-                fontSize: '0.64rem',
-                fontWeight: 700,
-                padding: '2px 6px',
-                borderRadius: '4px',
-                background: canUseAbilityNow ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                border: canUseAbilityNow ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
-                color: canUseAbilityNow ? '#6EE7B7' : '#FCA5A5'
-              }}>
-                {abilityBadge}
-              </span>
-            </div>
-
-            <div style={{ fontSize: '0.7rem', color: '#CBD5E1', marginBottom: '8px', lineHeight: 1.3 }}>
-              {currentPlayer.roleKey === 'HISTORIAN' && '📜 Clue Decipher: Reveal 3 clues & keep 1 before rolling.'}
-              {currentPlayer.roleKey === 'EXPLORER' && '🏃 Momentum: Prime manual movement to pause & interact with any space.'}
-              {currentPlayer.roleKey === 'GUARDIAN' && '🛡️ Temporal Repair: Spend 2 Energy for -1 Paradox, or gain +1 Energy.'}
-              {currentPlayer.roleKey === 'STRATEGIST' && '⏳ Temporal Trap: Plant a hazard trap on this tile before rolling away!'}
-            </div>
-
-            {currentPlayer.roleKey === 'EXPLORER' && state.momentumActive ? (
-              <div style={{ padding: '6px 8px', borderRadius: '6px', background: 'rgba(234, 179, 8, 0.2)', border: '1px solid rgba(234, 179, 8, 0.45)', color: '#FACC15', fontSize: '0.72rem', fontWeight: 700, textAlign: 'center' }}>
-                ✓ Momentum Primed! Roll the die to step manually.
-              </div>
-            ) : (
-              <button
-                className="btn btn-accent"
-                style={{
-                  width: '100%',
-                  padding: '7px 10px',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  opacity: canUseAbilityNow ? 1 : 0.55,
-                  cursor: canUseAbilityNow ? 'pointer' : 'not-allowed'
-                }}
-                disabled={!canUseAbilityNow}
-                title={abilityStatusText}
-                onClick={onUseSkill}
-              >
-                <span>✨ Activate {activeSkill.name} Right Away</span>
-              </button>
-            )}
+            Roll the movement die to navigate along the timeline, or rest to recover Chrono Energy.
           </div>
 
           {/* DICE ROLLING SECTION */}
@@ -601,15 +538,7 @@ function GameActions({
                 <span>{isMovingBackward ? 'Moving in Reverse' : 'Stepping along timeline'} &bull; Click tile or press <strong>Space</strong></span>
               </div>
 
-              {currentPlayer.roleKey === 'EXPLORER' && currentPlayer.activeCooldown === 0 && !currentPlayer.usedAbilityThisTurn && currentPlayer.energy >= 2 && isMyTurn && (
-                <button
-                  className="btn btn-accent"
-                  style={{ width: '100%', marginTop: '8px', padding: '6px 8px', fontSize: '0.75rem' }}
-                  onClick={onTriggerMomentum}
-                >
-                  ⚡ Pause & Activate Momentum (-2 En)
-                </button>
-              )}
+
             </div>
           )}
         </div>
@@ -662,13 +591,13 @@ function GameActions({
                 border: hasUsedAbilityThisTurn ? '1px solid rgba(59, 130, 246, 0.4)' : (canUseAbilityNow ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)'),
                 color: hasUsedAbilityThisTurn ? '#93C5FD' : (canUseAbilityNow ? '#6EE7B7' : '#FCA5A5')
               }}>
-                {hasUsedAbilityThisTurn ? '✓ Used in Roll Phase' : abilityBadge}
+                {hasUsedAbilityThisTurn ? '✓ Used this turn' : abilityBadge}
               </span>
             </div>
 
             {hasUsedAbilityThisTurn ? (
               <div style={{ fontSize: '0.7rem', color: '#94A3B8', fontStyle: 'italic' }}>
-                ✓ {activeSkill.name} was already activated during the Roll Phase this turn.
+                ✓ {activeSkill.name} was already activated this turn.
               </div>
             ) : (
               <>

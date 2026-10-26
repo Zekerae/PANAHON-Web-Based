@@ -88,8 +88,8 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   const isArtifact = modal.type === 'artifact';
   const isClue = modal.isClue || modal.cardType === 'Clue Card' || modal.cardType === 'Decoy Card';
 
-  // In online multiplayer, hide other players' clue cards (unless observing as spectator)
-  const isSecretToMe = isOnline && isClue && (modal.playerId !== undefined) && (modal.playerId !== network.playerId) && !isSpectator;
+  // Hide other players' and bots' clue cards (unless observing as spectator)
+  const isSecretToMe = isClue && !isMyCard && !isSpectator;
 
   // Duration: 6.0 seconds for Event / Danger cards, 5.5s for Artifacts, 4.5s for Clues/Info
   const speed = engine?.simulationSpeed || 1;
@@ -182,7 +182,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         timerRef.current = null;
       }
     };
-  }, [isOtherPlayer, isHovered, durationMs, modal?.title, modal?._timestamp, modal?.id]);
+  }, [isOtherPlayer, isHovered, durationMs, modal?.title, modal?._timestamp, modal?.id, modal?.diceRoll, modal?.needsRoll]);
 
   const handleDismiss = () => {
     sounds.btnClick();
@@ -196,16 +196,55 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   };
 
   if (isOtherPlayer) {
-    const cardClass = isDanger ? 'danger-card' : (isEvent ? 'event-card' : (isArtifact ? 'artifact-card' : 'clue-card'));
+    const cardClass = isDanger
+      ? 'side-card-danger danger-card'
+      : (isEvent
+        ? 'side-card-event event-card'
+        : (isArtifact
+          ? 'side-card-artifact artifact-card'
+          : 'side-card-clue clue-card'));
     const timerFillGradient = isDanger
       ? 'linear-gradient(90deg, #EF4444, #F97316)'
       : (isEvent ? 'linear-gradient(90deg, #F59E0B, #FCD34D)' : (isArtifact ? 'linear-gradient(90deg, #10B981, #34D399)' : 'linear-gradient(90deg, #3B82F6, #60A5FA)'));
+
+    const isSecretClue = isSecretToMe;
+    const displayCardType = isSecretClue ? 'Secret Clue' : (modal.cardType || modal.title);
+    const previewTitle = isSecretClue ? 'Secret Clue Card' : modal.title;
+    const previewDesc = isSecretClue
+      ? `${drawingPlayer?.name || modal.playerName || 'A Castaway'} excavated a secret Clue Card in ${ERA_NAMES[modal.era] || 'the timeline'}.`
+      : (modal.description || '');
+    const previewImage = isSecretClue ? null : modal.image;
+
+    const handlePreviewClick = () => {
+      sounds.btnClick();
+      if (isSecretClue) return;
+      onMaximize({
+        title: modal.title,
+        cardType: modal.cardType || (isDanger ? 'Hazard Anomaly' : (isEvent ? 'Temporal Event' : 'Intel Card')),
+        description: modal.description,
+        image: modal.image,
+        diceRoll: modal.diceRoll,
+        needsRoll: modal.needsRoll,
+        success: modal.success,
+        successMsg: modal.successMsg,
+        failMsg: modal.failMsg,
+        isDanger,
+        isEvent,
+        era: modal.era
+      });
+    };
 
     return (
       <div
         className={`side-card-overlay ${cardClass} ${isHovered ? 'paused' : ''}`}
         id="active-modal"
-        style={{ '--timer-duration': `${durationMs}ms` }}
+        style={{
+          position: 'fixed',
+          top: '74px',
+          right: '255px',
+          zIndex: 9999,
+          '--timer-duration': `${durationMs}ms`
+        }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -223,33 +262,20 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               </span>
             )}
             <span style={{ color: isDanger ? 'var(--text-danger)' : (isEvent ? 'var(--tile-event)' : 'var(--text-accent)') }}>
-              {modal.cardType || modal.title}
+              {displayCardType}
             </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <button
-              className="side-card-maximize"
-              title="Click to view card in full screen"
-              onClick={() => {
-                sounds.btnClick();
-                onMaximize({
-                  title: modal.title,
-                  cardType: modal.cardType || (isDanger ? 'Hazard Anomaly' : (isEvent ? 'Temporal Event' : 'Intel Card')),
-                  description: modal.description,
-                  image: modal.image,
-                  diceRoll: modal.diceRoll,
-                  success: modal.success,
-                  successMsg: modal.successMsg,
-                  failMsg: modal.failMsg,
-                  isDanger,
-                  isEvent,
-                  era: modal.era
-                });
-              }}
-            >
-              🔍
-            </button>
+            {!isSecretClue && (
+              <button
+                className="side-card-maximize"
+                title="Click to view card in full screen"
+                onClick={handlePreviewClick}
+              >
+                🔍
+              </button>
+            )}
             <button className="side-card-close" title="Dismiss" onClick={handleDismiss}>
               &times;
             </button>
@@ -259,7 +285,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         <div className="side-card-body">
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <strong style={{ color: drawingPlayer?.color || '#fff' }}>{drawingPlayer?.name || modal.playerName || 'Bot'}</strong> landed on {isDanger ? 'Hazard' : (isEvent ? 'Event' : 'Tile')}:
+              <strong style={{ color: drawingPlayer?.color || '#fff' }}>{drawingPlayer?.name || modal.playerName || 'Bot'}</strong> landed on {isDanger ? 'Hazard' : (isEvent ? 'Event' : (isClue ? 'Clue' : 'Tile'))}:
             </div>
             {modal.era && (
               <span style={{ fontSize: '0.7rem', color: '#94A3B8' }}>{ERA_NAMES[modal.era] || modal.era}</span>
@@ -267,29 +293,19 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
           </div>
 
           <div
-            className="side-card-content-preview side-card-clickable"
-            onClick={() => {
-              sounds.btnClick();
-              onMaximize({
-                title: modal.title,
-                cardType: modal.cardType || (isDanger ? 'Hazard Anomaly' : (isEvent ? 'Temporal Event' : 'Intel Card')),
-                description: modal.description,
-                image: modal.image,
-                diceRoll: modal.diceRoll,
-                success: modal.success,
-                successMsg: modal.successMsg,
-                failMsg: modal.failMsg,
-                isDanger,
-                isEvent,
-                era: modal.era
-              });
-            }}
+            className={`side-card-content-preview ${!isSecretClue ? 'side-card-clickable' : ''}`}
+            onClick={handlePreviewClick}
           >
-            {modal.image && <img src={modal.image} className="side-card-thumb" alt={modal.title} />}
+            {previewImage && <img src={previewImage} className="side-card-thumb" alt={previewTitle} />}
+            {isSecretClue && (
+              <div style={{ fontSize: '1.4rem', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '4px', flexShrink: 0 }}>
+                ⏳
+              </div>
+            )}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-primary)' }}>{modal.title}</div>
+              <div style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-primary)' }}>{previewTitle}</div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.35, marginTop: '2px' }}>
-                {modal.description || ''}
+                {previewDesc}
               </div>
             </div>
           </div>
@@ -319,44 +335,59 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
 
           {isDanger && !modal.needsRoll && modal.diceRoll !== null && modal.diceRoll !== undefined && (
             <div style={{
-              marginTop: '6px',
-              padding: '6px 8px',
-              background: modal.success ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-              border: `1px solid ${modal.success ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+              marginTop: '8px',
+              padding: '8px 10px',
+              background: modal.success ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
+              border: `1.5px solid ${modal.success ? '#10B981' : '#EF4444'}`,
               borderRadius: '6px',
-              fontSize: '0.75rem',
-              color: modal.success ? 'var(--text-success)' : 'var(--text-danger)',
-              fontWeight: 700
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              boxShadow: modal.success
+                ? '0 0 14px rgba(16, 185, 129, 0.3), inset 0 0 6px rgba(16, 185, 129, 0.15)'
+                : '0 0 14px rgba(239, 68, 68, 0.3), inset 0 0 6px rgba(239, 68, 68, 0.15)'
             }}>
-              🎲 Rolled {modal.diceRoll}: {modal.success ? '✓ Hazard Evaded' : '✗ Hazard Triggered'}
-              <div style={{ fontSize: '0.7rem', fontWeight: 500, marginTop: '2px', color: '#E2E8F0' }}>
-                {modal.success ? modal.successMsg : modal.failMsg}
+              <Dice
+                value={modal.diceRoll}
+                size="sm"
+                theme={modal.success ? 'success' : 'hazard'}
+                isInteractive={false}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 800,
+                  color: modal.success ? '#34D399' : '#FCA5A5',
+                  letterSpacing: '0.5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span>{modal.success ? '✓ HAZARD EVADED' : '✗ HAZARD TRIGGERED'}</span>
+                  <span style={{ fontSize: '0.72rem', color: '#CBD5E1', fontWeight: 600 }}>
+                    (Rolled {modal.diceRoll})
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#E2E8F0', marginTop: '2px', lineHeight: 1.35 }}>
+                  {modal.success ? (modal.successMsg || 'Survival check passed!') : (modal.failMsg || 'Hazard triggered!')}
+                </div>
               </div>
             </div>
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.68rem' }}>
-            <span
-              style={{ color: '#60A5FA', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
-              onClick={() => {
-                sounds.btnClick();
-                onMaximize({
-                  title: modal.title,
-                  cardType: modal.cardType || (isDanger ? 'Hazard Anomaly' : (isEvent ? 'Temporal Event' : 'Intel Card')),
-                  description: modal.description,
-                  image: modal.image,
-                  diceRoll: modal.diceRoll,
-                  success: modal.success,
-                  successMsg: modal.successMsg,
-                  failMsg: modal.failMsg,
-                  isDanger,
-                  isEvent,
-                  era: modal.era
-                });
-              }}
-            >
-              <span>🔍</span> Click card to expand
-            </span>
+            {!isSecretClue ? (
+              <span
+                style={{ color: '#60A5FA', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                onClick={handlePreviewClick}
+              >
+                <span>🔍</span> Click card to expand
+              </span>
+            ) : (
+              <span style={{ color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                🔒 Secret Clue
+              </span>
+            )}
 
             {isHovered ? (
               <span style={{ color: '#FCD34D', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -700,7 +731,11 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                 🎴 Hand Limit (5/5) Reached
               </div>
               <div style={{ fontSize: "0.75rem", color: "#E2E8F0", marginTop: "3px" }}>
-                Drawn: <strong>{choice.drawnCard.isDecoy ? "Decoy Card" : (choice.drawnCard.hint || choice.drawnCard.description)}</strong> ({ERA_NAMES[choice.drawnCard.era] || choice.drawnCard.era})
+                {isSpectator ? (
+                  <>Drawn: <strong>{choice.drawnCard.isDecoy ? "Decoy Card" : (choice.drawnCard.hint || choice.drawnCard.description)}</strong> ({ERA_NAMES[choice.drawnCard.era] || choice.drawnCard.era})</>
+                ) : (
+                  <>Drawn: <strong>Secret Clue Card</strong> ({ERA_NAMES[choice.drawnCard.era] || choice.drawnCard.era})</>
+                )}
               </div>
             </div>
           )}
@@ -718,25 +753,41 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
             </div>
 
             {choice.drawnCards[0] && (
-              <div className="ai-decipher-preview" style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(96, 165, 250, 0.35)", borderRadius: "8px", padding: "8px 10px", margin: "8px 0", textAlign: "left" }}>
-                <img
-                  src={choice.drawnCards[0].cardImage || choice.drawnCards[0].image}
-                  alt={choice.drawnCards[0].artifactName || "Clue"}
-                  style={{ width: "42px", height: "58px", objectFit: "cover", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.2)", flexShrink: 0 }}
-                  onError={(e) => { e.target.style.display = "none"; }}
-                />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "0.75rem", fontWeight: 700, color: choice.drawnCards[0].isDecoy ? "#EF4444" : "#60A5FA" }}>
-                    {choice.drawnCards[0].isDecoy ? "🎭 Decoy Card Drawn" : ("✨ " + (choice.drawnCards[0].artifactName || "Historical Clue"))}
-                  </div>
-                  <div style={{ fontSize: "0.7rem", color: "#CBD5E1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {choice.drawnCards[0].hint || choice.drawnCards[0].description}
-                  </div>
-                  <div style={{ fontSize: "0.65rem", color: "#94A3B8" }}>
-                    Deciphered by {activePlayer?.name || "Bot"} &bull; Moving to hand
+              isSpectator ? (
+                <div className="ai-decipher-preview" style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(96, 165, 250, 0.35)", borderRadius: "8px", padding: "8px 10px", margin: "8px 0", textAlign: "left" }}>
+                  <img
+                    src={choice.drawnCards[0].cardImage || choice.drawnCards[0].image}
+                    alt={choice.drawnCards[0].artifactName || "Clue"}
+                    style={{ width: "42px", height: "58px", objectFit: "cover", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.2)", flexShrink: 0 }}
+                    onError={(e) => { e.target.style.display = "none"; }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "0.75rem", fontWeight: 700, color: choice.drawnCards[0].isDecoy ? "#EF4444" : "#60A5FA" }}>
+                      {choice.drawnCards[0].isDecoy ? "🎭 Decoy Card Drawn" : ("✨ " + (choice.drawnCards[0].artifactName || "Historical Clue"))}
+                    </div>
+                    <div style={{ fontSize: "0.7rem", color: "#CBD5E1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {choice.drawnCards[0].hint || choice.drawnCards[0].description}
+                    </div>
+                    <div style={{ fontSize: "0.65rem", color: "#94A3B8" }}>
+                      Deciphered by {activePlayer?.name || "Bot"} &bull; Moving to hand
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="ai-decipher-preview" style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(96, 165, 250, 0.35)", borderRadius: "8px", padding: "8px 10px", margin: "8px 0", textAlign: "left" }}>
+                  <div style={{ width: "42px", height: "58px", display: "flex", alignItems: "center", justifyContent: "center", background: "#1e293b", borderRadius: "4px", border: "1px dashed rgba(96, 165, 250, 0.4)", fontSize: "1.4rem" }}>
+                    🔒
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#60A5FA" }}>
+                      🔒 Secret Clue Deciphered
+                    </div>
+                    <div style={{ fontSize: "0.7rem", color: "#CBD5E1" }}>
+                      {activePlayer?.name || "Bot"} deciphered a classified clue in {ERA_NAMES[choice.drawnCards[0]?.era] || 'the timeline'}.
+                    </div>
+                  </div>
+                </div>
+              )
             )}
             </div>
           )}

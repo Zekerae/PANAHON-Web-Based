@@ -49,8 +49,9 @@ function PlayerSidebar({
 
   return (
     <aside className="left-panel">
-      <div style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "1px" }}>
-        Temporal Castaways
+      <div className="sidebar-players-header">
+        <span className="sidebar-players-title">Castaways</span>
+        <span className="sidebar-players-count">({players.length})</span>
       </div>
 
       <div className="player-sidebar-list">
@@ -66,75 +67,89 @@ function PlayerSidebar({
           return (
             <div
               key={p.id ?? idx}
-              className={`player-card ${isActive ? "active-turn" : ""} ${isInspected ? "inspected-player" : ""}`}
-              style={{ borderLeft: `4px solid ${p.color}`, cursor: "pointer" }}
-              title={`Click to view ${p.name}'s hand/clues`}
+              className={`player-card compact-player-card ${isActive ? "active-turn" : ""} ${isInspected ? "inspected-player" : ""}`}
+              style={{ borderLeftColor: p.color, cursor: "pointer" }}
+              title={`Click to view ${p.name}'s inventory & clues`}
               onClick={() => {
                 sounds.btnClick();
                 onSelectPlayer(p.id);
               }}
             >
-              {isActive && <div className="turn-indicator">▶</div>}
+              {isActive && <div className="turn-indicator" title="Active Turn">▶</div>}
+
+              {/* Row 1: Avatar, Name + Badge, Role, Points */}
               <div className="player-card-header">
                 <img src={p.role?.avatar || ""} className="player-avatar-small" alt={p.name} />
-                <div style={{ flex: 1 }}>
-                  <div className="player-card-name" style={{ color: p.color }}>
-                    {p.name}
-                    {p.isAi ? <span className="bot-badge">🤖 BOT</span> : <span className="human-badge">👤</span>}
-                    {isMe && <span style={{ fontSize: "0.65rem", color: "var(--accent-gold)", fontWeight: "normal" }}> (You)</span>}
+                <div className="player-card-info">
+                  <div className="player-card-name-row">
+                    <span className="player-card-name" style={{ color: p.color }}>
+                      {p.name}
+                    </span>
+                    {p.isAi ? (
+                      <span className="bot-badge-mini" title="AI Bot">🤖</span>
+                    ) : (
+                      <span className="human-badge-mini" title="Human Player">👤</span>
+                    )}
+                    {isMe && <span className="you-badge-mini">(You)</span>}
                   </div>
                   <div className="player-card-role">{p.role?.name || "Castaway"}</div>
                 </div>
-                <div className="player-points">{p.points} PTS</div>
+                <div className="player-points-badge">
+                  <span className="points-val">{p.points}</span>
+                  <span className="points-unit">PTS</span>
+                </div>
               </div>
 
-              <div className="player-stats">
-                <div className="stat-row">
-                  <span className="stat-label">Energy</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <div className="stat-bar">
-                      <div className="stat-bar-fill energy-fill" style={{ width: `${(p.energy / 10) * 100}%` }}></div>
-                    </div>
-                    <span className="stat-value" style={{ color: "var(--energy-color)" }}>{p.energy}/10</span>
+              {/* Row 2: Compact Dual Stat Bars (Energy & Paradox on ONE row) */}
+              <div className="player-bars-row">
+                <div className="compact-bar-group" title={`Energy: ${p.energy}/10`}>
+                  <span className="compact-bar-label">EN</span>
+                  <div className="stat-bar compact-stat-bar">
+                    <div className="stat-bar-fill energy-fill" style={{ width: `${(p.energy / 10) * 100}%` }}></div>
                   </div>
+                  <span className="compact-bar-val energy-val">{p.energy}/10</span>
                 </div>
 
-                <div className="stat-row">
-                  <span className="stat-label">Paradox</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <div className="stat-bar">
-                      <div className={`stat-bar-fill ${paradoxClass}`} style={{ width: `${paradoxPercent}%` }}></div>
-                    </div>
-                    <span className="stat-value" style={{ color: p.paradox >= 4 ? "var(--text-danger)" : "var(--text-primary)" }}>
-                      {p.paradox}/5
-                    </span>
+                <div className="compact-bar-group" title={`Paradox: ${p.paradox}/5`}>
+                  <span className="compact-bar-label">PD</span>
+                  <div className="stat-bar compact-stat-bar">
+                    <div className={`stat-bar-fill ${paradoxClass}`} style={{ width: `${paradoxPercent}%` }}></div>
                   </div>
+                  <span
+                    className="compact-bar-val paradox-val"
+                    style={{ color: p.paradox >= 4 ? "#ef4444" : (p.paradox >= 2 ? "#f59e0b" : "#22c55e") }}
+                  >
+                    {p.paradox}/5
+                  </span>
                 </div>
+              </div>
 
-                <div className="stat-row" style={{ marginTop: "4px", fontSize: "0.7rem", color: "var(--text-secondary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>Era: <strong>{ERA_NAMES[p.currentEra].replace(" Era", "")}</strong></span>
-                  <span>Clues: <strong>{p.clueCards.length}/5</strong></span>
-                  {p.missionComplete ? (
-                    <span style={{ color: "#34D399", fontWeight: 700 }}>🏆 Done</span>
-                  ) : p.artifactCards.length > 0 ? (
-                    <span style={{ color: "#F59E0B", fontWeight: 700 }} title={`Carrying: ${p.artifactCards.map(a => a.nickname).join(', ')}`}>
-                      📦 {p.artifactCards.length} Relic{p.artifactCards.length > 1 ? 's' : ''}
-                    </span>
-                  ) : null}
-                </div>
+              {/* Row 3: Era, Clues, Relic status */}
+              <div className="player-card-footer">
+                <span className="footer-era-tag">
+                  {ERA_NAMES[p.currentEra]?.replace(" Era", "") || p.currentEra}
+                </span>
+                <span className="footer-clues-tag">
+                  Clues: <strong>{p.clueCards?.length || 0}/5</strong>
+                </span>
+                {p.missionComplete ? (
+                  <span className="footer-mission-done">🏆 Done</span>
+                ) : p.artifactCards?.length > 0 ? (
+                  <span className="footer-relic-tag" title={`Carrying: ${p.artifactCards.map(a => a.nickname).join(', ')}`}>
+                    📦 {p.artifactCards.length}
+                  </span>
+                ) : null}
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* EMBEDDED TIMELINE COMMS BENEATH PLAYER LIST - NO DIVIDER LINE, NO BUTTONS */}
+      {/* EMBEDDED TIMELINE COMMS BENEATH PLAYER LIST */}
       <div className="sidebar-embedded-chat">
-        <div className="panel-section-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-          <span>Timeline Comms</span>
-          <span style={{ fontSize: "0.65rem", color: "var(--text-secondary)", textTransform: "none", fontWeight: 500 }}>
-            {chatMessages.length} transmissions
-          </span>
+        <div className="sidebar-chat-header">
+          <span className="sidebar-chat-title">Timeline Comms</span>
+          <span className="sidebar-chat-count">{chatMessages.length} msgs</span>
         </div>
 
         <div className="sidebar-chat-feed" ref={chatFeedRef}>

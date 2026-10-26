@@ -805,13 +805,13 @@ export function FriendsModal({ onClose, onSelectMode, onSpectateOnline }) {
 
   return (
     <div className="modal-overlay" style={{ zIndex: 12000 }}>
-      <div className="modal duelyst-modal" style={{ maxWidth: '540px', width: '92%' }}>
+      <div className="modal duelyst-modal" style={{ maxWidth: '520px', width: '92%' }}>
         {/* Header Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #5A422D' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', paddingBottom: '14px', borderBottom: '2px solid #5A422D' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
-              width: '38px',
-              height: '38px',
+              width: '40px',
+              height: '40px',
               borderRadius: '4px',
               background: '#32261D',
               border: '2px solid #C2974D',
@@ -819,97 +819,155 @@ export function FriendsModal({ onClose, onSelectMode, onSpectateOnline }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '1.2rem'
+              fontSize: '1.25rem',
+              flexShrink: 0
             }}>
               👥
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.15rem', fontFamily: 'var(--font-display)', letterSpacing: '1.5px', color: '#F8FAFC' }}>
+              <h2 style={{ margin: 0, fontSize: '1.08rem', fontFamily: 'var(--font-display)', letterSpacing: '1.2px', color: '#F8FAFC', lineHeight: 1.3 }}>
                 TIMELINE ALLIES & DIRECT PEER LINK
               </h2>
-              <div style={{ fontSize: '0.7rem', color: '#C8B293', marginTop: '2px' }}>
-                Connect with other operatives in the chronosphere via peer-to-peer WebRTC coordinates
+              <div style={{ fontSize: '0.68rem', color: '#C8B293', marginTop: '3px', lineHeight: 1.3 }}>
+                Connect with other operatives in the chronosphere via WebRTC coordinates
               </div>
             </div>
           </div>
           <button
             className="modal-close"
             onClick={() => { sounds.btnClick(); onClose(); }}
-            style={{ position: 'static' }}
+            style={{ position: 'static', flexShrink: 0 }}
             title="Close Allies"
           >
             &times;
           </button>
         </div>
 
-        <div className="modal-body">
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-            Connect with other operatives in the chronosphere via peer-to-peer WebRTC coordinates.
-          </p>
-
-          {/* Direct Room Code Entry */}
-          <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
-            <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#F1F5F9', marginBottom: '4px' }}>
+        <div className="modal-body" style={{ padding: 0 }}>
+          {/* Card 1: Direct Room Code Entry */}
+          <div style={{
+            background: '#231811',
+            border: '2px solid #5A422D',
+            borderRadius: '6px',
+            padding: '16px',
+            marginBottom: '16px',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 12px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{ fontWeight: 700, fontSize: '0.84rem', color: '#FFD700', fontFamily: 'var(--font-display)', letterSpacing: '0.5px', marginBottom: '6px' }}>
               Join Friend via Room Code
             </div>
-            <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginBottom: '10px' }}>
+            <div style={{ fontSize: '0.74rem', color: '#C8B293', marginBottom: '14px', lineHeight: 1.4 }}>
               Enter the 4-digit temporal frequency code shared by your host:
             </div>
-            <form onSubmit={handleJoin} style={{ display: 'flex', gap: '8px' }}>
+            <form onSubmit={handleJoin} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <input
                 type="text"
-                placeholder="e.g. A9X2"
+                placeholder="ENTER 4-DIGIT CODE (e.g. A9X2)"
                 value={roomCodeInput}
                 onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
                 maxLength={6}
-                style={{ flex: 1, padding: '8px 12px', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', color: '#FFF', fontSize: '0.95rem', letterSpacing: '2px', textAlign: 'center', fontFamily: 'monospace' }}
-              />
-              <button type="submit" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.82rem' }}>
-                Join Link
-              </button>
-              <button
-                type="button"
-                className="btn"
-                onClick={handleSpectate}
                 style={{
-                  padding: '8px 16px',
-                  fontSize: '0.82rem',
-                  background: 'linear-gradient(135deg, #8B5CF6, #6366F1)',
-                  color: '#FFF',
-                  border: '1px solid #C084FC',
-                  fontWeight: 800
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '10px 14px',
+                  background: '#19110B',
+                  border: '2px solid #5A422D',
+                  borderRadius: '4px',
+                  color: '#FFD700',
+                  fontSize: '0.96rem',
+                  letterSpacing: '3px',
+                  textAlign: 'center',
+                  fontFamily: "'Courier New', Courier, monospace",
+                  fontWeight: 'bold',
+                  outline: 'none',
+                  boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.7)'
                 }}
-              >
-                👁️ Watch
-              </button>
+              />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{
+                    padding: '10px 12px',
+                    fontSize: '0.72rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    whiteSpace: 'nowrap'
+                  }}
+                  disabled={!roomCodeInput.trim()}
+                >
+                  <span>⚡</span> JOIN LINK
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={handleSpectate}
+                  style={{
+                    padding: '10px 12px',
+                    fontSize: '0.72rem',
+                    background: 'linear-gradient(180deg, #3B2852 0%, #221533 100%)',
+                    color: '#C084FC',
+                    border: '2px solid #8B5CF6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    whiteSpace: 'nowrap'
+                  }}
+                  disabled={!roomCodeInput.trim()}
+                >
+                  <span>👁️</span> WATCH
+                </button>
+              </div>
             </form>
           </div>
 
-          {/* Host New Session */}
-          <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '10px', padding: '16px' }}>
-            <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#F1F5F9', marginBottom: '4px' }}>
+          {/* Card 2: Host New Session */}
+          <div style={{
+            background: '#231811',
+            border: '2px solid #5A422D',
+            borderRadius: '6px',
+            padding: '16px',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 12px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{ fontWeight: 700, fontSize: '0.84rem', color: '#FFD700', fontFamily: 'var(--font-display)', letterSpacing: '0.5px', marginBottom: '6px' }}>
               Host a Multiplayer Expedition
             </div>
-            <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginBottom: '12px' }}>
+            <div style={{ fontSize: '0.74rem', color: '#C8B293', marginBottom: '14px', lineHeight: 1.4 }}>
               Launch an online lobby, recruit friends, and distribute roles across historical timelines.
             </div>
             <button
               className="btn btn-primary"
-              style={{ width: '100%', background: 'linear-gradient(135deg, #5A3F18, #3A2C21)', fontSize: '0.85rem' }}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                fontSize: '0.74rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxSizing: 'border-box'
+              }}
               onClick={() => {
                 sounds.portal();
                 onClose();
                 onSelectMode('online');
               }}
             >
-              🌐 Open Multiplayer Lobby
+              🌐 OPEN MULTIPLAYER LOBBY
             </button>
           </div>
         </div>
 
         <div className="modal-actions" style={{ marginTop: '16px' }}>
-          <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => { sounds.btnClick(); onClose(); }}>
-            Close
+          <button
+            className="btn btn-secondary"
+            style={{ width: '100%', padding: '10px 16px', fontSize: '0.74rem', boxSizing: 'border-box' }}
+            onClick={() => { sounds.btnClick(); onClose(); }}
+          >
+            CLOSE
           </button>
         </div>
       </div>

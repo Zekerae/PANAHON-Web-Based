@@ -11,18 +11,20 @@ import {
 } from "../../gameData.js";
 
 const CAMERA_OPTIONS = [
-  { id: 'full', label: 'Full Map', mobileLabel: 'Full', icon: '🗺️' },
-  { id: 'auto', label: 'Auto Focus', mobileLabel: 'Auto', icon: '🎯' },
-  { id: 'focus-spanish', label: 'Spanish', mobileLabel: 'Spanish' },
-  { id: 'focus-american', label: 'American', mobileLabel: 'American' },
-  { id: 'focus-japanese', label: 'Japanese', mobileLabel: 'Japanese' },
-  { id: 'focus-myth', label: 'Myth', mobileLabel: 'Myth' },
+  { id: 'full', label: 'Full Map', icon: '🗺️', desc: 'Overview of entire timeline' },
+  { id: 'auto', label: 'Auto Focus', icon: '🎯', desc: 'Track active player turn' },
+  { id: 'custom', label: 'Free Cam', icon: '✋', desc: 'Free pan & drag anywhere (tap board to reset)' },
+  { id: 'focus-spanish', label: 'Spanish Era', icon: '⚔️', desc: '16th Century Spanish timeline' },
+  { id: 'focus-american', label: 'American Era', icon: '📻', desc: 'Early 20th Century timeline' },
+  { id: 'focus-japanese', label: 'Japanese Era', icon: '🏮', desc: 'WWII Japanese occupation' },
+  { id: 'focus-myth', label: 'Myth Era', icon: '✨', desc: 'Ancient Philippine mythology' },
 ];
 
 function GameBoard({
   board,
   players,
   currentPlayer,
+  turnNumber,
   phase,
   movesRemaining,
   movementDirection,
@@ -47,12 +49,29 @@ function GameBoard({
     }
   }, [currentPlayer?.id, currentPlayer?.currentEra, phase]);
 
-  const [cameraMode, setCameraMode] = useState(() => {
-    if (typeof window !== "undefined" && (window.innerWidth <= 920 || window.innerHeight <= 550)) {
-      return "auto";
-    }
-    return "full";
-  });
+  const [cameraMode, setCameraMode] = useState("full");
+  const [isCameraDropdownOpen, setIsCameraDropdownOpen] = useState(false);
+  const [hoveredCam, setHoveredCam] = useState(null);
+  const cameraMenuRef = useRef(null);
+  const hasIntroducedRef = useRef(false);
+  const prevTurnPlayerKeyRef = useRef(null);
+
+  const currentCamOption = useMemo(() => {
+    return CAMERA_OPTIONS.find(c => c.id === cameraMode) || CAMERA_OPTIONS[1];
+  }, [cameraMode]);
+
+  // Close camera dropdown when clicking outside
+  useEffect(() => {
+    if (!isCameraDropdownOpen) return;
+    const handleClickOutside = (e) => {
+      if (cameraMenuRef.current && !cameraMenuRef.current.contains(e.target)) {
+        setIsCameraDropdownOpen(false);
+      }
+    };
+    window.addEventListener("pointerdown", handleClickOutside);
+    return () => window.removeEventListener("pointerdown", handleClickOutside);
+  }, [isCameraDropdownOpen]);
+
   const [zoom, setZoom] = useState(1.0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -128,8 +147,10 @@ function GameBoard({
   }, [clampPan]);
 
   // Preset camera quadrant target calculator
-  const setCameraPreset = useCallback((camId) => {
-    sounds.btnClick();
+  const setCameraPreset = useCallback((camId, playSound = false) => {
+    if (playSound) {
+      sounds.btnClick();
+    }
     setCameraMode(camId);
 
     let targetZoom = 1.0;
@@ -157,6 +178,8 @@ function GameBoard({
         currentPlayer?.tileIndex ?? 0,
         1.9
       );
+    } else if (camId === "custom") {
+      return;
     }
 
     panRef.current = targetPan;
@@ -190,6 +213,42 @@ function GameBoard({
     getTilePan,
     updateTransformDirect
   ]);
+
+  // 1. Initial game start: introduce full map for 1.8s, then smoothly transition into Auto Focus
+  useEffect(() => {
+    if (!currentPlayer) return;
+
+    if (!hasIntroducedRef.current) {
+      const introTimer = setTimeout(() => {
+        hasIntroducedRef.current = true;
+        const turnKey = `${currentPlayer.id}_${currentPlayer.currentEra}_${turnNumber || 0}`;
+        prevTurnPlayerKeyRef.current = turnKey;
+        setCameraPreset("auto", false);
+      }, 1800);
+      return () => clearTimeout(introTimer);
+    }
+  }, [currentPlayer, turnNumber, setCameraPreset]);
+
+  // 2. When a player starts their turn, default to auto focus
+  useEffect(() => {
+    if (!currentPlayer) return;
+    const turnKey = `${currentPlayer.id}_${currentPlayer.currentEra}_${turnNumber || 0}`;
+    if (hasIntroducedRef.current && prevTurnPlayerKeyRef.current !== turnKey && phase === "rolling") {
+      prevTurnPlayerKeyRef.current = turnKey;
+      setCameraPreset("auto", false);
+    }
+  }, [currentPlayer?.id, currentPlayer?.currentEra, turnNumber, phase, setCameraPreset]);
+
+  // 3. Tapping somewhere on the board resets Free Cam back to Auto Focus
+  const handleViewportClick = useCallback((e) => {
+    if (hasDraggedRef.current) return;
+    if (e?.target?.closest?.('.board-camera-container') || e?.target?.closest?.('.board-zoom-hud')) {
+      return;
+    }
+    if (cameraMode === "custom") {
+      setCameraPreset("auto", true);
+    }
+  }, [cameraMode, setCameraPreset]);
 
   // Keep camera centered & bounded on window resize and orientation change
   useEffect(() => {
@@ -244,6 +303,9 @@ function GameBoard({
 
   // Touch gesture handling (1 finger pan, 2 finger pinch-to-zoom)
   const handleTouchStart = (e) => {
+    if (e.target?.closest?.('.board-camera-container') || e.target?.closest?.('.board-zoom-hud')) {
+      return;
+    }
     if (e.touches.length === 1) {
       isDraggingRef.current = true;
       hasDraggedRef.current = false;
@@ -279,6 +341,9 @@ function GameBoard({
       const dy = e.touches[0].clientY - touchStartPosRef.current.y;
       if (Math.hypot(dx, dy) > 6) {
         hasDraggedRef.current = true;
+        if (cameraMode !== 'custom') {
+          setCameraMode('custom');
+        }
         if (e.cancelable) e.preventDefault();
       }
       const rawX = e.touches[0].clientX - dragStartRef.current.x;
@@ -297,19 +362,24 @@ function GameBoard({
         cancelAnimationFrame(rafIdRef.current);
         rafIdRef.current = null;
       }
-      // Commit final position to React state once
-      setPan({ ...panRef.current });
-      setZoom(zoomRef.current);
-      setCameraMode('custom');
+      // Commit final position to React state only if user actually dragged
+      if (hasDraggedRef.current) {
+        setPan({ ...panRef.current });
+        setZoom(zoomRef.current);
+        setCameraMode('custom');
+      }
       setTimeout(() => {
         hasDraggedRef.current = false;
-      }, 120);
+      }, 150);
     }
   };
 
   // Mouse drag handling (Desktop)
   const handleMouseDown = (e) => {
     if (e.button !== 0) return;
+    if (e.target?.closest?.('.board-camera-container') || e.target?.closest?.('.board-zoom-hud')) {
+      return;
+    }
     isDraggingRef.current = true;
     hasDraggedRef.current = false;
     touchStartPosRef.current = { x: e.clientX, y: e.clientY };
@@ -326,6 +396,9 @@ function GameBoard({
     const dy = e.clientY - touchStartPosRef.current.y;
     if (Math.hypot(dx, dy) > 6) {
       hasDraggedRef.current = true;
+      if (cameraMode !== 'custom') {
+        setCameraMode('custom');
+      }
     }
     const rawX = e.clientX - dragStartRef.current.x;
     const rawY = e.clientY - dragStartRef.current.y;
@@ -427,21 +500,72 @@ function GameBoard({
           </div>
         </div>
       )}
-      {/* Top Camera Presets Bar */}
-      <div className="board-camera-bar" role="toolbar" aria-label="Board camera controls">
-        {CAMERA_OPTIONS.map((cam) => (
+      {/* Top Camera Controls Dropdown */}
+      <div className="board-camera-container" ref={cameraMenuRef}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {cameraMode === 'custom' && (
+            <div
+              className="free-cam-badge animate-fade-in"
+              title="Free Cam Active. Tap anywhere on the board to refocus on player."
+              onClick={(e) => {
+                e.stopPropagation();
+                setCameraPreset('auto', true);
+              }}
+              style={{ cursor: 'pointer' }}
+            >
+              <span>✋ Free Cam</span>
+              <span className="free-cam-hint">• Tap to refocus</span>
+            </div>
+          )}
+
           <button
-            key={cam.id}
-            className={`board-cam-btn ${cameraMode === cam.id ? "active" : ""}`}
-            onClick={() => setCameraPreset(cam.id)}
-            title={cam.label}
-            aria-label={cam.label}
+            className={`board-cam-dropdown-toggle ${isCameraDropdownOpen ? 'is-open' : ''}`}
+            onClick={() => {
+              sounds.btnClick();
+              setIsCameraDropdownOpen(prev => !prev);
+            }}
+            title={`Camera Mode: ${currentCamOption?.label || 'Options'}`}
+            aria-label="Toggle camera view presets"
           >
-            {cam.icon && <span className="board-cam-icon">{cam.icon}</span>}
-            <span className="board-cam-text-desktop">{cam.label}</span>
-            <span className="board-cam-text-mobile">{cam.mobileLabel}</span>
+            <span className="cam-toggle-icon">📹</span>
+            <span className="cam-active-badge">{currentCamOption?.icon || '🎯'}</span>
+            <span className="cam-toggle-arrow">{isCameraDropdownOpen ? '▲' : '▼'}</span>
           </button>
-        ))}
+        </div>
+
+        {isCameraDropdownOpen && (
+          <div className="board-cam-dropdown-menu">
+            <div className="board-cam-dropdown-header">
+              <span className="cam-header-title">CAMERA</span>
+              <span className="current-mode-label">
+                {hoveredCam ? `${hoveredCam.icon} ${hoveredCam.label}` : `${currentCamOption?.icon || ''} ${currentCamOption?.label || ''}`}
+              </span>
+            </div>
+
+            <div className="board-cam-icon-palette">
+              {CAMERA_OPTIONS.map((cam) => {
+                const isActive = cameraMode === cam.id;
+                return (
+                  <button
+                    key={cam.id}
+                    className={`board-cam-icon-btn ${isActive ? "active" : ""}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCameraPreset(cam.id, true);
+                      setIsCameraDropdownOpen(false);
+                    }}
+                    onMouseEnter={() => setHoveredCam(cam)}
+                    onMouseLeave={() => setHoveredCam(null)}
+                    title={`${cam.label}: ${cam.desc}`}
+                    aria-label={cam.label}
+                  >
+                    <span className="cam-btn-icon">{cam.icon}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {temporalOccurrence > 0 && (
@@ -462,6 +586,7 @@ function GameBoard({
         onMouseMove={handleMouseMove}
         onMouseUp={handleDragEnd}
         onMouseLeave={handleDragEnd}
+        onClick={handleViewportClick}
         onWheel={handleWheel}
       >
         {/* Dynamic Era Vignette Ambiance */}
@@ -605,8 +730,13 @@ function GameBoard({
                     style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
                     title={`${(tileType || "").toUpperCase()} (Space #${idx + 1} - ${ERA_NAMES[era] || era})`}
                     onClick={() => {
-                      if (!hasDraggedRef.current && onMoveToTile) {
-                        onMoveToTile(t.id);
+                      if (!hasDraggedRef.current) {
+                        if (cameraMode === "custom") {
+                          setCameraPreset("auto");
+                        }
+                        if (onMoveToTile) {
+                          onMoveToTile(t.id);
+                        }
                       }
                     }}
                   >
@@ -624,7 +754,18 @@ function GameBoard({
                         <span className="space-icon">{icon}</span>
                       </div>
                     )}
-                    {t.trap && <span className="tile-trap-indicator" title="Temporal Trap!">💣</span>}
+                    {t.trap && (
+                      <span
+                        className="tile-trap-indicator"
+                        title={
+                          t.trap.ownerId !== undefined && players?.[t.trap.ownerId]
+                            ? `Temporal Trap (Planted by ${players[t.trap.ownerId].name})`
+                            : "The Strategist's Temporal Trap!"
+                        }
+                      >
+                        💀
+                      </span>
+                    )}
 
                     {playersOnTile.length > 0 && (
                       <div className="tile-players">

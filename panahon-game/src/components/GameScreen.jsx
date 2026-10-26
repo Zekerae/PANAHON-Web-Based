@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect, memo } from 'react';
 import sounds from '../sound.js';
 import GameHeader from './game/GameHeader.jsx';
 import PlayerSidebar from './game/PlayerSidebar.jsx';
@@ -33,7 +33,7 @@ function GameScreen({
   const [mobileGameTab, setMobileGameTab] = useState("board");
   const [isPaused, setIsPaused] = useState(false);
   const [autoFollow, setAutoFollow] = useState(true);
-  const [omniscientIntel, setOmniscientIntel] = useState(true);
+  const [omniscientIntel, setOmniscientIntel] = useState(false);
 
   const handleResume = useCallback(() => {
     setIsPaused(false);
@@ -94,15 +94,36 @@ function GameScreen({
   const isAiCurrent = currentPlayer?.isAi === true;
   const isMyTurn = !effectiveIsSpectator && !isAiCurrent && (!isOnline || currentPlayer.id === network.playerId);
 
-  const myPlayer = isOnline
-    ? (state.players.find(p => p.id === network.playerId) || currentPlayer)
-    : currentPlayer;
+  const myPlayer = useMemo(() => {
+    if (isOnline) {
+      return state.players?.find(p => p.id === network.playerId) || currentPlayer;
+    }
+    // In local mode: if current player is a human, it is their turn
+    if (currentPlayer && !currentPlayer.isAi) {
+      return currentPlayer;
+    }
+    // If current player is AI (bot turn), maintain the human player's hand on screen
+    const humanPlayer = state.players?.find(p => !p.isAi);
+    if (humanPlayer) {
+      return humanPlayer;
+    }
+    return currentPlayer;
+  }, [isOnline, state.players, network.playerId, currentPlayer]);
 
   const viewedPlayer = (inspectedPlayerId !== null
-    ? state.players.find(p => p.id === inspectedPlayerId)
+    ? state.players?.find(p => p.id === inspectedPlayerId)
     : null) || myPlayer;
 
-  const isViewingSelf = !effectiveIsSpectator && (viewedPlayer.id === myPlayer.id || !isOnline);
+  const isViewingSelf = !effectiveIsSpectator && Boolean(viewedPlayer?.id === myPlayer?.id);
+
+  // When human player turn starts, ensure inspected player is cleared so they see their own hand
+  const prevIsMyTurnRef = useRef(false);
+  useEffect(() => {
+    if (isMyTurn && !prevIsMyTurnRef.current) {
+      setInspectedPlayerId(null);
+    }
+    prevIsMyTurnRef.current = isMyTurn;
+  }, [isMyTurn]);
 
   let timelineClass = 'safe';
   if (timelineLevel >= 4) timelineClass = 'danger';
@@ -349,6 +370,7 @@ function GameScreen({
         board={state.board}
         players={state.players}
         currentPlayer={currentPlayer}
+        turnNumber={state.turnNumber}
         phase={state.phase}
         movesRemaining={state.movesRemaining}
         movementDirection={state.movementDirection}

@@ -113,18 +113,28 @@ export default function App() {
       );
 
       if (!isMyCard) {
-        setObservedModal({
+        setObservedModal(prev => ({
           ...gameState.pendingModal,
           drawingPlayer: drawingP,
-          _timestamp: Date.now()
-        });
+          _timestamp: (prev?.id === gameState.pendingModal.id && prev?.needsRoll === gameState.pendingModal.needsRoll)
+            ? (prev?._timestamp || Date.now())
+            : Date.now()
+        }));
       } else {
         setObservedModal(null);
       }
     } else {
       setObservedModal(null);
     }
-  }, [gameState?.pendingModal, gameState?.currentPlayerIndex, network?.playerId, network?.isSpectator, network?.mode]);
+  }, [
+    gameState?.pendingModal,
+    gameState?.pendingModal?.needsRoll,
+    gameState?.pendingModal?.diceRoll,
+    gameState?.currentPlayerIndex,
+    network?.playerId,
+    network?.isSpectator,
+    network?.mode
+  ]);
 
   useEffect(() => {
     if (!appState.currentScreen || appState.currentScreen !== 'game' || gameState?.gameOver) {

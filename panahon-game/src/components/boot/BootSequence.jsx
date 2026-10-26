@@ -277,77 +277,24 @@ export default function BootSequence({ onComplete }) {
         transition: "opacity 0.45s ease-in-out"
       }}
     >
-      {/* Central Chrono Core Anomaly Orb */}
-      <div style={{ position: "relative", width: "130px", height: "130px", marginBottom: "28px" }}>
-        {/* Outer Ring */}
-        <div
-          style={{
-            position: "absolute",
-            inset: "-12px",
-            border: "1.5px dashed rgba(56, 189, 248, 0.35)",
-            borderRadius: "50%",
-            animation: "spinSlow 18s linear infinite"
-          }}
-        />
-
-        {/* Middle Ring */}
-        <div
-          style={{
-            position: "absolute",
-            inset: "-2px",
-            border: "1.5px solid rgba(245, 158, 11, 0.35)",
-            borderRadius: "50%",
-            animation: "spinReverse 12s linear infinite"
-          }}
-        />
-
-        {/* Core Sphere */}
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, #0284C7 0%, #0B192C 75%, #020617 100%)",
-            border: "2px solid #38BDF8",
-            boxShadow: "0 0 35px rgba(56, 189, 248, 0.5), inset 0 0 20px rgba(56, 189, 248, 0.4)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "2.8rem"
-          }}
+      {/* Central Animated Chrono Logo (Black knocked out via mix-blend-mode: screen) */}
+      <div className="splash-logo-container">
+        <video
+          className="splash-logo-video"
+          autoPlay
+          loop
+          muted
+          playsInline
+          poster="/assets/panahon_chrono_shift_logo.png"
         >
-          <span style={{ animation: "pulseGlyph 2s ease-in-out infinite", display: "inline-block" }}>
-            {progress >= 100 ? "⚡" : "⏳"}
-          </span>
-        </div>
-      </div>
-
-      {/* Brand Title */}
-      <h1
-        style={{
-          fontFamily: "var(--font-display)",
-          fontSize: "2.6rem",
-          letterSpacing: "4px",
-          color: "#F8FAFC",
-          margin: "0 0 4px",
-          textAlign: "center",
-          textShadow: "0 0 25px rgba(56, 189, 248, 0.6)"
-        }}
-      >
-        PANAHON
-      </h1>
-      <div
-        style={{
-          fontFamily: "var(--font-display)",
-          fontSize: "1rem",
-          letterSpacing: "6px",
-          color: "#E2E8F0",
-          textTransform: "uppercase",
-          fontWeight: 800,
-          marginBottom: "6px"
-        }}
-      >
-        CHRONO SHIFT
+          <source src="/assets/panahon_chrono_shift_logo_anim.mp4" type="video/mp4" />
+          <source src="/assets/panahon-logo.mp4" type="video/mp4" />
+          <img
+            src="/assets/panahon_chrono_shift_logo.png"
+            alt="PANAHON: Chrono Shift"
+            className="splash-logo-fallback"
+          />
+        </video>
       </div>
       <div
         style={{

@@ -11,11 +11,11 @@ function PlayerHand({
   onViewMyHand,
   onInspectCard,
   isSpectator = false,
-  omniscientIntel = true
+  omniscientIntel = false
 }) {
   if (!viewedPlayer) return null;
 
-  const canReveal = isViewingSelf || isSpectator || omniscientIntel;
+  const canReveal = isViewingSelf || (isSpectator && omniscientIntel);
 
   return (
     <section className="bottom-panel">
@@ -43,7 +43,7 @@ function PlayerHand({
 
         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span>
-            Viewing: <strong style={{ color: viewedPlayer.color }}>{viewedPlayer.name}{isViewingSelf && isOnline ? ' (You)' : ''}</strong>'s Hand
+            Viewing: <strong style={{ color: viewedPlayer.color }}>{viewedPlayer.name}{isViewingSelf ? ' (You)' : ''}</strong>'s Hand
             {isSpectator && <span style={{ color: '#C084FC', fontWeight: 700, marginLeft: '4px' }}>[OBSERVER]</span>}
           </span>
           {!isViewingSelf && !isSpectator && (

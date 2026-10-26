@@ -34,10 +34,12 @@ function GameHeader({
     <header className="game-header">
       {/* LEFT: LOGO & ACTIVE ERA BADGE */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
-        <div className="game-logo-wrapper">
-          <div className="game-logo">PANAHON</div>
-          <div className="game-logo-divider"></div>
-          <div className="game-logo-subtitle">CHRONO SHIFT</div>
+        <div className="game-logo-wrapper" title="PANAHON: Chrono Shift">
+          <img
+            src="/assets/panahon_chrono_shift_logo.png"
+            alt="PANAHON: Chrono Shift"
+            className="game-header-logo"
+          />
         </div>
 
         {/* Dynamic In-Game Active Era Badge */}

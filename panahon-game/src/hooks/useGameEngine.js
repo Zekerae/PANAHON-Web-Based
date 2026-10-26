@@ -24,6 +24,7 @@ export function useGameEngine(engine) {
       lastVersionRef.current = currentVersion;
       snapshotRef.current = {
         ...currentState,
+        pendingModal: currentState.pendingModal ? { ...currentState.pendingModal } : null,
         players: currentState.players ? currentState.players.map(p => ({ ...p })) : [],
         board: currentState.board ? { ...currentState.board } : null
       };

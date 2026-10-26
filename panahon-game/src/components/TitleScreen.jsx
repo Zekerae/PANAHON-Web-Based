@@ -124,12 +124,24 @@ export default function TitleScreen({
       <div className="duelyst-main-layout">
         {/* Left Column: Brand & Vertical Menu */}
         <div className="duelyst-left-section">
-          {/* Logo & Subtitle */}
+          {/* Main Menu Animated Logo Video (Black knocked out via mix-blend-mode: screen) */}
           <div className="duelyst-logo-wrapper">
-            <h1 className="duelyst-logo">PANAHON</h1>
-            <div className="duelyst-logo-divider"></div>
-            <div className="duelyst-subtitle">CHRONO SHIFT</div>
-            <div className="duelyst-acronym">Portal Anomaly Navigation and Historical Origin Network</div>
+            <video
+              className="main-menu-logo-video"
+              autoPlay
+              loop
+              muted
+              playsInline
+              poster="/assets/panahon_chrono_shift_logo.png"
+            >
+              <source src="/assets/panahon_chrono_shift_logo_anim.mp4" type="video/mp4" />
+              <source src="/assets/panahon-logo.mp4" type="video/mp4" />
+              <img
+                src="/assets/panahon_chrono_shift_logo.png"
+                alt="PANAHON: Chrono Shift"
+                className="main-menu-logo"
+              />
+            </video>
           </div>
 
           {/* Vertical Menu Items */}

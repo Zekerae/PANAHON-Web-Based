@@ -34,7 +34,7 @@ export default function Dice({
     } else if (value !== null && value !== undefined && value >= 1 && value <= 6) {
       setDisplayVal(value);
       setLanded(true);
-      const timer = setTimeout(() => setLanded(false), 650);
+      const timer = setTimeout(() => setLanded(false), 550);
       return () => clearTimeout(timer);
     }
   }, [isRolling, value]);
@@ -44,7 +44,7 @@ export default function Dice({
 
   return (
     <div
-      className={`chrono-dice-container size-${size} ${isRolling ? 'is-rolling' : ''} ${landed ? 'is-landed' : ''} theme-${theme} ${disabled ? 'is-disabled' : ''} ${isInteractive && !disabled && !isRolling ? 'can-interact' : ''}`}
+      className={`pixel-dice-container chrono-dice-container size-${size} ${isRolling ? 'is-rolling' : ''} ${landed ? 'is-landed' : ''} theme-${theme} ${disabled ? 'is-disabled' : ''} ${isInteractive && !disabled && !isRolling ? 'can-interact' : ''}`}
       onClick={!disabled && !isRolling && onClick ? onClick : undefined}
       title={disabled ? undefined : (isInteractive ? 'Click or Press Spacebar to Roll Die' : undefined)}
       role={isInteractive ? 'button' : undefined}
@@ -56,15 +56,36 @@ export default function Dice({
         }
       }}
     >
-      <div className="chrono-dice-cube">
-        <div className="chrono-dice-face">
+      <div className="pixel-dice-shadow" />
+      <div className="pixel-dice-cube chrono-dice-cube">
+        {/* 2.5D Isometric Top Facet */}
+        <div className="pixel-dice-top-facet">
+          <div className="facet-pip-row">
+            <span className="facet-pip" />
+            <span className="facet-pip" />
+          </div>
+        </div>
+
+        {/* 2.5D Isometric Right Facet */}
+        <div className="pixel-dice-side-facet">
+          <div className="facet-pip-col">
+            <span className="facet-pip" />
+            <span className="facet-pip" />
+            <span className="facet-pip" />
+          </div>
+        </div>
+
+        {/* 2.5D Front Face */}
+        <div className="pixel-dice-front-face chrono-dice-face">
           {isQuestion ? (
-            <div className="chrono-dice-unknown">?</div>
+            <div className="pixel-dice-unknown chrono-dice-unknown">?</div>
           ) : (
-            <div className="chrono-dice-grid">
+            <div className="pixel-dice-grid chrono-dice-grid">
               {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((cellIdx) => (
-                <div key={cellIdx} className="chrono-dice-pip-cell">
-                  {pips.includes(cellIdx) && <div className="chrono-dice-pip" />}
+                <div key={cellIdx} className="pixel-dice-pip-cell chrono-dice-pip-cell">
+                  {pips.includes(cellIdx) && (
+                    <div className={`pixel-dice-pip chrono-dice-pip ${displayVal === 1 ? 'pip-ace' : ''}`} />
+                  )}
                 </div>
               ))}
             </div>
@@ -73,7 +94,7 @@ export default function Dice({
       </div>
 
       {showLabel && (
-        <span className="chrono-dice-keyhint">SPACE</span>
+        <span className="pixel-dice-keyhint chrono-dice-keyhint">SPACE</span>
       )}
     </div>
   );

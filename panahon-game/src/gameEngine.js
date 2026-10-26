@@ -915,11 +915,15 @@ export class GameEngine {
       guardianReduction = true;
     }
 
-    modal.needsRoll = false;
-    modal.diceRoll = diceRoll;
-    modal.success = success;
-    modal.guardianReduction = guardianReduction;
-    modal.failMsg = card.failMsg + (guardianReduction ? ' (Guardian: penalty reduced by 1)' : '');
+    const updatedModal = {
+      ...modal,
+      needsRoll: false,
+      diceRoll: diceRoll,
+      success: success,
+      guardianReduction: guardianReduction,
+      failMsg: card.failMsg + (guardianReduction ? ' (Guardian: penalty reduced by 1)' : '')
+    };
+    this.state.pendingModal = updatedModal;
 
     if (success) {
       this.addLog('danger', `${player.name}: ${card.name} — Rolled ${diceRoll}! ${card.successMsg}`);

@@ -1283,6 +1283,31 @@ html, body {
   to { transform: translateX(-50%) translateY(3px); }
 }
 
+/* Dedicated pawn layer: keeps pawns mounted while walking between tiles */
+.board-pawns-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.board-pawn {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  justify-content: center;
+  transition:
+    left 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+    top 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+    margin-left 0.3s ease;
+  pointer-events: none;
+  will-change: left, top;
+}
+
+.board-pawn.active-turn {
+  z-index: 35;
+}
+
 /* Mario Party Style Character Pawns - Standing on Top of the Tile */
 .mario-party-space.has-players {
   z-index: 30;

@@ -17,6 +17,8 @@ function GameBoard({
   movesRemaining,
   movementDirection,
   temporalOccurrence,
+  nextTileIndex,
+  stateVersion,
   onMoveToTile
 }) {
   const [cameraMode, setCameraMode] = useState("full");
@@ -25,6 +27,22 @@ function GameBoard({
 
   const activeCoords = (typeof getActiveTileCoordinates === "function" ? getActiveTileCoordinates() : null) || ERA_TILE_COORDINATES;
   const connections = (typeof getActivePathConnections === "function" ? getActivePathConnections() : {}) || {};
+
+  const coordFor = (era) => activeCoords?.[era] || ERA_TILE_COORDINATES?.[era] || [];
+
+  // Build a single list of pawns rendered in their own layer so the pawn stays
+  // mounted while moving and can animate smoothly from tile to tile.
+  const pawns = (players || []).map((p) => {
+    const coords = coordFor(p.currentEra);
+    const coord = coords[p.tileIndex];
+    if (!p || !coord || typeof coord.x !== "number" || typeof coord.y !== "number") return null;
+
+    const stack = (players || []).filter(q => q && q.currentEra === p.currentEra && q.tileIndex === p.tileIndex);
+    const stackIndex = Math.max(0, stack.findIndex(q => q.id === p.id));
+    const offset = (stackIndex - (stack.length - 1) / 2) * 18;
+
+    return { player: p, coord, offset };
+  }).filter(Boolean);
 
   return (
     <main className="board-container">
@@ -119,13 +137,7 @@ function GameBoard({
 
                 let isReachable = false;
                 if (phase === "moving" && movesRemaining > 0 && currentPlayer.currentEra === era) {
-                  const cIdx = currentPlayer.tileIndex;
-                  const dir = movementDirection === "backward" ? -1 : 1;
-                  if (dir === 1 && idx === (cIdx + 1) % tiles.length) {
-                    isReachable = true;
-                  } else if (dir === -1 && idx === (cIdx - 1 + tiles.length) % tiles.length) {
-                    isReachable = true;
-                  }
+                  isReachable = nextTileIndex !== null && nextTileIndex !== undefined && idx === nextTileIndex;
                 }
 
                 let icon = "•";
@@ -145,7 +157,11 @@ function GameBoard({
                     title={`${(tileType || "").toUpperCase()} (Space #${idx + 1} - ${ERA_NAMES[era] || era})`}
                     onClick={() => onMoveToTile && onMoveToTile(t.id)}
                   >
-                    {isReachable && <div className="reachable-arrow-indicator">▼</div>}
+                    {isReachable && (
+                      <div className="reachable-arrow-indicator" title="Move here">
+                        {movementDirection === "backward" ? "▲" : "▼"}
+                      </div>
+                    )}
                     {TILE_IMAGES?.[tileType] ? (
                       <img
                         src={TILE_IMAGES[tileType]}
@@ -159,29 +175,31 @@ function GameBoard({
                       </div>
                     )}
                     {t.trap && <span className="tile-trap-indicator" title="Temporal Trap!">💣</span>}
-
-                    {playersOnTile.length > 0 && (
-                      <div className="tile-players">
-                        {playersOnTile.map(p => {
-                          const isPawnTurn = p.id === currentPlayer.id;
-                          return (
-                            <div
-                              key={p.id}
-                              className={`mario-pawn ${isPawnTurn ? "active-turn" : ""}`}
-                              title={`${p.name} (${p.role?.name || ""})`}
-                            >
-                              {isPawnTurn && <div className="pawn-turn-arrow">▼ YOU</div>}
-                              <div className="pawn-badge" style={{ background: p.color }}>P{(p.id ?? 0) + 1}</div>
-                              {p.role?.avatar && <img src={p.role.avatar} className="pawn-sprite" alt={p.name} />}
-                              <div className="pawn-pedestal" style={{ background: p.color, boxShadow: `0 0 8px ${p.color}` }}></div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
                   </div>
                 );
               });
+            })}
+          </div>
+
+          {/* Pawn layer: kept separate from tiles so movement animates smoothly */}
+          <div className="board-pawns-layer">
+            {pawns.map(({ player: p, coord, offset }) => {
+              const isPawnTurn = p.id === currentPlayer.id;
+              return (
+                <div
+                  key={`pawn-${p.id}`}
+                  className={`board-pawn ${isPawnTurn ? "active-turn" : ""}`}
+                  style={{ left: `${coord.x}%`, top: `${coord.y}%`, marginLeft: `${offset}px` }}
+                  title={`${p.name} (${p.role?.name || ""})`}
+                >
+                  <div className={`mario-pawn ${isPawnTurn ? "active-turn" : ""}`}>
+                    {isPawnTurn && <div className="pawn-turn-arrow">▼ YOU</div>}
+                    <div className="pawn-badge" style={{ background: p.color }}>P{(p.id ?? 0) + 1}</div>
+                    {p.role?.avatar && <img src={p.role.avatar} className="pawn-sprite" alt={p.name} />}
+                    <div className="pawn-pedestal" style={{ background: p.color, boxShadow: `0 0 8px ${p.color}` }}></div>
+                  </div>
+                </div>
+              );
             })}
           </div>
         </div>

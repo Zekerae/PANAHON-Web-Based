@@ -116,6 +116,31 @@ function GameScreen({
     }
   }, [state.phase, state.movesRemaining, isMyTurn, engine, network]);
 
+  // Spacebar = move forward one space during the movement phase
+  React.useEffect(() => {
+    const handleMoveKeyDown = (e) => {
+      if (e.code !== 'Space' && e.key !== ' ') return;
+      const tag = (e.target?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable) return;
+      if (isGameChatOpen || isPaused) return;
+      if (state.phase !== 'moving' || state.movesRemaining <= 0 || !isMyTurn) return;
+      if (state.pendingModal || state.pendingChoice) return;
+      e.preventDefault();
+      handleStepMove();
+    };
+    window.addEventListener('keydown', handleMoveKeyDown);
+    return () => window.removeEventListener('keydown', handleMoveKeyDown);
+  }, [state.phase, state.movesRemaining, state.pendingModal, state.pendingChoice, isMyTurn, isGameChatOpen, isPaused, handleStepMove]);
+
+  const nextTileIndex = (state.phase === 'moving' && state.movesRemaining > 0 && typeof engine.getNextTileIndex === 'function')
+    ? engine.getNextTileIndex(
+        currentPlayer,
+        currentPlayer.currentEra,
+        currentPlayer.tileIndex,
+        state.movementDirection === 'backward' ? -1 : 1
+      )
+    : null;
+
   const handleMoveToTile = useCallback((tileId) => {
     if (state.phase !== 'moving' || state.movesRemaining <= 0 || !isMyTurn) return;
     const ok = engine.moveToTile(tileId);
@@ -229,6 +254,8 @@ function GameScreen({
         movesRemaining={state.movesRemaining}
         movementDirection={state.movementDirection}
         temporalOccurrence={state.temporalOccurrence}
+        nextTileIndex={nextTileIndex}
+        stateVersion={engine.version || 0}
         onMoveToTile={handleMoveToTile}
       />
 

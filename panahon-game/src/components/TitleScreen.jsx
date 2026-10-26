@@ -120,6 +120,20 @@ export default function TitleScreen({
 
           <button
             className="btn btn-secondary"
+            style={{
+              borderColor: 'rgba(46, 204, 113, 0.4)',
+              background: 'rgba(46, 204, 113, 0.08)'
+            }}
+            onClick={() => {
+              sounds.btnClick();
+              window.open('cards.html', '_blank', 'noopener');
+            }}
+          >
+            🃏 Hybrid Card Atlas
+          </button>
+
+          <button
+            className="btn btn-secondary"
             onClick={() => {
               sounds.btnClick();
               onOpenGuide();

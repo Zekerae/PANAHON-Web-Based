@@ -52,42 +52,9 @@ export function useTurnAutomation({ engine, network, state, onGameOver }) {
       return;
     }
 
-    // Handle Auto Movement for Human Turn
-    const checkAndTriggerAutoMove = (delayMs = 380) => {
-      if (
-        state.phase !== 'moving' ||
-        state.movesRemaining <= 0 ||
-        state.momentumActive ||
-        state.pendingModal ||
-        state.pendingChoice ||
-        !network.isMyTurn(state.currentPlayerIndex)
-      ) {
-        clearAutoMove();
-        return;
-      }
-
-      if (autoMoveTimerRef.current) return;
-
-      autoMoveTimerRef.current = setTimeout(() => {
-        autoMoveTimerRef.current = null;
-        const cur = engine.getState();
-        if (
-          cur?.phase === 'moving' &&
-          cur.movesRemaining > 0 &&
-          !cur.momentumActive &&
-          !cur.pendingModal &&
-          !cur.pendingChoice &&
-          network.isMyTurn(cur.currentPlayerIndex)
-        ) {
-          sounds.moveStep();
-          engine.movePlayerStep();
-          network.sendAction({ type: 'MOVE_STEP' });
-          checkAndTriggerAutoMove(380);
-        }
-      }, delayMs);
-    };
-
-    checkAndTriggerAutoMove(380);
+    // Human turns are moved manually by the player (Move Forward button or
+    // Spacebar), so no auto-move timer is scheduled here.
+    clearAutoMove();
 
     return () => {
       clearAutoMove();

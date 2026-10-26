@@ -258,163 +258,30 @@ export class GameEngine {
   }
 
   // --- Movement ---
+  // Move the pawn onto a specific highlighted tile. The target must match the
+  // route returned by getNextTileIndex() so junction paths stay accurate.
   moveToTile(targetTileId) {
     if (this.state.phase !== 'moving' || this.state.movesRemaining <= 0) return false;
 
     const player = this.getCurrentPlayer();
-    const eraTiles = this.state.board[player.currentEra];
-    const currentIdx = player.tileIndex;
-    
-    // Parse target
-    const [targetEra, targetIdxStr] = targetTileId.split('_');
-    const targetIdx = parseInt(targetIdxStr);
+    const [targetEra, targetIdxStr] = String(targetTileId).split('_');
+    const targetIdx = parseInt(targetIdxStr, 10);
 
-    // Check if target is in the same era
-    if (targetEra !== player.currentEra) return false;
-    
-    // Strict direction constraint: strictly forward (+1) unless Reverse Time Ability is active (-1)
-    const direction = this.state.movementDirection || 'forward';
-    let isStepValid = false;
-    if (direction === 'forward') {
-      isStepValid = targetIdx === (currentIdx + 1) % eraTiles.length;
-    } else if (direction === 'backward') {
-      isStepValid = targetIdx === (currentIdx - 1 + eraTiles.length) % eraTiles.length;
-    }
-
-    if (!isStepValid) return false;
-
-    // Move
-    eraTiles[currentIdx].players = eraTiles[currentIdx].players.filter(id => id !== player.id);
-    player.tileIndex = targetIdx;
-    eraTiles[targetIdx].players.push(player.id);
-    this.state.movesRemaining--;
-
-    // Check tile interaction
-    const tile = eraTiles[targetIdx];
-    
-    // Check for trap
-    if (tile.trap && tile.trap.ownerId !== player.id) {
-      this.triggerTrap(player, tile);
-    }
-
-    // If artifact tile, player can choose to stop
-    if (tile.type === TILE_TYPES.ARTIFACT && this.state.movesRemaining > 0) {
-      // Player may stop for artifact
-      this.state.pendingChoice = {
-        type: 'artifactStop',
-        title: 'Artifact Tile',
-        message: 'You passed an Artifact Tile. Do you want to stop and investigate?',
-        options: [
-          { label: 'Stop & Investigate', action: 'stopForArtifact' },
-          { label: 'Continue Moving', action: 'continueMoving' }
-        ]
-      };
-      this.notify();
-      return true;
-    }
-
-    // If time gate tile, player can choose to travel or continue
-    if (tile.type === TILE_TYPES.TIMEGATE && this.state.movesRemaining > 0) {
-      const cost = player.roleKey === 'EXPLORER' ? GAME_CONSTANTS.TIME_GATE_COST_EXPLORER : GAME_CONSTANTS.TIME_GATE_COST;
-      const otherEras = ERA_ORDER.filter(e => e !== player.currentEra);
-      const options = [];
-      if (player.energy >= cost) {
-        otherEras.forEach(era => {
-          options.push({ label: `🌀 Warp to ${ERA_NAMES[era]} (-${cost} Energy)`, action: `warp_${era}` });
-        });
-      }
-      options.push({ label: `➡️ Continue Moving (${this.state.movesRemaining} spaces left)`, action: 'continueMoving' });
-      this.state.pendingChoice = {
-        type: 'timeGatePass',
-        title: 'Time Gate Portal!',
-        message: player.energy >= cost
-          ? `You came across a Time Gate! Warp to another era (Cost: ${cost} Energy) or continue with your remaining moves?`
-          : `You came across a Time Gate, but need ${cost} Energy to warp (you have ${player.energy} Energy).`,
-        options
-      };
-      this.notify();
-      return true;
-    }
-
-    // If no more moves, resolve tile and reset direction
-    if (this.state.movesRemaining <= 0) {
-      this.state.movementDirection = 'forward';
-      this.state.momentumActive = false;
-      this.state.momentumUsedMidTile = false;
-      this.resolveTile(player, tile);
-    }
-
-    this.notify();
-    return true;
-  }
-
-  // Determine next tile index using custom node-graph connections, approach routing rules & Mario Party two-way trails
-  getNextTileIndex(player, era, currentIdx, dir = 1) {
-    const eraTiles = this.state.board[era];
-    const total = eraTiles.length;
-    const connections = (typeof getActivePathConnections === 'function') ? getActivePathConnections() : {};
-    const junctionRules = (typeof getActiveJunctionRules === 'function') ? getActiveJunctionRules() : {};
-    const eraConnections = connections[era];
-    const eraRules = junctionRules[era] || {};
-    const prev = player?.previousTileIndex;
-
-    // 1. Explicit junction rule based on arrival space (currentIdx:prev)
-    if (prev !== undefined && prev !== null) {
-      const ruleKey = `${currentIdx}:${prev}`;
-      if (eraRules[ruleKey] !== undefined) {
-        return eraRules[ruleKey];
-      }
-    }
-
-    // 2. Linear return along two-way trail (village road 14 down to 7, or base road 3 down to 1):
-    if (prev !== undefined && prev !== null && prev > currentIdx) {
-      if ((currentIdx >= 6 && currentIdx <= 14) || (currentIdx >= 0 && currentIdx <= 2)) {
-        if (currentIdx === 6) return 3; // From Space 7 exit to Space 4
-        if (currentIdx === 0) return 1; // From Space 1 turn around to Space 2
-        return currentIdx - 1;
-      }
-    }
-
-    if (eraConnections) {
-      const targets = eraConnections[currentIdx];
-
-      // Handle single connection or return trail if single connection is a U-turn back to prev
-      if (!Array.isArray(targets) || targets.length === 0 || (targets.length === 1 && targets[0] === prev)) {
-        if (prev !== undefined && prev !== null && prev > currentIdx) {
-          return currentIdx <= 0 ? 1 : currentIdx - 1;
-        }
-        if (Array.isArray(targets) && targets.length === 1) return targets[0];
-        return dir > 0 ? (currentIdx + 1) % total : (currentIdx - 1 + total) % total;
-      }
-
-      if (targets.length === 1) {
-        return targets[0];
-      }
-
-      // Multiple targets: take first candidate not equal to prev
-      let candidates = targets.filter(t => t !== prev);
-      if (candidates.length === 0) candidates = targets;
-
-      return candidates[0] !== undefined ? candidates[0] : targets[0];
-    }
-
-    if (dir > 0) {
-      return (currentIdx + 1) % total;
-    } else {
-      return (currentIdx - 1 + total) % total;
-    }
-  }
-
-  // Move forward/backward in the era path
-  movePlayerStep() {
-    if (this.state.phase !== 'moving' || this.state.movesRemaining <= 0) return false;
+    if (targetEra !== player.currentEra || Number.isNaN(targetIdx)) return false;
 
     const dir = this.state.movementDirection === 'backward' ? -1 : 1;
-    const player = this.getCurrentPlayer();
+    const expectedIdx = this.getNextTileIndex(player, player.currentEra, player.tileIndex, dir);
+
+    if (targetIdx !== expectedIdx) return false;
+
+    return this.advancePlayerTo(player, targetIdx);
+  }
+
+  // Shared step resolution used by both manual stepping and clicking the
+  // highlighted arrow tile.
+  advancePlayerTo(player, newIdx) {
     const eraTiles = this.state.board[player.currentEra];
     const currentIdx = player.tileIndex;
-
-    const newIdx = this.getNextTileIndex(player, player.currentEra, currentIdx, dir);
 
     // Move
     eraTiles[currentIdx].players = eraTiles[currentIdx].players.filter(id => id !== player.id);
@@ -428,7 +295,6 @@ export class GameEngine {
     // Check trap
     if (tile.trap && tile.trap.ownerId !== player.id) {
       this.triggerTrap(player, tile);
-      return true;
     }
 
     // Artifact stop option
@@ -479,6 +345,80 @@ export class GameEngine {
 
     this.notify();
     return true;
+  }
+
+  // Determine next tile index using custom node-graph connections, approach routing rules & Mario Party two-way trails
+  getNextTileIndex(player, era, currentIdx, dir = 1) {
+    const eraTiles = this.state.board[era];
+    const total = eraTiles.length;
+    const connections = (typeof getActivePathConnections === 'function') ? getActivePathConnections() : {};
+    const junctionRules = (typeof getActiveJunctionRules === 'function') ? getActiveJunctionRules() : {};
+    const eraConnections = connections[era];
+    const eraRules = junctionRules[era] || {};
+    const prev = player?.previousTileIndex;
+
+    // Backward movement (Reverse Time / danger penalties) always steps down
+    // one space on the visible loop instead of following forward junctions.
+    if (dir < 0) {
+      return (currentIdx - 1 + total) % total;
+    }
+
+    // 1. Explicit junction rule based on arrival space (currentIdx:prev)
+    if (prev !== undefined && prev !== null) {
+      const ruleKey = `${currentIdx}:${prev}`;
+      if (eraRules[ruleKey] !== undefined) {
+        return eraRules[ruleKey];
+      }
+    }
+
+    // 2. Linear return along two-way trail (village road 14 down to 7, or base road 3 down to 1):
+    if (prev !== undefined && prev !== null && prev > currentIdx) {
+      if ((currentIdx >= 6 && currentIdx <= 14) || (currentIdx >= 0 && currentIdx <= 2)) {
+        if (currentIdx === 6) return 3; // From Space 7 exit to Space 4
+        if (currentIdx === 0) return 1; // From Space 1 turn around to Space 2
+        return currentIdx - 1;
+      }
+    }
+
+    if (eraConnections) {
+      const targets = eraConnections[currentIdx];
+
+      // Handle single connection or return trail if single connection is a U-turn back to prev
+      if (!Array.isArray(targets) || targets.length === 0 || (targets.length === 1 && targets[0] === prev)) {
+        if (prev !== undefined && prev !== null && prev > currentIdx) {
+          return currentIdx <= 0 ? 1 : currentIdx - 1;
+        }
+        if (Array.isArray(targets) && targets.length === 1) return targets[0];
+        return dir > 0 ? (currentIdx + 1) % total : (currentIdx - 1 + total) % total;
+      }
+
+      if (targets.length === 1) {
+        return targets[0];
+      }
+
+      // Multiple targets: take first candidate not equal to prev
+      let candidates = targets.filter(t => t !== prev);
+      if (candidates.length === 0) candidates = targets;
+
+      return candidates[0] !== undefined ? candidates[0] : targets[0];
+    }
+
+    if (dir > 0) {
+      return (currentIdx + 1) % total;
+    } else {
+      return (currentIdx - 1 + total) % total;
+    }
+  }
+
+  // Move one space along the current route
+  movePlayerStep() {
+    if (this.state.phase !== 'moving' || this.state.movesRemaining <= 0) return false;
+
+    const dir = this.state.movementDirection === 'backward' ? -1 : 1;
+    const player = this.getCurrentPlayer();
+    const newIdx = this.getNextTileIndex(player, player.currentEra, player.tileIndex, dir);
+
+    return this.advancePlayerTo(player, newIdx);
   }
 
   // Handle choice resolution

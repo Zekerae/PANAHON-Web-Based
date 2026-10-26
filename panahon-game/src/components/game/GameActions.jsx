@@ -138,14 +138,16 @@ function GameActions({
             ) : (
               <div style={{ marginTop: 'var(--space-sm)', padding: '10px', background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.35)', borderRadius: '8px', textAlign: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 700, color: '#60A5FA', fontSize: '0.85rem' }}>
-                  <span style={{ display: 'inline-block', animation: 'pawnHop 0.6s infinite alternate' }}>🚶</span>
-                  <span>Auto-Moving... ({state.movesRemaining} left)</span>
+                  <span>🚶 Move your castaway</span>
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: '4px 0 8px' }}>
+                  Press <kbd style={{ padding: '1px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', fontSize: '0.7rem' }}>SPACE</kbd> or click below
                 </div>
 
                 {currentPlayer.roleKey === 'EXPLORER' && currentPlayer.activeCooldown === 0 && !currentPlayer.usedAbilityThisTurn && currentPlayer.energy >= 2 && isMyTurn && (
                   <button
                     className="btn btn-accent"
-                    style={{ width: '100%', marginTop: '8px', padding: '6px 8px', fontSize: '0.75rem' }}
+                    style={{ width: '100%', marginBottom: '8px', padding: '6px 8px', fontSize: '0.75rem' }}
                     onClick={onTriggerMomentum}
                   >
                     ⚡ Pause & Activate Momentum (-2 En)
@@ -153,12 +155,12 @@ function GameActions({
                 )}
 
                 <button
-                  className="btn btn-secondary"
-                  style={{ width: '100%', marginTop: '6px', padding: '5px', fontSize: '0.72rem', opacity: 0.85 }}
-                  disabled={!isMyTurn}
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '9px', fontSize: '0.85rem' }}
+                  disabled={!isMyTurn || state.movesRemaining <= 0}
                   onClick={onStepMove}
                 >
-                  ⏩ Step Immediately
+                  ➡️ Move Forward ({state.movesRemaining} left)
                 </button>
               </div>
             )}

@@ -12,10 +12,12 @@ import { useToast } from './hooks/useToast.js';
 import { useChat } from './hooks/useChat.js';
 import { useNetworkRoom } from './hooks/useNetworkRoom.js';
 import { useTurnAutomation } from './hooks/useTurnAutomation.js';
+import { aiController } from './aiPlayer.js';
 
+import BootSequence from './components/boot/BootSequence.jsx';
+import OrientationPrompt from './components/OrientationPrompt.jsx';
 import AppRouter from './components/AppRouter.jsx';
 import GuideModal from './components/GuideModal.jsx';
-import SupabaseConfigModal from './components/SupabaseConfigModal.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
 import { CardModal, ChoiceModal, MaximizedCardPreview } from './components/Modals.jsx';
 
@@ -48,6 +50,14 @@ export default function App() {
   // App Routing & High-level State
   const [appState, dispatch] = useReducer(appReducer, initialAppState);
   const [savedSession, setSavedSession] = useState(() => getActiveSession());
+  const [isBooted, setIsBooted] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('skipBoot') === 'true' || p.has('modal') || p.has('drawer');
+    } catch {
+      return false;
+    }
+  });
 
   // Subsystems & Hooks
   const { toasts, showToast } = useToast();
@@ -59,7 +69,7 @@ export default function App() {
     network,
     engine,
     showToast,
-    onGameStartSuccess: () => dispatch({ type: 'START_GAME' })
+    onGameStartSuccess: (opts) => dispatch({ type: 'START_GAME', isSpectator: Boolean(opts?.isSpectator) })
   });
 
   // Auto-save active session during gameplay
@@ -83,11 +93,57 @@ export default function App() {
     }
   }, [gameState, appState.currentScreen, network, appState.localPlayers]);
 
-  // Turn Automation (AI Turns and Auto-Movement)
+  // Turn Automation (AI Turns and Auto-Movement - only active when on game screen)
+  // Local observed modal state for spectator / other players' card draws
+  const [observedModal, setObservedModal] = useState(null);
+
+  useEffect(() => {
+    if (gameState?.pendingModal) {
+      const activeP = engine?.getCurrentPlayer?.() || gameState.players?.[gameState.currentPlayerIndex];
+      const drawingP = (gameState.pendingModal.playerId !== undefined && gameState.players?.[gameState.pendingModal.playerId])
+        ? gameState.players[gameState.pendingModal.playerId]
+        : activeP;
+      const isAi = drawingP?.isAi === true;
+      const isSpectator = network.isSpectator;
+      const isOnline = network.mode === 'online';
+      const isMyCard = !isSpectator && (
+        isOnline
+          ? (drawingP?.id !== undefined ? drawingP.id === network.playerId : false)
+          : (!isAi && activeP?.id === drawingP?.id)
+      );
+
+      if (!isMyCard) {
+        setObservedModal({
+          ...gameState.pendingModal,
+          drawingPlayer: drawingP,
+          _timestamp: Date.now()
+        });
+      } else {
+        setObservedModal(null);
+      }
+    }
+  }, [gameState?.pendingModal, gameState?.currentPlayerIndex, network?.playerId, network?.isSpectator, network?.mode]);
+
+  useEffect(() => {
+    if (!appState.currentScreen || appState.currentScreen !== 'game' || gameState?.gameOver) {
+      setObservedModal(null);
+    }
+  }, [appState.currentScreen, gameState?.gameOver]);
+
+  useEffect(() => {
+    if (engine) {
+      engine._hasActivePreview = Boolean(appState.maximizedCardData);
+    }
+  }, [appState.maximizedCardData, engine]);
+
+  const isGameActive = appState.currentScreen === 'game';
+
   useTurnAutomation({
     engine,
     network,
-    state: gameState,
+    state: isGameActive ? gameState : null,
+    isGameActive,
+    simulationSpeed: appState.simulationSpeed,
     onGameOver: () => {
       clearActiveSession();
       setSavedSession(null);
@@ -113,9 +169,13 @@ export default function App() {
     }
   }, []);
 
-  const handleStartLocalGame = useCallback(() => {
-    const activeSlots = appState.localPlayers.filter((p) => p.type !== 'closed');
+  const handleStartLocalGame = useCallback((overrideConfigs, forceSpectator = false) => {
+    const configsToUse = overrideConfigs || appState.localPlayers;
+    const activeSlots = configsToUse.filter((p) => p.type !== 'closed');
     if (activeSlots.length === 0) return;
+
+    const allAi = activeSlots.every(p => p.type === 'ai');
+    const isSpec = Boolean(forceSpectator || allAi);
 
     sounds.portal();
     network.setMode('local');
@@ -129,9 +189,24 @@ export default function App() {
 
     initGame(configs);
     sounds.startBgMusic();
-    dispatch({ type: 'START_GAME' });
-    showToast('Mission Launched', `${configs.length} castaways ready. Protect the timeline!`, 'success');
+    dispatch({ type: 'START_GAME', isSpectator: isSpec });
+    showToast(
+      isSpec ? 'Observer Station Active' : 'Mission Launched',
+      isSpec ? `Watching AI expedition battle (${configs.length} bots).` : `${configs.length} castaways ready. Protect the timeline!`,
+      'success'
+    );
   }, [appState.localPlayers, sounds, network, initGame, showToast]);
+
+  const handleStartSpectatorSimulation = useCallback(() => {
+    const botConfigs = [
+      { name: 'Bot Historian', roleKey: 'HISTORIAN', type: 'ai', difficulty: 'normal' },
+      { name: 'Bot Explorer', roleKey: 'EXPLORER', type: 'ai', difficulty: 'normal' },
+      { name: 'Bot Guardian', roleKey: 'GUARDIAN', type: 'ai', difficulty: 'normal' },
+      { name: 'Bot Strategist', roleKey: 'STRATEGIST', type: 'ai', difficulty: 'normal' }
+    ];
+    dispatch({ type: 'SET_LOCAL_PLAYERS', payload: botConfigs });
+    handleStartLocalGame(botConfigs, true);
+  }, [handleStartLocalGame]);
 
   const handlePlayAgain = useCallback(() => {
     if (!gameState?.players) return;
@@ -185,13 +260,22 @@ export default function App() {
 
   const handleSaveAndExit = useCallback(() => {
     sounds.btnClick();
+    engine.stopTimer();
+    aiController.stop();
+    if (engine.state) {
+      engine.state.isPaused = true;
+      saveActiveSession(engine.state);
+    }
     showToast('Mission Saved', 'Progress safely recorded. You can resume anytime!', 'success');
     dispatch({ type: 'RETURN_TO_TITLE' });
     setSavedSession(getActiveSession());
-  }, [sounds, showToast]);
+  }, [engine, sounds, showToast]);
 
   const handleAbandonGame = useCallback(() => {
     sounds.btnClick();
+    engine.stopTimer();
+    aiController.stop();
+    engine.resetGame();
     clearActiveSession();
     setSavedSession(null);
     if (network.mode === 'online') {
@@ -199,7 +283,14 @@ export default function App() {
     }
     showToast('Mission Abandoned', 'Returned to main menu.', 'info');
     dispatch({ type: 'RETURN_TO_TITLE' });
-  }, [sounds, network, showToast]);
+  }, [engine, sounds, network, showToast]);
+
+  const isCurrentSpectator = Boolean(
+    appState.isSpectator ||
+    networkRoom.isSpectator ||
+    network.isSpectator ||
+    (gameState?.players?.length > 0 && gameState.players.every(p => p.isAi))
+  );
 
   const titleProps = {
     onSelectMode: handleSelectMode,
@@ -209,7 +300,10 @@ export default function App() {
     onToggleSound: toggleSound,
     activeSession: savedSession,
     onReconnect: handleReconnect,
-    onDiscardSession: handleDiscardSession
+    onDiscardSession: handleDiscardSession,
+    onReplayIntro: () => setIsBooted(false),
+    onStartSpectatorSimulation: handleStartSpectatorSimulation,
+    onSpectateOnline: networkRoom.spectateOnline
   };
 
   const lobbyProps = {
@@ -225,22 +319,32 @@ export default function App() {
     setOnlineRoomCodeInput: networkRoom.setOnlineRoomCodeInput,
     network,
     currentRoomPlayers: networkRoom.currentRoomPlayers,
+    spectators: networkRoom.spectators,
+    isSpectator: isCurrentSpectator,
+    canSpectatePrompt: networkRoom.canSpectatePrompt,
     isConnectingOnline: networkRoom.isConnectingOnline,
     onStartLocal: handleStartLocalGame,
+    onStartSpectatorSimulation: handleStartSpectatorSimulation,
     onConnectOnline: networkRoom.connectOnline,
+    onSpectateOnline: networkRoom.spectateOnline,
+    onAcceptCanSpectate: networkRoom.acceptCanSpectate,
+    onDismissCanSpectatePrompt: networkRoom.dismissCanSpectatePrompt,
     onLeaveRoom: networkRoom.leaveRoom,
     onStartOnline: networkRoom.startOnlineGame,
     onBack: () => {
       sounds.btnClick();
       dispatch({ type: 'RETURN_TO_TITLE' });
     },
-    onOpenSupabaseConfig: () => dispatch({ type: 'OPEN_SUPABASE_CONFIG' })
   };
 
   const gameProps = {
     state: gameState,
     engine,
     network,
+    isSpectator: isCurrentSpectator,
+    spectators: networkRoom.spectators,
+    simulationSpeed: appState.simulationSpeed,
+    onChangeSimulationSpeed: (speed) => dispatch({ type: 'SET_SIMULATION_SPEED', payload: speed }),
     soundMuted,
     onToggleSound: toggleSound,
     onOpenGuide: () => dispatch({ type: 'OPEN_GUIDE' }),
@@ -254,15 +358,25 @@ export default function App() {
 
   const endgameProps = {
     state: gameState,
+    isSpectator: isCurrentSpectator,
     onPlayAgain: handlePlayAgain,
     onBackMenu: () => {
       sounds.btnClick();
+      engine.stopTimer();
+      aiController.stop();
+      engine.resetGame();
       dispatch({ type: 'RETURN_TO_TITLE' });
     }
   };
 
+  if (!isBooted) {
+    return <BootSequence onComplete={() => setIsBooted(true)} />;
+  }
+
   return (
     <div className="app-root">
+      {/* Mobile Portrait Orientation Lock Prompt */}
+      <OrientationPrompt />
       <AppRouter
         currentScreen={appState.currentScreen}
         titleProps={titleProps}
@@ -274,8 +388,8 @@ export default function App() {
         }}
       />
 
-      {/* MODAL HOST */}
-      {gameState?.pendingModal && (
+      {/* MODAL HOST - ONLY RENDERED DURING ACTIVE GAMEPLAY */}
+      {isGameActive && gameState?.pendingModal && !observedModal && (
         <CardModal
           modal={gameState.pendingModal}
           engine={engine}
@@ -285,7 +399,22 @@ export default function App() {
         />
       )}
 
-      {gameState?.pendingChoice && (
+      {isGameActive && observedModal && (
+        <CardModal
+          modal={observedModal}
+          engine={engine}
+          network={network}
+          onDismiss={() => {
+            setObservedModal(null);
+            if (engine?.state?.pendingModal) {
+              dismissModal();
+            }
+          }}
+          onMaximize={(cardData) => dispatch({ type: 'SET_MAXIMIZED_CARD', cardData })}
+        />
+      )}
+
+      {isGameActive && !gameState?.pendingModal && !observedModal && gameState?.pendingChoice && (
         <ChoiceModal
           choice={gameState.pendingChoice}
           engine={engine}
@@ -309,19 +438,6 @@ export default function App() {
 
       {appState.showGuide && (
         <GuideModal onClose={() => dispatch({ type: 'CLOSE_GUIDE' })} />
-      )}
-
-      {appState.showSupabaseConfig && (
-        <SupabaseConfigModal
-          onClose={() => dispatch({ type: 'CLOSE_SUPABASE_CONFIG' })}
-          onConfigSaved={(ok) => {
-            showToast(
-              'Supabase Settings',
-              ok ? 'Supabase Realtime enabled and ready!' : 'Supabase credentials saved.',
-              ok ? 'success' : 'info'
-            );
-          }}
-        />
       )}
 
       {/* TOAST HOST */}

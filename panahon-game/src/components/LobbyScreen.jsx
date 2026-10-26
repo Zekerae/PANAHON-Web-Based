@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import sounds from '../sound.js';
-import { ROLES, ROLE_ORDER, PLAYER_COLORS } from '../gameData.js';
-import ChatBox from './ChatBox.jsx';
-import { isSupabaseAvailable } from '../supabaseClient.js';
+import React, { useState } from "react";
+import sounds from "../sound.js";
+import { ROLES, ROLE_ORDER, PLAYER_COLORS } from "../gameData.js";
+import ChatBox from "./ChatBox.jsx";
+import { isSupabaseAvailable } from "../supabaseClient.js";
 
 export default function LobbyScreen({
   lobbyMode,
@@ -17,15 +17,21 @@ export default function LobbyScreen({
   setOnlineRoomCodeInput,
   network,
   currentRoomPlayers,
+  spectators = [],
+  isSpectator = false,
+  canSpectatePrompt = null,
   isConnectingOnline,
   onStartLocal,
+  onStartSpectatorSimulation,
   onConnectOnline,
+  onSpectateOnline,
+  onAcceptCanSpectate,
+  onDismissCanSpectatePrompt,
   onLeaveRoom,
   onStartOnline,
   onBack,
-  onOpenSupabaseConfig
 }) {
-  const [onlineSubMode, setOnlineSubMode] = useState('create');
+  const [onlineSubMode, setOnlineSubMode] = useState("create");
   const roleKeys = ROLE_ORDER;
   const isRoomActive = network.roomCode !== null;
   const hasSupabase = isSupabaseAvailable();
@@ -34,30 +40,40 @@ export default function LobbyScreen({
   const applyPreset1v3 = () => {
     sounds.btnClick();
     setLocalPlayers([
-      { name: 'Player 1', roleKey: 'HISTORIAN', type: 'human', difficulty: 'normal' },
-      { name: 'Bot Explorer', roleKey: 'EXPLORER', type: 'ai', difficulty: 'normal' },
-      { name: 'Bot Guardian', roleKey: 'GUARDIAN', type: 'ai', difficulty: 'normal' },
-      { name: 'Bot Strategist', roleKey: 'STRATEGIST', type: 'ai', difficulty: 'normal' }
+      { name: "Player 1", roleKey: "HISTORIAN", type: "human", difficulty: "normal" },
+      { name: "Bot Explorer", roleKey: "EXPLORER", type: "ai", difficulty: "normal" },
+      { name: "Bot Guardian", roleKey: "GUARDIAN", type: "ai", difficulty: "normal" },
+      { name: "Bot Strategist", roleKey: "STRATEGIST", type: "ai", difficulty: "normal" }
     ]);
   };
 
   const applyPreset2v2 = () => {
     sounds.btnClick();
     setLocalPlayers([
-      { name: 'Player 1', roleKey: 'HISTORIAN', type: 'human', difficulty: 'normal' },
-      { name: 'Player 2', roleKey: 'EXPLORER', type: 'human', difficulty: 'normal' },
-      { name: 'Bot Guardian', roleKey: 'GUARDIAN', type: 'ai', difficulty: 'normal' },
-      { name: 'Bot Strategist', roleKey: 'STRATEGIST', type: 'ai', difficulty: 'normal' }
+      { name: "Player 1", roleKey: "HISTORIAN", type: "human", difficulty: "normal" },
+      { name: "Player 2", roleKey: "EXPLORER", type: "human", difficulty: "normal" },
+      { name: "Bot Guardian", roleKey: "GUARDIAN", type: "ai", difficulty: "normal" },
+      { name: "Bot Strategist", roleKey: "STRATEGIST", type: "ai", difficulty: "normal" }
     ]);
   };
 
   const applyPreset4Human = () => {
     sounds.btnClick();
     setLocalPlayers([
-      { name: 'Player 1', roleKey: 'HISTORIAN', type: 'human', difficulty: 'normal' },
-      { name: 'Player 2', roleKey: 'EXPLORER', type: 'human', difficulty: 'normal' },
-      { name: 'Player 3', roleKey: 'GUARDIAN', type: 'human', difficulty: 'normal' },
-      { name: 'Player 4', roleKey: 'STRATEGIST', type: 'human', difficulty: 'normal' }
+      { name: "Player 1", roleKey: "HISTORIAN", type: "human", difficulty: "normal" },
+      { name: "Player 2", roleKey: "EXPLORER", type: "human", difficulty: "normal" },
+      { name: "Player 3", roleKey: "GUARDIAN", type: "human", difficulty: "normal" },
+      { name: "Player 4", roleKey: "STRATEGIST", type: "human", difficulty: "normal" }
+    ]);
+  };
+
+  const applyPresetSpectator = () => {
+    sounds.btnClick();
+    setLocalPlayers([
+      { name: "Bot Historian", roleKey: "HISTORIAN", type: "ai", difficulty: "normal" },
+      { name: "Bot Explorer", roleKey: "EXPLORER", type: "ai", difficulty: "normal" },
+      { name: "Bot Guardian", roleKey: "GUARDIAN", type: "ai", difficulty: "normal" },
+      { name: "Bot Strategist", roleKey: "STRATEGIST", type: "ai", difficulty: "normal" }
     ]);
   };
 
@@ -76,45 +92,172 @@ export default function LobbyScreen({
     setLocalPlayers(updated);
   };
 
-  const activeSlots = localPlayers.filter(p => p.type !== 'closed');
+  const activeSlots = localPlayers.filter(p => p.type !== "closed");
 
   return (
-    <div className="lobby-screen">
-      <div className="lobby-title">MISSION BRIEFING</div>
-
-      <div className="lobby-mode-tabs" style={{ maxWidth: network.roomCode ? '880px' : '700px', width: '100%' }}>
-        <div
-          className={`mode-tab ${lobbyMode === 'local' ? 'active' : ''}`}
-          onClick={() => { sounds.btnClick(); setLobbyMode('local'); }}
+    <div
+      className="lobby-screen duelyst-theme mobile-compact-lobby"
+      style={{
+        width: "100%",
+        minHeight: "100vh",
+        background: "radial-gradient(circle at 50% 20%, #0B192C 0%, #060D17 65%, #020617 100%)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        padding: "32px 16px 60px",
+        boxSizing: "border-box",
+        overflowY: "auto"
+      }}
+    >
+      {/* Top Brand Header */}
+      <div style={{ textAlign: "center", marginBottom: "20px" }}>
+        <h1
+          className="lobby-title"
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: "2.2rem",
+            letterSpacing: "3.5px",
+            color: "#F8FAFC",
+            margin: "0 0 4px",
+            textShadow: "0 0 25px rgba(56, 189, 248, 0.45)"
+          }}
         >
-          Custom Game / Bots
-        </div>
-        <div
-          className={`mode-tab ${lobbyMode === 'online' ? 'active' : ''}`}
-          onClick={() => { sounds.btnClick(); setLobbyMode('online'); }}
-        >
-          Online Multiplayer
+          CHRONO EXPEDITION STAGING
+        </h1>
+        <div style={{
+          width: "70px",
+          height: "2px",
+          background: "linear-gradient(90deg, transparent, #38BDF8, transparent)",
+          margin: "6px auto 8px"
+        }} />
+        <div className="lobby-subhead" style={{ fontSize: "0.78rem", color: "#94A3B8", letterSpacing: "1px" }}>
+          OPERATIVE CADRE CONFIGURATION & TIMELINE SYNCHRONIZATION
         </div>
       </div>
 
-      {lobbyMode === 'local' ? (
-        <div className="lobby-panel">
-          <div className="lobby-section-title">CUSTOM LOBBY: CONFIGURE SLOTS</div>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 'var(--space-sm)' }}>
-            Configure each slot as <strong>👤 Human</strong>, <strong>🤖 Computer (AI)</strong>, or <strong>🚫 Closed</strong>. Pick a preset or customize roles and AI difficulties.
-          </p>
+      {/* Mode Switcher Tabs */}
+      <div
+        style={{
+          display: "flex",
+          gap: "10px",
+          maxWidth: network.roomCode ? "880px" : "740px",
+          width: "100%",
+          marginBottom: "16px"
+        }}
+      >
+        <button
+          onClick={() => { sounds.btnClick(); setLobbyMode("local"); }}
+          style={{
+            flex: 1,
+            padding: "10px 16px",
+            background: lobbyMode === "local"
+              ? "linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(99, 102, 241, 0.35))"
+              : "rgba(15, 23, 42, 0.6)",
+            border: lobbyMode === "local"
+              ? "1.5px solid #38BDF8"
+              : "1px solid rgba(255, 255, 255, 0.1)",
+            borderRadius: "8px",
+            color: lobbyMode === "local" ? "#FFF" : "#94A3B8",
+            fontFamily: "var(--font-display)",
+            fontSize: "0.86rem",
+            fontWeight: 800,
+            letterSpacing: "1px",
+            cursor: "pointer",
+            transition: "all 0.18s ease"
+          }}
+        >
+          ⚔️ LOCAL EXPEDITION & BOT SIMULATION
+        </button>
 
-          <div className="wc3-preset-bar">
-            <button className="wc3-preset-btn" onClick={applyPreset1v3}>⚔️ 1 Player vs 3 Bots</button>
-            <button className="wc3-preset-btn" onClick={applyPreset2v2}>🤝 2 Players vs 2 Bots</button>
-            <button className="wc3-preset-btn" onClick={applyPreset4Human}>👥 4 Humans (Pass & Play)</button>
-            <button className="wc3-preset-btn" onClick={applyPresetRandom}>🎲 Shuffle Roles</button>
+        <button
+          onClick={() => { sounds.btnClick(); setLobbyMode("online"); }}
+          style={{
+            flex: 1,
+            padding: "10px 16px",
+            background: lobbyMode === "online"
+              ? "linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(99, 102, 241, 0.35))"
+              : "rgba(15, 23, 42, 0.6)",
+            border: lobbyMode === "online"
+              ? "1.5px solid #38BDF8"
+              : "1px solid rgba(255, 255, 255, 0.1)",
+            borderRadius: "8px",
+            color: lobbyMode === "online" ? "#FFF" : "#94A3B8",
+            fontFamily: "var(--font-display)",
+            fontSize: "0.86rem",
+            fontWeight: 800,
+            letterSpacing: "1px",
+            cursor: "pointer",
+            transition: "all 0.18s ease"
+          }}
+        >
+          🌐 QUANTUM RELAY MULTIPLAYER
+        </button>
+      </div>
+
+      {lobbyMode === "local" ? (
+        <div
+          className="lobby-dossier-card"
+          style={{
+            background: "rgba(10, 14, 26, 0.95)",
+            backdropFilter: "blur(16px)",
+            border: "1.5px solid rgba(56, 189, 248, 0.35)",
+            borderRadius: "12px",
+            padding: "20px 24px",
+            width: "100%",
+            maxWidth: "740px",
+            boxShadow: "0 16px 50px rgba(0, 0, 0, 0.7)"
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: "1rem", color: "#F59E0B", letterSpacing: "1px", fontWeight: 800 }}>
+              OPERATIVE CADRE DOSSIER
+            </div>
+            <div style={{ fontSize: "0.74rem", color: "#38BDF8", fontWeight: 700 }}>
+              {activeSlots.length} / 4 OPERATIVES READY
+            </div>
           </div>
 
-          <div className="player-slots">
+          <p className="lobby-dossier-desc" style={{ fontSize: "0.78rem", color: "#94A3B8", lineHeight: 1.5, margin: "0 0 14px" }}>
+            Configure each slot as <strong>👤 Human Operative</strong>, <strong>🤖 AI Construct</strong>, or <strong>🚫 Deactivated</strong>. Assign roles and calibrate AI parameters:
+          </p>
+
+          {/* Tactical Preset Bar */}
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+            {[
+              { label: "⚔️ Solo (1 Human + 3 AI)", fn: applyPreset1v3 },
+              { label: "🤝 Dual Strike (2H + 2 AI)", fn: applyPreset2v2 },
+              { label: "👥 Full Cadre (4 Humans)", fn: applyPreset4Human },
+              { label: "👁️ Spectator Sim (4 AI Bots)", fn: applyPresetSpectator },
+              { label: "🎲 Rebalance Roles", fn: applyPresetRandom }
+            ].map((p, i) => (
+              <button
+                key={i}
+                onClick={p.fn}
+                style={{
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  borderRadius: "6px",
+                  color: "#CBD5E1",
+                  padding: "6px 12px",
+                  fontSize: "0.74rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease"
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#38BDF8"; e.currentTarget.style.color = "#FFF"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.12)"; e.currentTarget.style.color = "#CBD5E1"; }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Slot Cards List */}
+          <div className="lobby-slots-list" style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
             {localPlayers.map((player, idx) => {
-              const isClosed = player.type === 'closed';
-              const isAi = player.type === 'ai';
+              const isClosed = player.type === "closed";
+              const isAi = player.type === "ai";
               const role = ROLES[player.roleKey] || ROLES.HISTORIAN;
               const color = PLAYER_COLORS[idx];
 
@@ -122,40 +265,48 @@ export default function LobbyScreen({
                 return (
                   <div
                     key={idx}
-                    className="player-slot closed-slot wc3-slot-card"
                     style={{
-                      borderLeft: '4px solid #4b5563',
-                      minHeight: '105px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
+                      background: "rgba(15, 23, 42, 0.4)",
+                      border: "1px dashed rgba(255, 255, 255, 0.15)",
+                      borderRadius: "8px",
+                      padding: "10px 14px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between"
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div style={{ width: "38px", height: "38px", borderRadius: "6px", background: "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}>
                         🚫
                       </div>
                       <div>
-                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 700 }}>
-                          SLOT {idx + 1} &bull; CLOSED
+                        <div style={{ fontSize: "0.74rem", color: "#64748B", fontWeight: 800 }}>
+                          SLOT {idx + 1} &bull; DEACTIVATED
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          Slot deactivated (will not participate in game)
+                        <div style={{ fontSize: "0.72rem", color: "#475569" }}>
+                          Slot offline (will not participate in this expedition)
                         </div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <select
-                        className="slot-type-select"
-                        style={{ background: 'rgba(0,0,0,0.6)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '4px', padding: '5px 8px', fontSize: '0.75rem', fontWeight: 600 }}
-                        value={player.type}
-                        onChange={(e) => updateSlot(idx, { type: e.target.value })}
-                      >
-                        <option value="human">👤 Human</option>
-                        <option value="ai">🤖 Computer (AI)</option>
-                        <option value="closed">🚫 Closed</option>
-                      </select>
-                    </div>
+
+                    <select
+                      style={{
+                        background: "rgba(15, 23, 42, 0.8)",
+                        color: "#94A3B8",
+                        border: "1px solid rgba(255, 255, 255, 0.15)",
+                        borderRadius: "6px",
+                        padding: "5px 10px",
+                        fontSize: "0.74rem",
+                        fontWeight: 700,
+                        outline: "none"
+                      }}
+                      value={player.type}
+                      onChange={(e) => updateSlot(idx, { type: e.target.value })}
+                    >
+                      <option value="human">👤 Human Operative</option>
+                      <option value="ai">🤖 AI Construct</option>
+                      <option value="closed">🚫 Deactivated</option>
+                    </select>
                   </div>
                 );
               }
@@ -163,77 +314,133 @@ export default function LobbyScreen({
               return (
                 <div
                   key={idx}
-                  className="player-slot selected wc3-slot-card"
-                  style={{ borderLeft: `4px solid ${color}` }}
+                  style={{
+                    background: "rgba(15, 23, 42, 0.75)",
+                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    borderLeft: `4px solid ${color}`,
+                    borderRadius: "8px",
+                    padding: "12px 14px",
+                    display: "flex",
+                    gap: "12px",
+                    alignItems: "center"
+                  }}
                 >
-                  <img src={role.avatar} className="player-slot-avatar" alt={role.name} />
-                  <div className="player-slot-info" style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '0.72rem', color, fontWeight: 800, letterSpacing: '0.5px' }}>
+                  <img
+                    src={role.avatar}
+                    alt={role.name}
+                    style={{
+                      width: "50px",
+                      height: "50px",
+                      borderRadius: "6px",
+                      objectFit: "cover",
+                      border: `1.5px solid ${color}`
+                    }}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
+
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "0.74rem", color, fontWeight: 900, letterSpacing: "0.5px" }}>
                           SLOT {idx + 1}
                         </span>
-                        {isAi ? <span className="bot-badge">🤖 BOT</span> : <span className="human-badge">👤 HUMAN</span>}
+                        <span style={{
+                          fontSize: "0.64rem",
+                          fontWeight: 800,
+                          background: isAi ? "rgba(96, 165, 250, 0.15)" : "rgba(52, 211, 153, 0.15)",
+                          color: isAi ? "#60A5FA" : "#34D399",
+                          border: `1px solid ${isAi ? "rgba(96, 165, 250, 0.35)" : "rgba(52, 211, 153, 0.35)"}`,
+                          padding: "1px 6px",
+                          borderRadius: "4px"
+                        }}>
+                          {isAi ? "🤖 AI CONSTRUCT" : "👤 HUMAN OPERATIVE"}
+                        </span>
                       </div>
 
                       <select
-                        className="slot-type-select"
                         style={{
-                          background: 'rgba(0,0,0,0.6)',
-                          color: isAi ? '#60A5FA' : '#34D399',
-                          border: `1px solid ${isAi ? 'rgba(96,165,250,0.4)' : 'rgba(52,211,153,0.4)'}`,
-                          borderRadius: '4px',
-                          padding: '4px 8px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600
+                          background: "rgba(15, 23, 42, 0.9)",
+                          color: isAi ? "#60A5FA" : "#34D399",
+                          border: `1px solid ${isAi ? "rgba(96, 165, 250, 0.3)" : "rgba(52, 211, 153, 0.3)"}`,
+                          borderRadius: "6px",
+                          padding: "4px 8px",
+                          fontSize: "0.74rem",
+                          fontWeight: 700,
+                          outline: "none"
                         }}
                         value={player.type}
                         onChange={(e) => updateSlot(idx, { type: e.target.value })}
                       >
-                        <option value="human">👤 Human</option>
-                        <option value="ai">🤖 Computer (AI)</option>
-                        <option value="closed">🚫 Closed</option>
+                        <option value="human">👤 Human Operative</option>
+                        <option value="ai">🤖 AI Construct</option>
+                        <option value="closed">🚫 Deactivated</option>
                       </select>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '6px', margin: '4px 0' }}>
+                    {/* Inputs Row */}
+                    <div style={{ display: "flex", gap: "8px", marginBottom: "6px" }}>
                       <input
                         type="text"
-                        className="player-name-input"
                         value={player.name}
-                        placeholder={isAi ? 'Bot Name' : 'Player Name'}
-                        style={{ flex: 1, margin: 0, padding: '5px 8px', fontSize: '0.8rem' }}
+                        placeholder={isAi ? "AI Construct Name" : "Operative Name"}
+                        style={{
+                          flex: 1,
+                          background: "rgba(0, 0, 0, 0.5)",
+                          border: "1px solid rgba(255, 255, 255, 0.15)",
+                          borderRadius: "4px",
+                          padding: "5px 8px",
+                          fontSize: "0.78rem",
+                          color: "#FFF",
+                          outline: "none"
+                        }}
                         onChange={(e) => updateSlot(idx, { name: e.target.value })}
                       />
+
                       {isAi && (
                         <select
-                          className="ai-difficulty-select"
-                          style={{ background: 'rgba(0,0,0,0.6)', color: '#60A5FA', border: '1px solid rgba(96,165,250,0.4)', borderRadius: '4px', padding: '4px 8px', fontSize: '0.72rem' }}
-                          value={player.difficulty || 'normal'}
+                          style={{
+                            background: "rgba(0, 0, 0, 0.5)",
+                            color: "#38BDF8",
+                            border: "1px solid rgba(56, 189, 248, 0.35)",
+                            borderRadius: "4px",
+                            padding: "5px 8px",
+                            fontSize: "0.74rem",
+                            fontWeight: 700,
+                            outline: "none"
+                          }}
+                          value={player.difficulty || "normal"}
                           onChange={(e) => updateSlot(idx, { difficulty: e.target.value })}
                         >
-                          <option value="easy">🟢 Easy</option>
-                          <option value="normal">🔵 Normal</option>
-                          <option value="hard">🔴 Hard</option>
+                          <option value="easy">🟢 Easy Protocol</option>
+                          <option value="normal">🔵 Standard AI</option>
+                          <option value="hard">🔴 Master AI</option>
                         </select>
                       )}
+
+                      <select
+                        style={{
+                          background: "rgba(0, 0, 0, 0.5)",
+                          color: "#F59E0B",
+                          border: "1px solid rgba(245, 158, 11, 0.35)",
+                          borderRadius: "4px",
+                          padding: "5px 8px",
+                          fontSize: "0.74rem",
+                          fontWeight: 700,
+                          outline: "none"
+                        }}
+                        value={player.roleKey}
+                        onChange={(e) => updateSlot(idx, { roleKey: e.target.value })}
+                      >
+                        {roleKeys.map(rk => (
+                          <option key={rk} value={rk}>
+                            {ROLES[rk].name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
-                    <select
-                      className="role-select"
-                      style={{ background: 'rgba(0,0,0,0.5)', color: 'var(--text-accent)', border: '1px solid var(--border-glass)', borderRadius: '4px', padding: '4px', fontSize: '0.75rem', width: '100%' }}
-                      value={player.roleKey}
-                      onChange={(e) => updateSlot(idx, { roleKey: e.target.value })}
-                    >
-                      {roleKeys.map(rk => (
-                        <option key={rk} value={rk}>
-                          {ROLES[rk].name} ({ROLES[rk].passive.name})
-                        </option>
-                      ))}
-                    </select>
-
-                    <div className="player-slot-desc" style={{ marginTop: '4px' }}>
-                      <strong>Active:</strong> {role.active.name} | <strong>Passive:</strong> {role.passive.name}
+                    <div style={{ fontSize: "0.7rem", color: "#94A3B8" }}>
+                      <strong style={{ color: "#38BDF8" }}>Passive:</strong> {role.passive.name} ({role.passive.description}) &bull; <strong style={{ color: "#F59E0B" }}>Active:</strong> {role.active.name}
                     </div>
                   </div>
                 </div>
@@ -241,81 +448,222 @@ export default function LobbyScreen({
             })}
           </div>
 
-          <div className="lobby-actions">
-            <div className="lobby-status-badge">
-              <span>👥 Active Castaways:</span>
-              <strong>{activeSlots.length} / 4</strong>
-            </div>
-            <div className="lobby-actions-group">
-              <button className="btn btn-secondary btn-back" onClick={onBack}>← Back</button>
+          {/* Action Row */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "14px", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
+            <button
+              className="btn btn-secondary"
+              onClick={onBack}
+              style={{ padding: "10px 20px", fontSize: "0.82rem" }}
+            >
+              ← Return to Headquarters
+            </button>
+
+            {activeSlots.length > 0 && activeSlots.every(p => p.type === 'ai') ? (
               <button
-                className="btn btn-primary btn-launch"
-                disabled={activeSlots.length === 0}
-                onClick={onStartLocal}
+                className="btn btn-primary"
+                onClick={() => onStartLocal(undefined, true)}
+                style={{
+                  padding: "10px 24px",
+                  fontSize: "0.88rem",
+                  fontWeight: 800,
+                  letterSpacing: "1px",
+                  background: "linear-gradient(135deg, #8B5CF6, #3B82F6)",
+                  boxShadow: "0 0 20px rgba(139, 92, 246, 0.4)",
+                  border: "1px solid #C084FC"
+                }}
               >
-                🚀 Launch Mission ({activeSlots.length})
+                👁️ SPECTATE AI EXPEDITION ({activeSlots.length} BOTS) ➔
               </button>
-            </div>
+            ) : (
+              <button
+                className="btn btn-primary"
+                disabled={activeSlots.length === 0}
+                onClick={() => onStartLocal()}
+                style={{
+                  padding: "10px 24px",
+                  fontSize: "0.88rem",
+                  fontWeight: 800,
+                  letterSpacing: "1px"
+                }}
+              >
+                🚀 INITIATE EXPEDITION ({activeSlots.length}) ➔
+              </button>
+            )}
           </div>
         </div>
       ) : (
-        <div className={`lobby-panel ${isRoomActive ? 'waiting-room-panel' : ''}`}>
-          {!isRoomActive && (
-            <div className="lobby-mode-tabs">
-              <div
-                className={`mode-tab ${onlineSubMode === 'create' ? 'active' : ''}`}
-                onClick={() => { sounds.btnClick(); setOnlineSubMode('create'); }}
-              >
-                Host Mission
+        <div
+          className="lobby-dossier-card"
+          style={{
+            background: "rgba(10, 14, 26, 0.95)",
+            backdropFilter: "blur(16px)",
+            border: "1.5px solid rgba(56, 189, 248, 0.35)",
+            borderRadius: "12px",
+            padding: "20px 24px",
+            width: "100%",
+            maxWidth: network.roomCode ? "880px" : "740px",
+            boxShadow: "0 16px 50px rgba(0, 0, 0, 0.7)"
+          }}
+        >
+          {canSpectatePrompt && (
+            <div style={{
+              background: "linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(56, 189, 248, 0.2))",
+              border: "1.5px solid #A855F7",
+              borderRadius: "8px",
+              padding: "14px 16px",
+              marginBottom: "16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+              boxShadow: "0 0 25px rgba(168, 85, 247, 0.3)"
+            }}>
+              <div>
+                <div style={{ fontSize: "0.88rem", fontWeight: 800, color: "#E9D5FF", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span>👁️</span> Live Match Available to Spectate
+                </div>
+                <div style={{ fontSize: "0.78rem", color: "#CBD5E1", marginTop: "2px" }}>
+                  {canSpectatePrompt.message || "This match is ongoing or full. You can join the observatory deck to watch!"}
+                </div>
               </div>
-              <div
-                className={`mode-tab ${onlineSubMode === 'join' ? 'active' : ''}`}
-                onClick={() => { sounds.btnClick(); setOnlineSubMode('join'); }}
-              >
-                Join Anomaly
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  className="btn"
+                  onClick={onAcceptCanSpectate}
+                  style={{
+                    background: "linear-gradient(135deg, #A855F7, #6366F1)",
+                    color: "#FFF",
+                    fontWeight: 800,
+                    fontSize: "0.8rem",
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    border: "none",
+                    cursor: "pointer"
+                  }}
+                >
+                  👁️ Watch Match
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={onDismissCanSpectatePrompt}
+                  style={{ padding: "8px 12px", fontSize: "0.76rem" }}
+                >
+                  ✕ Dismiss
+                </button>
               </div>
             </div>
           )}
 
+          {!isRoomActive && (
+            <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+              <button
+                onClick={() => { sounds.btnClick(); setOnlineSubMode("create"); }}
+                style={{
+                  flex: 1,
+                  padding: "8px",
+                  background: onlineSubMode === "create" ? "rgba(56, 189, 248, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                  border: onlineSubMode === "create" ? "1.5px solid #38BDF8" : "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "6px",
+                  color: onlineSubMode === "create" ? "#FFF" : "#94A3B8",
+                  fontSize: "0.78rem",
+                  fontWeight: 800,
+                  cursor: "pointer"
+                }}
+              >
+                🚀 HOST ROOM
+              </button>
+              <button
+                onClick={() => { sounds.btnClick(); setOnlineSubMode("join"); }}
+                style={{
+                  flex: 1,
+                  padding: "8px",
+                  background: onlineSubMode === "join" ? "rgba(56, 189, 248, 0.25)" : "rgba(255, 255, 255, 0.05)",
+                  border: onlineSubMode === "join" ? "1.5px solid #38BDF8" : "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "6px",
+                  color: onlineSubMode === "join" ? "#FFF" : "#94A3B8",
+                  fontSize: "0.78rem",
+                  fontWeight: 800,
+                  cursor: "pointer"
+                }}
+              >
+                🚪 JOIN AS PLAYER
+              </button>
+              <button
+                onClick={() => { sounds.btnClick(); setOnlineSubMode("spectate"); }}
+                style={{
+                  flex: 1,
+                  padding: "8px",
+                  background: onlineSubMode === "spectate" ? "rgba(168, 85, 247, 0.3)" : "rgba(255, 255, 255, 0.05)",
+                  border: onlineSubMode === "spectate" ? "1.5px solid #C084FC" : "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "6px",
+                  color: onlineSubMode === "spectate" ? "#F5D0FE" : "#94A3B8",
+                  fontSize: "0.78rem",
+                  fontWeight: 800,
+                  cursor: "pointer"
+                }}
+              >
+                👁️ SPECTATE MATCH
+              </button>
+            </div>
+          )}
+
           {!isRoomActive ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <div>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  Your Name:
+                <label style={{ fontSize: "0.74rem", color: "#94A3B8", fontWeight: 800, letterSpacing: "1px" }}>
+                  OPERATIVE CALLSIGN:
                 </label>
                 <input
                   type="text"
                   className="player-name-input"
                   value={onlinePlayerName}
-                  style={{ marginTop: '4px' }}
+                  style={{
+                    width: "100%",
+                    marginTop: "4px",
+                    background: "rgba(15, 23, 42, 0.8)",
+                    border: "1px solid rgba(56, 189, 248, 0.3)",
+                    borderRadius: "6px",
+                    padding: "8px 12px",
+                    color: "#FFF",
+                    fontSize: "0.88rem"
+                  }}
                   onChange={(e) => setOnlinePlayerName(e.target.value)}
+                  placeholder="Enter your operative callsign"
                 />
               </div>
 
-              <div>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  Choose Your Castaway Role:
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-sm)', marginTop: '6px' }}>
+              {/* Role Selection Grid (Only if creating or joining as player) */}
+              {onlineSubMode !== "spectate" && (
+                <div>
+                  <label style={{ fontSize: "0.74rem", color: "#94A3B8", fontWeight: 800, letterSpacing: "1px", marginBottom: "6px", display: "block" }}>
+                    SELECT OPERATIVE DISCIPLINE:
+                  </label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "8px" }}>
                   {roleKeys.map(rk => {
                     const role = ROLES[rk];
                     const isSel = onlineSelectedRole === rk;
                     return (
                       <div
                         key={rk}
-                        className={`player-slot ${isSel ? 'selected' : ''}`}
-                        style={{ cursor: 'pointer', padding: '8px' }}
-                        onClick={() => {
-                          sounds.btnClick();
-                          setOnlineSelectedRole(rk);
+                        onClick={() => { sounds.btnClick(); setOnlineSelectedRole(rk); }}
+                        style={{
+                          background: isSel ? "rgba(56, 189, 248, 0.2)" : "rgba(15, 23, 42, 0.7)",
+                          border: isSel ? "2px solid #38BDF8" : "1px solid rgba(255, 255, 255, 0.1)",
+                          borderRadius: "8px",
+                          padding: "10px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          transition: "all 0.15s ease"
                         }}
                       >
-                        <img src={role.avatar} className="player-slot-avatar" style={{ width: '38px', height: '38px' }} alt={role.name} />
+                        <img src={role.avatar} alt={role.name} style={{ width: "36px", height: "36px", borderRadius: "6px", objectFit: "cover" }} />
                         <div>
-                          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: isSel ? 'var(--text-accent)' : 'var(--text-primary)' }}>
+                          <div style={{ fontSize: "0.8rem", fontWeight: 800, color: isSel ? "#38BDF8" : "#FFF" }}>
                             {role.name}
                           </div>
-                          <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                          <div style={{ fontSize: "0.64rem", color: "#64748B" }}>
                             {role.passive.name}
                           </div>
                         </div>
@@ -324,117 +672,182 @@ export default function LobbyScreen({
                   })}
                 </div>
               </div>
+              )}
 
-              {onlineSubMode === 'join' && (
+              {onlineSubMode === "spectate" && (
+                <div style={{
+                  background: "rgba(168, 85, 247, 0.1)",
+                  border: "1px dashed rgba(168, 85, 247, 0.4)",
+                  borderRadius: "8px",
+                  padding: "12px 14px"
+                }}>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 800, color: "#D8B4FE", marginBottom: "4px" }}>
+                    👁️ CHRONOS OBSERVATORY SUITE
+                  </div>
+                  <div style={{ fontSize: "0.74rem", color: "#94A3B8", lineHeight: 1.45 }}>
+                    Enter the Room Code of an ongoing match or staging lobby. As an observer, you can watch player movements, track clue discoveries and anomalies, view secret cards, and communicate in timeline comms.
+                  </div>
+                </div>
+              )}
+
+              {(onlineSubMode === "join" || onlineSubMode === "spectate") && (
                 <div>
-                  <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                    Room Code:
+                  <label style={{ fontSize: "0.74rem", color: "#94A3B8", fontWeight: 800, letterSpacing: "1px" }}>
+                    ANOMALY ROOM CODE:
                   </label>
                   <input
                     type="text"
-                    className="player-name-input"
                     placeholder="e.g. KY72P"
                     value={onlineRoomCodeInput}
-                    style={{ letterSpacing: '4px', fontFamily: 'var(--font-display)', fontWeight: 700, textTransform: 'uppercase', fontSize: '1.1rem', marginTop: '4px' }}
+                    style={{
+                      width: "100%",
+                      letterSpacing: "4px",
+                      fontFamily: "var(--font-display)",
+                      fontWeight: 800,
+                      textTransform: "uppercase",
+                      fontSize: "1.1rem",
+                      marginTop: "4px",
+                      background: "rgba(15, 23, 42, 0.8)",
+                      border: "1px solid rgba(56, 189, 248, 0.3)",
+                      borderRadius: "6px",
+                      padding: "8px 12px",
+                      color: "#FFF"
+                    }}
                     onChange={(e) => setOnlineRoomCodeInput(e.target.value.toUpperCase())}
                   />
                 </div>
               )}
 
-              {/* Supabase Status Banner */}
+              {/* Network Relay Status Indicator */}
               <div
                 style={{
-                  marginTop: 'var(--space-xs)',
-                  padding: '10px 14px',
-                  background: hasSupabase ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.1)',
-                  border: `1px solid ${hasSupabase ? 'rgba(16, 185, 129, 0.35)' : 'rgba(59, 130, 246, 0.3)'}`,
-                  borderRadius: 'var(--radius-sm)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '10px'
+                  padding: "8px 14px",
+                  background: hasSupabase ? "rgba(16, 185, 129, 0.1)" : "rgba(56, 189, 248, 0.1)",
+                  border: `1px solid ${hasSupabase ? "rgba(16, 185, 129, 0.3)" : "rgba(56, 189, 248, 0.25)"}`,
+                  borderRadius: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px"
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '1.1rem' }}>{hasSupabase ? '⚡' : '☁️'}</span>
-                  <div style={{ fontSize: '0.73rem', lineHeight: '1.3' }}>
-                    <strong style={{ color: hasSupabase ? '#34D399' : '#60A5FA' }}>
-                      {hasSupabase ? 'Supabase Realtime Relay Active' : 'WebSocket Relay (Render)'}:
-                    </strong>{' '}
-                    <span style={{ color: 'var(--text-secondary)' }}>
-                      {hasSupabase
-                        ? 'Zero cold starts, instant peer channels, and automatic presence tracking.'
-                        : 'Using WebSocket server. Enter your Supabase credentials for instant serverless play.'}
-                    </span>
-                  </div>
+                <span style={{ fontSize: "1.1rem" }}>{hasSupabase ? "⚡" : "☁️"}</span>
+                <div style={{ fontSize: "0.74rem", lineHeight: "1.3" }}>
+                  <strong style={{ color: hasSupabase ? "#34D399" : "#60A5FA" }}>
+                    {hasSupabase ? "Supabase Realtime Relay Active": "WebSocket Relay Channel Active"}
+                  </strong> &bull;{" "}
+                  <span style={{ color: "#94A3B8" }}>
+                    {hasSupabase
+                      ? "Zero cold starts, instant peer synchronization (Configured in config.js / .env)."
+                      : "Using WebSocket relay server."}
+                  </span>
                 </div>
-
-                <button
-                  className="btn btn-secondary"
-                  style={{ padding: '4px 10px', fontSize: '0.72rem', whiteSpace: 'nowrap' }}
-                  onClick={onOpenSupabaseConfig}
-                >
-                  ⚙️ Settings
-                </button>
               </div>
 
-              <div className="lobby-actions">
-                <div className="lobby-status-badge" style={{ fontSize: '0.8rem' }}>
-                  <span>🌐 Multiplayer:</span>
-                  <strong>{onlineSubMode === 'create' ? 'Host Mission' : 'Join Mission'}</strong>
-                </div>
-                <div className="lobby-actions-group">
-                  <button className="btn btn-secondary btn-back" onClick={onBack}>← Back</button>
-                  <button
-                    className="btn btn-primary btn-launch"
-                    disabled={isConnectingOnline}
-                    onClick={() => onConnectOnline(onlineSubMode)}
-                  >
-                    {isConnectingOnline ? '🔄 Connecting...' : (onlineSubMode === 'create' ? '🚀 Create Room' : '🚪 Join Room')}
-                  </button>
-                </div>
+              {/* Action Buttons */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                <button className="btn btn-secondary" onClick={onBack} style={{ padding: "10px 20px", fontSize: "0.82rem" }}>
+                  ← Return
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={isConnectingOnline}
+                  onClick={() => {
+                    if (onlineSubMode === "spectate") {
+                      onSpectateOnline(onlineRoomCodeInput, onlinePlayerName);
+                    } else {
+                      onConnectOnline(onlineSubMode);
+                    }
+                  }}
+                  style={{
+                    padding: "10px 24px",
+                    fontSize: "0.88rem",
+                    fontWeight: 800,
+                    background: onlineSubMode === "spectate" ? "linear-gradient(135deg, #A855F7, #6366F1)" : undefined,
+                    borderColor: onlineSubMode === "spectate" ? "#C084FC" : undefined
+                  }}
+                >
+                  {isConnectingOnline
+                    ? "🔄 Synchronizing Relay..."
+                    : (onlineSubMode === "create"
+                      ? "🚀 Host Room"
+                      : (onlineSubMode === "spectate" ? "👁️ Enter Observatory" : "🚪 Enter Room"))}
+                </button>
               </div>
             </div>
           ) : (
             <div>
-              <div className="waiting-room-grid">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-                  <div className="room-code-display" style={{ padding: '16px' }}>
-                    <div className="room-code-label">Anomaly Sync Code</div>
-                    <div className="room-code" style={{ fontSize: '2.2rem', letterSpacing: '6px' }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  {/* Room Code Badge */}
+                  <div style={{
+                    background: "rgba(15, 23, 42, 0.8)",
+                    border: "1px solid rgba(56, 189, 248, 0.4)",
+                    borderRadius: "8px",
+                    padding: "16px",
+                    textAlign: "center"
+                  }}>
+                    <div style={{ fontSize: "0.72rem", color: "#94A3B8", fontWeight: 800, letterSpacing: "1px" }}>
+                      ANOMALY SYNC CODE
+                    </div>
+                    <div style={{
+                      fontSize: "2.2rem",
+                      letterSpacing: "6px",
+                      fontFamily: "var(--font-display)",
+                      fontWeight: 900,
+                      color: "#38BDF8",
+                      margin: "4px 0"
+                    }}>
                       {network.roomCode}
                     </div>
-                    <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '6px' }}>
-                      Share this code with up to 3 allies to form your crew.
-                    </p>
+                    <div style={{ fontSize: "0.72rem", color: "#64748B" }}>
+                      Transmit this frequency code to up to 3 crew members
+                    </div>
                   </div>
 
-                  <div>
-                    <div className="lobby-section-title" style={{ marginBottom: '8px' }}>
-                      Connected Crew ({currentRoomPlayers.length}/4)
+                  {isSpectator && (
+                    <div style={{
+                      background: "rgba(168, 85, 247, 0.15)",
+                      border: "1px solid rgba(168, 85, 247, 0.5)",
+                      borderRadius: "6px",
+                      padding: "8px 12px",
+                      fontSize: "0.78rem",
+                      color: "#E9D5FF",
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px"
+                    }}>
+                      <span>👁️</span> SPECTATOR MODE ACTIVE &bull; Waiting for host to launch Chrono Shift...
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
+                  )}
+
+                  {/* Connected Operatives List */}
+                  <div>
+                    <div style={{ fontSize: "0.76rem", color: "#F59E0B", fontWeight: 800, marginBottom: "8px" }}>
+                      SYNCHRONIZED OPERATIVES ({currentRoomPlayers.length} / 4)
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                       {currentRoomPlayers.map((p, idx) => (
                         <div
                           key={p.id ?? idx}
                           style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '10px 14px',
-                            background: 'var(--bg-glass)',
-                            borderRadius: 'var(--radius-md)',
-                            border: '1px solid var(--border-glass)'
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "8px 12px",
+                            background: "rgba(15, 23, 42, 0.6)",
+                            borderRadius: "6px",
+                            border: "1px solid rgba(255, 255, 255, 0.08)"
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span className="online-status connected"></span>
-                            <span style={{ fontWeight: 700, fontSize: '0.88rem', color: PLAYER_COLORS[idx] || '#fff' }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#34D399", display: "inline-block" }}></span>
+                            <span style={{ fontWeight: 800, fontSize: "0.84rem", color: PLAYER_COLORS[idx] || "#FFF" }}>
                               {p.name}
                             </span>
                           </div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-accent)', fontFamily: 'var(--font-display)' }}>
-                            {ROLES[p.roleKey]?.name || p.roleKey} {p.isHost || p.id === 0 ? '★ Host' : ''}
+                          <div style={{ fontSize: "0.72rem", color: "#F59E0B", fontWeight: 700 }}>
+                            {ROLES[p.roleKey]?.name || p.roleKey} {p.isHost || p.id === 0 ? "★ Host" : ""}
                           </div>
                         </div>
                       ))}
@@ -455,27 +868,54 @@ export default function LobbyScreen({
                 </div>
               </div>
 
-              <div className="lobby-actions waiting-room-actions">
-                <div className="lobby-status-badge">
-                  <span>Crew:</span>
-                  <strong>{currentRoomPlayers.length} / 4 Ready</strong>
-                </div>
-                <div className="lobby-actions-group">
-                  <button className="btn btn-secondary btn-back" onClick={onLeaveRoom}>Leave Room</button>
-                  {network.isHost ? (
-                    <button
-                      className="btn btn-primary btn-launch"
-                      disabled={currentRoomPlayers.length < 1}
-                      onClick={onStartOnline}
-                    >
-                      🚀 Launch Mission ({currentRoomPlayers.length})
-                    </button>
-                  ) : (
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic', padding: '0 8px' }}>
-                      Waiting for host to initiate Chrono Shift...
+                  {/* Spectators List */}
+                  {spectators && spectators.length > 0 && (
+                    <div style={{ marginTop: "12px" }}>
+                      <div style={{ fontSize: "0.72rem", color: "#C084FC", fontWeight: 800, marginBottom: "6px" }}>
+                        TIMELINE OBSERVERS ({spectators.length})
+                      </div>
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        {spectators.map((s, idx) => (
+                          <span
+                            key={s.id || idx}
+                            style={{
+                              background: "rgba(168, 85, 247, 0.12)",
+                              border: "1px solid rgba(168, 85, 247, 0.3)",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              fontSize: "0.72rem",
+                              color: "#DDD6FE"
+                            }}
+                          >
+                            👁️ {s.name}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
-                </div>
+
+              {/* Waiting Room Action Bar */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "14px", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                <button className="btn btn-secondary" onClick={onLeaveRoom} style={{ padding: "10px 20px", fontSize: "0.82rem" }}>
+                  {isSpectator ? "Leave Observatory" : "Leave Anomaly Room"}
+                </button>
+
+                {network.isHost ? (
+                  <button
+                    className="btn btn-primary"
+                    disabled={currentRoomPlayers.length < 1}
+                    onClick={onStartOnline}
+                    style={{ padding: "10px 24px", fontSize: "0.88rem", fontWeight: 800 }}
+                  >
+                    🚀 INITIATE CHRONO SHIFT ({currentRoomPlayers.length}) ➔
+                  </button>
+                ) : (
+                  <div style={{ fontSize: "0.78rem", color: isSpectator ? "#C084FC" : "#94A3B8", fontStyle: "italic" }}>
+                    {isSpectator
+                      ? "Observing frequency transmission... Match will start once host initiates Chrono Shift."
+                      : "Waiting for expedition host to initiate Chrono Shift..."}
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -16,10 +16,15 @@ class AiController {
     }
   }
 
+  stop() {
+    this.clearTimer();
+    this.isActing = false;
+  }
+
   // Determine if AI should be acting right now
   isAiTurn(engine, network) {
     const state = engine?.state;
-    if (!state || state.gameOver) return false;
+    if (!state || state.gameOver || state.isPaused || engine?.isPaused || engine?._isModalHovered || engine?._hasActivePreview) return false;
 
     const currentPlayer = engine.getCurrentPlayer();
     if (!currentPlayer || !currentPlayer.isAi) return false;
@@ -57,17 +62,52 @@ class AiController {
     if (!state || !player) return;
 
     try {
-      // 1. Pending Modal (e.g. Card drawn)
+      // 1. Pending Modal (e.g. Event, Danger, Clue or Relic card drawn)
       if (state.pendingModal) {
-        // Auto-dismiss card modal after allowing brief view duration
+        if (!state.pendingModal._shownAt) {
+          state.pendingModal._shownAt = Date.now();
+        }
+
+        // If observer is actively hovering to read or inspecting preview, wait politely
+        if (engine?._isModalHovered || engine?._hasActivePreview) {
+          this.scheduleAiStep(engine, network, 600);
+          return;
+        }
+
+        const isEventOrDanger = state.pendingModal.type === 'event' || state.pendingModal.type === 'danger';
+        const speed = engine.simulationSpeed || 1;
+        // Give 6.0 seconds for Event / Danger cards and 4.2s for Clues so human players and observers can comfortably read
+        const requiredDuration = isEventOrDanger
+          ? Math.max(2800, Math.round(6000 / speed))
+          : Math.max(2000, Math.round(4200 / speed));
+        const elapsed = Date.now() - state.pendingModal._shownAt;
+
+        if (elapsed < requiredDuration) {
+          // Keep modal displayed for the full duration
+          this.scheduleAiStep(engine, network, requiredDuration - elapsed);
+          return;
+        }
+
         engine.dismissModal();
         network?.sendAction({ type: 'DISMISS_MODAL' });
-        this.scheduleAiStep(engine, network, 500);
+        this.scheduleAiStep(engine, network, 450);
         return;
       }
 
       // 2. Pending Choice (e.g. Artifact stop, Time Gate pass, Decipher)
       if (state.pendingChoice) {
+        if (!state.pendingChoice._shownAt) {
+          state.pendingChoice._shownAt = Date.now();
+        }
+        const speed = engine.simulationSpeed || 1;
+        const choiceDuration = Math.max(2000, Math.round(4200 / speed));
+        const elapsed = Date.now() - state.pendingChoice._shownAt;
+
+        if (elapsed < choiceDuration) {
+          this.scheduleAiStep(engine, network, choiceDuration - elapsed);
+          return;
+        }
+
         this.handleAiChoice(engine, network, state.pendingChoice, player);
         return;
       }
@@ -75,6 +115,16 @@ class AiController {
       // 3. Card Resolution Phase (safeguard)
       if (state.phase === 'cardResolution') {
         if (state.pendingModal) {
+          if (!state.pendingModal._shownAt) {
+            state.pendingModal._shownAt = Date.now();
+          }
+          const speed = engine.simulationSpeed || 1;
+          const requiredDuration = Math.max(2800, Math.round(6000 / speed));
+          const elapsed = Date.now() - state.pendingModal._shownAt;
+          if (elapsed < requiredDuration) {
+            this.scheduleAiStep(engine, network, requiredDuration - elapsed);
+            return;
+          }
           engine.dismissModal();
           network?.sendAction({ type: 'DISMISS_MODAL' });
         } else {
@@ -86,19 +136,29 @@ class AiController {
 
       // 4. Rolling Phase
       if (state.phase === 'rolling') {
-        // Explorer AI: activate Momentum pre-roll if energy is good
-        if (
-          player.roleKey === 'EXPLORER' &&
-          player.activeCooldown === 0 &&
-          !player.usedAbilityThisTurn &&
-          player.energy >= 3 &&
-          Math.random() < 0.45
-        ) {
-          sounds.btnClick?.();
-          engine.useActiveAbility(player.id);
-          network?.sendAction({ type: 'USE_ABILITY', playerIdx: player.id });
-          this.scheduleAiStep(engine, network, 600);
-          return;
+        // Evaluate pre-roll ability activation for all 4 roles
+        if (!player.usedAbilityThisTurn && player.activeCooldown === 0) {
+          let activatePreRoll = false;
+
+          if (player.roleKey === 'EXPLORER' && player.energy >= 2 && Math.random() < 0.5) {
+            activatePreRoll = true;
+          } else if (player.roleKey === 'HISTORIAN' && player.energy >= 2 && (state.clueDecks[player.currentEra]?.length || 0) > 0 && player.clueCards.length < 5 && Math.random() < 0.5) {
+            activatePreRoll = true;
+          } else if (player.roleKey === 'GUARDIAN' && (player.paradox >= 2 || player.energy <= 2) && Math.random() < 0.6) {
+            activatePreRoll = true;
+          } else if (player.roleKey === 'STRATEGIST' && player.energy >= 2 && !state.board[player.currentEra][player.tileIndex]?.trap && Math.random() < 0.4) {
+            activatePreRoll = true;
+          }
+
+          if (activatePreRoll) {
+            sounds.portal?.();
+            const used = engine.useActiveAbility(player.id);
+            if (used) {
+              network?.sendAction({ type: 'USE_ABILITY', playerIdx: player.id });
+              this.scheduleAiStep(engine, network, 650);
+              return;
+            }
+          }
         }
 
         // Roll the die
@@ -300,6 +360,32 @@ class AiController {
       const best = options[0]?.action || 'drawClue';
       engine.resolveChoice(best);
       network?.sendAction({ type: 'RESOLVE_CHOICE', action: best });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
+    if (choiceType === 'teleportTile') {
+      const tiles = choice.tiles || choice.options || [];
+      const artifactTile = tiles.find(t => t.type === 'artifact');
+      const clueTiles = tiles.filter(t => t.type === 'clue');
+      const safeTiles = tiles.filter(t => t.type !== 'danger' && t.type !== 'paradox');
+
+      let picked = null;
+      if (artifactTile && player.clueCards?.length >= 3) {
+        picked = artifactTile;
+      } else if (clueTiles.length > 0) {
+        picked = clueTiles[Math.floor(Math.random() * clueTiles.length)];
+      } else if (safeTiles.length > 0) {
+        picked = safeTiles[Math.floor(Math.random() * safeTiles.length)];
+      } else {
+        picked = tiles[0];
+      }
+
+      const action = picked?.action || `teleport_${picked?.index || 0}`;
+      sounds.btnClick?.();
+      sounds.portal?.();
+      engine.resolveChoice(action);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
       this.scheduleAiStep(engine, network, 650);
       return;
     }

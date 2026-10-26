@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { aiController } from '../aiPlayer.js';
 import sounds from '../sound.js';
 
-export function useTurnAutomation({ engine, network, state, onGameOver }) {
+export function useTurnAutomation({ engine, network, state, onGameOver, isGameActive = true, simulationSpeed = 1 }) {
   const autoMoveTimerRef = useRef(null);
   const gameOverHandledRef = useRef(false);
 
@@ -14,8 +14,9 @@ export function useTurnAutomation({ engine, network, state, onGameOver }) {
   };
 
   useEffect(() => {
-    if (!state || !engine || !network) {
+    if (!state || !engine || !network || !isGameActive) {
       clearAutoMove();
+      aiController.stop();
       return;
     }
 
@@ -48,13 +49,62 @@ export function useTurnAutomation({ engine, network, state, onGameOver }) {
     // Handle AI turn
     if (aiController.isAiTurn(engine, network)) {
       clearAutoMove();
-      aiController.scheduleAiStep(engine, network, 750);
+      const stepDelay = Math.max(260, Math.round(750 / (simulationSpeed || 1)));
+      aiController.scheduleAiStep(engine, network, stepDelay);
       return;
     }
 
-    // Human turns are moved manually by the player (Move Forward button or
-    // Spacebar), so no auto-move timer is scheduled here.
-    clearAutoMove();
+    // Handle Auto Movement for Human Turn
+    const checkAndTriggerAutoMove = (delayMs) => {
+      if (
+        state.phase !== 'moving' ||
+        state.movesRemaining <= 0 ||
+        state.momentumActive ||
+        state.pendingModal ||
+        state.pendingChoice ||
+        !network.isMyTurn(state.currentPlayerIndex)
+      ) {
+        clearAutoMove();
+        return;
+      }
+
+      if (autoMoveTimerRef.current) return;
+
+      const isStartOfTurn = !state.hasMovedThisTurn && (!state.stepsTakenThisTurn || state.stepsTakenThisTurn === 0);
+      const currentPlayer = state.players?.[state.currentPlayerIndex];
+      const canReverseTime = isStartOfTurn &&
+        state.movementDirection !== 'backward' &&
+        currentPlayer &&
+        currentPlayer.reverseTimeCooldown === 0 &&
+        currentPlayer.energy >= 3;
+
+      let effectiveDelay = delayMs;
+      if (effectiveDelay === undefined) {
+        // At start of turn, if player can activate Reverse Time, give a 2.2s decision window so they aren't rushed.
+        // Otherwise, standard 650ms initial roll delay, and 380ms for subsequent steps.
+        effectiveDelay = isStartOfTurn ? (canReverseTime ? 2200 : 700) : 380;
+      }
+
+      autoMoveTimerRef.current = setTimeout(() => {
+        autoMoveTimerRef.current = null;
+        const cur = engine.getState();
+        if (
+          cur?.phase === 'moving' &&
+          cur.movesRemaining > 0 &&
+          !cur.momentumActive &&
+          !cur.pendingModal &&
+          !cur.pendingChoice &&
+          network.isMyTurn(cur.currentPlayerIndex)
+        ) {
+          sounds.moveStep();
+          engine.movePlayerStep();
+          network.sendAction({ type: 'MOVE_STEP' });
+          checkAndTriggerAutoMove(380);
+        }
+      }, effectiveDelay);
+    };
+
+    checkAndTriggerAutoMove();
 
     return () => {
       clearAutoMove();

@@ -6,17 +6,18 @@ function GameHeader({
   timelineClass,
   timerStr,
   turnNumber,
-  unreadChatCount,
-  soundMuted,
-  onToggleChat,
-  onOpenGuide,
-  onToggleSound,
-  onOpenPause
+  onOpenPause,
+  isSpectator = false,
+  spectatorCount = 0
 }) {
   return (
     <header className="game-header">
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
-        <div className="game-logo">PANAHON</div>
+        <div className="game-logo-wrapper">
+          <div className="game-logo">PANAHON</div>
+          <div className="game-logo-divider"></div>
+          <div className="game-logo-subtitle">CHRONO SHIFT</div>
+        </div>
         <div className="timeline-meter">
           <div className="timeline-meter-label">TIMELINE INTEGRITY:</div>
           <div className="timeline-meter-bar">
@@ -32,48 +33,70 @@ function GameHeader({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+        {isSpectator && (
+          <div className="spectator-live-indicator" style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(56, 189, 248, 0.2))',
+            border: '1px solid #C084FC',
+            boxShadow: '0 0 15px rgba(168, 85, 247, 0.35)',
+            padding: '4px 10px',
+            borderRadius: '20px',
+            fontSize: '0.72rem',
+            fontWeight: 800,
+            color: '#F5D0FE',
+            letterSpacing: '1px'
+          }}>
+            <span className="spectator-pulse-dot" style={{
+              width: '7px',
+              height: '7px',
+              borderRadius: '50%',
+              background: '#EF4444',
+              boxShadow: '0 0 8px #EF4444',
+              display: 'inline-block'
+            }} />
+            <span>👁️ SPECTATING LIVE</span>
+            {spectatorCount > 1 && (
+              <span style={{ fontSize: '0.66rem', color: '#CBD5E1', marginLeft: '4px' }}>
+                ({spectatorCount} watching)
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="game-timer">
           <span>⏱️</span>
           <span>{timerStr}</span>
         </div>
 
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+        <div className="game-header-round" style={{ fontFamily: 'var(--font-display)', fontSize: '0.74rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
           Round <strong style={{ color: 'var(--text-accent)' }}>{turnNumber}</strong>
         </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
         <button
-          className={`btn ${unreadChatCount > 0 ? 'btn-chat-unread' : ''}`}
-          style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--bg-glass)', position: 'relative' }}
-          onClick={onToggleChat}
-        >
-          💬 Comms {unreadChatCount > 0 && <span className="chat-badge">{unreadChatCount}</span>}
-        </button>
-        <button
-          className="btn"
-          style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--bg-glass)' }}
-          onClick={() => { sounds.btnClick(); onOpenGuide(); }}
-        >
-          📖 Manual
-        </button>
-        <button
-          className="btn"
-          style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'var(--bg-glass)' }}
-          onClick={onToggleSound}
-        >
-          {soundMuted ? '🔇' : '🔊'}
-        </button>
-        <button
+          id="btn-pause-game"
           className="btn btn-pause"
           onClick={() => {
             sounds.btnClick();
             if (onOpenPause) onOpenPause();
           }}
           title="Pause Game (Esc)"
+          aria-label="Pause Game"
         >
-          <span className="pause-bars-icon"><span></span><span></span></span>
-          <span className="pause-btn-text">PAUSE</span>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 14 14"
+            fill="currentColor"
+            aria-hidden="true"
+            style={{ display: 'block' }}
+          >
+            <rect x="2.5" y="2" width="3" height="10" rx="1" />
+            <rect x="8.5" y="2" width="3" height="10" rx="1" />
+          </svg>
         </button>
       </div>
     </header>

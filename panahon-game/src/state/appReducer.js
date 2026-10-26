@@ -2,8 +2,9 @@ export const initialAppState = {
   currentScreen: 'title', // 'title' | 'lobby' | 'game' | 'endgame' | 'map-editor'
   lobbyMode: 'local', // 'local' | 'online'
   showGuide: false,
-  showSupabaseConfig: false,
   maximizedCardData: null,
+  isSpectator: false,
+  simulationSpeed: 1, // 1 | 1.5 | 2
   localPlayers: [
     { name: 'Player 1', roleKey: 'HISTORIAN', type: 'human', difficulty: 'normal' },
     { name: 'Bot Explorer', roleKey: 'EXPLORER', type: 'ai', difficulty: 'normal' },
@@ -37,8 +38,15 @@ export function appReducer(state, action) {
       return {
         ...state,
         currentScreen: 'game',
+        isSpectator: action.isSpectator !== undefined ? action.isSpectator : state.isSpectator,
         maximizedCardData: null
       };
+
+    case 'SET_SPECTATOR':
+      return { ...state, isSpectator: Boolean(action.payload) };
+
+    case 'SET_SIMULATION_SPEED':
+      return { ...state, simulationSpeed: action.payload || 1 };
 
     case 'GAME_OVER':
       return {
@@ -52,11 +60,6 @@ export function appReducer(state, action) {
     case 'CLOSE_GUIDE':
       return { ...state, showGuide: false };
 
-    case 'OPEN_SUPABASE_CONFIG':
-      return { ...state, showSupabaseConfig: true };
-
-    case 'CLOSE_SUPABASE_CONFIG':
-      return { ...state, showSupabaseConfig: false };
 
     case 'SET_MAXIMIZED_CARD':
       return { ...state, maximizedCardData: action.cardData };
@@ -65,6 +68,8 @@ export function appReducer(state, action) {
       return {
         ...state,
         currentScreen: 'title',
+        isSpectator: false,
+        simulationSpeed: 1,
         maximizedCardData: null,
         showGuide: false,
         showSupabaseConfig: false

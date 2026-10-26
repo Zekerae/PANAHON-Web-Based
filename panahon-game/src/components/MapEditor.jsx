@@ -1,11 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import sounds from '../sound.js';
 import { saveMapToSupabase } from '../supabaseClient.js';
+import StudioPinModal from './StudioPinModal.jsx';
+import MapPngExportModal from './map/MapPngExportModal.jsx';
+import { isStudioUnlocked, setStudioUnlocked, updateStudioPin, resetStudioPinToDefault } from '../studioAuth.js';
 import {
   ERAS, ERA_ORDER, ERA_NAMES,
   ERA_TILE_COORDINATES, ERA_TILE_LAYOUTS,
   DEFAULT_ERA_LOOP_TARGETS, DEFAULT_ERA_PATH_CONNECTIONS, getActivePathConnections, DEFAULT_ERA_JUNCTION_RULES, getActiveJunctionRules, saveCustomJunctionRules, getActiveTileCoordinates, getActiveTileLayouts, getActiveLoopTargets,
-  saveCustomMap, resetCustomMap, TILE_IMAGES
+  saveCustomMap, resetCustomMap, TILE_IMAGES,
+  getMapBackups, saveMapBackup, deleteMapBackup, clearAllMapBackups
 } from '../gameData.js';
 
 const TILE_LABELS = {
@@ -57,6 +61,16 @@ export default function MapEditor({ onClose }) {
   const [clickToAddMode, setClickToAddMode] = useState(false);
   const [clickAddType, setClickAddType] = useState('clue');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showPngExportModal, setShowPngExportModal] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(() => isStudioUnlocked());
+  const [showBackupModal, setShowBackupModal] = useState(false);
+  const [showChangePinModal, setShowChangePinModal] = useState(false);
+  const [newPinInput, setNewPinInput] = useState('');
+  const [confirmPinInput, setConfirmPinInput] = useState('');
+  const [pinChangeError, setPinChangeError] = useState('');
+  const [backups, setBackups] = useState(() => getMapBackups());
+  const [backupNameInput, setBackupNameInput] = useState('');
+  const backupFileInputRef = useRef(null);
   const [saveToast, setSaveToast] = useState(null);
 
   // Responsive drawer & device detection
@@ -382,7 +396,23 @@ export default function MapEditor({ onClose }) {
       next[era] = eraConns;
       return next;
     });
-    triggerToast(`Disconnected Tile #${fromIdx + 1} ➔ Tile #${toIdx + 1}`, 'info');
+    setJunctionRules(prev => {
+      const next = { ...prev };
+      const eraRules = { ...(next[era] || {}) };
+      let changed = false;
+      Object.keys(eraRules).forEach(key => {
+        if (key.startsWith(`${fromIdx}:`) && eraRules[key] === toIdx) {
+          delete eraRules[key];
+          changed = true;
+        }
+      });
+      if (changed) {
+        next[era] = eraRules;
+        return next;
+      }
+      return prev;
+    });
+    triggerToast(`Disconnected Space #${fromIdx + 1} ➔ Space #${toIdx + 1}`, 'info');
   };
 
   // Move connection position up or down (reorder priority)
@@ -550,6 +580,133 @@ export default function MapEditor({ onClose }) {
     triggerToast(`Connected ${ERA_NAMES[era]} End (Tile #${total}) to Tile #${targetIndex + 1}!`);
   };
 
+  // Handle changing developer PIN
+  const handleChangePin = async (e) => {
+    e.preventDefault();
+    if (!newPinInput || newPinInput.trim().length < 4) {
+      setPinChangeError('PIN must be at least 4 digits');
+      return;
+    }
+    if (newPinInput !== confirmPinInput) {
+      setPinChangeError('PINs do not match');
+      return;
+    }
+    sounds.portal();
+    const ok = await updateStudioPin(newPinInput);
+    if (ok) {
+      triggerToast('🔑 Developer PIN updated! Encrypted hash saved.');
+      setShowChangePinModal(false);
+      setNewPinInput('');
+      setConfirmPinInput('');
+      setPinChangeError('');
+    } else {
+      setPinChangeError('Failed to update PIN');
+    }
+  };
+
+  // Auto-backup snapshot on mount if none exist or last is older than 10 mins
+  useEffect(() => {
+    try {
+      const existing = getMapBackups();
+      const last = existing[0];
+      const tenMinutes = 10 * 60 * 1000;
+      const isRecent = last && (Date.now() - new Date(last.timestamp).getTime() < tenMinutes);
+      if (!isRecent) {
+        const autoBkp = saveMapBackup(coords, layouts, connections, junctionRules, loopTargets, 'Auto-Backup (Session Start)');
+        if (autoBkp) setBackups(getMapBackups());
+      }
+    } catch (_) {}
+  }, []);
+
+  // Create Backup Snapshot
+  const handleCreateBackup = (name = '') => {
+    sounds.btnClick();
+    const created = saveMapBackup(coords, layouts, connections, junctionRules, loopTargets, name);
+    if (created) {
+      setBackups(getMapBackups());
+      setBackupNameInput('');
+      triggerToast(`📦 Saved backup "${created.name}"!`);
+    } else {
+      triggerToast('Failed to create backup', 'danger');
+    }
+  };
+
+  // Restore from Backup
+  const handleRestoreBackup = (b) => {
+    if (!b || !b.coords || !b.layouts) {
+      triggerToast('Invalid backup data', 'danger');
+      return;
+    }
+    if (confirm(`Restore map layout from "${b.name}" (${b.dateStr})?\n\nThis will restore all tile coordinates, layouts, and path links.`)) {
+      sounds.portal();
+      setCoords(JSON.parse(JSON.stringify(b.coords)));
+      setLayouts(JSON.parse(JSON.stringify(b.layouts)));
+      if (b.connections) setConnections(JSON.parse(JSON.stringify(b.connections)));
+      if (b.junctionRules) setJunctionRules(JSON.parse(JSON.stringify(b.junctionRules)));
+      if (b.loopTargets) setLoopTargets(JSON.parse(JSON.stringify(b.loopTargets)));
+
+      saveCustomMap(b.coords, b.layouts, b.loopTargets, null, b.connections, b.junctionRules);
+      triggerToast(`↺ Restored layout from "${b.name}"!`);
+      setShowBackupModal(false);
+    }
+  };
+
+  // Delete Backup
+  const handleDeleteBackup = (id, name) => {
+    if (confirm(`Delete backup "${name}"?`)) {
+      sounds.btnClick();
+      const updated = deleteMapBackup(id);
+      setBackups(updated);
+      triggerToast('Backup deleted');
+    }
+  };
+
+  // Download Backup JSON file to PC
+  const handleDownloadBackup = (b) => {
+    sounds.btnClick();
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(b, null, 2));
+    const a = document.createElement('a');
+    a.href = dataStr;
+    const clean = (b.name || 'backup').replace(/[^a-zA-Z0-9_-]/g, '_');
+    a.download = `panahon_map_${clean}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    triggerToast(`📥 Downloaded ${clean}.json!`);
+  };
+
+  // Import Backup JSON file from PC
+  const handleImportBackup = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        if (!parsed.coords || !parsed.layouts) {
+          triggerToast('Invalid backup file: Missing coords or layouts', 'danger');
+          return;
+        }
+        const imported = saveMapBackup(
+          parsed.coords,
+          parsed.layouts,
+          parsed.connections || {},
+          parsed.junctionRules || {},
+          parsed.loopTargets || {},
+          parsed.name ? `Import: ${parsed.name}` : `Import: ${file.name.replace('.json', '')}`
+        );
+        if (imported) {
+          setBackups(getMapBackups());
+          triggerToast(`✅ Imported "${imported.name}"!`);
+        }
+      } catch (_) {
+        triggerToast('Failed to parse JSON file', 'danger');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   // Save to LocalStorage and Cloud
   const handleSaveToGame = async () => {
     sounds.btnClick();
@@ -602,38 +759,29 @@ export default function MapEditor({ onClose }) {
       const eraRules = junctionRules[curEra] || {};
 
       let next;
+      const targets = eraConns[step];
 
-      // 1. Explicit junction rule based on arrival space (step:prevStep)
-      if (prevStep !== null) {
-        const ruleKey = `${step}:${prevStep}`;
-        if (eraRules[ruleKey] !== undefined) {
-          next = eraRules[ruleKey];
-        }
-      }
-
-      // 2. Linear return along two-way trail (village road 14 down to 7, or base road 3 down to 1):
-      if (next === undefined && prevStep !== null && prevStep > step) {
-        if ((step >= 6 && step <= 14) || (step >= 0 && step <= 2)) {
-          if (step === 6) next = 3; // From Space 7 exit to Space 4
-          else if (step === 0) next = 1; // From Space 1 turn around to Space 2
-          else next = step - 1;
-        }
-      }
-
-      // 3. Fallback to node-graph targets
-      if (next === undefined) {
-        const nextList = eraConns[step];
-        if (!Array.isArray(nextList) || nextList.length === 0 || (nextList.length === 1 && nextList[0] === prevStep)) {
-          if (prevStep !== null && prevStep > step) {
-            next = step <= 0 ? 1 : step - 1;
-          } else {
-            next = (Array.isArray(nextList) && nextList.length === 1) ? nextList[0] : (step + 1) % max;
+      if (!Array.isArray(targets) || targets.length === 0) {
+        next = (step + 1) % max;
+      } else if (targets.length === 1) {
+        // Strictly follow the single connection
+        next = targets[0];
+      } else {
+        // Multi-target junction:
+        // 1. Explicit junction rule based on arrival space (step:prevStep)
+        if (prevStep !== null) {
+          const ruleKey = `${step}:${prevStep}`;
+          const ruleTarget = eraRules[ruleKey];
+          // Only accept the junction rule if its target is actually in outgoing links
+          if (ruleTarget !== undefined && targets.includes(ruleTarget)) {
+            next = ruleTarget;
           }
-        } else if (nextList.length === 1) {
-          next = nextList[0];
-        } else {
-          const candidates = nextList.filter(t => t !== prevStep);
-          next = candidates.length > 0 ? candidates[0] : nextList[0];
+        }
+
+        // 2. Filter out prevStep to avoid immediate U-turn unless no other candidate exists
+        if (next === undefined) {
+          const candidates = targets.filter(t => t !== prevStep);
+          next = candidates.length > 0 ? candidates[0] : targets[0];
         }
       }
 
@@ -667,6 +815,18 @@ export default function MapEditor({ onClose }) {
       ''
     ].join('\n');
   };
+
+  if (!isUnlocked) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: '#020617', zIndex: 99999 }}>
+        <StudioPinModal
+          isOpen={true}
+          onClose={onClose}
+          onSuccess={() => setIsUnlocked(true)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="map-editor-screen">
@@ -745,6 +905,39 @@ export default function MapEditor({ onClose }) {
             📐 <span className="hide-xs">Panel</span>
           </button>
 
+          {/* Backup & Restore Layouts */}
+          <button
+            className="editor-btn-sm"
+            style={{
+              background: 'rgba(99, 102, 241, 0.22)',
+              border: '1.5px solid rgba(99, 102, 241, 0.55)',
+              color: '#A5B4FC',
+              fontWeight: 700
+            }}
+            onClick={() => { sounds.btnClick(); setShowBackupModal(true); }}
+            title="Backup & Restore Tile Layouts"
+          >
+            📦 <span className="hide-xs">Backups ({backups.length})</span>
+          </button>
+
+          {/* Export PNG for Printing */}
+          <button
+            className="editor-btn-sm"
+            style={{
+              background: 'rgba(56, 189, 248, 0.18)',
+              border: '1.5px solid rgba(56, 189, 248, 0.55)',
+              color: '#38BDF8',
+              fontWeight: 700
+            }}
+            onClick={() => {
+              sounds.btnClick();
+              setShowPngExportModal(true);
+            }}
+            title="Export High-Res PNG for Printing"
+          >
+            🖼️ <span className="hide-xs">Export PNG</span>
+          </button>
+
           {/* Export Code */}
           <button
             className="editor-btn-sm"
@@ -761,6 +954,26 @@ export default function MapEditor({ onClose }) {
             title="Save and Apply to Game"
           >
             💾 <span className="hide-xs">Save</span>
+          </button>
+
+          {/* Lock Studio */}
+          <button
+            className="editor-btn-sm"
+            style={{
+              background: "rgba(239, 68, 68, 0.15)",
+              border: "1.5px solid rgba(239, 68, 68, 0.4)",
+              color: "#FCA5A5",
+              fontWeight: 700
+            }}
+            onClick={() => {
+              sounds.btnClick();
+              setStudioUnlocked(false);
+              setIsUnlocked(false);
+              onClose();
+            }}
+            title="Lock Studio and Exit"
+          >
+            🔒 <span className="hide-xs">Lock</span>
           </button>
 
           {/* Close */}
@@ -1214,7 +1427,7 @@ export default function MapEditor({ onClose }) {
                               border: '1px solid rgba(16, 185, 129, 0.3)'
                             }}>
                               <span style={{ fontWeight: 700 }}>
-                                🔀 Fork (${targets.length} Links): ⭐#${targets[0] + 1}
+                                🔀 Fork ({targets.length} Links): ⭐#{targets[0] + 1}
                               </span>
                               <div style={{ display: 'flex', gap: '3px' }}>
                                 <button
@@ -1370,15 +1583,7 @@ export default function MapEditor({ onClose }) {
                                 if (!inc.includes(fromIdx)) inc.push(fromIdx);
                               }
                             });
-                            if (targetIdx === 3) {
-                              [2, 5, 6].forEach(k => { if (!inc.includes(k)) inc.push(k); });
-                            } else if (targetIdx === 6) {
-                              [3, 7].forEach(k => { if (!inc.includes(k)) inc.push(k); });
-                            } else if (targetIdx === 14) {
-                              [13, 24].forEach(k => { if (!inc.includes(k)) inc.push(k); });
-                            }
                             inc.sort((a, b) => a - b);
-                            if (inc.length === 0) return null;
 
                             return (
                               <div style={{
@@ -1389,7 +1594,7 @@ export default function MapEditor({ onClose }) {
                                 padding: '3px 5px',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                gap: '2px'
+                                gap: '3px'
                               }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                   <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#A5B4FC' }}>
@@ -1400,57 +1605,50 @@ export default function MapEditor({ onClose }) {
                                   </span>
                                 </div>
 
-                                {inc.map(incIdx => {
-                                  const ruleKey = `${targetIdx}:${incIdx}`;
-                                  let assignedTarget = junctionRules[curEra]?.[ruleKey];
-                                  if (assignedTarget === undefined) {
-                                    if (targetIdx === 3) {
-                                      if (incIdx === 2) assignedTarget = 4;
-                                      else if (incIdx === 5) assignedTarget = 6;
-                                      else if (incIdx === 6) assignedTarget = 2;
-                                    } else if (targetIdx === 6) {
-                                      if (incIdx === 3) assignedTarget = 7;
-                                      else if (incIdx === 7) assignedTarget = 3;
-                                    } else if (targetIdx === 14) {
-                                      if (incIdx === 13) assignedTarget = 15;
-                                      else if (incIdx === 24) assignedTarget = 13;
-                                    }
-                                    if (assignedTarget === undefined) {
+                                {inc.length === 0 ? (
+                                  <span style={{ fontSize: '0.52rem', color: 'rgba(255,255,255,0.5)', fontStyle: 'italic', padding: '2px 0' }}>
+                                    No incoming paths enter this space yet. Connect another tile to this space to configure arrival routing.
+                                  </span>
+                                ) : (
+                                  inc.map(incIdx => {
+                                    const ruleKey = `${targetIdx}:${incIdx}`;
+                                    let assignedTarget = junctionRules[curEra]?.[ruleKey];
+                                    if (assignedTarget === undefined || !targets.includes(assignedTarget)) {
                                       assignedTarget = targets.find(t => t !== incIdx) ?? targets[0];
                                     }
-                                  }
 
-                                  return (
-                                    <div key={incIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '3px', height: '18px' }}>
-                                      <span style={{ fontSize: '0.56rem', color: '#E2E8F0', whiteSpace: 'nowrap' }}>
-                                        From Space #${incIdx + 1} ➔
-                                      </span>
-                                      <select
-                                        value={assignedTarget !== undefined ? assignedTarget : ''}
-                                        onChange={(e) => {
-                                          const val = parseInt(e.target.value, 10);
-                                          handleSetJunctionRule(curEra, targetIdx, incIdx, val);
-                                        }}
-                                        style={{
-                                          background: '#1E293B',
-                                          color: '#FACC15',
-                                          border: '1px solid rgba(250, 204, 21, 0.4)',
-                                          borderRadius: '2px',
-                                          fontSize: '0.56rem',
-                                          height: '17px',
-                                          padding: '0 2px',
-                                          fontWeight: 700
-                                        }}
-                                      >
-                                        {targets.map(t => (
-                                          <option key={t} value={t}>
-                                            Space #${t + 1} ({layouts[curEra]?.[t] || 'tile'})
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </div>
-                                  );
-                                })}
+                                    return (
+                                      <div key={incIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '3px', height: '18px' }}>
+                                        <span style={{ fontSize: '0.56rem', color: '#E2E8F0', whiteSpace: 'nowrap' }}>
+                                          From Space #{incIdx + 1} ➔
+                                        </span>
+                                        <select
+                                          value={assignedTarget !== undefined ? assignedTarget : ''}
+                                          onChange={(e) => {
+                                            const val = parseInt(e.target.value, 10);
+                                            handleSetJunctionRule(curEra, targetIdx, incIdx, val);
+                                          }}
+                                          style={{
+                                            background: '#1E293B',
+                                            color: '#FACC15',
+                                            border: '1px solid rgba(250, 204, 21, 0.4)',
+                                            borderRadius: '2px',
+                                            fontSize: '0.56rem',
+                                            height: '17px',
+                                            padding: '0 2px',
+                                            fontWeight: 700
+                                          }}
+                                        >
+                                          {targets.map(t => (
+                                            <option key={t} value={t}>
+                                              Space #{t + 1} ({layouts[curEra]?.[t] || 'tile'})
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    );
+                                  })
+                                )}
                               </div>
                             );
                           })()}
@@ -1567,11 +1765,46 @@ export default function MapEditor({ onClose }) {
               </div>
             </div>
 
-            {/* Reset button docked at bottom */}
-            <div style={{ marginTop: 'auto' }}>
+            {/* Backup & Safety Dock at bottom */}
+            <div style={{ marginTop: 'auto', paddingTop: '8px' }}>
+              <div style={{
+                background: 'rgba(99, 102, 241, 0.12)',
+                border: '1px solid rgba(99, 102, 241, 0.35)',
+                borderRadius: '6px',
+                padding: '6px 8px',
+                marginBottom: '6px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                  <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#A5B4FC', textTransform: 'uppercase' }}>
+                    🛡️ Layout Backup
+                  </span>
+                  <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.45)' }}>
+                    {backups.length} snapshot{backups.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    className="sidebar-btn"
+                    style={{ flex: 1, height: '25px', fontSize: '0.62rem', background: '#4F46E5', color: '#fff', fontWeight: 700 }}
+                    onClick={() => handleCreateBackup('')}
+                    title="Take an instant snapshot of all tile coordinates, paths, and layouts"
+                  >
+                    📦 + Backup
+                  </button>
+                  <button
+                    className="sidebar-btn"
+                    style={{ flex: 1, height: '25px', fontSize: '0.62rem', background: 'rgba(255,255,255,0.1)' }}
+                    onClick={() => { sounds.btnClick(); setShowBackupModal(true); }}
+                    title="View, download, or restore saved backups"
+                  >
+                    ↺ Restore
+                  </button>
+                </div>
+              </div>
+
               <button
                 className="sidebar-btn danger"
-                style={{ width: '100%', height: '26px' }}
+                style={{ width: '100%', height: '24px', fontSize: '0.62rem' }}
                 onClick={handleResetDefaults}
               >
                 🔄 Reset Factory Defaults
@@ -1580,6 +1813,20 @@ export default function MapEditor({ onClose }) {
           </aside>
         )}
       </div>
+
+      {/* EXPORT MAP AS PNG FOR PRINTING */}
+      {showPngExportModal && (
+        <MapPngExportModal
+          isOpen={showPngExportModal}
+          onClose={() => setShowPngExportModal(false)}
+          coords={coords}
+          layouts={layouts}
+          connections={connections}
+          activeEra={activeEra}
+          bgMode={bgMode}
+          triggerToast={triggerToast}
+        />
+      )}
 
       {/* EXPORT CODE MODAL */}
       {showExportModal && (
@@ -1613,6 +1860,295 @@ export default function MapEditor({ onClose }) {
                 📋 Copy Code to Clipboard
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* BACKUP & RESTORE MODAL */}
+      {showBackupModal && (
+        <div className="modal-overlay" style={{ zIndex: 3000, background: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(6px)' }}>
+          <div className="modal map-editor-compact-modal">
+            {/* Title Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 800, color: '#F1F5F9' }}>
+                <span>📦</span>
+                <span>Tile Layout Backups</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBackupModal(false)}
+                style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '1.2rem', cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '2px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontSize: '0.72rem', color: '#94A3B8', lineHeight: 1.35 }}>
+                Save snapshots before moving tiles. Revert any snapshot with 1 click if a layout gets messed up.
+              </div>
+
+              {/* Snapshot Creator Box */}
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.9)',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
+                borderRadius: '8px',
+                padding: '8px 10px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}>
+                <input
+                  type="text"
+                  placeholder="Snapshot name (optional, e.g. 'Before road fix')"
+                  value={backupNameInput}
+                  onChange={(e) => setBackupNameInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateBackup(backupNameInput); }}
+                  style={{
+                    width: '100%',
+                    background: '#020617',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#F8FAFC',
+                    padding: '5px 8px',
+                    borderRadius: '4px',
+                    fontSize: '0.74rem'
+                  }}
+                />
+                <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                  <input
+                    type="file"
+                    accept=".json"
+                    ref={backupFileInputRef}
+                    style={{ display: 'none' }}
+                    onChange={handleImportBackup}
+                  />
+                  <button
+                    type="button"
+                    className="compact-btn secondary"
+                    onClick={() => backupFileInputRef.current?.click()}
+                    title="Import a saved backup .json file from your computer"
+                  >
+                    📁 Import JSON
+                  </button>
+                  <button
+                    type="button"
+                    className="compact-btn primary"
+                    onClick={() => handleCreateBackup(backupNameInput)}
+                  >
+                    + Save Snapshot
+                  </button>
+                </div>
+              </div>
+
+              {/* Backups List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {backups.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '20px 10px', color: '#64748B', fontSize: '0.75rem' }}>
+                    <div style={{ fontSize: '1.6rem', marginBottom: '4px' }}>📭</div>
+                    No snapshots saved yet. Click <strong>+ Save Snapshot</strong> above!
+                  </div>
+                ) : (
+                  backups.map((b, idx) => {
+                    const isFirst = idx === 0;
+                    return (
+                      <div
+                        key={b.id || idx}
+                        style={{
+                          background: isFirst ? 'rgba(99, 102, 241, 0.12)' : 'rgba(15, 23, 42, 0.75)',
+                          border: isFirst ? '1px solid rgba(99, 102, 241, 0.45)' : '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '6px',
+                          padding: '7px 10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '8px'
+                        }}
+                      >
+                        {/* Info */}
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', overflow: 'hidden' }}>
+                            <span style={{ fontSize: '0.75rem' }}>📦</span>
+                            <span style={{ fontWeight: 700, fontSize: '0.75rem', color: isFirst ? '#A5B4FC' : '#E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {b.name}
+                            </span>
+                            {isFirst && (
+                              <span style={{ fontSize: '0.52rem', background: '#4F46E5', color: '#fff', padding: '1px 4px', borderRadius: '2px', fontWeight: 800 }}>
+                                LATEST
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.62rem', color: '#94A3B8', marginTop: '2px' }}>
+                            🕒 {b.dateStr} • 25 tiles/era
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            className="compact-btn success"
+                            onClick={() => handleRestoreBackup(b)}
+                            title="Restore this layout to map editor"
+                          >
+                            ↺ Restore
+                          </button>
+                          <button
+                            type="button"
+                            className="compact-btn secondary"
+                            onClick={() => handleDownloadBackup(b)}
+                            title="Download JSON file to computer"
+                          >
+                            💾 Save
+                          </button>
+                          <button
+                            type="button"
+                            className="compact-btn danger"
+                            onClick={() => handleDeleteBackup(b.id, b.name)}
+                            title="Delete snapshot"
+                            style={{ padding: '5px 7px' }}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: '10px',
+              paddingTop: '8px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.65rem', color: '#64748B' }}>
+                  {backups.length} snapshot{backups.length === 1 ? '' : 's'}
+                </span>
+                <button
+                  type="button"
+                  className="compact-btn secondary"
+                  style={{ fontSize: '0.62rem', padding: '2px 6px', color: '#A5B4FC' }}
+                  onClick={() => { sounds.btnClick(); setShowChangePinModal(true); }}
+                  title="Change developer access PIN"
+                >
+                  🔑 PIN
+                </button>
+              </div>
+              <button
+                type="button"
+                className="compact-btn secondary"
+                style={{ padding: '5px 16px' }}
+                onClick={() => setShowBackupModal(false)}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CHANGE PIN MODAL */}
+      {showChangePinModal && (
+        <div className="modal-overlay" style={{ zIndex: 4000, background: 'rgba(2, 6, 23, 0.88)' }}>
+          <div className="modal map-editor-compact-modal" style={{ maxWidth: '360px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.92rem', fontWeight: 800, color: '#F1F5F9' }}>
+                <span>🔑</span>
+                <span>Update Studio Passcode</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowChangePinModal(false)}
+                style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '1.2rem', cursor: 'pointer', padding: '2px 6px', lineHeight: 1 }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePin} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <p style={{ fontSize: '0.72rem', color: '#94A3B8', margin: 0, lineHeight: 1.35 }}>
+                Set a custom developer PIN. Saved as a one-way salted SHA-256 hash.
+              </p>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.68rem', color: '#94A3B8', marginBottom: '3px' }}>
+                  New PIN (4–8 digits):
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={8}
+                  placeholder="••••"
+                  value={newPinInput}
+                  onChange={(e) => { setNewPinInput(e.target.value.replace(/[^0-9]/g, '')); setPinChangeError(''); }}
+                  style={{
+                    width: '100%',
+                    background: '#020617',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '5px',
+                    color: '#FFF',
+                    fontSize: '1.1rem',
+                    textAlign: 'center',
+                    letterSpacing: '4px',
+                    padding: '6px'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.68rem', color: '#94A3B8', marginBottom: '3px' }}>
+                  Confirm New PIN:
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={8}
+                  placeholder="••••"
+                  value={confirmPinInput}
+                  onChange={(e) => { setConfirmPinInput(e.target.value.replace(/[^0-9]/g, '')); setPinChangeError(''); }}
+                  style={{
+                    width: '100%',
+                    background: '#020617',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '5px',
+                    color: '#FFF',
+                    fontSize: '1.1rem',
+                    textAlign: 'center',
+                    letterSpacing: '4px',
+                    padding: '6px'
+                  }}
+                />
+              </div>
+
+              {pinChangeError && (
+                <div style={{ color: '#F87171', fontSize: '0.72rem', fontWeight: 700 }}>
+                  {pinChangeError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  className="compact-btn secondary"
+                  onClick={() => setShowChangePinModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="compact-btn primary"
+                >
+                  Save Encrypted PIN
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -8,14 +8,52 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
   const [onlinePlayerName, setOnlinePlayerName] = useState('Temporal Castaway');
   const [onlineSelectedRole, setOnlineSelectedRole] = useState('HISTORIAN');
   const [onlineRoomCodeInput, setOnlineRoomCodeInput] = useState('');
+  const [spectators, setSpectators] = useState([]);
+  const [isSpectator, setIsSpectator] = useState(false);
+  const [canSpectatePrompt, setCanSpectatePrompt] = useState(null);
 
   useEffect(() => {
     if (!network) return;
 
     network.onRoomCreated = (code) => {
       setIsConnectingOnline(false);
+      setIsSpectator(false);
       setCurrentRoomPlayers(network.players ? network.players.slice() : []);
+      setSpectators(network.spectators ? network.spectators.slice() : []);
       showToast('Room Created', `Room Code: ${code}. Share with allies!`, 'success');
+    };
+
+    network.onSpectatorJoined = (msg) => {
+      setIsConnectingOnline(false);
+      setIsSpectator(true);
+      setCanSpectatePrompt(null);
+      setCurrentRoomPlayers(msg.players || (network.players ? network.players.slice() : []));
+      setSpectators(msg.spectators || (network.spectators ? network.spectators.slice() : []));
+      showToast('Spectator Mode Active', `Observing timeline coordinates in Room ${msg.roomCode}.`, 'success');
+
+      // If game has already started and we have state, enter game view immediately!
+      if (msg.gameStarted && msg.state) {
+        sounds.portal();
+        sounds.startBgMusic();
+        if (onGameStartSuccess) {
+          onGameStartSuccess({ isSpectator: true });
+        }
+      }
+    };
+
+    network.onSpectatorCountUpdate = (specs, joined, left) => {
+      setSpectators(specs || []);
+      if (joined) {
+        showToast('Observer Connected', `${joined.name} is now spectating this mission.`, 'info');
+      } else if (left) {
+        showToast('Observer Departed', `${left.name} stopped spectating.`, 'info');
+      }
+    };
+
+    network.onCanSpectate = (promptData) => {
+      setIsConnectingOnline(false);
+      setCanSpectatePrompt(promptData);
+      showToast('Match Notice', promptData.message, 'warning');
     };
 
     network.onRoomJoined = (code, players) => {
@@ -69,6 +107,9 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
 
     network.onStateUpdate = (state) => {
       engine.loadState(state);
+      if (network.isSpectator && onGameStartSuccess) {
+        onGameStartSuccess({ isSpectator: true });
+      }
     };
 
     network.onError = (msg) => {
@@ -79,6 +120,9 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
     return () => {
       network.onRoomCreated = null;
       network.onRoomJoined = null;
+      network.onSpectatorJoined = null;
+      network.onSpectatorCountUpdate = null;
+      network.onCanSpectate = null;
       network.onRosterUpdate = null;
       network.onPlayerJoin = null;
       network.onPlayerLeave = null;
@@ -113,10 +157,41 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
     }
   }, [network, isConnectingOnline, onlinePlayerName, onlineSelectedRole, onlineRoomCodeInput, showToast]);
 
+  const spectateOnline = useCallback((codeToSpectate, customName) => {
+    if (isConnectingOnline || !network) return;
+    const code = (codeToSpectate || onlineRoomCodeInput).trim().toUpperCase();
+    if (!code) {
+      showToast('Invalid Code', 'Please enter a 5-letter Room Code to spectate.', 'warning');
+      return;
+    }
+    const name = (customName || onlinePlayerName).trim() || 'Chronos Observer';
+    setIsConnectingOnline(true);
+    network.setMode('online');
+    showToast('Observatory Uplink', `Connecting to Room ${code} as Spectator...`, 'info');
+    network.spectateRoom(code, name).catch((err) => {
+      setIsConnectingOnline(false);
+      showToast('Spectate Failed', err?.message || 'Failed to spectate room.', 'danger');
+    });
+  }, [network, isConnectingOnline, onlineRoomCodeInput, onlinePlayerName, showToast]);
+
+  const acceptCanSpectate = useCallback(() => {
+    if (!canSpectatePrompt) return;
+    const code = canSpectatePrompt.roomCode;
+    setCanSpectatePrompt(null);
+    spectateOnline(code, onlinePlayerName);
+  }, [canSpectatePrompt, spectateOnline, onlinePlayerName]);
+
+  const dismissCanSpectatePrompt = useCallback(() => {
+    setCanSpectatePrompt(null);
+  }, []);
+
   const leaveRoom = useCallback(() => {
     sounds.btnClick();
     network?.leaveRoom();
     setCurrentRoomPlayers([]);
+    setSpectators([]);
+    setIsSpectator(false);
+    setCanSpectatePrompt(null);
   }, [network]);
 
   const startOnlineGame = useCallback(() => {
@@ -126,6 +201,9 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
 
   return {
     currentRoomPlayers,
+    spectators,
+    isSpectator,
+    canSpectatePrompt,
     isConnectingOnline,
     onlinePlayerName,
     setOnlinePlayerName,
@@ -134,6 +212,9 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
     onlineRoomCodeInput,
     setOnlineRoomCodeInput,
     connectOnline,
+    spectateOnline,
+    acceptCanSpectate,
+    dismissCanSpectatePrompt,
     leaveRoom,
     startOnlineGame
   };

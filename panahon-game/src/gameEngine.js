@@ -185,8 +185,11 @@ export class GameEngine {
     this.timerInterval = setInterval(() => {
       if (!this.state || this.state.gameOver) {
         clearInterval(this.timerInterval);
+        this.timerInterval = null;
         return;
       }
+      if (this.isPaused || this.state.isPaused) return;
+
       this.state.gameTimeRemaining--;
       if (this.state.gameTimeRemaining <= 0) {
         this.endGame('timeout');
@@ -200,6 +203,13 @@ export class GameEngine {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
     }
+  }
+
+  resetGame() {
+    this.stopTimer();
+    this.state = null;
+    this.logEntries = [];
+    this.notify('game_reset');
   }
 
   // --- Logging ---
@@ -243,6 +253,9 @@ export class GameEngine {
 
     const result = rollDie();
     this.state.diceResult = result;
+    this.state.initialRoll = result;
+    this.state.stepsTakenThisTurn = 0;
+    this.state.hasMovedThisTurn = false;
     this.state.movesRemaining = result + (player.bonusMoves || 0);
     this.state.movementDirection = 'forward';
     if (player.roleKey !== 'EXPLORER' || !this.state.momentumActive) {
@@ -267,21 +280,14 @@ export class GameEngine {
     const [targetEra, targetIdxStr] = String(targetTileId).split('_');
     const targetIdx = parseInt(targetIdxStr, 10);
 
-    if (targetEra !== player.currentEra || Number.isNaN(targetIdx)) return false;
-
-    const dir = this.state.movementDirection === 'backward' ? -1 : 1;
-    const expectedIdx = this.getNextTileIndex(player, player.currentEra, player.tileIndex, dir);
-
-    if (targetIdx !== expectedIdx) return false;
-
-    return this.advancePlayerTo(player, targetIdx);
-  }
-
-  // Shared step resolution used by both manual stepping and clicking the
-  // highlighted arrow tile.
-  advancePlayerTo(player, newIdx) {
-    const eraTiles = this.state.board[player.currentEra];
-    const currentIdx = player.tileIndex;
+    // Check if target is in the same era
+    if (targetEra !== player.currentEra) return false;
+    
+    // Strict direction constraint: strictly forward (+1) unless Reverse Time Ability is active (-1)
+    const direction = this.state.movementDirection || 'forward';
+    const dir = direction === 'backward' ? -1 : 1;
+    const expectedNext = this.getNextTileIndex(player, targetEra, currentIdx, dir);
+    if (targetIdx !== expectedNext) return false;
 
     // Move
     eraTiles[currentIdx].players = eraTiles[currentIdx].players.filter(id => id !== player.id);
@@ -289,6 +295,8 @@ export class GameEngine {
     player.tileIndex = newIdx;
     eraTiles[newIdx].players.push(player.id);
     this.state.movesRemaining--;
+    this.state.stepsTakenThisTurn = (this.state.stepsTakenThisTurn || 0) + 1;
+    this.state.hasMovedThisTurn = true;
 
     const tile = eraTiles[newIdx];
 
@@ -347,7 +355,7 @@ export class GameEngine {
     return true;
   }
 
-  // Determine next tile index using custom node-graph connections, approach routing rules & Mario Party two-way trails
+  // Determine next tile index using custom node-graph connections and approach routing rules
   getNextTileIndex(player, era, currentIdx, dir = 1) {
     const eraTiles = this.state.board[era];
     const total = eraTiles.length;
@@ -357,46 +365,49 @@ export class GameEngine {
     const eraRules = junctionRules[era] || {};
     const prev = player?.previousTileIndex;
 
-    // Backward movement (Reverse Time / danger penalties) always steps down
-    // one space on the visible loop instead of following forward junctions.
     if (dir < 0) {
+      if (eraConnections) {
+        const incoming = [];
+        for (const [sourceStr, targetArr] of Object.entries(eraConnections)) {
+          if (Array.isArray(targetArr) && targetArr.includes(currentIdx)) {
+            incoming.push(parseInt(sourceStr, 10));
+          }
+        }
+        if (incoming.length > 0) {
+          if (prev !== undefined && incoming.includes(prev)) {
+            return prev;
+          }
+          return incoming[0];
+        }
+      }
       return (currentIdx - 1 + total) % total;
-    }
-
-    // 1. Explicit junction rule based on arrival space (currentIdx:prev)
-    if (prev !== undefined && prev !== null) {
-      const ruleKey = `${currentIdx}:${prev}`;
-      if (eraRules[ruleKey] !== undefined) {
-        return eraRules[ruleKey];
-      }
-    }
-
-    // 2. Linear return along two-way trail (village road 14 down to 7, or base road 3 down to 1):
-    if (prev !== undefined && prev !== null && prev > currentIdx) {
-      if ((currentIdx >= 6 && currentIdx <= 14) || (currentIdx >= 0 && currentIdx <= 2)) {
-        if (currentIdx === 6) return 3; // From Space 7 exit to Space 4
-        if (currentIdx === 0) return 1; // From Space 1 turn around to Space 2
-        return currentIdx - 1;
-      }
     }
 
     if (eraConnections) {
       const targets = eraConnections[currentIdx];
 
-      // Handle single connection or return trail if single connection is a U-turn back to prev
-      if (!Array.isArray(targets) || targets.length === 0 || (targets.length === 1 && targets[0] === prev)) {
-        if (prev !== undefined && prev !== null && prev > currentIdx) {
-          return currentIdx <= 0 ? 1 : currentIdx - 1;
-        }
-        if (Array.isArray(targets) && targets.length === 1) return targets[0];
+      // Fallback if no outgoing targets defined
+      if (!Array.isArray(targets) || targets.length === 0) {
         return dir > 0 ? (currentIdx + 1) % total : (currentIdx - 1 + total) % total;
       }
 
+      // If single target, strictly follow that single connection (authoritative map graph)
       if (targets.length === 1) {
         return targets[0];
       }
 
-      // Multiple targets: take first candidate not equal to prev
+      // Multi-target junction:
+      // 1. Explicit junction rule based on arrival space (currentIdx:prev)
+      if (prev !== undefined && prev !== null) {
+        const ruleKey = `${currentIdx}:${prev}`;
+        const ruleTarget = eraRules[ruleKey];
+        // Only accept the junction rule if its target is actually one of the node's valid outgoing targets
+        if (ruleTarget !== undefined && targets.includes(ruleTarget)) {
+          return ruleTarget;
+        }
+      }
+
+      // 2. Filter out the space we just arrived from to avoid immediate U-turn unless no other choice
       let candidates = targets.filter(t => t !== prev);
       if (candidates.length === 0) candidates = targets;
 
@@ -416,7 +427,27 @@ export class GameEngine {
 
     const dir = this.state.movementDirection === 'backward' ? -1 : 1;
     const player = this.getCurrentPlayer();
-    const newIdx = this.getNextTileIndex(player, player.currentEra, player.tileIndex, dir);
+    const eraTiles = this.state.board[player.currentEra];
+    const currentIdx = player.tileIndex;
+
+    const newIdx = this.getNextTileIndex(player, player.currentEra, currentIdx, dir);
+
+    // Move
+    eraTiles[currentIdx].players = eraTiles[currentIdx].players.filter(id => id !== player.id);
+    player.previousTileIndex = currentIdx;
+    player.tileIndex = newIdx;
+    eraTiles[newIdx].players.push(player.id);
+    this.state.movesRemaining--;
+    this.state.stepsTakenThisTurn = (this.state.stepsTakenThisTurn || 0) + 1;
+    this.state.hasMovedThisTurn = true;
+
+    const tile = eraTiles[newIdx];
+
+    // Check trap
+    if (tile.trap && tile.trap.ownerId !== player.id) {
+      this.triggerTrap(player, tile);
+      return true;
+    }
 
     return this.advancePlayerTo(player, newIdx);
   }
@@ -545,6 +576,38 @@ export class GameEngine {
     } else if (choiceType === 'timeGateTravel') {
       if (action && action !== 'stay') {
         this.travelToEra(player, action);
+      } else {
+        this.state.phase = 'action';
+      }
+    } else if (choiceType === 'teleportTile') {
+      const targetEra = choice.targetEra || ERAS.MYTH;
+      const targetTiles = this.state.board[targetEra];
+      const targetIdx = parseInt(action.replace('teleport_', ''), 10);
+      const targetTile = targetTiles && targetTiles[targetIdx] ? targetTiles[targetIdx] : null;
+
+      if (targetTile) {
+        // Remove player from current tile
+        const currentTiles = this.state.board[player.currentEra];
+        if (currentTiles && currentTiles[player.tileIndex]) {
+          currentTiles[player.tileIndex].players = currentTiles[player.tileIndex].players.filter(id => id !== player.id);
+        }
+
+        // Warp player to target era & tile
+        player.currentEra = targetEra;
+        player.tileIndex = targetTile.index;
+        targetTile.players.push(player.id);
+        this.state.currentEra = targetEra;
+
+        this.addLog('travel', `✨ ${player.name} teleported to Space #${targetTile.index + 1} (${targetTile.type.toUpperCase()}) in ${ERA_NAMES[targetEra]} via Anito Guidance!`);
+
+        // Check for enemy trap
+        if (targetTile.trap && targetTile.trap.ownerId !== player.id) {
+          this.triggerTrap(player, targetTile);
+        }
+
+        // Resolve landing on destination tile
+        this.resolveTile(player, targetTile);
+        return;
       } else {
         this.state.phase = 'action';
       }
@@ -723,7 +786,9 @@ export class GameEngine {
 
     const result = card.effect(player, this);
     this.addLog('event', `${player.name}: ${card.name} — ${result}`);
-    this.state.phase = 'action';
+    if (!this.state.pendingChoice) {
+      this.state.phase = 'action';
+    }
     this.notify();
   }
 
@@ -790,40 +855,56 @@ export class GameEngine {
 
   // --- Artifact Handling ---
   handleArtifactTile(player) {
-    const eraArtifacts = ARTIFACTS[player.currentEra];
-    
-    // Check if player has at least 3 clues for any artifact in this era
+    const eraArtifacts = ARTIFACTS[player.currentEra] || [];
+
+    // Filter artifacts player has >= 3 clues for, excluding already held or already completed mission relics
     const eligibleArtifacts = eraArtifacts.filter(artifact => {
+      // Don't re-acquire an artifact already held in player hand
+      if (player.artifactCards.some(a => a.id === artifact.id)) return false;
+      // Don't re-acquire an artifact if its mission is already finished
+      if (player.missionComplete && player.mission?.artifactId === artifact.id) return false;
       const clueCount = player.clueProgress[artifact.id] || 0;
       return clueCount >= GAME_CONSTANTS.REQUIRED_CLUES_FOR_ARTIFACT;
     });
 
     if (eligibleArtifacts.length === 0) {
-      this.state.pendingModal = {
-        type: 'info',
-        title: 'Artifact Tile',
-        description: `You need at least ${GAME_CONSTANTS.REQUIRED_CLUES_FOR_ARTIFACT} clues related to an artifact before you can acquire it. Keep exploring!`,
-        image: null
-      };
-      this.addLog('artifact', `${player.name} investigated the Artifact Tile but lacks enough clues.`);
+      // Check if player already holds an artifact from this era
+      const alreadyHeld = player.artifactCards.find(a => a.era === player.currentEra);
+      if (alreadyHeld) {
+        this.state.pendingModal = {
+          type: 'info',
+          title: 'Artifact Tile',
+          description: `You are already carrying the ${alreadyHeld.nickname}! Use the "Return Relic" action in your dashboard to return it to this timeline.`,
+          image: alreadyHeld.cardImage || alreadyHeld.image
+        };
+        this.addLog('artifact', `${player.name} visited the Artifact Tile while already holding ${alreadyHeld.nickname}.`);
+      } else {
+        this.state.pendingModal = {
+          type: 'info',
+          title: 'Artifact Tile',
+          description: `You need at least ${GAME_CONSTANTS.REQUIRED_CLUES_FOR_ARTIFACT} clues related to an artifact before you can acquire it. Keep exploring!`,
+          image: null
+        };
+        this.addLog('artifact', `${player.name} investigated the Artifact Tile but lacks enough clues.`);
+      }
     } else {
-      // Let player choose an artifact to acquire
-      const firstEligible = eligibleArtifacts[0];
-      player.artifactCards.push(firstEligible);
-      
+      // Prioritize player's mission artifact if eligible
+      const missionArtifact = eligibleArtifacts.find(a => player.mission && player.mission.artifactId === a.id);
+      const chosen = missionArtifact || eligibleArtifacts[0];
+      player.artifactCards.push(chosen);
+
       this.state.pendingModal = {
         type: 'artifact',
-        cardType: 'Artifact Acquired!',
-        title: firstEligible.name,
-        description: `You acquired the ${firstEligible.nickname}! Return it to the ${ERA_NAMES[firstEligible.era]} to complete your mission.`,
-        image: firstEligible.cardImage
+        cardType: 'Artifact Acquired! 📦',
+        title: chosen.name,
+        description: `You acquired the ${chosen.nickname}! Return it to the ${ERA_NAMES[chosen.era]} using "Return Relic" to complete your mission.`,
+        image: chosen.cardImage || chosen.image
       };
 
-      // Check mission completion
-      if (player.mission && player.mission.artifactId === firstEligible.id) {
-        this.addLog('mission', `${player.name} acquired their mission artifact: ${firstEligible.nickname}!`);
+      if (player.mission && player.mission.artifactId === chosen.id) {
+        this.addLog('mission', `${player.name} acquired their mission artifact: ${chosen.nickname}!`);
       } else {
-        this.addLog('artifact', `${player.name} acquired: ${firstEligible.nickname}`);
+        this.addLog('artifact', `${player.name} acquired: ${chosen.nickname}`);
       }
     }
 
@@ -1094,21 +1175,33 @@ export class GameEngine {
   reverseTime(playerIdx) {
     const player = this.state.players[playerIdx];
     if (this.state.currentPlayerIndex !== playerIdx) return false;
+
+    // Must be activated after a die roll, strictly at the start of the turn before any movement steps
+    if (this.state.phase !== 'moving' || this.state.hasMovedThisTurn || (this.state.stepsTakenThisTurn && this.state.stepsTakenThisTurn > 0)) {
+      this.addLog('warning', 'Reverse Time can only be activated after a die roll at the start of your turn!');
+      return false;
+    }
+
+    if (this.state.movementDirection === 'backward') {
+      this.addLog('warning', 'Reverse Time is already active for this turn!');
+      return false;
+    }
+
     if (player.reverseTimeCooldown > 0) {
       this.addLog('warning', `Reverse Time is on cooldown (${player.reverseTimeCooldown} turns remaining)!`);
       return false;
     }
-    if (player.energy < GAME_CONSTANTS.REVERSE_TIME_COST) return false;
+
+    if (player.energy < GAME_CONSTANTS.REVERSE_TIME_COST) {
+      this.addLog('warning', `Not enough Chrono Energy for Reverse Time! Requires ${GAME_CONSTANTS.REVERSE_TIME_COST} Energy.`);
+      return false;
+    }
 
     this.modifyEnergy(player, -GAME_CONSTANTS.REVERSE_TIME_COST);
     player.reverseTimeCooldown = GAME_CONSTANTS.REVERSE_TIME_COOLDOWN;
-    const roll = rollDie();
-    this.state.diceResult = roll;
-    this.state.movesRemaining = roll;
     this.state.movementDirection = 'backward';
-    this.state.phase = 'moving';
 
-    this.addLog('action', `${player.name} activated Reverse Time! (-3 Energy, moving ${roll} spaces backwards)`);
+    this.addLog('action', `${player.name} activated Reverse Time! (-${GAME_CONSTANTS.REVERSE_TIME_COST} Energy, reversing direction to move ${this.state.movesRemaining} spaces backwards)`);
     this.notify();
     return true;
   }
@@ -1157,10 +1250,29 @@ export class GameEngine {
       this.addLog('mission', `${player.name} returned ${artifact.nickname} to the correct timeline! (+${SCORING.RETURN_ARTIFACT_CORRECT} Points)`);
 
       // Check mission complete
-      if (player.mission && player.mission.artifactId === artifactId) {
+      const isMission = player.mission && player.mission.artifactId === artifactId;
+      if (isMission) {
         player.missionComplete = true;
         player.points += SCORING.COMPLETE_MISSION;
         this.addLog('mission', `🎉 ${player.name} completed their mission! (+${SCORING.COMPLETE_MISSION} Points)`);
+
+        this.state.pendingModal = {
+          type: 'artifact',
+          cardType: 'Mission Complete! 🏆',
+          title: `Recovered: ${artifact.nickname}`,
+          description: `Outstanding achievement, ${player.name}! You safely returned ${artifact.name} to the ${ERA_NAMES[artifact.era]} and completed your historical directive! (+${SCORING.RETURN_ARTIFACT_CORRECT + SCORING.COMPLETE_MISSION} Total Points)`,
+          image: artifact.cardImage || artifact.image,
+          era: artifact.era
+        };
+      } else {
+        this.state.pendingModal = {
+          type: 'artifact',
+          cardType: 'Relic Restored! 📦',
+          title: `Restored: ${artifact.nickname}`,
+          description: `You returned the ${artifact.name} to the ${ERA_NAMES[artifact.era]} timeline! (+${SCORING.RETURN_ARTIFACT_CORRECT} Points)`,
+          image: artifact.cardImage || artifact.image,
+          era: artifact.era
+        };
       }
 
       // Check if all missions complete
@@ -1172,6 +1284,15 @@ export class GameEngine {
       this.modifyParadox(player, 1);
       this.modifyTimelineMeter(1);
       this.addLog('paradox', `${player.name} placed ${artifact.nickname} in the wrong timeline! Paradox +1, Timeline +1`);
+
+      this.state.pendingModal = {
+        type: 'danger',
+        cardType: 'Temporal Anomaly! ⚠️',
+        title: 'Wrong Era Paradox',
+        description: `The ${artifact.nickname} does not belong to the ${ERA_NAMES[player.currentEra]}! It belongs to the ${ERA_NAMES[artifact.era]}. Temporal Paradox +1, Timeline Meter +1!`,
+        image: artifact.cardImage || artifact.image,
+        era: player.currentEra
+      };
     }
 
     this.notify();
@@ -1209,17 +1330,43 @@ export class GameEngine {
     };
   }
 
-  offerTeleport(player, era) {
-    this.addLog('event', `${player.name} can teleport to any tile in ${ERA_NAMES[era]}.`);
-    // For simplicity, move to a random non-empty tile
+  offerTeleport(player, era = ERAS.MYTH) {
     const tiles = this.state.board[era];
-    const validTiles = tiles.filter(t => t.type !== TILE_TYPES.EMPTY);
-    if (validTiles.length > 0) {
-      const target = validTiles[Math.floor(Math.random() * validTiles.length)];
-      tiles[player.tileIndex].players = tiles[player.tileIndex].players.filter(id => id !== player.id);
-      player.tileIndex = target.index;
-      target.players.push(player.id);
-    }
+    if (!tiles || tiles.length === 0) return;
+
+    const tileOptions = tiles.map(t => {
+      let icon = "•";
+      let typeLabel = (t.type || "").toUpperCase();
+      if (t.type === TILE_TYPES.CLUE) { icon = "🔍"; typeLabel = "Clue"; }
+      else if (t.type === TILE_TYPES.ARTIFACT) { icon = "🏆"; typeLabel = "Artifact"; }
+      else if (t.type === TILE_TYPES.EVENT) { icon = "⚡"; typeLabel = "Event"; }
+      else if (t.type === TILE_TYPES.DANGER) { icon = "⚠️"; typeLabel = "Hazard"; }
+      else if (t.type === TILE_TYPES.TIMEGATE) { icon = "🌀"; typeLabel = "Time Gate"; }
+      else if (t.type === TILE_TYPES.PARADOX) { icon = "⏳"; typeLabel = "Paradox"; }
+      else if (t.type === TILE_TYPES.START) { icon = "🚩"; typeLabel = "Start Station"; }
+      else if (t.type === TILE_TYPES.EMPTY) { icon = "•"; typeLabel = "Quiet Path"; }
+
+      return {
+        index: t.index,
+        type: t.type,
+        icon,
+        typeLabel,
+        id: t.id,
+        label: `${icon} Space #${t.index + 1} (${typeLabel})`,
+        action: `teleport_${t.index}`
+      };
+    });
+
+    this.state.pendingChoice = {
+      type: 'teleportTile',
+      targetEra: era,
+      title: '✨ Anito Guidance: Choose Teleport Destination',
+      message: `The ancient Anito spirits envelop you in ethereal light! Choose any tile in the ${ERA_NAMES[era]} to materialize upon:`,
+      tiles: tileOptions,
+      options: tileOptions
+    };
+
+    this.addLog('event', `${player.name} invoked Anito Guidance: choosing a destination tile in ${ERA_NAMES[era]}!`);
   }
 
   healAllInEra(era, amount) {
@@ -1294,7 +1441,10 @@ export class GameEngine {
 
     this.state.phase = 'rolling';
     this.state.diceResult = null;
+    this.state.initialRoll = null;
     this.state.movesRemaining = 0;
+    this.state.stepsTakenThisTurn = 0;
+    this.state.hasMovedThisTurn = false;
     this.state.movementDirection = 'forward';
     this.state.momentumActive = false;
     this.state.momentumUsedMidTile = false;

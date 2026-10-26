@@ -83,17 +83,34 @@ export default function ChatBox({
           messages.map((m, idx) => {
             const isSelf = (isOnline && m.senderId === myPlayerId) ||
               (!isOnline && m.senderName === myPlayerName);
+            const isSpec = Boolean(m.isSpectator || m.roleKey === 'SPECTATOR');
             const role = ROLES[m.roleKey] || ROLES.HISTORIAN;
-            const playerColor = PLAYER_COLORS[(m.senderId ?? 0) % PLAYER_COLORS.length] || 'var(--text-accent)';
+            const playerColor = isSpec ? '#C084FC' : (PLAYER_COLORS[(m.senderId ?? 0) % PLAYER_COLORS.length] || 'var(--text-accent)');
             const timeStr = formatChatTime(m.timestamp);
 
             return (
               <div key={idx} className={`chat-msg-row ${isSelf ? 'self' : ''}`}>
-                <img src={role.avatar} className="chat-msg-avatar" alt={m.roleKey} />
-                <div className="chat-msg-bubble">
+                {isSpec ? (
+                  <div style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    background: 'rgba(168, 85, 247, 0.25)',
+                    border: '1px solid #C084FC',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.85rem'
+                  }}>
+                    👁️
+                  </div>
+                ) : (
+                  <img src={role.avatar} className="chat-msg-avatar" alt={m.roleKey} />
+                )}
+                <div className="chat-msg-bubble" style={isSpec ? { borderLeft: '2px solid #C084FC' } : undefined}>
                   <div className="chat-msg-meta">
                     <span className="chat-msg-sender" style={{ color: playerColor }}>
-                      {m.senderName}
+                      {isSpec ? '👁️ ' : ''}{m.senderName}{isSpec ? ' [Observer]' : ''}
                     </span>
                     <span className="chat-msg-time">{timeStr}</span>
                   </div>

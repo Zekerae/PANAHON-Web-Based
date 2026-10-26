@@ -80,77 +80,42 @@ export default function TitleScreen({
 
       {/* 1. TOP HUD BAR */}
       <header className="duelyst-top-bar">
-        {/* Top Center: Bug Report Pill */}
-        <div className="top-center-tag">
+        {/* Top Right: Clean Retro Navigation Buttons */}
+        <div className="duelyst-top-right-nav">
           <button
-            className="duelyst-bug-btn"
-            onClick={() => { sounds.btnClick(); setActiveModal('bug'); }}
-            title="Report a temporal glitch or feedback"
+            className="retro-nav-btn"
+            onClick={() => { sounds.btnClick(); setActiveModal("quests"); }}
+            title="Daily Directives & Quests"
           >
-            <span>FOUND A BUG?</span>
-          </button>
-        </div>
-
-        {/* Top Right: Hexagonal HUD Navigation Buttons */}
-        <div className="duelyst-hex-group">
-          {/* Quests Button */}
-          <button
-            className="duelyst-hex-btn"
-            onClick={() => { sounds.btnClick(); setActiveModal('quests'); }}
-            title="View Daily Quests & Directives"
-          >
-            <div className="hex-shape">
-              <svg viewBox="0 0 100 115" className="hex-svg">
-                <polygon points="50 3, 97 28, 97 87, 50 112, 3 87, 3 28" className="hex-polygon" />
-              </svg>
-              <span className="hex-icon">!</span>
-            </div>
-            <span className="hex-label">QUESTS</span>
+            <span className="retro-nav-icon">📜</span>
+            <span className="retro-nav-label">QUESTS</span>
           </button>
 
-          {/* Profile Button */}
           <button
-            className="duelyst-hex-btn"
-            onClick={() => { sounds.btnClick(); setActiveModal('profile'); }}
-            title="View Operative Profile & Stats"
+            className="retro-nav-btn"
+            onClick={() => { sounds.btnClick(); setActiveModal("profile"); }}
+            title="Operative Profile & Stats"
           >
-            <div className="hex-shape">
-              <svg viewBox="0 0 100 115" className="hex-svg">
-                <polygon points="50 3, 97 28, 97 87, 50 112, 3 87, 3 28" className="hex-polygon" />
-              </svg>
-              <span className="hex-icon">👤</span>
-            </div>
-            <span className="hex-label">PROFILE</span>
+            <span className="retro-nav-icon">👤</span>
+            <span className="retro-nav-label">PROFILE</span>
           </button>
 
-          {/* Settings Button */}
           <button
-            className="duelyst-hex-btn"
-            onClick={() => { sounds.btnClick(); setActiveModal('settings'); }}
+            className="retro-nav-btn"
+            onClick={() => { sounds.btnClick(); setActiveModal("settings"); }}
             title="Configure Audio & Game Options"
           >
-            <div className="hex-shape">
-              <svg viewBox="0 0 100 115" className="hex-svg">
-                <polygon points="50 3, 97 28, 97 87, 50 112, 3 87, 3 28" className="hex-polygon" />
-              </svg>
-              <span className="hex-icon">⚙️</span>
-            </div>
-            <span className="hex-label">SETTINGS</span>
+            <span className="retro-nav-icon">⚙️</span>
+            <span className="retro-nav-label">SETTINGS</span>
           </button>
 
-          {/* Friends Button */}
           <button
-            className="duelyst-hex-btn"
-            onClick={() => { sounds.btnClick(); setActiveModal('friends'); }}
+            className="retro-nav-btn"
+            onClick={() => { sounds.btnClick(); setActiveModal("friends"); }}
             title="Timeline Allies & Room Link"
           >
-            <div className="hex-shape">
-              <svg viewBox="0 0 100 115" className="hex-svg">
-                <polygon points="50 3, 97 28, 97 87, 50 112, 3 87, 3 28" className="hex-polygon" />
-              </svg>
-              <span className="hex-icon">👥</span>
-            </div>
-            <span className="hex-label">FRIENDS (0)</span>
+            <span className="retro-nav-icon">👥</span>
+            <span className="retro-nav-label">FRIENDS</span>
           </button>
         </div>
       </header>
@@ -311,6 +276,28 @@ export default function TitleScreen({
             <span>Pixel Crew • BSIT 3-8 • Version 0.3</span>
             <span style={{ opacity: 0.3 }}>•</span>
             <button
+              onClick={() => { sounds.btnClick(); setActiveModal("bug"); }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "rgba(255, 255, 255, 0.35)",
+                fontSize: "0.68rem",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "3px",
+                padding: "1px 5px",
+                borderRadius: "3px",
+                transition: "all 0.15s ease"
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#F59E0B"; e.currentTarget.style.background = "rgba(245, 158, 11, 0.12)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255, 255, 255, 0.35)"; e.currentTarget.style.background = "none"; }}
+              title="Report a temporal glitch or feedback"
+            >
+              🐛 Bug Report
+            </button>
+            <span style={{ opacity: 0.3 }}>•</span>
+            <button
               onClick={handleLaunchMapStudio}
               style={{
                 background: 'none',
@@ -348,7 +335,7 @@ export default function TitleScreen({
 
             <div className="chrono-orb-caption">
               <span className="caption-number">{activeSession ? '1' : '0'}</span>
-              <span className="caption-label">{activeSession ? 'ACTIVE ANOMALY' : 'BOOSTER PACKS'}</span>
+              <span className="caption-label">{activeSession ? 'ACTIVE EXPEDITION' : 'TIMELINE STABLE'}</span>
             </div>
           </div>
 

@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import sounds from "../sound.js";
 import { ROLES, ROLE_ORDER, PLAYER_COLORS } from "../gameData.js";
 import ChatBox from "./ChatBox.jsx";
 import { isSupabaseAvailable } from "../supabaseClient.js";
+import { getSavedProfile, savePlayerProfile } from "../sessionManager.js";
 
 export default function LobbyScreen({
   lobbyMode,
@@ -39,8 +40,9 @@ export default function LobbyScreen({
   // Presets
   const applyPreset1v3 = () => {
     sounds.btnClick();
+    const prof = getSavedProfile();
     setLocalPlayers([
-      { name: "Player 1", roleKey: "HISTORIAN", type: "human", difficulty: "normal" },
+      { name: prof.name, roleKey: prof.roleKey, type: "human", difficulty: "normal" },
       { name: "Bot Explorer", roleKey: "EXPLORER", type: "ai", difficulty: "normal" },
       { name: "Bot Guardian", roleKey: "GUARDIAN", type: "ai", difficulty: "normal" },
       { name: "Bot Strategist", roleKey: "STRATEGIST", type: "ai", difficulty: "normal" }
@@ -49,8 +51,9 @@ export default function LobbyScreen({
 
   const applyPreset2v2 = () => {
     sounds.btnClick();
+    const prof = getSavedProfile();
     setLocalPlayers([
-      { name: "Player 1", roleKey: "HISTORIAN", type: "human", difficulty: "normal" },
+      { name: prof.name, roleKey: prof.roleKey, type: "human", difficulty: "normal" },
       { name: "Player 2", roleKey: "EXPLORER", type: "human", difficulty: "normal" },
       { name: "Bot Guardian", roleKey: "GUARDIAN", type: "ai", difficulty: "normal" },
       { name: "Bot Strategist", roleKey: "STRATEGIST", type: "ai", difficulty: "normal" }
@@ -59,8 +62,9 @@ export default function LobbyScreen({
 
   const applyPreset4Human = () => {
     sounds.btnClick();
+    const prof = getSavedProfile();
     setLocalPlayers([
-      { name: "Player 1", roleKey: "HISTORIAN", type: "human", difficulty: "normal" },
+      { name: prof.name, roleKey: prof.roleKey, type: "human", difficulty: "normal" },
       { name: "Player 2", roleKey: "EXPLORER", type: "human", difficulty: "normal" },
       { name: "Player 3", roleKey: "GUARDIAN", type: "human", difficulty: "normal" },
       { name: "Player 4", roleKey: "STRATEGIST", type: "human", difficulty: "normal" }
@@ -89,136 +93,287 @@ export default function LobbyScreen({
   const updateSlot = (idx, patch) => {
     const updated = [...localPlayers];
     updated[idx] = { ...updated[idx], ...patch };
+    if (idx === 0 && updated[0].type === "human") {
+      if (patch.name !== undefined || patch.roleKey !== undefined) {
+        savePlayerProfile(updated[0].name, updated[0].roleKey);
+      }
+    }
     setLocalPlayers(updated);
   };
 
   const activeSlots = localPlayers.filter(p => p.type !== "closed");
 
+  // Ensure Slot 1 and Online Multiplayer reflect the saved profile callsign and role
+  useEffect(() => {
+    const prof = getSavedProfile();
+    // 1. Sync Slot 1
+    if (localPlayers && localPlayers.length > 0) {
+      const slot0 = localPlayers[0];
+      const name = (slot0?.name || "").trim();
+      const needsNameSync = !name || name === "Player 1";
+      const needsRoleSync = !slot0?.roleKey;
+      if (needsNameSync || needsRoleSync) {
+        const updated = [...localPlayers];
+        updated[0] = {
+          ...updated[0],
+          name: needsNameSync ? prof.name : slot0.name,
+          roleKey: needsRoleSync ? prof.roleKey : slot0.roleKey
+        };
+        setLocalPlayers(updated);
+      }
+    }
+    // 2. Sync Online Name and Role
+    if (prof.name && (!onlinePlayerName || onlinePlayerName === "Temporal Castaway" || onlinePlayerName === "Operative One" || onlinePlayerName !== prof.name)) {
+      setOnlinePlayerName(prof.name);
+    }
+    if (prof.roleKey && (!onlineSelectedRole || onlineSelectedRole !== prof.roleKey)) {
+      setOnlineSelectedRole(prof.roleKey);
+    }
+  }, [lobbyMode, setOnlinePlayerName, setOnlineSelectedRole]);
+
+  // Listen to live profile updates
+  useEffect(() => {
+    const handleProfileUpdate = (e) => {
+      const { name, roleKey } = e.detail || {};
+      if (name) {
+        setOnlinePlayerName(name);
+        setLocalPlayers((prev) => {
+          if (!prev || prev.length === 0) return prev;
+          const updated = [...prev];
+          updated[0] = {
+            ...updated[0],
+            name: name
+          };
+          return updated;
+        });
+      }
+      if (roleKey) {
+        setOnlineSelectedRole(roleKey);
+        setLocalPlayers((prev) => {
+          if (!prev || prev.length === 0) return prev;
+          const updated = [...prev];
+          updated[0] = {
+            ...updated[0],
+            roleKey: roleKey
+          };
+          return updated;
+        });
+      }
+    };
+    window.addEventListener("panahon_profile_updated", handleProfileUpdate);
+    return () => window.removeEventListener("panahon_profile_updated", handleProfileUpdate);
+  }, [setLocalPlayers, setOnlinePlayerName, setOnlineSelectedRole]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopImmediatePropagation?.();
+        sounds?.btnClick?.();
+        if (isRoomActive) {
+          onLeaveRoom();
+        } else if (typeof onBack === "function") {
+          onBack();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [onBack, onLeaveRoom, isRoomActive]);
+
+
   return (
     <div
-      className="lobby-screen duelyst-theme mobile-compact-lobby"
+      className="modal-overlay lobby-modal-overlay"
       style={{
-        width: "100%",
-        minHeight: "100vh",
-        background: "radial-gradient(circle at 50% 20%, #0B192C 0%, #060D17 65%, #020617 100%)",
+        zIndex: 12000,
+        backgroundColor: "rgba(10, 8, 6, 0.88)",
+        backdropFilter: "blur(10px)",
         display: "flex",
-        flexDirection: "column",
         alignItems: "center",
-        justifyContent: "flex-start",
-        padding: "32px 16px 60px",
-        boxSizing: "border-box",
-        overflowY: "auto"
+        justifyContent: "center",
+        position: "fixed",
+        inset: 0,
+        padding: "16px",
+        boxSizing: "border-box"
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isRoomActive) {
+          sounds.btnClick();
+          onBack();
+        }
       }}
     >
-      {/* Top Brand Header */}
-      <div style={{ textAlign: "center", marginBottom: "20px" }}>
-        <h1
-          className="lobby-title"
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "2.2rem",
-            letterSpacing: "3.5px",
-            color: "#F8FAFC",
-            margin: "0 0 4px",
-            textShadow: "0 0 25px rgba(56, 189, 248, 0.45)"
-          }}
-        >
-          CHRONO EXPEDITION STAGING
-        </h1>
-        <div style={{
-          width: "70px",
-          height: "2px",
-          background: "linear-gradient(90deg, transparent, #38BDF8, transparent)",
-          margin: "6px auto 8px"
-        }} />
-        <div className="lobby-subhead" style={{ fontSize: "0.78rem", color: "#94A3B8", letterSpacing: "1px" }}>
-          OPERATIVE CADRE CONFIGURATION & TIMELINE SYNCHRONIZATION
-        </div>
-      </div>
-
-      {/* Mode Switcher Tabs */}
       <div
+        className="modal duelyst-modal lobby-modal-container"
         style={{
+          maxWidth: isRoomActive ? "960px" : "840px",
+          width: "96%",
+          maxHeight: "92vh",
           display: "flex",
-          gap: "10px",
-          maxWidth: network.roomCode ? "880px" : "740px",
-          width: "100%",
-          marginBottom: "16px"
+          flexDirection: "column",
+          background: "#28201A",
+          border: "3px solid #C2974D",
+          outline: "2px solid #140E0A",
+          boxShadow: "inset 2px 2px 0 #EBC669, inset -2px -2px 0 #7A5823, 0 20px 60px rgba(0, 0, 0, 0.95)",
+          borderRadius: "6px",
+          padding: "20px 24px",
+          position: "relative",
+          overflow: "hidden",
+          boxSizing: "border-box"
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <button
-          onClick={() => { sounds.btnClick(); setLobbyMode("local"); }}
-          style={{
-            flex: 1,
-            padding: "10px 16px",
-            background: lobbyMode === "local"
-              ? "linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(99, 102, 241, 0.35))"
-              : "rgba(15, 23, 42, 0.6)",
-            border: lobbyMode === "local"
-              ? "1.5px solid #38BDF8"
-              : "1px solid rgba(255, 255, 255, 0.1)",
-            borderRadius: "8px",
-            color: lobbyMode === "local" ? "#FFF" : "#94A3B8",
-            fontFamily: "var(--font-display)",
-            fontSize: "0.86rem",
-            fontWeight: 800,
-            letterSpacing: "1px",
-            cursor: "pointer",
-            transition: "all 0.18s ease"
-          }}
-        >
-          ⚔️ LOCAL EXPEDITION & BOT SIMULATION
-        </button>
+        {/* Modal Top Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", paddingBottom: "12px", borderBottom: "2px solid #5A422D" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{
+              width: "42px",
+              height: "42px",
+              borderRadius: "4px",
+              background: "#32261D",
+              border: "2px solid #C2974D",
+              boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "1.3rem"
+            }}>
+              {lobbyMode === "online" ? "🌐" : "⚔️"}
+            </div>
+            <div>
+              <h2 style={{
+                margin: 0,
+                fontSize: "1.25rem",
+                fontFamily: "var(--font-display)",
+                letterSpacing: "2px",
+                color: "#F8FAFC"
+              }}>
+                CHRONO EXPEDITION STAGING
+              </h2>
+              <div style={{ fontSize: "0.74rem", color: "#C8B293", marginTop: "2px" }}>
+                Operative Cadre Configuration & Spacetime Timeline Synchronization
+              </div>
+            </div>
+          </div>
 
-        <button
-          onClick={() => { sounds.btnClick(); setLobbyMode("online"); }}
-          style={{
-            flex: 1,
-            padding: "10px 16px",
-            background: lobbyMode === "online"
-              ? "linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(99, 102, 241, 0.35))"
-              : "rgba(15, 23, 42, 0.6)",
-            border: lobbyMode === "online"
-              ? "1.5px solid #38BDF8"
-              : "1px solid rgba(255, 255, 255, 0.1)",
-            borderRadius: "8px",
-            color: lobbyMode === "online" ? "#FFF" : "#94A3B8",
-            fontFamily: "var(--font-display)",
-            fontSize: "0.86rem",
-            fontWeight: 800,
-            letterSpacing: "1px",
-            cursor: "pointer",
-            transition: "all 0.18s ease"
-          }}
-        >
-          🌐 QUANTUM RELAY MULTIPLAYER
-        </button>
-      </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <div style={{
+              fontSize: "0.68rem",
+              color: "#FFD700",
+              background: "linear-gradient(180deg, #38281A 0%, #1F150C 100%)",
+              padding: "6px 14px",
+              borderRadius: "3px",
+              border: "1.5px solid #C2974D",
+              boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #120C06, 0 2px 3px rgba(0,0,0,0.6)",
+              fontFamily: "var(--font-display)",
+              letterSpacing: "1px",
+              textShadow: "1px 1px 0 #000",
+              whiteSpace: "nowrap"
+            }}>
+              {isRoomActive ? `ROOM: ${network.roomCode}` : (lobbyMode === "online" ? "ONLINE MULTIPLAYER" : `${activeSlots.length} OPERATIVES`)}
+            </div>
+            <button
+              className="modal-close"
+              onClick={() => {
+                sounds.btnClick();
+                if (isRoomActive) {
+                  onLeaveRoom();
+                } else {
+                  onBack();
+                }
+              }}
+              style={{ position: "static" }}
+              title={isRoomActive ? "Leave Room" : "Close Staging [ESC]"}
+            >
+              &times;
+            </button>
+          </div>
+        </div>
 
-      {lobbyMode === "local" ? (
+        {/* Mode Switcher Tabs (Only shown when not in an active room) */}
+        {!isRoomActive && (
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              marginBottom: "14px",
+              width: "100%"
+            }}
+          >
+            <button
+              onClick={() => { sounds.btnClick(); setLobbyMode("local"); }}
+              style={{
+                flex: 1,
+                padding: "9px 16px",
+                background: lobbyMode === "local" ? "linear-gradient(180deg, #6B491E 0%, #462E10 100%)" : "linear-gradient(180deg, #3A2C21 0%, #251B14 100%)",
+                border: lobbyMode === "local" ? "2px solid #C2974D" : "2px solid #5A422D",
+                boxShadow: lobbyMode === "local"
+                  ? "inset 1px 1px 0 #FFD700, inset -1px -1px 0 #1E1204, 0 2px 0 #0D0906"
+                  : "inset 1px 1px 0 #6E5239, inset -1px -1px 0 #140E0A, 0 2px 0 #0D0906",
+                borderRadius: "3px",
+                color: lobbyMode === "local" ? "#FFD700" : "#C8B293",
+                fontFamily: "var(--font-display)",
+                fontSize: "0.76rem",
+                fontWeight: 800,
+                letterSpacing: "1px",
+                textShadow: "1px 1px 0 #000",
+                cursor: "pointer",
+                transition: "all 0.12s ease"
+              }}
+            >
+              ⚔️ LOCAL EXPEDITION
+            </button>
+
+            <button
+              onClick={() => { sounds.btnClick(); setLobbyMode("online"); }}
+              style={{
+                flex: 1,
+                padding: "9px 16px",
+                background: lobbyMode === "online" ? "linear-gradient(180deg, #6B491E 0%, #462E10 100%)" : "linear-gradient(180deg, #3A2C21 0%, #251B14 100%)",
+                border: lobbyMode === "online" ? "2px solid #C2974D" : "2px solid #5A422D",
+                boxShadow: lobbyMode === "online"
+                  ? "inset 1px 1px 0 #FFD700, inset -1px -1px 0 #1E1204, 0 2px 0 #0D0906"
+                  : "inset 1px 1px 0 #6E5239, inset -1px -1px 0 #140E0A, 0 2px 0 #0D0906",
+                borderRadius: "3px",
+                color: lobbyMode === "online" ? "#FFD700" : "#C8B293",
+                fontFamily: "var(--font-display)",
+                fontSize: "0.76rem",
+                fontWeight: 800,
+                letterSpacing: "1px",
+                textShadow: "1px 1px 0 #000",
+                cursor: "pointer",
+                transition: "all 0.12s ease"
+              }}
+            >
+              🌐 ONLINE MULTIPLAYER
+            </button>
+          </div>
+        )}
+
+        {/* Scrollable Content Body */}
+        <div style={{ flex: 1, overflowY: "auto", paddingRight: "6px", minHeight: 0 }}>
+{lobbyMode === "local" ? (
         <div
           className="lobby-dossier-card"
           style={{
-            background: "rgba(10, 14, 26, 0.95)",
-            backdropFilter: "blur(16px)",
-            border: "1.5px solid rgba(56, 189, 248, 0.35)",
-            borderRadius: "12px",
-            padding: "20px 24px",
-            width: "100%",
-            maxWidth: "740px",
-            boxShadow: "0 16px 50px rgba(0, 0, 0, 0.7)"
+            background: "transparent",
+            border: "none",
+            boxShadow: "none",
+            padding: "0",
+            width: "100%"
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: "1rem", color: "#F59E0B", letterSpacing: "1px", fontWeight: 800 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", background: "#32261D", border: "2px solid #C2974D", boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16", borderRadius: "4px", padding: "4px 14px", fontFamily: "var(--font-display)", fontSize: "0.78rem", color: "#FCD34D", letterSpacing: "1px" }}>
               OPERATIVE CADRE DOSSIER
             </div>
-            <div style={{ fontSize: "0.74rem", color: "#38BDF8", fontWeight: 700 }}>
+            <div style={{ fontSize: "0.68rem", color: "#FFD700", fontWeight: 700, fontFamily: "var(--font-display)" }}>
               {activeSlots.length} / 4 OPERATIVES READY
             </div>
           </div>
 
-          <p className="lobby-dossier-desc" style={{ fontSize: "0.78rem", color: "#94A3B8", lineHeight: 1.5, margin: "0 0 14px" }}>
+          <p className="lobby-dossier-desc" style={{ fontSize: "0.75rem", color: "#C4B39E", lineHeight: 1.5, margin: "0 0 14px" }}>
             Configure each slot as <strong>👤 Human Operative</strong>, <strong>🤖 AI Construct</strong>, or <strong>🚫 Deactivated</strong>. Assign roles and calibrate AI parameters:
           </p>
 
@@ -235,18 +390,20 @@ export default function LobbyScreen({
                 key={i}
                 onClick={p.fn}
                 style={{
-                  background: "rgba(255, 255, 255, 0.05)",
-                  border: "1px solid rgba(255, 255, 255, 0.12)",
-                  borderRadius: "6px",
-                  color: "#CBD5E1",
-                  padding: "6px 12px",
-                  fontSize: "0.74rem",
+                  background: "#3A2C21",
+                  border: "2px solid #C2974D",
+                  borderRadius: "4px",
+                  boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A",
+                  color: "#FEF3C7",
+                  padding: "7px 14px",
+                  fontSize: "0.65rem",
+                  fontFamily: "var(--font-display)",
                   fontWeight: 700,
                   cursor: "pointer",
                   transition: "all 0.15s ease"
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#38BDF8"; e.currentTarget.style.color = "#FFF"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.12)"; e.currentTarget.style.color = "#CBD5E1"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#FFD700"; e.currentTarget.style.background = "#473629"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#8C672B"; e.currentTarget.style.background = "#382C22"; }}
               >
                 {p.label}
               </button>
@@ -266,9 +423,9 @@ export default function LobbyScreen({
                   <div
                     key={idx}
                     style={{
-                      background: "rgba(15, 23, 42, 0.4)",
-                      border: "1px dashed rgba(255, 255, 255, 0.15)",
-                      borderRadius: "8px",
+                      background: "#16100C",
+                      border: "2px dashed #4A382C",
+                      borderRadius: "6px",
                       padding: "10px 14px",
                       display: "flex",
                       alignItems: "center",
@@ -291,9 +448,9 @@ export default function LobbyScreen({
 
                     <select
                       style={{
-                        background: "rgba(15, 23, 42, 0.8)",
-                        color: "#94A3B8",
-                        border: "1px solid rgba(255, 255, 255, 0.15)",
+                        background: "#140E0A",
+                        color: "#F5EEDC",
+                        border: "1.5px solid #5A422D",
                         borderRadius: "6px",
                         padding: "5px 10px",
                         fontSize: "0.74rem",
@@ -315,10 +472,11 @@ export default function LobbyScreen({
                 <div
                   key={idx}
                   style={{
-                    background: "rgba(15, 23, 42, 0.75)",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                    borderLeft: `4px solid ${color}`,
-                    borderRadius: "8px",
+                    background: "#1C1510",
+                    border: "2px solid #3D2F23",
+                    borderLeft: `6px solid ${color}`,
+                    boxShadow: "inset 2px 2px 0 #0F0A07, inset -1px -1px 0 #4A3A2C",
+                    borderRadius: "6px",
                     padding: "12px 14px",
                     display: "flex",
                     gap: "12px",
@@ -345,35 +503,40 @@ export default function LobbyScreen({
                           SLOT {idx + 1}
                         </span>
                         <span style={{
-                          fontSize: "0.64rem",
+                          fontSize: "0.58rem",
                           fontWeight: 800,
-                          background: isAi ? "rgba(96, 165, 250, 0.15)" : "rgba(52, 211, 153, 0.15)",
-                          color: isAi ? "#60A5FA" : "#34D399",
-                          border: `1px solid ${isAi ? "rgba(96, 165, 250, 0.35)" : "rgba(52, 211, 153, 0.35)"}`,
-                          padding: "1px 6px",
-                          borderRadius: "4px"
+                          fontFamily: "var(--font-display)",
+                          background: isAi ? "#261D16" : "#2D2218",
+                          color: isAi ? "#D4A559" : "#FCD34D",
+                          border: "1.5px solid #8C672B",
+                          boxShadow: "inset 1px 1px 0 #5C3E16, 0 1px 0 #000",
+                          padding: "3px 8px",
+                          borderRadius: "3px"
                         }}>
-                          {isAi ? "🤖 AI CONSTRUCT" : "👤 HUMAN OPERATIVE"}
+                          {isAi ? "🤖 CPU BOT" : (idx === 0 ? "👤 OPERATIVE" : "👤 PLAYER")}
                         </span>
                       </div>
 
                       <select
                         style={{
-                          background: "rgba(15, 23, 42, 0.9)",
-                          color: isAi ? "#60A5FA" : "#34D399",
-                          border: `1px solid ${isAi ? "rgba(96, 165, 250, 0.3)" : "rgba(52, 211, 153, 0.3)"}`,
-                          borderRadius: "6px",
-                          padding: "4px 8px",
-                          fontSize: "0.74rem",
+                          background: "#3A2C21",
+                          color: "#FEF3C7",
+                          border: "2px solid #C2974D",
+                          boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A",
+                          borderRadius: "4px",
+                          padding: "5px 10px",
+                          fontSize: "0.68rem",
+                          fontFamily: "var(--font-display)",
                           fontWeight: 700,
-                          outline: "none"
+                          outline: "none",
+                          cursor: "pointer"
                         }}
                         value={player.type}
                         onChange={(e) => updateSlot(idx, { type: e.target.value })}
                       >
-                        <option value="human">👤 Human Operative</option>
-                        <option value="ai">🤖 AI Construct</option>
-                        <option value="closed">🚫 Deactivated</option>
+                        <option value="human">👤 Human Player</option>
+                        <option value="ai">🤖 CPU Bot</option>
+                        <option value="closed">🚫 Closed Slot</option>
                       </select>
                     </div>
 
@@ -382,15 +545,15 @@ export default function LobbyScreen({
                       <input
                         type="text"
                         value={player.name}
-                        placeholder={isAi ? "AI Construct Name" : "Operative Name"}
+                        placeholder={isAi ? "AI Construct Name" : (idx === 0 ? "Operative Callsign" : "Operative Name")}
                         style={{
                           flex: 1,
-                          background: "rgba(0, 0, 0, 0.5)",
-                          border: "1px solid rgba(255, 255, 255, 0.15)",
+                          background: "#140E0A",
+                          border: "1.5px solid #5A422D",
                           borderRadius: "4px",
                           padding: "5px 8px",
                           fontSize: "0.78rem",
-                          color: "#FFF",
+                          color: "#F5EEDC",
                           outline: "none"
                         }}
                         onChange={(e) => updateSlot(idx, { name: e.target.value })}
@@ -399,19 +562,22 @@ export default function LobbyScreen({
                       {isAi && (
                         <select
                           style={{
-                            background: "rgba(0, 0, 0, 0.5)",
-                            color: "#38BDF8",
-                            border: "1px solid rgba(56, 189, 248, 0.35)",
+                            background: "#3A2C21",
+                            color: "#FEF3C7",
+                            border: "2px solid #C2974D",
+                            boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A",
                             borderRadius: "4px",
-                            padding: "5px 8px",
-                            fontSize: "0.74rem",
+                            padding: "5px 10px",
+                            fontSize: "0.68rem",
+                            fontFamily: "var(--font-display)",
                             fontWeight: 700,
-                            outline: "none"
+                            outline: "none",
+                            cursor: "pointer"
                           }}
                           value={player.difficulty || "normal"}
                           onChange={(e) => updateSlot(idx, { difficulty: e.target.value })}
                         >
-                          <option value="easy">🟢 Easy Protocol</option>
+                          <option value="easy">🟢 Novice AI</option>
                           <option value="normal">🔵 Standard AI</option>
                           <option value="hard">🔴 Master AI</option>
                         </select>
@@ -419,14 +585,17 @@ export default function LobbyScreen({
 
                       <select
                         style={{
-                          background: "rgba(0, 0, 0, 0.5)",
-                          color: "#F59E0B",
-                          border: "1px solid rgba(245, 158, 11, 0.35)",
+                          background: "#3A2C21",
+                          color: "#FFD700",
+                          border: "2px solid #C2974D",
+                          boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A",
                           borderRadius: "4px",
-                          padding: "5px 8px",
-                          fontSize: "0.74rem",
+                          padding: "5px 10px",
+                          fontSize: "0.68rem",
+                          fontFamily: "var(--font-display)",
                           fontWeight: 700,
-                          outline: "none"
+                          outline: "none",
+                          cursor: "pointer"
                         }}
                         value={player.roleKey}
                         onChange={(e) => updateSlot(idx, { roleKey: e.target.value })}
@@ -439,8 +608,8 @@ export default function LobbyScreen({
                       </select>
                     </div>
 
-                    <div style={{ fontSize: "0.7rem", color: "#94A3B8" }}>
-                      <strong style={{ color: "#38BDF8" }}>Passive:</strong> {role.passive.name} ({role.passive.description}) &bull; <strong style={{ color: "#F59E0B" }}>Active:</strong> {role.active.name}
+                    <div style={{ fontSize: "0.72rem", color: "#C4B39E", fontFamily: "var(--font-body)" }}>
+                      <strong style={{ color: "#FCD34D" }}>Passive:</strong> {role.passive.name} ({role.passive.description}) &bull; <strong style={{ color: "#67E8F9" }}>Active:</strong> {role.active.name}
                     </div>
                   </div>
                 </div>
@@ -449,7 +618,7 @@ export default function LobbyScreen({
           </div>
 
           {/* Action Row */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "14px", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "14px", borderTop: "2px solid #5A422D" }}>
             <button
               className="btn btn-secondary"
               onClick={onBack}
@@ -495,14 +664,11 @@ export default function LobbyScreen({
         <div
           className="lobby-dossier-card"
           style={{
-            background: "rgba(10, 14, 26, 0.95)",
-            backdropFilter: "blur(16px)",
-            border: "1.5px solid rgba(56, 189, 248, 0.35)",
-            borderRadius: "12px",
-            padding: "20px 24px",
-            width: "100%",
-            maxWidth: network.roomCode ? "880px" : "740px",
-            boxShadow: "0 16px 50px rgba(0, 0, 0, 0.7)"
+            background: "transparent",
+            border: "none",
+            boxShadow: "none",
+            padding: "0",
+            width: "100%"
           }}
         >
           {canSpectatePrompt && (
@@ -561,11 +727,13 @@ export default function LobbyScreen({
                 style={{
                   flex: 1,
                   padding: "8px",
-                  background: onlineSubMode === "create" ? "rgba(56, 189, 248, 0.25)" : "rgba(255, 255, 255, 0.05)",
-                  border: onlineSubMode === "create" ? "1.5px solid #38BDF8" : "1px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: "6px",
-                  color: onlineSubMode === "create" ? "#FFF" : "#94A3B8",
-                  fontSize: "0.78rem",
+                  background: onlineSubMode === "create" ? "#382C22" : "#221913",
+                  border: onlineSubMode === "create" ? "2px solid #FFD700" : "1.5px solid #5A422D",
+                  boxShadow: onlineSubMode === "create" ? "inset 1px 1px 0 #EBD07D, 0 0 10px rgba(255, 215, 0, 0.3)" : "inset 1px 1px 0 #3D2F23",
+                  borderRadius: "4px",
+                  color: onlineSubMode === "create" ? "#FFD700" : "#A89885",
+                  fontSize: "0.72rem",
+                  fontFamily: "var(--font-display)",
                   fontWeight: 800,
                   cursor: "pointer"
                 }}
@@ -577,11 +745,13 @@ export default function LobbyScreen({
                 style={{
                   flex: 1,
                   padding: "8px",
-                  background: onlineSubMode === "join" ? "rgba(56, 189, 248, 0.25)" : "rgba(255, 255, 255, 0.05)",
-                  border: onlineSubMode === "join" ? "1.5px solid #38BDF8" : "1px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: "6px",
-                  color: onlineSubMode === "join" ? "#FFF" : "#94A3B8",
-                  fontSize: "0.78rem",
+                  background: onlineSubMode === "join" ? "#382C22" : "#221913",
+                  border: onlineSubMode === "join" ? "2px solid #FFD700" : "1.5px solid #5A422D",
+                  boxShadow: onlineSubMode === "join" ? "inset 1px 1px 0 #EBD07D, 0 0 10px rgba(255, 215, 0, 0.3)" : "inset 1px 1px 0 #3D2F23",
+                  borderRadius: "4px",
+                  color: onlineSubMode === "join" ? "#FFD700" : "#A89885",
+                  fontSize: "0.72rem",
+                  fontFamily: "var(--font-display)",
                   fontWeight: 800,
                   cursor: "pointer"
                 }}
@@ -593,11 +763,13 @@ export default function LobbyScreen({
                 style={{
                   flex: 1,
                   padding: "8px",
-                  background: onlineSubMode === "spectate" ? "rgba(168, 85, 247, 0.3)" : "rgba(255, 255, 255, 0.05)",
-                  border: onlineSubMode === "spectate" ? "1.5px solid #C084FC" : "1px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: "6px",
-                  color: onlineSubMode === "spectate" ? "#F5D0FE" : "#94A3B8",
-                  fontSize: "0.78rem",
+                  background: onlineSubMode === "spectate" ? "#382C22" : "#221913",
+                  border: onlineSubMode === "spectate" ? "2px solid #FFD700" : "1.5px solid #5A422D",
+                  boxShadow: onlineSubMode === "spectate" ? "inset 1px 1px 0 #EBD07D, 0 0 10px rgba(255, 215, 0, 0.3)" : "inset 1px 1px 0 #3D2F23",
+                  borderRadius: "4px",
+                  color: onlineSubMode === "spectate" ? "#FFD700" : "#A89885",
+                  fontSize: "0.72rem",
+                  fontFamily: "var(--font-display)",
                   fontWeight: 800,
                   cursor: "pointer"
                 }}
@@ -610,24 +782,30 @@ export default function LobbyScreen({
           {!isRoomActive ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <div>
-                <label style={{ fontSize: "0.74rem", color: "#94A3B8", fontWeight: 800, letterSpacing: "1px" }}>
+                <label style={{ fontSize: "0.72rem", color: "#D4A559", fontFamily: "var(--font-display)", fontWeight: 800, letterSpacing: "1px", textShadow: "1px 1px 0 #000" }}>
                   OPERATIVE CALLSIGN:
                 </label>
                 <input
                   type="text"
                   className="player-name-input"
-                  value={onlinePlayerName}
+                  value={onlinePlayerName || getSavedProfile().name}
                   style={{
                     width: "100%",
                     marginTop: "4px",
-                    background: "rgba(15, 23, 42, 0.8)",
-                    border: "1px solid rgba(56, 189, 248, 0.3)",
-                    borderRadius: "6px",
+                    background: "#140E0A",
+                    border: "2px solid #5A422D",
+                    boxShadow: "inset 1px 1px 0 #0F0A07",
+                    borderRadius: "4px",
                     padding: "8px 12px",
-                    color: "#FFF",
-                    fontSize: "0.88rem"
+                    color: "#FEF3C7",
+                    fontSize: "0.88rem",
+                    outline: "none"
                   }}
-                  onChange={(e) => setOnlinePlayerName(e.target.value)}
+                  onChange={(e) => {
+                    const newName = e.target.value;
+                    setOnlinePlayerName(newName);
+                    savePlayerProfile(newName, onlineSelectedRole);
+                  }}
                   placeholder="Enter your operative callsign"
                 />
               </div>
@@ -635,7 +813,7 @@ export default function LobbyScreen({
               {/* Role Selection Grid (Only if creating or joining as player) */}
               {onlineSubMode !== "spectate" && (
                 <div>
-                  <label style={{ fontSize: "0.74rem", color: "#94A3B8", fontWeight: 800, letterSpacing: "1px", marginBottom: "6px", display: "block" }}>
+                  <label style={{ fontSize: "0.72rem", color: "#D4A559", fontFamily: "var(--font-display)", fontWeight: 800, letterSpacing: "1px", marginBottom: "6px", display: "block", textShadow: "1px 1px 0 #000" }}>
                     SELECT OPERATIVE DISCIPLINE:
                   </label>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "8px" }}>
@@ -645,11 +823,12 @@ export default function LobbyScreen({
                     return (
                       <div
                         key={rk}
-                        onClick={() => { sounds.btnClick(); setOnlineSelectedRole(rk); }}
+                        onClick={() => { sounds.btnClick(); setOnlineSelectedRole(rk); savePlayerProfile(onlinePlayerName, rk); }}
                         style={{
-                          background: isSel ? "rgba(56, 189, 248, 0.2)" : "rgba(15, 23, 42, 0.7)",
-                          border: isSel ? "2px solid #38BDF8" : "1px solid rgba(255, 255, 255, 0.1)",
-                          borderRadius: "8px",
+                          background: isSel ? "#382C22" : "#1C1510",
+                          border: isSel ? "2px solid #FFD700" : "1.5px solid #3D2F23",
+                          boxShadow: isSel ? "inset 1px 1px 0 #EBD07D, 0 0 12px rgba(255, 215, 0, 0.4)" : "inset 1px 1px 0 #0F0A07",
+                          borderRadius: "6px",
                           padding: "10px",
                           cursor: "pointer",
                           display: "flex",
@@ -658,9 +837,9 @@ export default function LobbyScreen({
                           transition: "all 0.15s ease"
                         }}
                       >
-                        <img src={role.avatar} alt={role.name} style={{ width: "36px", height: "36px", borderRadius: "6px", objectFit: "cover" }} />
+                        <img src={role.avatar} alt={role.name} style={{ width: "36px", height: "36px", borderRadius: "4px", objectFit: "cover", border: "1.5px solid #5A422D", imageRendering: "pixelated" }} />
                         <div>
-                          <div style={{ fontSize: "0.8rem", fontWeight: 800, color: isSel ? "#38BDF8" : "#FFF" }}>
+                          <div style={{ fontSize: "0.76rem", fontWeight: 800, fontFamily: "var(--font-display)", color: isSel ? "#FFD700" : "#F5EEDC" }}>
                             {role.name}
                           </div>
                           <div style={{ fontSize: "0.64rem", color: "#64748B" }}>
@@ -707,7 +886,7 @@ export default function LobbyScreen({
                       textTransform: "uppercase",
                       fontSize: "1.1rem",
                       marginTop: "4px",
-                      background: "rgba(15, 23, 42, 0.8)",
+                      background: "#140E0A", border: "1.5px solid #5A422D",
                       border: "1px solid rgba(56, 189, 248, 0.3)",
                       borderRadius: "6px",
                       padding: "8px 12px",
@@ -744,7 +923,7 @@ export default function LobbyScreen({
               </div>
 
               {/* Action Buttons */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "12px", borderTop: "2px solid #5A422D" }}>
                 <button className="btn btn-secondary" onClick={onBack} style={{ padding: "10px 20px", fontSize: "0.82rem" }}>
                   ← Return
                 </button>
@@ -780,22 +959,24 @@ export default function LobbyScreen({
                 <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                   {/* Room Code Badge */}
                   <div style={{
-                    background: "rgba(15, 23, 42, 0.8)",
-                    border: "1px solid rgba(56, 189, 248, 0.4)",
-                    borderRadius: "8px",
+                    background: "#1C1510",
+                    border: "2px solid #C2974D",
+                    boxShadow: "inset 2px 2px 0 #0F0A07, inset -1px -1px 0 #4A3A2C",
+                    borderRadius: "6px",
                     padding: "16px",
                     textAlign: "center"
                   }}>
-                    <div style={{ fontSize: "0.72rem", color: "#94A3B8", fontWeight: 800, letterSpacing: "1px" }}>
+                    <div style={{ fontSize: "0.68rem", color: "#FCD34D", fontFamily: "var(--font-display)", fontWeight: 800, letterSpacing: "1px" }}>
                       ANOMALY SYNC CODE
                     </div>
                     <div style={{
-                      fontSize: "2.2rem",
+                      fontSize: "2rem",
                       letterSpacing: "6px",
                       fontFamily: "var(--font-display)",
                       fontWeight: 900,
-                      color: "#38BDF8",
-                      margin: "4px 0"
+                      color: "#FFD700",
+                      textShadow: "2px 2px 0 #120E0A, 0 0 15px rgba(255, 215, 0, 0.4)",
+                      margin: "6px 0"
                     }}>
                       {network.roomCode}
                     </div>
@@ -835,9 +1016,10 @@ export default function LobbyScreen({
                             alignItems: "center",
                             justifyContent: "space-between",
                             padding: "8px 12px",
-                            background: "rgba(15, 23, 42, 0.6)",
-                            borderRadius: "6px",
-                            border: "1px solid rgba(255, 255, 255, 0.08)"
+                            background: "#140E0A",
+                            borderRadius: "4px",
+                            border: "1.5px solid #3D2F23",
+                            boxShadow: "inset 1px 1px 0 #000"
                           }}
                         >
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -895,7 +1077,7 @@ export default function LobbyScreen({
                   )}
 
               {/* Waiting Room Action Bar */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "14px", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "14px", borderTop: "2px solid #5A422D" }}>
                 <button className="btn btn-secondary" onClick={onLeaveRoom} style={{ padding: "10px 20px", fontSize: "0.82rem" }}>
                   {isSpectator ? "Leave Observatory" : "Leave Anomaly Room"}
                 </button>
@@ -921,6 +1103,8 @@ export default function LobbyScreen({
           )}
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }

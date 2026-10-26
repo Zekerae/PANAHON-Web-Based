@@ -1,16 +1,32 @@
 import { useState, useEffect, useCallback } from 'react';
 import sounds from '../sound.js';
 import { ROLES } from '../gameData.js';
+import { getSavedProfile } from '../sessionManager.js';
 
 export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess }) {
   const [currentRoomPlayers, setCurrentRoomPlayers] = useState([]);
   const [isConnectingOnline, setIsConnectingOnline] = useState(false);
-  const [onlinePlayerName, setOnlinePlayerName] = useState('Temporal Castaway');
-  const [onlineSelectedRole, setOnlineSelectedRole] = useState('HISTORIAN');
+  const [onlinePlayerName, setOnlinePlayerName] = useState(() => {
+    return getSavedProfile().name;
+  });
+  const [onlineSelectedRole, setOnlineSelectedRole] = useState(() => {
+    return getSavedProfile().roleKey;
+  });
   const [onlineRoomCodeInput, setOnlineRoomCodeInput] = useState('');
   const [spectators, setSpectators] = useState([]);
   const [isSpectator, setIsSpectator] = useState(false);
   const [canSpectatePrompt, setCanSpectatePrompt] = useState(null);
+
+  // Sync with profile changes from Profile tab or Local Lobby
+  useEffect(() => {
+    const handleProfileUpdate = (e) => {
+      const { name, roleKey } = e.detail || {};
+      if (name) setOnlinePlayerName(name);
+      if (roleKey) setOnlineSelectedRole(roleKey);
+    };
+    window.addEventListener('panahon_profile_updated', handleProfileUpdate);
+    return () => window.removeEventListener('panahon_profile_updated', handleProfileUpdate);
+  }, []);
 
   useEffect(() => {
     if (!network) return;
@@ -138,11 +154,14 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
     setIsConnectingOnline(true);
     network.setMode('online');
 
-    const name = onlinePlayerName.trim() || 'Castaway';
+    const prof = getSavedProfile();
+    const rawName = (onlinePlayerName || '').trim();
+    const name = (!rawName || rawName === 'Temporal Castaway' || rawName === 'Operative One') ? prof.name : rawName;
+    const role = onlineSelectedRole || prof.roleKey || 'HISTORIAN';
 
     if (subMode === 'create') {
       showToast('Creating Mission', 'Connecting to Cloud Relay...', 'info');
-      network.createRoom(name, onlineSelectedRole)
+      network.createRoom(name, role)
         .catch(() => setIsConnectingOnline(false));
     } else {
       const code = onlineRoomCodeInput.trim().toUpperCase();
@@ -152,7 +171,7 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
         return;
       }
       showToast('Connecting', `Connecting to Room ${code}...`, 'info');
-      network.joinRoom(code, name, onlineSelectedRole)
+      network.joinRoom(code, name, role)
         .catch(() => setIsConnectingOnline(false));
     }
   }, [network, isConnectingOnline, onlinePlayerName, onlineSelectedRole, onlineRoomCodeInput, showToast]);
@@ -164,7 +183,8 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
       showToast('Invalid Code', 'Please enter a 5-letter Room Code to spectate.', 'warning');
       return;
     }
-    const name = (customName || onlinePlayerName).trim() || 'Chronos Observer';
+    const prof = getSavedProfile();
+    const name = (customName || onlinePlayerName).trim() || prof.name || 'Chronos Observer';
     setIsConnectingOnline(true);
     network.setMode('online');
     showToast('Observatory Uplink', `Connecting to Room ${code} as Spectator...`, 'info');

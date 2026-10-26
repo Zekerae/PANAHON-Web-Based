@@ -4,7 +4,7 @@ import { GameEngine } from './gameEngine.js';
 import { NetworkManager } from './network.js';
 import { saveCustomMap } from './gameData.js';
 import { loadMapFromSupabase } from './supabaseClient.js';
-import { getActiveSession, saveActiveSession, clearActiveSession } from './sessionManager.js';
+import { getActiveSession, saveActiveSession, clearActiveSession, getSavedProfile } from './sessionManager.js';
 import { appReducer, initialAppState } from './state/appReducer.js';
 import { useGameEngine } from './hooks/useGameEngine.js';
 import { useAudio } from './hooks/useAudio.js';
@@ -162,11 +162,14 @@ export default function App() {
 
   // Action Handlers
   const handleSelectMode = useCallback((mode) => {
+    const prof = getSavedProfile();
+    networkRoom.setOnlinePlayerName(prof.name);
+    networkRoom.setOnlineSelectedRole(prof.roleKey);
     if (mode === 'solo') {
       dispatch({
         type: 'SET_LOCAL_PLAYERS',
         payload: [
-          { name: 'Player 1', roleKey: 'HISTORIAN', type: 'human', difficulty: 'normal' },
+          { name: prof.name, roleKey: prof.roleKey, type: 'human', difficulty: 'normal' },
           { name: 'Bot Explorer', roleKey: 'EXPLORER', type: 'ai', difficulty: 'normal' },
           { name: 'Bot Guardian', roleKey: 'GUARDIAN', type: 'ai', difficulty: 'normal' },
           { name: 'Bot Strategist', roleKey: 'STRATEGIST', type: 'ai', difficulty: 'normal' }
@@ -174,9 +177,25 @@ export default function App() {
       });
       dispatch({ type: 'OPEN_LOBBY', mode: 'local' });
     } else {
+      dispatch({ type: 'SYNC_PROFILE_NAME', payload: prof });
       dispatch({ type: 'OPEN_LOBBY', mode });
     }
-  }, []);
+  }, [networkRoom]);
+
+  useEffect(() => {
+    const onProfileUpdate = (e) => {
+      const { name, roleKey } = e.detail || {};
+      if (name) {
+        networkRoom.setOnlinePlayerName(name);
+        dispatch({ type: 'SYNC_PROFILE_NAME', payload: { name, roleKey } });
+      }
+      if (roleKey) {
+        networkRoom.setOnlineSelectedRole(roleKey);
+      }
+    };
+    window.addEventListener('panahon_profile_updated', onProfileUpdate);
+    return () => window.removeEventListener('panahon_profile_updated', onProfileUpdate);
+  }, [networkRoom]);
 
   const handleStartLocalGame = useCallback((overrideConfigs, forceSpectator = false) => {
     const configsToUse = overrideConfigs || appState.localPlayers;

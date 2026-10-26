@@ -1,4 +1,5 @@
 import React, { memo } from 'react';
+import sounds from '../../sound.js';
 import { ERA_NAMES, GAME_CONSTANTS } from '../../gameData.js';
 import Dice from './Dice';
 
@@ -363,32 +364,41 @@ function GameActions({
           </div>
 
           {/* DICE ROLLING SECTION */}
-          <div className="dice-area" style={{ marginBottom: '12px' }}>
+          <div className="roll-phase-dice-card" style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            padding: '12px 14px',
+            background: 'rgba(0, 0, 0, 0.35)',
+            borderRadius: '10px',
+            border: '1px solid rgba(139, 92, 246, 0.35)',
+            marginBottom: '12px'
+          }}>
             <Dice
               value={state.diceResult}
               isRolling={isRolling}
               size="md"
               theme="chrono"
-              onClick={onRollDice}
+              onClick={() => { sounds.diceRoll?.(); onRollDice(); }}
               disabled={!isMyTurn || isRolling}
               isInteractive={isMyTurn && !isRolling}
-              showLabel={isMyTurn && !isRolling}
+              showLabel={false}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#FACC15' }}>
-                Roll Movement Die
+              <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#FACC15', letterSpacing: '0.3px' }}>
+                {isRolling ? 'Tumbling Die...' : (state.diceResult ? `Rolled: ${state.diceResult}` : 'Chrono Movement Die')}
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '2px' }}>
-                Click dice or press <kbd style={{ background: 'rgba(0,0,0,0.5)', padding: '1px 5px', borderRadius: '3px', fontSize: '0.68rem', color: '#FACC15', border: '1px solid rgba(250,204,21,0.4)' }}>SPACE</kbd>
+              <div style={{ fontSize: '0.72rem', color: '#CBD5E1', marginTop: '3px', lineHeight: 1.35 }}>
+                {isRolling ? 'Determining your timeline trajectory...' : 'Roll 1–6 movement spaces along the path.'}
               </div>
             </div>
           </div>
 
           <button
             className="btn btn-roll-dice"
-            style={{ width: '100%', minWidth: 0, marginBottom: '10px' }}
+            style={{ width: '100%', minWidth: 0, marginTop: '2px', marginBottom: '12px' }}
             disabled={!isMyTurn || isRolling}
-            onClick={onRollDice}
+            onClick={() => { sounds.diceRoll?.(); onRollDice(); }}
           >
             <span>🎲 ROLL MOVEMENT DIE</span>
             <kbd>SPACEBAR</kbd>
@@ -401,7 +411,7 @@ function GameActions({
               style={{ flex: 1, padding: '7px', fontSize: '0.75rem' }}
               disabled={!isMyTurn || isRolling}
               title="Skip your turn to recover +3 Chrono Energy"
-              onClick={onRest}
+              onClick={() => { sounds.btnClick?.(); onRest(); }}
             >
               <span className="action-btn-icon">💤</span>
               <span>Rest (Skip Turn)</span>
@@ -502,7 +512,7 @@ function GameActions({
                 className="btn btn-primary"
                 style={{ width: '100%', padding: '8px', fontSize: '0.85rem' }}
                 disabled={!isMyTurn}
-                onClick={onStepMove}
+                onClick={() => { sounds.stepHop?.(); onStepMove(); }}
               >
                 {isMovingBackward ? 'Step Backward ⬅️' : 'Step Forward ➡️'} ({state.movesRemaining} left)
               </button>
@@ -522,7 +532,7 @@ function GameActions({
                   justifyContent: 'center',
                   gap: '8px',
                   background: isMovingBackward ? 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)' : undefined,
-                  boxShadow: isMovingBackward ? '0 4px 14px rgba(234, 88, 12, 0.45)' : '0 4px 14px rgba(59, 130, 246, 0.45)'
+                  boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 3px 0 #120E0A'
                 }}
                 disabled={!isMyTurn}
                 onClick={onStepMove}
@@ -616,7 +626,7 @@ function GameActions({
                   }}
                   disabled={!canUseAbilityNow}
                   title={abilityStatusText}
-                  onClick={onUseSkill}
+                  onClick={() => { sounds.abilityActivate?.(); onUseSkill(); }}
                 >
                   <span>✨ Activate {activeSkill.name} ({abilityBadge})</span>
                 </button>
@@ -634,11 +644,11 @@ function GameActions({
                   padding: '8px 10px',
                   fontSize: '0.78rem',
                   fontWeight: 800,
-                  background: 'linear-gradient(135deg, #10B981, #059669)',
-                  border: '1px solid #34D399',
+                  background: 'linear-gradient(180deg, #384D26 0%, #253518 100%)',
+                  border: '2px solid #6DBF4E',
                   color: '#FFF',
                   borderRadius: '6px',
-                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                  boxShadow: 'inset 1px 1px 0 #A7F3D0, 0 3px 0 #120E0A',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -665,8 +675,8 @@ function GameActions({
                   padding: '8px 10px',
                   fontSize: '0.78rem',
                   fontWeight: 800,
-                  background: canTimeWarp ? 'linear-gradient(135deg, #8B5CF6, #6D28D9)' : 'rgba(15, 23, 42, 0.6)',
-                  border: canTimeWarp ? '1px solid #A78BFA' : '1px solid rgba(255, 255, 255, 0.1)',
+                  background: canTimeWarp ? 'linear-gradient(180deg, #4D3826 0%, #352518 100%)' : '#241D17',
+                  border: canTimeWarp ? '2px solid #C2974D' : '1.5px solid #4A382A',
                   color: '#FFF',
                   borderRadius: '6px',
                   cursor: canTimeWarp ? 'pointer' : 'not-allowed',
@@ -700,7 +710,7 @@ function GameActions({
               fontWeight: 800,
               letterSpacing: '0.5px',
               borderRadius: '8px',
-              boxShadow: isMyTurn ? '0 0 15px rgba(56, 189, 248, 0.4), 0 4px 12px rgba(0, 0, 0, 0.5)' : 'none',
+              boxShadow: isMyTurn ? 'inset 1px 1px 0 #FFF, inset -1px -1px 0 #7A5823, 0 3px 0 #120E0A' : 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

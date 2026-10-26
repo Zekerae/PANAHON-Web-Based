@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo, memo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import sounds from "../../sound.js";
 import { getNextTileIndex } from "../../gameEngine.js";
 import {
@@ -12,11 +12,11 @@ import {
 
 const CAMERA_OPTIONS = [
   { id: 'full', label: 'Full Map', mobileLabel: 'Full', icon: '🗺️' },
+  { id: 'auto', label: 'Auto Focus', mobileLabel: 'Auto', icon: '🎯' },
   { id: 'focus-spanish', label: 'Spanish', mobileLabel: 'Spanish' },
   { id: 'focus-american', label: 'American', mobileLabel: 'American' },
   { id: 'focus-japanese', label: 'Japanese', mobileLabel: 'Japanese' },
   { id: 'focus-myth', label: 'Myth', mobileLabel: 'Myth' },
-  { id: 'auto', label: 'Auto Focus', mobileLabel: 'Auto', icon: '🎯' },
 ];
 
 function GameBoard({
@@ -30,7 +30,29 @@ function GameBoard({
   pendingChoice,
   onMoveToTile
 }) {
-  const [cameraMode, setCameraMode] = useState("full");
+  const [turnToast, setTurnToast] = useState(null);
+  const prevTurnKeyRef = useRef(null);
+
+  useEffect(() => {
+    if (!currentPlayer) return;
+    if (phase === "rolling" && prevTurnKeyRef.current !== `${currentPlayer.id}_${currentPlayer.currentEra}`) {
+      prevTurnKeyRef.current = `${currentPlayer.id}_${currentPlayer.currentEra}`;
+      sounds.turnStart?.();
+      setTurnToast({
+        player: currentPlayer,
+        era: currentPlayer.currentEra
+      });
+      const t = setTimeout(() => setTurnToast(null), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [currentPlayer?.id, currentPlayer?.currentEra, phase]);
+
+  const [cameraMode, setCameraMode] = useState(() => {
+    if (typeof window !== "undefined" && (window.innerWidth <= 920 || window.innerHeight <= 550)) {
+      return "auto";
+    }
+    return "full";
+  });
   const [zoom, setZoom] = useState(1.0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -50,16 +72,19 @@ function GameBoard({
   const rafIdRef = useRef(null);
   const wheelTimeoutRef = useRef(null);
 
-  // Bounds clamping to keep map within accessible limits
+  // Bounds clamping to keep map accurately within accessible limits
   const clampPan = useCallback((x, y, currentZoom) => {
     if (!viewportRef.current) return { x, y };
     const vw = viewportRef.current.clientWidth || 800;
     const vh = viewportRef.current.clientHeight || 600;
-    const bw = Math.min(vw, 960);
-    const bh = (bw * 765) / 1024;
+    const bw = mapWrapperRef.current?.clientWidth || Math.min(vw, (vh * 1024) / 765);
+    const bh = mapWrapperRef.current?.clientHeight || (bw * 765) / 1024;
 
-    const maxPanX = Math.max(0, (bw * currentZoom - vw) / 2) + vw * 0.35;
-    const maxPanY = Math.max(0, (bh * currentZoom - vh) / 2) + vh * 0.35;
+    const scaledWidth = bw * currentZoom;
+    const scaledHeight = bh * currentZoom;
+
+    const maxPanX = Math.max(0, (scaledWidth - vw) / 2) + vw * 0.2;
+    const maxPanY = Math.max(0, (scaledHeight - vh) / 2) + vh * 0.2;
 
     return {
       x: Math.min(maxPanX, Math.max(-maxPanX, x)),
@@ -67,7 +92,7 @@ function GameBoard({
     };
   }, []);
 
-  // Update DOM transform directly in RAF (60-120fps smooth on mobile)
+  // Update DOM transform directly in RAF (60-120fps smooth on mobile & desktop)
   const updateTransformDirect = useCallback((newPan, newZoom) => {
     panRef.current = newPan;
     zoomRef.current = newZoom;
@@ -81,46 +106,117 @@ function GameBoard({
     }
   }, []);
 
+  // Calculate pan offset to center on a given era & tile coordinate
+  const getTilePan = useCallback((era, tileIndex, targetZoom = 1.9) => {
+    if (!viewportRef.current) return { x: 0, y: 0 };
+    const vw = viewportRef.current.clientWidth || 800;
+    const vh = viewportRef.current.clientHeight || 600;
+    const bw = mapWrapperRef.current?.clientWidth || Math.min(vw, (vh * 1024) / 765);
+    const bh = mapWrapperRef.current?.clientHeight || (bw * 765) / 1024;
+
+    const coords = (typeof getActiveTileCoordinates === "function" ? getActiveTileCoordinates() : null)?.[era] || ERA_TILE_COORDINATES?.[era] || [];
+    const coord = coords[tileIndex] || coords[0];
+
+    if (!coord || typeof coord.x !== "number" || typeof coord.y !== "number") {
+      return { x: 0, y: 0 };
+    }
+
+    const rawX = (0.5 - coord.x / 100) * bw * targetZoom;
+    const rawY = (0.5 - coord.y / 100) * bh * targetZoom;
+
+    return clampPan(rawX, rawY, targetZoom);
+  }, [clampPan]);
+
   // Preset camera quadrant target calculator
   const setCameraPreset = useCallback((camId) => {
     sounds.btnClick();
     setCameraMode(camId);
-    if (!viewportRef.current) return;
-    const vw = viewportRef.current.clientWidth || 800;
-    const vh = viewportRef.current.clientHeight || 600;
 
     let targetZoom = 1.0;
     let targetPan = { x: 0, y: 0 };
 
-    if (camId === 'full') {
+    if (camId === "full") {
       targetZoom = 1.0;
       targetPan = { x: 0, y: 0 };
-    } else if (camId === 'focus-spanish') {
-      targetZoom = 2.0;
-      targetPan = clampPan(vw * 0.25, vh * 0.22, 2.0);
-    } else if (camId === 'focus-american') {
-      targetZoom = 2.0;
-      targetPan = clampPan(-vw * 0.25, vh * 0.22, 2.0);
-    } else if (camId === 'focus-japanese') {
-      targetZoom = 2.0;
-      targetPan = clampPan(-vw * 0.25, -vh * 0.22, 2.0);
-    } else if (camId === 'focus-myth') {
-      targetZoom = 2.0;
-      targetPan = clampPan(vw * 0.25, -vh * 0.22, 2.0);
-    } else if (camId === 'auto') {
-      const era = currentPlayer?.currentEra || 'spanish';
-      targetZoom = 2.0;
-      if (era === 'spanish') targetPan = clampPan(vw * 0.25, vh * 0.22, 2.0);
-      else if (era === 'american') targetPan = clampPan(-vw * 0.25, vh * 0.22, 2.0);
-      else if (era === 'japanese') targetPan = clampPan(-vw * 0.25, -vh * 0.22, 2.0);
-      else targetPan = clampPan(vw * 0.25, -vh * 0.22, 2.0);
+    } else if (camId === "focus-spanish") {
+      targetZoom = 1.9;
+      targetPan = getTilePan("spanish", 10, 1.9);
+    } else if (camId === "focus-american") {
+      targetZoom = 1.9;
+      targetPan = getTilePan("american", 10, 1.9);
+    } else if (camId === "focus-japanese") {
+      targetZoom = 1.9;
+      targetPan = getTilePan("japanese", 10, 1.9);
+    } else if (camId === "focus-myth") {
+      targetZoom = 1.9;
+      targetPan = getTilePan("myth", 10, 1.9);
+    } else if (camId === "auto") {
+      targetZoom = 1.9;
+      targetPan = getTilePan(
+        currentPlayer?.currentEra || "spanish",
+        currentPlayer?.tileIndex ?? 0,
+        1.9
+      );
     }
 
     panRef.current = targetPan;
     zoomRef.current = targetZoom;
     setZoom(targetZoom);
     setPan(targetPan);
-  }, [currentPlayer?.currentEra, clampPan]);
+    updateTransformDirect(targetPan, targetZoom);
+  }, [currentPlayer?.currentEra, currentPlayer?.tileIndex, getTilePan, updateTransformDirect]);
+
+  // Auto-camera tracking: smooth camera follow when player moves or turn changes in Auto mode
+  useEffect(() => {
+    if (cameraMode === "auto" && currentPlayer) {
+      const targetZoom = 1.9;
+      const targetPan = getTilePan(
+        currentPlayer.currentEra || "spanish",
+        currentPlayer.tileIndex ?? 0,
+        targetZoom
+      );
+      panRef.current = targetPan;
+      zoomRef.current = targetZoom;
+      setZoom(targetZoom);
+      setPan(targetPan);
+      updateTransformDirect(targetPan, targetZoom);
+    }
+  }, [
+    cameraMode,
+    currentPlayer?.id,
+    currentPlayer?.currentEra,
+    currentPlayer?.tileIndex,
+    phase,
+    getTilePan,
+    updateTransformDirect
+  ]);
+
+  // Keep camera centered & bounded on window resize and orientation change
+  useEffect(() => {
+    const handleResize = () => {
+      if (cameraMode === "auto" && currentPlayer) {
+        const targetPan = getTilePan(
+          currentPlayer.currentEra || "spanish",
+          currentPlayer.tileIndex ?? 0,
+          zoomRef.current
+        );
+        panRef.current = targetPan;
+        setPan(targetPan);
+        updateTransformDirect(targetPan, zoomRef.current);
+      } else {
+        const nextPan = clampPan(panRef.current.x, panRef.current.y, zoomRef.current);
+        panRef.current = nextPan;
+        setPan(nextPan);
+        updateTransformDirect(nextPan, zoomRef.current);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+    };
+  }, [cameraMode, currentPlayer, getTilePan, clampPan, updateTransformDirect]);
 
   const handleZoomStep = (delta) => {
     sounds.btnClick();
@@ -130,9 +226,10 @@ function GameBoard({
       panRef.current = nextPan;
       zoomRef.current = nextZoom;
       setPan(nextPan);
+      updateTransformDirect(nextPan, nextZoom);
       return nextZoom;
     });
-    setCameraMode('custom');
+    setCameraMode("custom");
   };
 
   const handleResetView = () => {
@@ -141,7 +238,8 @@ function GameBoard({
     zoomRef.current = 1.0;
     setZoom(1.0);
     setPan({ x: 0, y: 0 });
-    setCameraMode('full');
+    setCameraMode("full");
+    updateTransformDirect({ x: 0, y: 0 }, 1.0);
   };
 
   // Touch gesture handling (1 finger pan, 2 finger pinch-to-zoom)
@@ -181,6 +279,7 @@ function GameBoard({
       const dy = e.touches[0].clientY - touchStartPosRef.current.y;
       if (Math.hypot(dx, dy) > 6) {
         hasDraggedRef.current = true;
+        if (e.cancelable) e.preventDefault();
       }
       const rawX = e.touches[0].clientX - dragStartRef.current.x;
       const rawY = e.touches[0].clientY - dragStartRef.current.y;
@@ -303,6 +402,31 @@ function GameBoard({
 
   return (
     <main className="board-container">
+      {/* Cinematic Turn Announcement Banner */}
+      {turnToast && (
+        <div className="board-turn-toast" role="status" aria-live="polite">
+          <div className="turn-toast-glow" style={{ background: turnToast.player.color }} />
+          <div className="turn-toast-content">
+            <img
+              src={turnToast.player.role?.avatar || ""}
+              alt=""
+              className="turn-toast-avatar"
+              onError={(e) => { e.target.style.display = "none"; }}
+            />
+            <div className="turn-toast-info">
+              <div className="turn-toast-era" style={{ color: turnToast.player.color }}>
+                {ERA_NAMES[turnToast.era] || turnToast.era}
+              </div>
+              <div className="turn-toast-title">
+                <span style={{ color: turnToast.player.color }}>{turnToast.player.name}</span>'s Turn
+              </div>
+              <div className="turn-toast-sub">
+                {turnToast.player.role?.name || "Operative"} &bull; Phase 1: Roll Movement Die
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Top Camera Presets Bar */}
       <div className="board-camera-bar" role="toolbar" aria-label="Board camera controls">
         {CAMERA_OPTIONS.map((cam) => (
@@ -329,7 +453,7 @@ function GameBoard({
       {/* Interactive Clash-of-Clans Pan & Zoom Viewport */}
       <div
         ref={viewportRef}
-        className={`board-viewport ${isDragging ? 'is-dragging' : ''}`}
+        className={`board-viewport ${isDragging ? 'is-dragging' : ''} era-ambient-${currentPlayer?.currentEra || 'spanish'}`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleDragEnd}
@@ -340,6 +464,19 @@ function GameBoard({
         onMouseLeave={handleDragEnd}
         onWheel={handleWheel}
       >
+        {/* Dynamic Era Vignette Ambiance */}
+        <div className={`board-era-vignette era-vignette-${currentPlayer?.currentEra || 'spanish'}`} />
+
+        {/* Ambient Chrono Floating Particles */}
+        <div className="chrono-particles-overlay" aria-hidden="true">
+          <span className="chrono-mote m1"></span>
+          <span className="chrono-mote m2"></span>
+          <span className="chrono-mote m3"></span>
+          <span className="chrono-mote m4"></span>
+          <span className="chrono-mote m5"></span>
+          <span className="chrono-mote m6"></span>
+        </div>
+
         {/* Floating Zoom HUD (+ / - / Reset) */}
         <div className="board-zoom-hud" role="group" aria-label="Zoom controls">
           <button
@@ -376,13 +513,13 @@ function GameBoard({
           ref={mapWrapperRef}
           className="board-map-wrapper"
           style={{
-            transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
-            transition: isDragging ? 'none' : 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)',
+            transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale3d(${zoom}, ${zoom}, 1)`,
+            transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)',
             willChange: isDragging ? 'transform' : 'transform'
           }}
         >
           {/* SVG Path lines connecting circle spaces */}
-          <svg className="board-paths-svg" viewBox="0 0 1024 765" preserveAspectRatio="none">
+          <svg className="board-paths-svg" viewBox="0 0 1024 765" preserveAspectRatio="xMidYMid meet">
             {ERA_ORDER.map(era => {
               const coords = activeCoords?.[era] || ERA_TILE_COORDINATES?.[era] || [];
               if (!coords || coords.length === 0) return null;
@@ -502,7 +639,9 @@ function GameBoard({
                               {isPawnTurn && <div className="pawn-turn-arrow">▼ YOU</div>}
                               <div className="pawn-badge" style={{ background: p.color }}>P{(p.id ?? 0) + 1}</div>
                               {p.role?.avatar && <img src={p.role.avatar} className="pawn-sprite" alt={p.name} draggable={false} />}
-                              <div className="pawn-pedestal" style={{ background: p.color, boxShadow: `0 0 8px ${p.color}` }}></div>
+                              <div className="pawn-pedestal" style={{ background: p.color, boxShadow: `0 0 10px ${p.color}, 0 0 4px #fff` }}>
+                                {isPawnTurn && <div className="pawn-pedestal-ring" style={{ borderColor: p.color }} />}
+                              </div>
                             </div>
                           );
                         })}

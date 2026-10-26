@@ -173,3 +173,36 @@ export function clearActiveSession() {
     localStorage.removeItem(SESSION_STORAGE_KEY);
   } catch (_) {}
 }
+
+/**
+ * Retrieves the stored operative profile name & role from localStorage.
+ */
+export function getSavedProfile() {
+  try {
+    const name = localStorage.getItem('panahon_player_name') || 'Operative One';
+    const roleKey = localStorage.getItem('panahon_player_role') || 'HISTORIAN';
+    return { name: name.trim() || 'Operative One', roleKey };
+  } catch {
+    return { name: 'Operative One', roleKey: 'HISTORIAN' };
+  }
+}
+
+/**
+ * Saves operative profile to localStorage and notifies active listeners.
+ */
+export function savePlayerProfile(name, roleKey) {
+  try {
+    const cleanName = (name || '').trim() || 'Operative One';
+    localStorage.setItem('panahon_player_name', cleanName);
+    if (roleKey) localStorage.setItem('panahon_player_role', roleKey);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('panahon_profile_updated', {
+        detail: { name: cleanName, roleKey }
+      }));
+    }
+    return { name: cleanName, roleKey };
+  } catch (err) {
+    console.warn('[SessionManager] Failed to save player profile:', err);
+    return { name: 'Operative One', roleKey: 'HISTORIAN' };
+  }
+}

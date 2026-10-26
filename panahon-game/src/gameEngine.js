@@ -568,7 +568,7 @@ export class GameEngine {
 
       // Award chosen card to player
       if (chosenCard && chosenCard.isDecoy && player.roleKey === 'HISTORIAN' && player.passiveCooldown <= 0) {
-        this.addLog('ability', `${player.name} drew a Decoy Card via Clue Decipher, but discarded it with Decoy Discard!`);
+        this.addLog('ability', `🛡️ ${player.name} drew a Decoy Card via Clue Decipher, but safely neutralized it with Decoy Discard!`);
         player.passiveCooldown = ROLES.HISTORIAN.passive.cooldown;
         this.returnClueToDeck(chosenCard);
         this.state.phase = returnPhase;
@@ -584,7 +584,8 @@ export class GameEngine {
             }
             player.clueProgress[chosenCard.artifactId]++;
           }
-          this.addLog('clue', `${player.name} deciphered and kept a Clue Card: ${chosenCard.hint || 'Mystery Clue'}! (${player.clueCards.length}/5 Clues held)`);
+          const cardDesc = chosenCard.isDecoy ? 'Decoy Card' : (chosenCard.artifactName ? `${chosenCard.artifactName} Clue` : (chosenCard.hint || 'Mystery Clue'));
+          this.addLog('clue', `📜 ${player.name} deciphered and placed into hand: ${cardDesc}! (${player.clueCards.length}/5 Clues held)`);
           this.state.phase = returnPhase;
         }
       }
@@ -867,8 +868,46 @@ export class GameEngine {
       return;
     }
 
+    // Danger card requires interactive die roll by player for immersion
+    this.state.pendingModal = {
+      type: 'danger',
+      cardType: 'Hazard Anomaly',
+      cardId: card.id,
+      title: `${card.name} (${card.nickname})`,
+      description: card.description,
+      image: card.image,
+      era: era,
+      playerId: player.id,
+      playerName: player.name,
+      needsRoll: true,
+      diceRoll: null,
+      success: null,
+      successMsg: card.successMsg,
+      failMsg: card.failMsg
+    };
+
+    this.addLog('danger', `${player.name} triggered ${card.name}! Survival check: ${card.description}`);
+    this.state.phase = 'action';
+    this.notify();
+  }
+
+  // --- Interactive Danger Die Roll ---
+  rollDangerDie(playerIdx) {
+    const modal = this.state.pendingModal;
+    if (!modal || modal.type !== 'danger' || !modal.needsRoll) {
+      return null;
+    }
+
+    const targetIdx = playerIdx !== undefined ? playerIdx : this.state.currentPlayerIndex;
+    const player = this.state.players[targetIdx];
+    if (!player) return null;
+
+    const card = DANGER_CARDS[modal.era]?.find(c => c.id === modal.cardId) ||
+                 DANGER_CARDS[player.currentEra]?.find(c => c.id === modal.cardId);
+    if (!card) return null;
+
     const diceRoll = rollDie();
-    const success = card.check(diceRoll);
+    const success = typeof card.check === 'function' ? card.check(diceRoll) : true;
 
     // Guardian passive: reduce penalty by 1
     let guardianReduction = false;
@@ -876,29 +915,23 @@ export class GameEngine {
       guardianReduction = true;
     }
 
-    this.state.pendingModal = {
-      type: 'danger',
-      cardType: 'Danger Card',
-      title: `${card.name} (${card.nickname})`,
-      description: card.description,
-      image: card.image,
-      era: era,
-      diceRoll,
-      success,
-      successMsg: card.successMsg,
-      failMsg: card.failMsg + (guardianReduction ? ' (Guardian: penalty reduced by 1)' : ''),
-      guardianReduction
-    };
+    modal.needsRoll = false;
+    modal.diceRoll = diceRoll;
+    modal.success = success;
+    modal.guardianReduction = guardianReduction;
+    modal.failMsg = card.failMsg + (guardianReduction ? ' (Guardian: penalty reduced by 1)' : '');
 
     if (success) {
-      this.addLog('danger', `${player.name}: ${card.name} — Rolled ${diceRoll}. ${card.successMsg}`);
+      this.addLog('danger', `${player.name}: ${card.name} — Rolled ${diceRoll}! ${card.successMsg}`);
     } else {
-      card.failEffect(player, this);
-      this.addLog('danger', `${player.name}: ${card.name} — Rolled ${diceRoll}. ${card.failMsg}`);
+      if (typeof card.failEffect === 'function') {
+        card.failEffect(player, this);
+      }
+      this.addLog('danger', `${player.name}: ${card.name} — Rolled ${diceRoll}! ${card.failMsg}`);
     }
 
-    this.state.phase = 'action';
     this.notify();
+    return { diceRoll, success };
   }
 
   // --- Artifact Handling ---
@@ -1531,6 +1564,9 @@ export class GameEngine {
   }
 
   dismissModal() {
+    if (this.state.pendingModal?.type === 'danger' && this.state.pendingModal?.needsRoll) {
+      this.rollDangerDie(this.state.pendingModal.playerId);
+    }
     this.state.pendingModal = null;
     if (this.state.movesRemaining > 0) {
       this.state.phase = 'moving';

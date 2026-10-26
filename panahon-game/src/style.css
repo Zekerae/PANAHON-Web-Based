@@ -2,7 +2,7 @@
 /* Firefox and Universal Thin Dark Scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(56, 189, 248, 0.45) rgba(15, 23, 42, 0.85);
+  scrollbar-color: #c2974d #140e0a;
 }
 
 ::-webkit-scrollbar {
@@ -11,23 +11,36 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.85);
+  background: #140e0a;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(56, 189, 248, 0.45);
+  background: #c2974d;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(56, 189, 248, 0.8);
+  background: #ffd700;
 }
 
 /* ===== PANAHON: CHRONO SHIFT - Design System ===== */
 
 /* --- CSS Variables / Tokens --- */
 :root {
+  /* Retro 16-Bit Pixel RPG Tokens */
+  --rpg-frame-border: #140e0a;
+  --rpg-frame-gold: #c2974d;
+  --rpg-frame-gold-light: #ebc669;
+  --rpg-frame-gold-dark: #7a5823;
+  --rpg-wood-base: #28201a;
+  --rpg-wood-dark: #1c1510;
+  --rpg-wood-light: #382c22;
+  --rpg-wood-highlight: #4a3a2c;
+  --rpg-slot-bg: #19120d;
+  --rpg-slot-border: #3d2f23;
+  --rpg-gold-accent: #f5c442;
+  --rpg-gold-glow: rgba(245, 196, 66, 0.45);
   /* Era Colors */
   --spanish-primary: #8B1A1A;
   --spanish-secondary: #D4A017;
@@ -54,16 +67,16 @@
   --myth-glow: rgba(180, 74, 222, 0.4);
 
   /* UI Colors */
-  --bg-dark: #0A0A12;
-  --bg-panel: rgba(15, 15, 25, 0.92);
-  --bg-card: rgba(20, 20, 35, 0.95);
-  --bg-glass: rgba(255, 255, 255, 0.05);
-  --border-glass: rgba(255, 255, 255, 0.1);
-  --border-glow: rgba(212, 160, 23, 0.3);
+  --bg-dark: #120e0a;
+  --bg-panel: #28201a;
+  --bg-card: #221a14;
+  --bg-glass: rgba(40, 32, 26, 0.92);
+  --border-glass: #c2974d;
+  --border-glow: rgba(194, 151, 77, 0.45);
 
-  --text-primary: #E8E4DC;
-  --text-secondary: #A09888;
-  --text-accent: #E8C547;
+  --text-primary: #f5eedc;
+  --text-secondary: #b8a892;
+  --text-accent: #f5c442;
   --text-danger: #E74C3C;
   --text-success: #2ECC71;
   --text-info: #4A90D9;
@@ -95,10 +108,11 @@
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 20px rgba(232, 197, 71, 0.3);
 
-  /* Typography */
-  --font-display: 'Cinzel', serif;
-  --font-body: 'Inter', sans-serif;
-  --font-pirate: 'Pirata One', cursive;
+  /* Typography - Pure 16-Bit Retro RPG */
+  --font-display: 'Press Start 2P', 'Pixelify Sans', monospace;
+  --font-body: 'Pixelify Sans', monospace, sans-serif;
+  --font-pixel: 'Press Start 2P', monospace;
+  --font-pirate: 'Press Start 2P', monospace;
 
   /* Spacing */
   --space-xs: 4px;
@@ -970,7 +984,7 @@ body {
   height: 100%;
   display: grid;
   grid-template-columns: 250px 1fr 270px;
-  grid-template-rows: 48px 1fr 150px;
+  grid-template-rows: 48px 1fr 220px;
   grid-template-areas:
     "header header header"
     "left board right"
@@ -979,12 +993,18 @@ body {
   overflow: hidden;
 }
 
-@media (max-height: 760px) {
+@media (max-height: 820px) {
   .game-screen {
-    grid-template-rows: 42px 1fr 130px;
+    grid-template-rows: 44px 1fr 190px;
+  }
+}
+
+@media (max-height: 700px) {
+  .game-screen {
+    grid-template-rows: 40px 1fr 170px;
   }
   .game-header {
-    height: 42px !important;
+    height: 40px !important;
     padding: 0 10px !important;
   }
   .game-logo {
@@ -1395,6 +1415,7 @@ body {
   cursor: grab;
   touch-action: none;
   user-select: none;
+  container-type: size;
 }
 
 .board-viewport.is-dragging {
@@ -1512,19 +1533,30 @@ body {
 
 .board-map-wrapper {
   position: relative;
-  width: 100%;
+  width: min(960px, 100%, calc(100vh * 1024 / 765));
   max-width: 960px;
   max-height: 100%;
   aspect-ratio: 1024 / 765;
+  height: auto;
   background-image: url('/assets/Map/Full Map.png');
-  background-size: 100% 100%;
+  background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
   border-radius: var(--radius-lg);
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.9), 0 0 35px rgba(232, 197, 71, 0.25);
   border: 2px solid rgba(232, 197, 71, 0.35);
-  transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
   transform-origin: center center;
+  touch-action: none;
+}
+
+@supports (width: 1cqw) {
+  .board-map-wrapper {
+    width: min(960px, 100cqw, calc(100cqh * 1024 / 765));
+    height: auto;
+    max-width: 100cqw;
+    max-height: 100cqh;
+  }
 }
 
 /* Camera focus modes for Mario Party era zoom */
@@ -1901,6 +1933,7 @@ body {
 }
 
 .pawn-pedestal {
+  position: relative;
   width: 22px;
   height: 7px;
   border-radius: 50%;
@@ -2108,14 +2141,42 @@ body {
   grid-area: bottom;
   background: var(--bg-panel);
   border-top: 1px solid var(--border-glass);
-  padding: 6px 12px;
+  padding: 8px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   z-index: var(--z-ui);
   min-height: 0;
   height: 100%;
   overflow: hidden;
+}
+
+.hand-tab-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56, 189, 248, 0.45) rgba(15, 23, 42, 0.6);
+}
+
+.hand-tab-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.hand-tab-body::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 4px;
+}
+
+.hand-tab-body::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.45);
+  border-radius: 4px;
+}
+
+.hand-tab-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.8);
 }
 
 .hand-title {
@@ -2133,6 +2194,22 @@ body {
   flex: 1;
   align-items: center;
   padding: var(--space-xs) 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56, 189, 248, 0.45) rgba(15, 23, 42, 0.6);
+}
+
+.hand-cards::-webkit-scrollbar {
+  height: 5px;
+}
+
+.hand-cards::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 4px;
+}
+
+.hand-cards::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.45);
+  border-radius: 4px;
 }
 
 .hand-card {
@@ -2240,14 +2317,247 @@ body {
   animation: pulse 2s infinite ease-in-out;
 }
 
-/* --- Historian Mystery Clue Decipher Cards --- */
+/* --- Historian Mystery Clue Decipher Cards & 3D Reveal --- */
 .mystery-cards-grid {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 16px;
-  margin: 18px 0 14px;
+  margin: 16px 0 12px;
   flex-wrap: wrap;
+  perspective: 1200px;
+}
+
+.mystery-card-wrapper {
+  width: 128px;
+  height: 184px;
+  perspective: 1000px;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease, filter 0.35s ease;
+  user-select: none;
+  cursor: pointer;
+}
+
+.mystery-card-wrapper.dimmed {
+  opacity: 0.32;
+  filter: grayscale(0.7) blur(0.5px);
+  pointer-events: none;
+  transform: scale(0.92);
+}
+
+.mystery-card-wrapper.selected {
+  z-index: 10;
+  transform: translateY(-4px) scale(1.05);
+}
+
+.mystery-card-wrapper.adding-to-hand {
+  animation: cardFlyToHand 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.mystery-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.mystery-card-inner.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.mystery-card-face {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+/* Card Back (Face Down) */
+.mystery-card-back {
+  background: linear-gradient(145deg, #172554 0%, #0b1120 100%);
+  border: 2px dashed #3B82F6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  box-sizing: border-box;
+}
+
+.mystery-card-back:hover {
+  border-color: #60A5FA;
+  border-style: solid;
+  box-shadow: 0 0 22px rgba(59, 130, 246, 0.6);
+  transform: translateY(-4px);
+}
+
+.card-back-ornament {
+  font-size: 2.3rem;
+  filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.8));
+  animation: pulse 2.5s infinite ease-in-out;
+}
+
+.card-back-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #60A5FA;
+  letter-spacing: 0.75px;
+}
+
+.card-back-status {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #93C5FD;
+  background: rgba(59, 130, 246, 0.22);
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  letter-spacing: 0.5px;
+}
+
+.card-back-shimmer {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  transform: skewX(-20deg);
+  animation: cardShimmer 3s infinite;
+  pointer-events: none;
+}
+
+@keyframes cardShimmer {
+  0% { left: -100%; }
+  35% { left: 160%; }
+  100% { left: 160%; }
+}
+
+/* Card Front (Revealed Clue / Decoy) */
+.mystery-card-front {
+  transform: rotateY(180deg);
+  background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+  border: 2px solid #F59E0B;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 6px;
+  box-shadow: 0 0 28px rgba(245, 158, 11, 0.45);
+  box-sizing: border-box;
+}
+
+.card-front-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+  width: 90%;
+  text-align: center;
+}
+
+.card-front-img-wrap {
+  width: 100%;
+  height: 94px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  margin: 3px 0;
+}
+
+.card-front-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.card-front-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #F8FAFC;
+  width: 100%;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 2px;
+}
+
+.card-front-era {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid;
+}
+
+/* Intel Dossier Panel */
+.decipher-dossier {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 14px;
+  text-align: left;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.decipher-add-btn {
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.45);
+  transition: all 0.25s ease;
+}
+
+.decipher-add-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 24px rgba(59, 130, 246, 0.75);
+}
+
+/* Animations */
+@keyframes cardFlyToHand {
+  0% {
+    transform: translateY(0) scale(1.05);
+    opacity: 1;
+  }
+  40% {
+    transform: translateY(20px) scale(0.95);
+    opacity: 0.9;
+    box-shadow: 0 0 35px rgba(245, 158, 11, 0.8);
+  }
+  100% {
+    transform: translateY(140px) scale(0.35);
+    opacity: 0;
+  }
+}
+
+@keyframes cardEnterHand {
+  0% {
+    transform: translateY(-20px) scale(0.65);
+    opacity: 0;
+    box-shadow: 0 0 25px rgba(96, 165, 250, 0.9);
+  }
+  60% {
+    transform: translateY(2px) scale(1.04);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.hand-card.clue-card:last-child {
+  animation: cardEnterHand 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .mystery-card {
@@ -2329,26 +2639,32 @@ body {
 
 .modal-close {
   position: absolute;
-  top: var(--space-md);
-  right: var(--space-md);
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-round);
-  border: 1px solid var(--border-glass);
-  background: rgba(0, 0, 0, 0.3);
-  color: var(--text-secondary);
-  font-size: 1rem;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  border: 2px solid #C2974D;
+  background: #3A2C21;
+  box-shadow: inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #1A120B, 0 2px 0 #140E0A;
+  color: #FFD700;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 800;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--transition-fast);
+  transition: all 0.1s ease-in-out;
+  z-index: 25;
+  line-height: 1;
 }
 
 .modal-close:hover {
-  background: rgba(231, 76, 60, 0.3);
-  border-color: var(--text-danger);
-  color: var(--text-danger);
+  background: #4A382C;
+  border-color: #FFD700;
+  color: #FFFFFF;
+  transform: scale(1.05);
 }
 
 .modal-actions {
@@ -2391,6 +2707,30 @@ body {
   justify-content: center;
   gap: var(--space-lg);
   margin: var(--space-lg) 0;
+}
+
+/* Hazard Anomaly Roll Stage */
+.hazard-roll-stage {
+  animation: pulseHazard 2s infinite alternate;
+}
+
+@keyframes pulseHazard {
+  0% {
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.2), inset 0 0 10px rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.4), inset 0 0 15px rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.7);
+  }
+}
+
+.roll-phase-dice-card {
+  transition: all 0.2s ease;
+}
+.roll-phase-dice-card:hover {
+  border-color: rgba(139, 92, 246, 0.55) !important;
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.25);
 }
 
 .modal-dice-result {
@@ -2637,10 +2977,14 @@ body {
 
 /* --- Mission Card Display --- */
 .mission-display {
-  background: rgba(232, 197, 71, 0.05);
-  border: 1px solid rgba(232, 197, 71, 0.2);
+  flex-shrink: 0;
+  background: rgba(232, 197, 71, 0.06);
+  border: 1px solid rgba(232, 197, 71, 0.25);
   border-radius: var(--radius-md);
-  padding: 6px 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .mission-title {
@@ -5375,10 +5719,10 @@ body {
 }
 
 .duelyst-sub-btn:hover {
-  background: rgba(56, 189, 248, 0.18);
-  border-color: #38BDF8;
+  background: #47372A !important;
+  border-color: #FFD700 !important;
   transform: translateX(4px);
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+  box-shadow: inset 1px 1px 0 #FFF, inset -1px -1px 0 #7A5823, 0 3px 0 #120E0A !important;
 }
 
 .duelyst-sub-btn.primary-glow {
@@ -5412,7 +5756,7 @@ body {
   position: absolute;
   width: 100%;
   height: 100%;
-  border: 2px dashed rgba(56, 189, 248, 0.45);
+  border: 2px dashed rgba(194, 151, 77, 0.55);
   border-radius: 50%;
   animation: orbRotate 20s linear infinite;
 }
@@ -5430,18 +5774,18 @@ body {
   position: absolute;
   width: 50px;
   height: 50px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, rgba(15, 23, 42, 0.9) 100%);
-  border: 1.5px solid #38BDF8;
+  background: radial-gradient(circle, rgba(90, 63, 24, 0.7) 0%, rgba(28, 21, 16, 0.95) 100%);
+  border: 2px solid #C2974D;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 14px rgba(194, 151, 77, 0.4), inset 1px 1px 0 #FFD700;
 }
 
 .crystal-glyph {
   font-size: 1.3rem;
-  filter: drop-shadow(0 0 6px #38BDF8);
+  filter: drop-shadow(0 0 6px #FFD700);
 }
 
 .chrono-orb-caption {
@@ -6058,19 +6402,19 @@ body {
     transform: translateX(-50%) !important;
     max-width: calc(100% - 16px) !important;
     width: auto !important;
-    padding: 2px 4px !important;
-    gap: 3px !important;
-    border-radius: 14px !important;
+    padding: 3px 6px !important;
+    gap: 4px !important;
+    border-radius: 16px !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
     scrollbar-width: none !important;
     -webkit-overflow-scrolling: touch !important;
     flex-wrap: nowrap !important;
     box-sizing: border-box !important;
-    background: rgba(10, 15, 28, 0.92) !important;
-    border: 1px solid rgba(56, 189, 248, 0.35) !important;
+    background: rgba(10, 15, 28, 0.95) !important;
+    border: 1px solid rgba(56, 189, 248, 0.4) !important;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
-    z-index: 30 !important;
+    z-index: 40 !important;
   }
 
   .board-camera-bar::-webkit-scrollbar {
@@ -6078,16 +6422,17 @@ body {
   }
 
   .board-cam-btn {
-    padding: 3px 6px !important;
-    font-size: 0.62rem !important;
-    height: 22px !important;
-    min-height: 22px !important;
-    max-height: 22px !important;
-    border-radius: 10px !important;
+    padding: 4px 8px !important;
+    font-size: 0.70rem !important;
+    height: 26px !important;
+    min-height: 26px !important;
+    max-height: 26px !important;
+    border-radius: 12px !important;
     white-space: nowrap !important;
     flex-shrink: 0 !important;
-    gap: 2px !important;
+    gap: 3px !important;
     line-height: 1 !important;
+    touch-action: manipulation !important;
   }
 
   .board-cam-text-desktop {
@@ -6389,6 +6734,23 @@ body {
     padding: 8px 6px !important;
   }
 
+  .mystery-card-wrapper {
+    width: 98px !important;
+    height: 148px !important;
+  }
+
+  .card-front-img-wrap {
+    height: 68px !important;
+  }
+
+  .card-back-ornament {
+    font-size: 1.8rem !important;
+  }
+
+  .card-back-title {
+    font-size: 0.72rem !important;
+  }
+
   /* Side card notifications on mobile */
   .side-card-overlay {
     top: 78px !important;
@@ -6457,18 +6819,33 @@ body {
   /* 2. Board Viewport & Hardware Accelerated GPU Layer */
   .board-viewport {
     touch-action: none !important;
+    overflow: hidden !important;
     contain: layout style paint !important;
-    transform: translateZ(0);
     -webkit-overflow-scrolling: auto;
+    container-type: size;
   }
 
   .board-map-wrapper {
-    will-change: transform !important;
-    transform: translateZ(0) scale3d(var(--scale, 1), var(--scale, 1), 1) !important;
+    will-change: transform;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.75) !important;
-    backface-visibility: hidden !important;
-    -webkit-backface-visibility: hidden !important;
-    contain: layout style paint !important;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    width: min(100%, calc(100vh * 1024 / 765));
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 1024 / 765;
+    background-size: contain !important;
+    touch-action: none !important;
+  }
+
+  @supports (width: 1cqw) {
+    .board-map-wrapper {
+      width: min(100cqw, calc(100cqh * 1024 / 765)) !important;
+      height: auto !important;
+      max-width: 100cqw !important;
+      max-height: 100cqh !important;
+    }
   }
 
   /* 3. SVG Path Lines: eliminate continuous CPU dash scroll & drop-shadow filters across lines */
@@ -7186,4 +7563,663 @@ body {
   .spectator-roles-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ==========================================================================
+   IMMERSIVE IN-GAME ATMOSPHERE, ERA AMBIANCE & POLISH
+   ========================================================================== */
+
+/* --- Active Era Badge in Header --- */
+.header-era-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.era-badge-spanish {
+  background: linear-gradient(135deg, rgba(139, 26, 26, 0.45) 0%, rgba(212, 160, 23, 0.22) 100%);
+  border: 1px solid rgba(232, 197, 71, 0.6);
+  box-shadow: 0 0 14px rgba(212, 160, 23, 0.3);
+}
+
+.era-badge-american {
+  background: linear-gradient(135deg, rgba(26, 58, 92, 0.45) 0%, rgba(74, 144, 217, 0.22) 100%);
+  border: 1px solid rgba(74, 144, 217, 0.6);
+  box-shadow: 0 0 14px rgba(74, 144, 217, 0.3);
+}
+
+.era-badge-japanese {
+  background: linear-gradient(135deg, rgba(45, 80, 22, 0.45) 0%, rgba(109, 191, 78, 0.22) 100%);
+  border: 1px solid rgba(109, 191, 78, 0.6);
+  box-shadow: 0 0 14px rgba(109, 191, 78, 0.3);
+}
+
+.era-badge-myth {
+  background: linear-gradient(135deg, rgba(74, 26, 107, 0.45) 0%, rgba(168, 85, 247, 0.22) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.6);
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.3);
+}
+
+.header-era-icon {
+  font-size: 1.15rem;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
+  animation: pulse 2.5s infinite ease-in-out;
+}
+
+.header-era-details {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  text-align: left;
+}
+
+.header-era-name {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #FFF;
+}
+
+.header-era-period {
+  font-size: 0.6rem;
+  color: #CBD5E1;
+  opacity: 0.85;
+}
+
+/* --- Timeline Integrity Plasma & Hazard --- */
+.timeline-meter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.timeline-status-badge {
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.4px;
+}
+
+.timeline-status-badge.status-timeline-low {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34D399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.timeline-status-badge.status-timeline-mid {
+  background: rgba(245, 158, 11, 0.2);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.timeline-status-badge.status-timeline-high {
+  background: rgba(239, 68, 68, 0.3);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.6);
+  animation: hazardPulse 1s infinite alternate;
+}
+
+@keyframes hazardPulse {
+  from { opacity: 0.8; }
+  to { opacity: 1; transform: scale(1.04); box-shadow: 0 0 10px rgba(239, 68, 68, 0.8); }
+}
+
+.timeline-meter-plasma {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: plasmaFlow 2.4s infinite linear;
+}
+
+@keyframes plasmaFlow {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* --- Cinematic Turn Toast Banner --- */
+.board-turn-toast {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  pointer-events: none;
+  animation: turnToastSlideIn 0.42s cubic-bezier(0.16, 1, 0.3, 1), turnToastFadeOut 0.4s ease 2.1s forwards;
+  max-width: 440px;
+  width: 90%;
+}
+
+.turn-toast-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  background: rgba(10, 15, 30, 0.94);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 215, 0, 0.45);
+  border-radius: 12px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85), 0 0 25px rgba(255, 215, 0, 0.28);
+}
+
+.turn-toast-avatar {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.turn-toast-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  min-width: 0;
+  flex: 1;
+}
+
+.turn-toast-era {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.turn-toast-title {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #FFF;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.turn-toast-sub {
+  font-size: 0.72rem;
+  color: #CBD5E1;
+  margin-top: 2px;
+}
+
+@keyframes turnToastSlideIn {
+  0% {
+    transform: translate(-50%, -35px) scale(0.92);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes turnToastFadeOut {
+  0% {
+    transform: translate(-50%, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -20px) scale(0.95);
+    opacity: 0;
+  }
+}
+
+/* --- Dynamic Era Vignette Ambiance on Board --- */
+.board-era-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  border-radius: inherit;
+  transition: opacity 0.8s ease;
+  mix-blend-mode: screen;
+  opacity: 0.8;
+}
+
+.era-vignette-spanish {
+  background: radial-gradient(circle at 25% 75%, rgba(212, 160, 23, 0.22) 0%, transparent 60%),
+              radial-gradient(circle at 100% 0%, rgba(139, 26, 26, 0.18) 0%, transparent 50%);
+}
+
+.era-vignette-american {
+  background: radial-gradient(circle at 75% 75%, rgba(56, 189, 248, 0.22) 0%, transparent 60%),
+              radial-gradient(circle at 0% 0%, rgba(26, 58, 92, 0.18) 0%, transparent 50%);
+}
+
+.era-vignette-japanese {
+  background: radial-gradient(circle at 25% 25%, rgba(109, 191, 78, 0.22) 0%, transparent 60%),
+              radial-gradient(circle at 100% 100%, rgba(45, 80, 22, 0.18) 0%, transparent 50%);
+}
+
+.era-vignette-myth {
+  background: radial-gradient(circle at 75% 25%, rgba(168, 85, 247, 0.26) 0%, transparent 60%),
+              radial-gradient(circle at 0% 100%, rgba(74, 26, 107, 0.18) 0%, transparent 50%);
+}
+
+/* --- Ambient Floating Chrono Particles --- */
+.chrono-particles-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+  overflow: hidden;
+}
+
+.chrono-mote {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #FFD700;
+  box-shadow: 0 0 10px #FFD700, 0 0 20px #FFA500;
+  opacity: 0.65;
+}
+
+.chrono-mote.m1 { top: 20%; left: 15%; animation: floatMote 9s infinite ease-in-out; }
+.chrono-mote.m2 { top: 60%; left: 80%; animation: floatMote 11s infinite ease-in-out 2s; }
+.chrono-mote.m3 { top: 75%; left: 25%; animation: floatMote 10s infinite ease-in-out 4s; }
+.chrono-mote.m4 { top: 30%; left: 70%; animation: floatMote 12s infinite ease-in-out 1s; }
+.chrono-mote.m5 { top: 85%; left: 55%; animation: floatMote 8s infinite ease-in-out 3s; }
+.chrono-mote.m6 { top: 15%; left: 50%; animation: floatMote 10s infinite ease-in-out 5s; }
+
+@keyframes floatMote {
+  0%, 100% {
+    transform: translateY(0) scale(0.8);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-28px) translateX(14px) scale(1.35);
+    opacity: 0.85;
+  }
+}
+
+/* --- Pawn Chrono Pedestal Ring & Spotlight --- */
+.pawn-pedestal-ring {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  border: 2px dashed;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotateX(65deg);
+  animation: chronoRingRotate 3.5s linear infinite;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+@keyframes chronoRingRotate {
+  from { transform: translate(-50%, -50%) rotateX(65deg) rotateZ(0deg); }
+  to { transform: translate(-50%, -50%) rotateX(65deg) rotateZ(360deg); }
+}
+
+
+
+/* --- Tactical Card Lift in Hand --- */
+.hand-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease !important;
+}
+
+.hand-card:hover {
+  transform: translateY(-8px) scale(1.05) !important;
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.6), 0 0 15px rgba(96, 165, 250, 0.45) !important;
+}
+
+
+/* ==========================================================================
+   RETRO 16-BIT PIXEL RPG THEME (VINTAGE ADVENTURE / TRADER AESTHETIC)
+   ========================================================================== */
+
+/* 1. Global Font Smoothing & Pixel Rendering */
+html, body, #app, .app-root {
+  font-family: var(--font-body) !important;
+  image-rendering: pixelated !important;
+  text-rendering: geometricPrecision !important;
+  -webkit-font-smoothing: antialiased;
+  background-color: #120e0a;
+}
+
+/* 2. Clean Fullscreen Boundary */
+.app-root {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-dark);
+}
+
+/* 3. Windows, HUD & Panels: Golden-Beveled Wood/Stone */
+.game-header,
+.left-panel,
+.right-panel,
+.bottom-panel,
+.modal,
+.card-preview-modal,
+.lobby-panel,
+.pause-menu-content,
+.guide-content,
+.databank-panel,
+.spectator-hub-panel,
+.duelyst-play-drawer,
+.end-game-card {
+  background: #28201a !important;
+  border: 3px solid #c2974d !important;
+  outline: 2px solid #140e0a !important;
+  box-shadow: inset 2px 2px 0 #ebc669, inset -2px -2px 0 #7a5823, 0 10px 30px rgba(0, 0, 0, 0.85) !important;
+  border-radius: 6px !important;
+}
+
+/* 4. Plaque Banners & Header Titles (Cartouches) */
+.rpg-plaque,
+.modal-title,
+.hand-tabs,
+.mission-title,
+.section-header-title,
+.header-era-badge,
+.player-points,
+.lobby-title {
+  font-family: var(--font-display) !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase !important;
+}
+
+.modal-title {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  margin: 0 auto 16px auto !important;
+  padding: 6px 20px !important;
+  background: #32261d !important;
+  border: 2px solid #c2974d !important;
+  box-shadow: inset 1px 1px 0 #ebd07d, inset -1px -1px 0 #5c3e16, 0 3px 6px rgba(0, 0, 0, 0.7) !important;
+  border-radius: 4px !important;
+  color: #fcd34d !important;
+  font-size: 0.88rem !important;
+  text-shadow: 1px 1px 0 #120e0a !important;
+  max-width: calc(100% - 100px) !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+}
+
+/* 5. Chunky 16-Bit RPG Buttons */
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.action-btn,
+.lobby-btn,
+.duelyst-sub-btn,
+.duelyst-menu-link,
+.modal-close-btn,
+.sidebar-chat-send-btn,
+.board-zoom-btn {
+  font-family: var(--font-display) !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 1px !important;
+  background: #382c22 !important;
+  color: #fef3c7 !important;
+  border: 2px solid #c2974d !important;
+  border-radius: 4px !important;
+  box-shadow: inset 1px 1px 0 #ebd07d, inset -1px -1px 0 #5c3e16, 0 3px 0 #120e0a !important;
+  text-shadow: 1px 1px 0 #120e0a !important;
+  cursor: pointer !important;
+  transition: all 0.1s ease-in-out !important;
+  text-transform: uppercase !important;
+}
+
+.btn:hover:not(:disabled),
+.btn-primary:hover:not(:disabled),
+.action-btn:hover:not(:disabled),
+.lobby-btn:hover:not(:disabled),
+.duelyst-sub-btn:hover:not(:disabled),
+.duelyst-menu-link:hover:not(:disabled) {
+  background: #47372a !important;
+  border-color: #ffd700 !important;
+  color: #ffffff !important;
+  box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #7a5823, 0 3px 0 #120e0a !important;
+  transform: translateY(-1px) !important;
+}
+
+.btn:active:not(:disabled),
+.action-btn:active:not(:disabled),
+.btn-primary:active:not(:disabled) {
+  transform: translateY(2px) !important;
+  box-shadow: inset 2px 2px 0 #120e0a, inset -1px -1px 0 #4a382c, 0 1px 0 #120e0a !important;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, #4d3826 0%, #38271a 100%) !important;
+  border-color: #f5c442 !important;
+  color: #ffd700 !important;
+}
+
+.btn-danger {
+  border-color: #ef4444 !important;
+  color: #fca5a5 !important;
+}
+
+/* 6. Trader-Style Inventory & Card Slot Grids */
+.hand-card,
+.clue-card,
+.role-card,
+.inventory-slot,
+.clue-slot,
+.quick-dock-btn {
+  background: #19120d !important;
+  border: 2px solid #3d2f23 !important;
+  border-radius: 4px !important;
+  box-shadow: inset 2px 2px 0 #0f0a07, inset -1px -1px 0 #4a3a2c !important;
+  position: relative !important;
+}
+
+.hand-card:hover,
+.clue-card:hover,
+.role-card:hover,
+.role-card.selected,
+.quick-dock-btn.active {
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 14px rgba(255, 215, 0, 0.65), inset 0 0 6px rgba(255, 215, 0, 0.3) !important;
+  transform: translateY(-4px) scale(1.03) !important;
+}
+
+/* 7. Retro RPG Segmented HP & Meter Bars */
+.stat-bar,
+.timeline-meter-bar,
+.mission-progress-bar {
+  background: #140e0a !important;
+  border: 2px solid #100c08 !important;
+  border-radius: 0 !important;
+  box-shadow: inset 1px 1px 0 #000 !important;
+  overflow: hidden !important;
+  height: 8px !important;
+}
+
+.stat-bar-fill,
+.timeline-meter-fill,
+.mission-progress-fill {
+  border-radius: 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -1px 0 rgba(0, 0, 0, 0.4) !important;
+}
+
+.energy-fill {
+  background: #00b4d8 !important;
+}
+
+.paradox-fill-low,
+.timeline-meter-low {
+  background: #22c55e !important;
+}
+
+.paradox-fill-mid,
+.timeline-meter-mid {
+  background: #f59e0b !important;
+}
+
+.paradox-fill-high,
+.timeline-meter-high {
+  background: #ef4444 !important;
+}
+
+/* 8. Mission Dossier & Player Hand Tabs */
+.hand-tabs {
+  background: #1e1712 !important;
+  border-bottom: 2px solid #c2974d !important;
+  padding: 4px 6px !important;
+}
+
+.hand-tab-btn {
+  font-family: var(--font-display) !important;
+  font-size: 0.65rem !important;
+  letter-spacing: 0.5px !important;
+  padding: 4px 10px !important;
+  border-radius: 4px 4px 0 0 !important;
+  background: #28201a !important;
+  border: 1px solid #3d2f23 !important;
+  border-bottom: none !important;
+  color: #b8a892 !important;
+}
+
+.hand-tab-btn.active {
+  background: #382c22 !important;
+  border: 2px solid #c2974d !important;
+  border-bottom: 2px solid #382c22 !important;
+  color: #ffd700 !important;
+  box-shadow: inset 1px 1px 0 #ebd07d !important;
+}
+
+.mission-display {
+  background: #1e1712 !important;
+  border: 2px solid #c2974d !important;
+  box-shadow: inset 1px 1px 0 #ebd07d, inset -1px -1px 0 #5c3e16 !important;
+  border-radius: 4px !important;
+}
+
+/* 9. Header Bar (Top Carved Lintel) */
+.game-header {
+  border-radius: 0 0 6px 6px !important;
+  border-top: none !important;
+  background: #241c16 !important;
+}
+
+.game-logo {
+  font-family: var(--font-display) !important;
+  font-size: 0.95rem !important;
+  color: #ffd700 !important;
+  text-shadow: 2px 2px 0 #120e0a !important;
+  letter-spacing: 2px !important;
+}
+
+.header-era-badge {
+  background: #32261d !important;
+  border: 2px solid #c2974d !important;
+  box-shadow: inset 1px 1px 0 #ebd07d, inset -1px -1px 0 #5c3e16 !important;
+}
+
+/* 10. Title Screen & Lobby Overhaul */
+.duelyst-logo {
+  font-family: var(--font-display) !important;
+  font-size: clamp(2.2rem, 5vw, 3.8rem) !important;
+  color: #ffd700 !important;
+  text-shadow: 3px 3px 0 #120e0a, 0 0 20px rgba(255, 215, 0, 0.4) !important;
+  letter-spacing: 4px !important;
+}
+
+.duelyst-subtitle {
+  font-family: var(--font-display) !important;
+  font-size: 0.9rem !important;
+  color: #fcd34d !important;
+  letter-spacing: 3px !important;
+}
+
+.duelyst-menu-link {
+  padding: 12px 20px !important;
+  margin-bottom: 8px !important;
+}
+
+.duelyst-menu-link .menu-link-text {
+  font-family: var(--font-display) !important;
+  font-size: 0.78rem !important;
+}
+
+/* Clean Transparent Top Navigation */
+.duelyst-top-bar {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  pointer-events: none;
+  padding: 16px 28px !important;
+  height: auto !important;
+}
+
+.duelyst-top-right-nav {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.retro-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  background: rgba(32, 24, 18, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid #c2974d;
+  border-radius: 6px;
+  color: #fef3c7;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), inset 1px 1px 0 rgba(235, 198, 105, 0.25);
+  transition: all 0.15s ease-in-out;
+  user-select: none;
+}
+
+.retro-nav-btn:hover {
+  background: rgba(52, 38, 28, 0.96);
+  border-color: #ffd700;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 0 14px rgba(255, 215, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.retro-nav-btn:active {
+  transform: translateY(1px);
+  box-shadow: inset 1px 1px 0 #000;
+}
+
+.retro-nav-icon {
+  font-size: 0.85rem;
+  display: inline-block;
+}
+
+/* 11. Dice & Action Area */
+.dice-cube {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.8), 0 0 15px rgba(245, 196, 66, 0.35) !important;
+  border-radius: 8px !important;
+}
+
+/* 12. Floating Modals & Card Previews (Ahwenna the Trader Window) */
+.modal-overlay {
+  background: rgba(14, 10, 7, 0.85) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.card-display {
+  background: #19120d !important;
+  border: 2px solid #3d2f23 !important;
+  border-radius: 4px !important;
+  box-shadow: inset 2px 2px 0 #0f0a07 !important;
+  padding: 10px !important;
 }

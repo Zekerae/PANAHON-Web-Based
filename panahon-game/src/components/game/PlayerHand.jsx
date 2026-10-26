@@ -59,7 +59,7 @@ function PlayerHand({
       </div>
 
       {/* Tab Contents */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div className="hand-tab-body">
         {activeHandTab === 'mission' && viewedPlayer.mission && (
           <div className="mission-display">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -101,8 +101,47 @@ function PlayerHand({
                 </div>
               </div>
             ) : (
-              <div className="mission-progress">
-                <span className="mission-progress-text">Clue Progress:</span>
+              <div className="mission-progress" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span className="mission-progress-text" style={{ fontWeight: 700, color: "#BAE6FD" }}>Ancient Intel Acquisition:</span>
+                  <span style={{ fontSize: "0.74rem", fontWeight: 800, color: (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) >= 3 ? "#4ADE80" : "#FACC15" }}>
+                    {isViewingSelf
+                      ? `${viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0}/3 Decoded`
+                      : `${viewedPlayer.clueCards.length} Clues`}
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", gap: "8px", margin: "2px 0 6px", alignItems: "center" }}>
+                  {[0, 1, 2].map((gemIdx) => {
+                    const isCollected = gemIdx < (isViewingSelf ? (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) : viewedPlayer.clueCards.length);
+                    return (
+                      <div
+                        key={gemIdx}
+                        style={{
+                          flex: 1,
+                          height: "26px",
+                          borderRadius: "6px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "4px",
+                          background: isCollected ? "linear-gradient(135deg, rgba(56, 189, 248, 0.35) 0%, rgba(2, 132, 199, 0.45) 100%)" : "rgba(255,255,255,0.06)",
+                          border: isCollected ? "1px solid #38BDF8" : "1px dashed rgba(255,255,255,0.2)",
+                          boxShadow: isCollected ? "0 0 12px rgba(56, 189, 248, 0.4)" : "none",
+                          fontSize: "0.72rem",
+                          fontWeight: 700,
+                          color: isCollected ? "#E0F2FE" : "#64748B",
+                          transition: "all 0.3s ease"
+                        }}
+                        title={isCollected ? `Clue #${gemIdx + 1} Acquired!` : `Clue #${gemIdx + 1} Needed`}
+                      >
+                        <span>{isCollected ? "💎" : "○"}</span>
+                        <span>Clue #{gemIdx + 1}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
                 <div className="mission-progress-bar">
                   <div
                     className="mission-progress-fill"
@@ -111,11 +150,6 @@ function PlayerHand({
                     }}
                   ></div>
                 </div>
-                <span className="mission-progress-text">
-                  {isViewingSelf
-                    ? `${viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0}/3 Required Clues`
-                    : `${viewedPlayer.clueCards.length} Clues Collected`}
-                </span>
               </div>
             )}
           </div>

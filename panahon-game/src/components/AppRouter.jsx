@@ -17,7 +17,12 @@ export default function AppRouter({
     case 'title':
       return <TitleScreen {...titleProps} />;
     case 'lobby':
-      return <LobbyScreen {...lobbyProps} />;
+      return (
+        <>
+          <TitleScreen {...titleProps} />
+          <LobbyScreen {...lobbyProps} />
+        </>
+      );
     case 'game':
       return gameProps.state ? <GameScreen {...gameProps} /> : null;
     case 'endgame':

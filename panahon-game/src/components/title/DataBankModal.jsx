@@ -16,6 +16,87 @@ const ERA_COLORS = {
   [ERAS.MYTH]: '#F39C12'
 };
 
+// Authentic 16-Bit Retro RPG Heraldic Tag Styles (Solid 3D Beveled Ribbons & Plaques)
+const getEraRibbonStyle = (era) => {
+  switch (era) {
+    case ERAS.SPANISH:
+      return {
+        background: 'linear-gradient(180deg, #7A1A12 0%, #4D0E09 100%)',
+        border: '1px solid #C2974D',
+        boxShadow: 'inset 1px 1px 0 #D45B4D, inset -1px -1px 0 #280806, 0 1px 2px rgba(0,0,0,0.6)',
+        color: '#FFE8A3'
+      };
+    case ERAS.AMERICAN:
+      return {
+        background: 'linear-gradient(180deg, #1A375A 0%, #0D2038 100%)',
+        border: '1px solid #C2974D',
+        boxShadow: 'inset 1px 1px 0 #4A7AB5, inset -1px -1px 0 #08121E, 0 1px 2px rgba(0,0,0,0.6)',
+        color: '#E8F1FC'
+      };
+    case ERAS.JAPANESE:
+      return {
+        background: 'linear-gradient(180deg, #1C4820 0%, #0F2B12 100%)',
+        border: '1px solid #C2974D',
+        boxShadow: 'inset 1px 1px 0 #468A4C, inset -1px -1px 0 #08170A, 0 1px 2px rgba(0,0,0,0.6)',
+        color: '#E2F7E4'
+      };
+    case ERAS.MYTH:
+      return {
+        background: 'linear-gradient(180deg, #6B4210 0%, #3D2405 100%)',
+        border: '1px solid #C2974D',
+        boxShadow: 'inset 1px 1px 0 #D4892A, inset -1px -1px 0 #1A1003, 0 1px 2px rgba(0,0,0,0.6)',
+        color: '#FFD700'
+      };
+    default:
+      return {
+        background: 'linear-gradient(180deg, #3A2C21 0%, #221811 100%)',
+        border: '1px solid #5A422D',
+        boxShadow: 'inset 1px 1px 0 #5C432D, inset -1px -1px 0 #140E0A',
+        color: '#C8B293'
+      };
+  }
+};
+
+const getCategoryTagStyle = (category, isDecoy) => {
+  if (isDecoy) {
+    return {
+      background: 'linear-gradient(180deg, #3A3530 0%, #201D1A 100%)',
+      border: '1px solid #7A726A',
+      boxShadow: 'inset 1px 1px 0 #8A8077, inset -1px -1px 0 #100E0D, 0 1px 2px rgba(0,0,0,0.6)',
+      color: '#D4CECA'
+    };
+  }
+  switch (category) {
+    case 'clue':
+      return {
+        background: 'linear-gradient(180deg, #5A3E1B 0%, #38240D 100%)',
+        border: '1px solid #C2974D',
+        boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #1E1204, 0 1px 2px rgba(0,0,0,0.6)',
+        color: '#FFD700'
+      };
+    case 'event':
+      return {
+        background: 'linear-gradient(180deg, #684214 0%, #3E2407 100%)',
+        border: '1px solid #D4A045',
+        boxShadow: 'inset 1px 1px 0 #FFD482, inset -1px -1px 0 #201002, 0 1px 2px rgba(0,0,0,0.6)',
+        color: '#FFE8A3'
+      };
+    case 'danger':
+      return {
+        background: 'linear-gradient(180deg, #6E1E1E 0%, #3D0D0D 100%)',
+        border: '1px solid #D44D4D',
+        boxShadow: 'inset 1px 1px 0 #E57A7A, inset -1px -1px 0 #200505, 0 1px 2px rgba(0,0,0,0.6)',
+        color: '#FFE0E0'
+      };
+    default:
+      return {
+        background: 'linear-gradient(180deg, #3A2C21 0%, #221811 100%)',
+        border: '1px solid #5A422D',
+        color: '#C8B293'
+      };
+  }
+};
+
 export default function DataBankModal({ onClose }) {
   const [selectedCategory, setSelectedCategory] = useState('all'); // 'all', 'clue', 'event', 'danger'
   const [selectedEra, setSelectedEra] = useState('all');
@@ -46,7 +127,7 @@ export default function DataBankModal({ onClose }) {
         isDecoy: c.isDecoy,
         artifactName: c.artifactName,
         artifact: artifact,
-        badgeColor: c.isDecoy ? '#64748B' : '#38BDF8'
+        badgeColor: c.isDecoy ? '#A89885' : '#FFD700'
       });
     });
 
@@ -151,22 +232,29 @@ export default function DataBankModal({ onClose }) {
           flexDirection: 'column',
           padding: '20px 24px',
           position: 'relative',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          background: '#28201A',
+          border: '3px solid #C2974D',
+          outline: '2px solid #140E0A',
+          boxShadow: 'inset 2px 2px 0 #EBC669, inset -2px -2px 0 #7A5823, 0 20px 60px rgba(0, 0, 0, 0.95)',
+          borderRadius: '6px',
+          boxSizing: 'border-box'
         }}
       >
         {/* Top Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid rgba(56, 189, 248, 0.25)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', paddingBottom: '12px', borderBottom: '2px solid #5A422D' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(99, 102, 241, 0.3))',
-              border: '1px solid rgba(56, 189, 248, 0.4)',
+              width: '42px',
+              height: '42px',
+              borderRadius: '4px',
+              background: '#32261D',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '1.25rem'
+              fontSize: '1.3rem'
             }}>
               🗄️
             </div>
@@ -176,37 +264,49 @@ export default function DataBankModal({ onClose }) {
                 fontSize: '1.25rem',
                 fontFamily: 'var(--font-display)',
                 letterSpacing: '2px',
-                color: '#F8FAFC',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
+                color: '#F8FAFC'
               }}>
-                TEMPORAL DATA BANK
-                <span style={{ fontSize: '0.68rem', color: '#38BDF8', background: 'rgba(56, 189, 248, 0.12)', padding: '2px 8px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-                  {filteredCards.length} RECORDS FOUND
-                </span>
+                HISTORICAL DATA BANK
               </h2>
-              <div className="databank-header-sub" style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '2px' }}>
-                Comprehensive archival intelligence on Clues, Historical Events, and Hazard Anomalies
+              <div className="databank-header-sub" style={{ fontSize: '0.74rem', color: '#C8B293', marginTop: '2px' }}>
+                Archival repository of Clues, Historic Encounters, and Hazard Anomalies
               </div>
             </div>
           </div>
 
-          <button
-            className="modal-close"
-            onClick={() => { sounds.btnClick(); onClose(); }}
-            style={{ position: 'static', color: '#94A3B8', fontSize: '1.4rem' }}
-          >
-            &times;
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{
+              fontSize: '0.68rem',
+              color: '#FFD700',
+              background: 'linear-gradient(180deg, #38281A 0%, #1F150C 100%)',
+              padding: '6px 14px',
+              borderRadius: '3px',
+              border: '1.5px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #120C06, 0 2px 3px rgba(0,0,0,0.6)',
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '1px',
+              textShadow: '1px 1px 0 #000',
+              whiteSpace: 'nowrap'
+            }}>
+              {filteredCards.length} RECORDS ARCHIVED
+            </div>
+            <button
+              className="modal-close"
+              onClick={() => { sounds.btnClick(); onClose(); }}
+              style={{ position: 'static' }}
+              title="Close Data Bank"
+            >
+              &times;
+            </button>
+          </div>
         </div>
 
         {/* Filter Bar Controls */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
-          {/* Row 1: Search & Type Tabs */}
+          {/* Row 1: Category Tabs & Search Bar */}
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
             {/* Category Tabs */}
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {[
                 { id: 'all', label: `All Cards (${counts.all})`, icon: '🗃️' },
                 { id: 'clue', label: `Clues & Decoys (${counts.clue})`, icon: '🔍' },
@@ -219,17 +319,21 @@ export default function DataBankModal({ onClose }) {
                     key={cat.id}
                     onClick={() => { sounds.btnClick(); setSelectedCategory(cat.id); }}
                     style={{
-                      background: isActive ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.3), rgba(99, 102, 241, 0.4))' : 'rgba(15, 23, 42, 0.6)',
-                      border: isActive ? '1.5px solid #38BDF8' : '1px solid rgba(255, 255, 255, 0.1)',
-                      color: isActive ? '#FFF' : '#94A3B8',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      fontSize: '0.76rem',
+                      background: isActive ? 'linear-gradient(180deg, #6B491E 0%, #462E10 100%)' : 'linear-gradient(180deg, #3A2C21 0%, #251B14 100%)',
+                      border: isActive ? '2px solid #C2974D' : '2px solid #5A422D',
+                      boxShadow: isActive ? 'inset 1px 1px 0 #FFD700, inset -1px -1px 0 #1E1204, 0 2px 0 #0D0906' : 'inset 1px 1px 0 #6E5239, inset -1px -1px 0 #140E0A, 0 2px 0 #0D0906',
+                      color: isActive ? '#FFD700' : '#C8B293',
+                      padding: '7px 14px',
+                      borderRadius: '3px',
+                      fontSize: '0.72rem',
+                      fontFamily: 'var(--font-display)',
                       fontWeight: 700,
+                      letterSpacing: '1px',
+                      textShadow: '1px 1px 0 #000',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '5px',
+                      gap: '6px',
                       transition: 'all 0.15s ease'
                     }}
                   >
@@ -249,13 +353,15 @@ export default function DataBankModal({ onClose }) {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
                   width: '100%',
-                  background: 'rgba(15, 23, 42, 0.8)',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
-                  borderRadius: '6px',
-                  padding: '6px 28px 6px 10px',
+                  background: '#120D09',
+                  border: '2px solid #5A422D',
+                  boxShadow: 'inset 2px 2px 0 #070403, inset -1px -1px 0 #2A1D13',
+                  borderRadius: '3px',
+                  padding: '8px 30px 8px 12px',
                   fontSize: '0.78rem',
-                  color: '#FFF',
-                  outline: 'none'
+                  color: '#FFE082',
+                  outline: 'none',
+                  boxSizing: 'border-box'
                 }}
               />
               {searchQuery && (
@@ -268,9 +374,9 @@ export default function DataBankModal({ onClose }) {
                     transform: 'translateY(-50%)',
                     background: 'none',
                     border: 'none',
-                    color: '#94A3B8',
+                    color: '#C2974D',
                     cursor: 'pointer',
-                    fontSize: '0.8rem'
+                    fontSize: '0.85rem'
                   }}
                 >
                   ✕
@@ -279,15 +385,17 @@ export default function DataBankModal({ onClose }) {
             </div>
           </div>
 
-          {/* Row 2: Era Filter Pills */}
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 700, marginRight: '4px' }}>TIMELINE:</span>
+          {/* Row 2: Era Filter Tabs */}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.72rem', color: '#C2974D', fontWeight: 800, fontFamily: 'var(--font-display)', letterSpacing: '1px', textShadow: '1px 1px 0 #000', marginRight: '4px' }}>
+              TIMELINE:
+            </span>
             {[
-              { id: 'all', label: 'All Timelines', color: '#94A3B8' },
-              { id: ERAS.SPANISH, label: 'Spanish Era (1521-1898)', color: ERA_COLORS[ERAS.SPANISH] },
-              { id: ERAS.AMERICAN, label: 'American Era (1898-1946)', color: ERA_COLORS[ERAS.AMERICAN] },
-              { id: ERAS.JAPANESE, label: 'Japanese Era (1942-1945)', color: ERA_COLORS[ERAS.JAPANESE] },
-              { id: ERAS.MYTH, label: 'Myth & Legend', color: ERA_COLORS[ERAS.MYTH] }
+              { id: 'all', label: 'All Timelines' },
+              { id: ERAS.SPANISH, label: 'Spanish Era (1521-1898)' },
+              { id: ERAS.AMERICAN, label: 'American Era (1898-1946)' },
+              { id: ERAS.JAPANESE, label: 'Japanese Era (1942-1945)' },
+              { id: ERAS.MYTH, label: 'Myth & Legend' }
             ].map(era => {
               const isActive = selectedEra === era.id;
               return (
@@ -295,13 +403,16 @@ export default function DataBankModal({ onClose }) {
                   key={era.id}
                   onClick={() => { sounds.btnClick(); setSelectedEra(era.id); }}
                   style={{
-                    background: isActive ? `${era.color}25` : 'rgba(255, 255, 255, 0.04)',
-                    border: isActive ? `1.5px solid ${era.color}` : '1px solid rgba(255, 255, 255, 0.08)',
-                    color: isActive ? era.color : '#94A3B8',
-                    padding: '4px 10px',
-                    borderRadius: '14px',
+                    background: isActive ? 'linear-gradient(180deg, #6B491E 0%, #462E10 100%)' : 'linear-gradient(180deg, #2D2118 0%, #1A130E 100%)',
+                    border: isActive ? '2px solid #C2974D' : '1.5px solid #4D3725',
+                    boxShadow: isActive ? 'inset 1px 1px 0 #FFD700, inset -1px -1px 0 #1E1204, 0 2px 0 #0A0704' : 'inset 1px 1px 0 #4D3725, inset -1px -1px 0 #0D0906, 0 2px 0 #0A0704',
+                    color: isActive ? '#FFD700' : '#A89885',
+                    padding: '5px 12px',
+                    borderRadius: '3px',
                     fontSize: '0.72rem',
+                    fontFamily: 'var(--font-display)',
                     fontWeight: 700,
+                    textShadow: '1px 1px 0 #000',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease'
                   }}
@@ -328,15 +439,15 @@ export default function DataBankModal({ onClose }) {
               gridColumn: '1 / -1',
               textAlign: 'center',
               padding: '50px 20px',
-              color: '#64748B',
-              fontSize: '0.9rem'
+              color: '#A89885',
+              fontSize: '0.9rem',
+              fontFamily: 'var(--font-display)'
             }}>
               <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🔍</div>
-              No temporal cards match the selected filter criteria.
+              No historical records match the selected filter criteria.
             </div>
           ) : (
             filteredCards.map(card => {
-              const eraColor = ERA_COLORS[card.era] || '#94A3B8';
               const isSelected = inspectedCard?.id === card.id;
 
               return (
@@ -344,44 +455,47 @@ export default function DataBankModal({ onClose }) {
                   key={card.id}
                   onClick={() => { sounds.btnClick(); setInspectedCard(card); }}
                   style={{
-                    background: isSelected ? 'rgba(56, 189, 248, 0.18)' : 'rgba(15, 23, 42, 0.75)',
-                    border: isSelected ? '2px solid #38BDF8' : '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
+                    background: isSelected ? '#2D2218' : '#1C1510',
+                    border: isSelected ? '2px solid #FFD700' : '2px solid #3A2C21',
+                    borderRadius: '4px',
                     padding: '10px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '8px',
+                    gap: '6px',
                     cursor: 'pointer',
                     position: 'relative',
-                    transition: 'all 0.18s ease',
-                    boxShadow: isSelected ? '0 0 16px rgba(56, 189, 248, 0.3)' : 'none'
+                    transition: 'transform 0.15s ease',
+                    boxShadow: isSelected
+                      ? 'inset 1px 1px 0 #FFE082, inset -1px -1px 0 #140E0A, 0 0 0 2px #5A3F18'
+                      : 'inset 2px 2px 0 #0E0A07, inset -1px -1px 0 #4A3828'
                   }}
                   onMouseEnter={(e) => {
                     if (!isSelected) {
-                      e.currentTarget.style.transform = 'translateY(-3px)';
-                      e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.4)';
-                      e.currentTarget.style.boxShadow = '0 6px 18px rgba(0, 0, 0, 0.5)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.borderColor = '#C2974D';
+                      e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.6)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isSelected) {
                       e.currentTarget.style.transform = 'none';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                      e.currentTarget.style.boxShadow = 'none';
+                      e.currentTarget.style.borderColor = '#3A2C21';
+                      e.currentTarget.style.boxShadow = 'inset 2px 2px 0 #0E0A07, inset -1px -1px 0 #4A3828';
                     }
                   }}
                 >
-                  {/* Card Art Thumbnail Frame */}
+                  {/* Card Art Thumbnail Frame (Clean, pristine presentation without floating sticker tags) */}
                   <div style={{
                     width: '100%',
-                    height: '140px',
-                    borderRadius: '6px',
+                    height: '145px',
+                    borderRadius: '3px',
                     overflow: 'hidden',
-                    background: '#020617',
+                    background: '#100C09',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    border: '1px solid #2F231A',
+                    boxShadow: 'inset 1px 1px 0 #070503, inset -1px -1px 0 #1E150E',
                     position: 'relative'
                   }}>
                     {card.image ? (
@@ -396,57 +510,67 @@ export default function DataBankModal({ onClose }) {
                     ) : (
                       <span style={{ fontSize: '2rem' }}>{card.category === 'clue' ? '🔍' : (card.category === 'event' ? '⚡' : '⚠️')}</span>
                     )}
+                  </div>
 
-                    {/* Category Pin Badge */}
-                    <div style={{
-                      position: 'absolute',
-                      top: '5px',
-                      left: '5px',
-                      fontSize: '0.62rem',
+                  {/* Authentic Heraldic Label Tag Bar (Solid Beveled Ribbons, neatly integrated below the art) */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '4px',
+                    marginTop: '2px'
+                  }}>
+                    {/* Category Label Tag */}
+                    <span style={{
+                      fontSize: '0.6rem',
                       fontWeight: 800,
-                      background: 'rgba(0, 0, 0, 0.8)',
-                      color: card.badgeColor,
-                      border: `1px solid ${card.badgeColor}`,
+                      letterSpacing: '0.5px',
+                      fontFamily: 'var(--font-display)',
                       padding: '2px 6px',
-                      borderRadius: '4px'
+                      borderRadius: '2px',
+                      textShadow: '1px 1px 0 #000',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      ...getCategoryTagStyle(card.category, card.isDecoy)
                     }}>
                       {card.categoryLabel}
-                    </div>
+                    </span>
 
-                    {/* Era Indicator */}
-                    <div style={{
-                      position: 'absolute',
-                      bottom: '5px',
-                      right: '5px',
+                    {/* Era Ribbon Tag */}
+                    <span style={{
                       fontSize: '0.58rem',
                       fontWeight: 800,
-                      background: `${eraColor}30`,
-                      color: eraColor,
-                      border: `1px solid ${eraColor}80`,
-                      padding: '1px 5px',
-                      borderRadius: '3px'
+                      fontFamily: 'var(--font-display)',
+                      padding: '2px 6px',
+                      borderRadius: '2px',
+                      textShadow: '1px 1px 0 #000',
+                      whiteSpace: 'nowrap',
+                      ...getEraRibbonStyle(card.era)
                     }}>
                       {ERA_NAMES[card.era] || card.era}
-                    </div>
+                    </span>
                   </div>
 
                   {/* Title & Description Snippet */}
-                  <div>
+                  <div style={{ marginTop: '2px' }}>
                     <div style={{
                       fontSize: '0.8rem',
                       fontWeight: 700,
-                      color: '#F1F5F9',
+                      color: '#FFF',
                       lineHeight: 1.3,
-                      marginBottom: '3px',
+                      marginBottom: '2px',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
-                      textOverflow: 'ellipsis'
+                      textOverflow: 'ellipsis',
+                      fontFamily: 'var(--font-display)',
+                      textShadow: '1px 1px 0 #000'
                     }}>
                       {card.title}
                     </div>
                     <div style={{
                       fontSize: '0.68rem',
-                      color: '#94A3B8',
+                      color: '#C8B293',
                       lineHeight: 1.35,
                       display: '-webkit-box',
                       WebkitLineClamp: 2,
@@ -467,25 +591,50 @@ export default function DataBankModal({ onClose }) {
           <div style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(2, 6, 23, 0.94)',
-            backdropFilter: 'blur(16px)',
+            background: '#201712',
+            border: '3px solid #C2974D',
+            outline: '2px solid #140E0A',
+            boxShadow: 'inset 2px 2px 0 #EBC669, inset -2px -2px 0 #7A5823, 0 10px 40px rgba(0,0,0,0.95)',
+            borderRadius: '6px',
             display: 'flex',
             flexDirection: 'column',
             padding: '20px 24px',
             zIndex: 100,
-            animation: 'fadeIn 0.2s ease'
+            animation: 'fadeIn 0.2s ease',
+            boxSizing: 'border-box'
           }}>
             {/* Inspector Top Bar */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid rgba(56, 189, 248, 0.25)', paddingBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '2px solid #5A422D', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '1.4rem' }}>
                   {inspectedCard.category === 'clue' ? '🔍' : (inspectedCard.category === 'event' ? '⚡' : '⚠️')}
                 </span>
                 <div>
-                  <div style={{ fontSize: '0.68rem', color: inspectedCard.badgeColor, fontWeight: 800, letterSpacing: '1px' }}>
-                    {inspectedCard.categoryLabel.toUpperCase()} &bull; {ERA_NAMES[inspectedCard.era]?.toUpperCase()}
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '4px' }}>
+                    <span style={{
+                      fontSize: '0.62rem',
+                      fontWeight: 800,
+                      fontFamily: 'var(--font-display)',
+                      padding: '2px 8px',
+                      borderRadius: '2px',
+                      textShadow: '1px 1px 0 #000',
+                      ...getCategoryTagStyle(inspectedCard.category, inspectedCard.isDecoy)
+                    }}>
+                      {inspectedCard.categoryLabel.toUpperCase()}
+                    </span>
+                    <span style={{
+                      fontSize: '0.62rem',
+                      fontWeight: 800,
+                      fontFamily: 'var(--font-display)',
+                      padding: '2px 8px',
+                      borderRadius: '2px',
+                      textShadow: '1px 1px 0 #000',
+                      ...getEraRibbonStyle(inspectedCard.era)
+                    }}>
+                      {ERA_NAMES[inspectedCard.era]?.toUpperCase()}
+                    </span>
                   </div>
-                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontFamily: 'var(--font-display)', color: '#FFF' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', fontFamily: 'var(--font-display)', color: '#FFF', textShadow: '1px 1px 0 #000' }}>
                     {inspectedCard.title}
                   </h3>
                 </div>
@@ -495,7 +644,17 @@ export default function DataBankModal({ onClose }) {
                 <button
                   onClick={handlePrevCard}
                   className="editor-btn-sm"
-                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#CBD5E1', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer' }}
+                  style={{
+                    background: 'linear-gradient(180deg, #3A2C21 0%, #251B14 100%)',
+                    border: '2px solid #C2974D',
+                    boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #1A120B, 0 2px 0 #140E0A',
+                    color: '#FFD700',
+                    padding: '5px 12px',
+                    borderRadius: '3px',
+                    fontFamily: 'var(--font-display)',
+                    textShadow: '1px 1px 0 #000',
+                    cursor: 'pointer'
+                  }}
                   title="Previous Card"
                 >
                   ◀ Prev
@@ -503,7 +662,17 @@ export default function DataBankModal({ onClose }) {
                 <button
                   onClick={handleNextCard}
                   className="editor-btn-sm"
-                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#CBD5E1', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer' }}
+                  style={{
+                    background: 'linear-gradient(180deg, #3A2C21 0%, #251B14 100%)',
+                    border: '2px solid #C2974D',
+                    boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #1A120B, 0 2px 0 #140E0A',
+                    color: '#FFD700',
+                    padding: '5px 12px',
+                    borderRadius: '3px',
+                    fontFamily: 'var(--font-display)',
+                    textShadow: '1px 1px 0 #000',
+                    cursor: 'pointer'
+                  }}
                   title="Next Card"
                 >
                   Next ▶
@@ -511,7 +680,21 @@ export default function DataBankModal({ onClose }) {
                 <button
                   onClick={() => { sounds.btnClick(); setInspectedCard(null); }}
                   className="modal-close"
-                  style={{ position: 'static', color: '#FFF', fontSize: '1.4rem' }}
+                  style={{
+                    position: 'static',
+                    color: '#FFD700',
+                    fontSize: '1.4rem',
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '3px',
+                    background: '#3A2C21',
+                    border: '2px solid #C2974D',
+                    boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #1A120B, 0 2px 0 #140E0A',
+                    cursor: 'pointer'
+                  }}
                 >
                   &times;
                 </button>
@@ -524,10 +707,10 @@ export default function DataBankModal({ onClose }) {
               <div style={{
                 flex: '0 0 280px',
                 maxWidth: '300px',
-                background: '#020617',
-                borderRadius: '12px',
-                border: `2px solid ${inspectedCard.badgeColor}`,
-                boxShadow: `0 0 30px ${inspectedCard.badgeColor}35`,
+                background: '#120D09',
+                borderRadius: '4px',
+                border: '2px solid #C2974D',
+                boxShadow: 'inset 2px 2px 0 #0A0705, 0 4px 12px rgba(0, 0, 0, 0.8)',
                 padding: '12px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -537,35 +720,35 @@ export default function DataBankModal({ onClose }) {
                 <img
                   src={inspectedCard.image}
                   alt={inspectedCard.title}
-                  style={{ width: '100%', maxHeight: '380px', objectFit: 'contain', borderRadius: '8px' }}
+                  style={{ width: '100%', maxHeight: '380px', objectFit: 'contain', borderRadius: '4px' }}
                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
                 />
               </div>
 
               {/* Right Column: Historical Intelligence & Rules Dossier */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '550px' }}>
-                {/* Era & Type Bar */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '550px' }}>
+                {/* Era & Type Bar (Solid Beveled Ribbons) */}
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <span style={{
-                    background: `${ERA_COLORS[inspectedCard.era]}25`,
-                    color: ERA_COLORS[inspectedCard.era],
-                    border: `1px solid ${ERA_COLORS[inspectedCard.era]}60`,
-                    padding: '3px 10px',
-                    borderRadius: '12px',
+                    padding: '4px 12px',
+                    borderRadius: '3px',
                     fontSize: '0.74rem',
-                    fontWeight: 800
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-display)',
+                    textShadow: '1px 1px 0 #000',
+                    ...getEraRibbonStyle(inspectedCard.era)
                   }}>
                     {ERA_NAMES[inspectedCard.era]}
                   </span>
 
                   <span style={{
-                    background: `${inspectedCard.badgeColor}25`,
-                    color: inspectedCard.badgeColor,
-                    border: `1px solid ${inspectedCard.badgeColor}60`,
-                    padding: '3px 10px',
-                    borderRadius: '12px',
+                    padding: '4px 12px',
+                    borderRadius: '3px',
                     fontSize: '0.74rem',
-                    fontWeight: 800
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-display)',
+                    textShadow: '1px 1px 0 #000',
+                    ...getCategoryTagStyle(inspectedCard.category, inspectedCard.isDecoy)
                   }}>
                     {inspectedCard.categoryLabel}
                   </span>
@@ -573,27 +756,28 @@ export default function DataBankModal({ onClose }) {
 
                 {/* Primary Gameplay Effect / Mechanics */}
                 <div style={{
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '8px',
+                  background: '#1A130E',
+                  border: '2px solid #5A422D',
+                  boxShadow: 'inset 2px 2px 0 #0E0A07',
+                  borderRadius: '4px',
                   padding: '14px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '6px'
                 }}>
-                  <div style={{ fontSize: '0.72rem', color: '#38BDF8', fontWeight: 800, letterSpacing: '1px' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#FFD700', fontWeight: 800, letterSpacing: '1px', fontFamily: 'var(--font-display)', textShadow: '1px 1px 0 #000' }}>
                     CHRONO DIRECTIVE & GAMEPLAY EFFECT
                   </div>
-                  <div style={{ fontSize: '0.9rem', color: '#F8FAFC', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: '0.88rem', color: '#F1E3D3', lineHeight: 1.5 }}>
                     {inspectedCard.description}
                   </div>
                   {inspectedCard.successMsg && (
-                    <div style={{ fontSize: '0.78rem', color: '#34D399', marginTop: '4px' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#34D399', marginTop: '4px', textShadow: '1px 1px 0 #000' }}>
                       ✓ <strong>Hazard Evaded:</strong> {inspectedCard.successMsg}
                     </div>
                   )}
                   {inspectedCard.failMsg && (
-                    <div style={{ fontSize: '0.78rem', color: '#F87171' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#F87171', textShadow: '1px 1px 0 #000' }}>
                       ✗ <strong>Hazard Failure:</strong> {inspectedCard.failMsg}
                     </div>
                   )}
@@ -602,9 +786,10 @@ export default function DataBankModal({ onClose }) {
                 {/* Artifact Link (For Clues) */}
                 {inspectedCard.artifact && (
                   <div style={{
-                    background: 'rgba(245, 158, 11, 0.08)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    borderRadius: '8px',
+                    background: '#251B12',
+                    border: '2px solid #C2974D',
+                    boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16',
+                    borderRadius: '4px',
                     padding: '12px',
                     display: 'flex',
                     gap: '10px',
@@ -612,13 +797,13 @@ export default function DataBankModal({ onClose }) {
                   }}>
                     <span style={{ fontSize: '1.5rem' }}>🏆</span>
                     <div>
-                      <div style={{ fontSize: '0.72rem', color: '#FCD34D', fontWeight: 800 }}>
+                      <div style={{ fontSize: '0.72rem', color: '#FFD700', fontWeight: 800, fontFamily: 'var(--font-display)', textShadow: '1px 1px 0 #000' }}>
                         LINKED HISTORICAL ARTIFACT:
                       </div>
-                      <div style={{ fontSize: '0.84rem', color: '#FFF', fontWeight: 700 }}>
+                      <div style={{ fontSize: '0.84rem', color: '#FFF', fontWeight: 700, fontFamily: 'var(--font-display)' }}>
                         {inspectedCard.artifact.name} ({inspectedCard.artifact.nickname})
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: '#CBD5E1', marginTop: '2px' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#C8B293', marginTop: '2px' }}>
                         {inspectedCard.artifact.history || inspectedCard.artifact.significance}
                       </div>
                     </div>
@@ -627,15 +812,16 @@ export default function DataBankModal({ onClose }) {
 
                 {/* Historical Context & Lore */}
                 <div style={{
-                  background: 'rgba(15, 23, 42, 0.6)',
-                  border: '1px solid rgba(255, 255, 255, 0.07)',
-                  borderRadius: '8px',
+                  background: '#17110C',
+                  border: '1.5px solid #4A3522',
+                  boxShadow: 'inset 2px 2px 0 #0A0705',
+                  borderRadius: '4px',
                   padding: '14px'
                 }}>
-                  <div style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 800, letterSpacing: '1px', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#FFD700', fontWeight: 800, letterSpacing: '1px', marginBottom: '4px', fontFamily: 'var(--font-display)', textShadow: '1px 1px 0 #000' }}>
                     HISTORICAL CONTEXT & ARCHIVAL INTELLIGENCE
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: '#CBD5E1', lineHeight: 1.6 }}>
+                  <div style={{ fontSize: '0.8rem', color: '#C8B293', lineHeight: 1.6 }}>
                     {inspectedCard.lore}
                   </div>
                 </div>
@@ -644,7 +830,19 @@ export default function DataBankModal({ onClose }) {
                   <button
                     className="btn btn-primary"
                     onClick={() => { sounds.btnClick(); setInspectedCard(null); }}
-                    style={{ padding: '8px 20px', fontSize: '0.82rem' }}
+                    style={{
+                      padding: '8px 24px',
+                      fontSize: '0.82rem',
+                      background: 'linear-gradient(180deg, #5A3E1B 0%, #38240D 100%)',
+                      border: '2px solid #C2974D',
+                      boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #1A120B, 0 3px 0 #140E0A',
+                      color: '#FFD700',
+                      fontFamily: 'var(--font-display)',
+                      letterSpacing: '1px',
+                      textTransform: 'uppercase',
+                      textShadow: '1px 1px 0 #000',
+                      cursor: 'pointer'
+                    }}
                   >
                     Close Dossier
                   </button>

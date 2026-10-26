@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getSavedProfile, savePlayerProfile } from '../../sessionManager.js';
 import sounds from '../../sound.js';
 import { ALL_ARTIFACTS, ERA_NAMES, ERAS, ROLES } from '../../gameData.js';
 
@@ -70,10 +71,40 @@ export function QuestsModal({ onClose }) {
   return (
     <div className="modal-overlay" style={{ zIndex: 12000 }}>
       <div className="modal duelyst-modal" style={{ maxWidth: '640px', width: '92%' }}>
-        <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
-        <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38BDF8' }}>
-          <span>📜</span>
-          <span>Chronosphere Quests & Directives</span>
+        {/* Header Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #5A422D' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '4px',
+              background: '#32261D',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.2rem'
+            }}>
+              📜
+            </div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.15rem', fontFamily: 'var(--font-display)', letterSpacing: '1.5px', color: '#F8FAFC' }}>
+                CHRONOSPHERE DIRECTIVES
+              </h2>
+              <div style={{ fontSize: '0.7rem', color: '#C8B293', marginTop: '2px' }}>
+                Active tactical orders and timeline restoration objectives
+              </div>
+            </div>
+          </div>
+          <button
+            className="modal-close"
+            onClick={() => { sounds.btnClick(); onClose(); }}
+            style={{ position: 'static' }}
+            title="Close Directives"
+          >
+            &times;
+          </button>
         </div>
 
         <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto', paddingRight: '4px' }}>
@@ -109,7 +140,7 @@ export function QuestsModal({ onClose }) {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                       <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#F1F5F9' }}>{q.title}</span>
-                      <span style={{ fontSize: '0.75rem', color: '#38BDF8', fontWeight: 600 }}>{q.reward}</span>
+                      <span style={{ fontSize: '0.75rem', color: '#FFD700', fontWeight: 600 }}>{q.reward}</span>
                     </div>
                     <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginBottom: '8px', lineHeight: 1.35 }}>
                       {q.description}
@@ -117,7 +148,7 @@ export function QuestsModal({ onClose }) {
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ flex: 1, height: '6px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ width: `${percent}%`, height: '100%', background: q.completed ? 'linear-gradient(90deg, #10B981, #34D399)' : 'linear-gradient(90deg, #3B82F6, #60A5FA)' }}></div>
+                        <div style={{ width: `${percent}%`, height: '100%', background: q.completed ? 'linear-gradient(90deg, #10B981, #34D399)' : 'linear-gradient(90deg, #C2974D, #FFD700)' }}></div>
                       </div>
                       <span style={{ fontSize: '0.72rem', color: '#CBD5E1', fontWeight: 700 }}>
                         {q.progress}/{q.max}
@@ -164,98 +195,259 @@ export function QuestsModal({ onClose }) {
    2. PROFILE MODAL
    ========================================================================== */
 export function ProfileModal({ onClose }) {
-  const [playerName, setPlayerName] = useState(() => {
-    return localStorage.getItem('panahon_player_name') || 'Operative One';
-  });
-  const [selectedRoleKey, setSelectedRoleKey] = useState(() => {
-    return localStorage.getItem('panahon_player_role') || 'HISTORIAN';
-  });
+  const [profile, setProfile] = useState(() => getSavedProfile());
+  const [playerName, setPlayerName] = useState(profile.name);
+  const [selectedRoleKey, setSelectedRoleKey] = useState(profile.roleKey);
   const [isSaved, setIsSaved] = useState(false);
 
+  useEffect(() => {
+    const handleProfileUpdate = (e) => {
+      const { name, roleKey } = e.detail || {};
+      if (name) setPlayerName(name);
+      if (roleKey) setSelectedRoleKey(roleKey);
+    };
+    window.addEventListener('panahon_profile_updated', handleProfileUpdate);
+    return () => window.removeEventListener('panahon_profile_updated', handleProfileUpdate);
+  }, []);
+
   const handleSave = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     sounds.btnClick();
-    localStorage.setItem('panahon_player_name', playerName.trim() || 'Operative One');
-    localStorage.setItem('panahon_player_role', selectedRoleKey);
+    const cleanName = playerName.trim() || 'Operative One';
+    savePlayerProfile(cleanName, selectedRoleKey);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
+  };
+
+  const handleRoleSelect = (key) => {
+    sounds.btnClick();
+    setSelectedRoleKey(key);
+    const cleanName = playerName.trim() || 'Operative One';
+    savePlayerProfile(cleanName, key);
+  };
+
+  const handleClose = () => {
+    const cleanName = playerName.trim() || 'Operative One';
+    savePlayerProfile(cleanName, selectedRoleKey);
+    sounds.btnClick();
+    onClose();
   };
 
   const currentRole = ROLES[selectedRoleKey] || ROLES.HISTORIAN;
 
   return (
-    <div className="modal-overlay" style={{ zIndex: 12000 }}>
-      <div className="modal duelyst-modal" style={{ maxWidth: '580px', width: '92%' }}>
-        <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
-        <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38BDF8' }}>
-          <span>👤</span>
-          <span>Operative Dossier & Record</span>
+    <div
+      className="modal-overlay"
+      style={{
+        zIndex: 12000,
+        backgroundColor: "rgba(10, 8, 6, 0.88)"
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleClose();
+      }}
+    >
+      <div
+        className="modal duelyst-modal"
+        style={{
+          maxWidth: "600px",
+          width: "92%",
+          background: "#18120D",
+          border: "3px solid #C2974D",
+          boxShadow: "inset 2px 2px 0 #5A422D, inset -2px -2px 0 #0F0A07, 0 16px 40px rgba(0,0,0,0.85)",
+          borderRadius: "8px",
+          padding: "20px 24px",
+          color: "#F5EEDC",
+          position: "relative"
+        }}
+      >
+        {/* Header Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #5A422D' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '4px',
+              background: '#32261D',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.2rem'
+            }}>
+              👤
+            </div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.15rem', fontFamily: 'var(--font-display)', letterSpacing: '1.5px', color: '#F8FAFC' }}>
+                OPERATIVE DOSSIER & RECORD
+              </h2>
+              <div style={{ fontSize: '0.7rem', color: '#C8B293', marginTop: '2px' }}>
+                Spacetime Registry & Temporal Discipline Calibration
+              </div>
+            </div>
+          </div>
+          <button
+            className="modal-close"
+            onClick={handleClose}
+            style={{ position: 'static' }}
+            title="Close Dossier"
+          >
+            &times;
+          </button>
         </div>
 
-        <div className="modal-body" style={{ maxHeight: '68vh', overflowY: 'auto' }}>
+        <div className="modal-body" style={{ maxHeight: "68vh", overflowY: "auto", paddingRight: "4px" }}>
           {/* Identity Header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '12px', padding: '16px', marginBottom: '18px' }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+              background: "#221912",
+              border: "2px solid #5A422D",
+              boxShadow: "inset 2px 2px 0 #120D08, inset -1px -1px 0 #3D2D1E",
+              borderRadius: "6px",
+              padding: "14px",
+              marginBottom: "16px"
+            }}
+          >
             <img
               src={currentRole.avatar}
               alt={currentRole.name}
-              style={{ width: '64px', height: '64px', borderRadius: '50%', border: '2px solid #38BDF8', background: 'rgba(0,0,0,0.5)', objectFit: 'cover' }}
+              style={{
+                width: "58px",
+                height: "58px",
+                borderRadius: "6px",
+                border: "2px solid #C2974D",
+                background: "#120D08",
+                objectFit: "cover"
+              }}
             />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#F8FAFC' }}>{playerName}</div>
-              <div style={{ fontSize: '0.8rem', color: '#38BDF8', fontWeight: 600 }}>{currentRole.name} • Specialization</div>
-              <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '2px' }}>Temporal Registry: Rank IV Castaway</div>
+              <div
+                style={{
+                  fontSize: "1.15rem",
+                  fontWeight: 800,
+                  color: "#FEF3C7",
+                  fontFamily: "var(--font-display)",
+                  letterSpacing: "0.5px"
+                }}
+              >
+                {playerName || "Operative One"}
+              </div>
+              <div style={{ fontSize: "0.75rem", color: "#FCD34D", fontWeight: 700, marginTop: "2px" }}>
+                {currentRole.name} &bull; Specialization
+              </div>
+              <div style={{ fontSize: "0.68rem", color: "#B89B72", marginTop: "2px" }}>
+                Temporal Registry: Operative Rank IV
+              </div>
             </div>
           </div>
 
-          {/* Edit Name Form */}
-          <form onSubmit={handleSave} style={{ marginBottom: '18px' }}>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>
-              Operative Callsign
+          {/* Edit Callsign Form */}
+          <form onSubmit={handleSave} style={{ marginBottom: "18px" }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: "0.7rem",
+                fontWeight: 800,
+                color: "#D4A559",
+                fontFamily: "var(--font-display)",
+                letterSpacing: "0.5px",
+                marginBottom: "6px"
+              }}
+            >
+              OPERATIVE CALLSIGN:
             </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: "flex", gap: "8px" }}>
               <input
                 type="text"
                 value={playerName}
                 onChange={(e) => setPlayerName(e.target.value)}
                 maxLength={20}
-                style={{ flex: 1, padding: '8px 12px', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', color: '#FFF', fontSize: '0.9rem' }}
+                placeholder="Enter callsign..."
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  background: "#140E0A",
+                  border: "2px solid #5A422D",
+                  borderRadius: "4px",
+                  color: "#FEF3C7",
+                  fontSize: "0.85rem",
+                  outline: "none"
+                }}
               />
               <button
                 type="submit"
-                className="btn btn-primary"
-                style={{ padding: '8px 16px', fontSize: '0.82rem', minWidth: '80px' }}
+                style={{
+                  background: "linear-gradient(180deg, #5C4325 0%, #3D2B16 100%)",
+                  border: "2px solid #C2974D",
+                  boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #2A1D0E, 0 2px 0 #120E0A",
+                  color: "#FEF3C7",
+                  borderRadius: "4px",
+                  padding: "8px 18px",
+                  fontFamily: "var(--font-display)",
+                  fontSize: "0.72rem",
+                  fontWeight: 800,
+                  cursor: "pointer"
+                }}
               >
-                {isSaved ? 'Saved! ✓' : 'Save'}
+                {isSaved ? "SAVED! ✓" : "SAVE"}
               </button>
             </div>
           </form>
 
           {/* Role Specialization */}
-          <div style={{ marginBottom: '18px' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '8px' }}>
-              Choose Role Affinity
+          <div style={{ marginBottom: "18px" }}>
+            <div
+              style={{
+                fontSize: "0.7rem",
+                fontWeight: 800,
+                color: "#D4A559",
+                fontFamily: "var(--font-display)",
+                letterSpacing: "0.5px",
+                marginBottom: "8px"
+              }}
+            >
+              CHOOSE ROLE AFFINITY:
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-              {Object.keys(ROLES).map(k => {
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+              {Object.keys(ROLES).map((k) => {
                 const r = ROLES[k];
                 const active = selectedRoleKey === k;
                 return (
                   <button
                     key={k}
                     type="button"
-                    onClick={() => { sounds.btnClick(); setSelectedRoleKey(k); }}
+                    onClick={() => handleRoleSelect(k)}
                     style={{
-                      background: active ? 'rgba(56, 189, 248, 0.2)' : 'rgba(15, 23, 42, 0.6)',
-                      border: active ? '1.5px solid #38BDF8' : '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '8px',
-                      padding: '8px 4px',
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      color: active ? '#FFF' : '#94A3B8'
+                      background: active ? "#3D2B16" : "#1C1510",
+                      border: active ? "2px solid #FFD700" : "1.5px solid #4A382C",
+                      boxShadow: active
+                        ? "inset 1px 1px 0 #EBD07D, 0 0 8px rgba(255, 215, 0, 0.3)"
+                        : "inset 1px 1px 0 #2E2218",
+                      borderRadius: "6px",
+                      padding: "10px 4px",
+                      textAlign: "center",
+                      cursor: "pointer",
+                      color: active ? "#FEF3C7" : "#A69279"
                     }}
                   >
-                    <img src={r.avatar} alt={r.name} style={{ width: '32px', height: '32px', margin: '0 auto 4px', display: 'block' }} />
-                    <div style={{ fontSize: '0.68rem', fontWeight: 700 }}>{r.name}</div>
+                    <img
+                      src={r.avatar}
+                      alt={r.name}
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        margin: "0 auto 4px",
+                        display: "block",
+                        borderRadius: "4px",
+                        border: active ? "1px solid #FFD700" : "1px solid transparent"
+                      }}
+                    />
+                    <div style={{ fontSize: "0.68rem", fontWeight: 800, fontFamily: "var(--font-display)" }}>
+                      {r.name}
+                    </div>
                   </button>
                 );
               })}
@@ -263,28 +455,86 @@ export function ProfileModal({ onClose }) {
           </div>
 
           {/* Operative Statistics */}
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '8px' }}>
-            Temporal Service Record
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-            <div style={{ background: 'rgba(0,0,0,0.35)', padding: '10px', borderRadius: '8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#38BDF8' }}>14</div>
-              <div style={{ fontSize: '0.68rem', color: '#94A3B8' }}>Missions Logged</div>
+          <div style={{ marginBottom: "18px" }}>
+            <div
+              style={{
+                fontSize: "0.7rem",
+                fontWeight: 800,
+                color: "#D4A559",
+                fontFamily: "var(--font-display)",
+                letterSpacing: "0.5px",
+                marginBottom: "8px"
+              }}
+            >
+              TEMPORAL SERVICE RECORD:
             </div>
-            <div style={{ background: 'rgba(0,0,0,0.35)', padding: '10px', borderRadius: '8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#10B981' }}>71%</div>
-              <div style={{ fontSize: '0.68rem', color: '#94A3B8' }}>Success Rate</div>
-            </div>
-            <div style={{ background: 'rgba(0,0,0,0.35)', padding: '10px', borderRadius: '8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#F59E0B' }}>19</div>
-              <div style={{ fontSize: '0.68rem', color: '#94A3B8' }}>Relics Recovered</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+              <div
+                style={{
+                  background: "#221912",
+                  border: "1.5px solid #5A422D",
+                  padding: "10px",
+                  borderRadius: "6px",
+                  textAlign: "center"
+                }}
+              >
+                <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "#FCD34D", fontFamily: "var(--font-display)" }}>
+                  14
+                </div>
+                <div style={{ fontSize: "0.64rem", color: "#C9B69C" }}>Missions Logged</div>
+              </div>
+              <div
+                style={{
+                  background: "#221912",
+                  border: "1.5px solid #5A422D",
+                  padding: "10px",
+                  borderRadius: "6px",
+                  textAlign: "center"
+                }}
+              >
+                <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "#86EFAC", fontFamily: "var(--font-display)" }}>
+                  71%
+                </div>
+                <div style={{ fontSize: "0.64rem", color: "#C9B69C" }}>Success Rate</div>
+              </div>
+              <div
+                style={{
+                  background: "#221912",
+                  border: "1.5px solid #5A422D",
+                  padding: "10px",
+                  borderRadius: "6px",
+                  textAlign: "center"
+                }}
+              >
+                <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "#FBBF24", fontFamily: "var(--font-display)" }}>
+                  19
+                </div>
+                <div style={{ fontSize: "0.64rem", color: "#C9B69C" }}>Relics Recovered</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="modal-actions" style={{ marginTop: '16px' }}>
-          <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => { sounds.btnClick(); onClose(); }}>
-            Close
+        <div className="modal-actions" style={{ marginTop: "16px" }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{
+              width: "100%",
+              background: "#2D2218",
+              border: "2px solid #8C672B",
+              boxShadow: "inset 1px 1px 0 #5C3E16, inset -1px -1px 0 #18110B, 0 2px 0 #0D0907",
+              color: "#FEF3C7",
+              padding: "10px",
+              borderRadius: "4px",
+              fontFamily: "var(--font-display)",
+              fontSize: "0.75rem",
+              fontWeight: 800,
+              cursor: "pointer"
+            }}
+            onClick={handleClose}
+          >
+            ← RETURN TO HEADQUARTERS
           </button>
         </div>
       </div>
@@ -329,16 +579,46 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEdi
   return (
     <div className="modal-overlay" style={{ zIndex: 12000 }}>
       <div className="modal duelyst-modal bug-report-modal" style={{ maxWidth: '520px', width: '92%' }}>
-        <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
-        <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38BDF8' }}>
-          <span>⚙️</span>
-          <span>Temporal Settings</span>
+        {/* Header Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #5A422D' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '4px',
+              background: '#32261D',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.2rem'
+            }}>
+              ⚙️
+            </div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.15rem', fontFamily: 'var(--font-display)', letterSpacing: '1.5px', color: '#F8FAFC' }}>
+                TEMPORAL SETTINGS
+              </h2>
+              <div style={{ fontSize: '0.7rem', color: '#C8B293', marginTop: '2px' }}>
+                Audio parameters, visual atmospheric fidelity, and system cache
+              </div>
+            </div>
+          </div>
+          <button
+            className="modal-close"
+            onClick={() => { sounds.btnClick(); onClose(); }}
+            style={{ position: 'static' }}
+            title="Close Settings"
+          >
+            &times;
+          </button>
         </div>
 
         <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
           {/* Audio Controls */}
           <div style={{ marginBottom: '20px' }}>
-            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#38BDF8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#FFD700', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
               🔊 Audio Configuration
             </div>
 
@@ -376,7 +656,7 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEdi
             <div style={{ marginBottom: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px', color: '#94A3B8' }}>
                 <span>Sound Effects (SFX)</span>
-                <span style={{ color: '#38BDF8', fontWeight: 700 }}>{sfxVolume}%</span>
+                <span style={{ color: '#FFD700', fontWeight: 700 }}>{sfxVolume}%</span>
               </div>
               <input
                 type="range"
@@ -386,7 +666,7 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEdi
                 onChange={handleSfxChange}
                 onMouseUp={() => sounds.btnClick()}
                 onTouchEnd={() => sounds.btnClick()}
-                style={{ width: '100%', accentColor: '#38BDF8', cursor: 'pointer' }}
+                style={{ width: '100%', accentColor: '#C2974D', cursor: 'pointer' }}
               />
             </div>
 
@@ -401,7 +681,7 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEdi
                 max="100"
                 value={musicVolume}
                 onChange={handleMusicChange}
-                style={{ width: '100%', accentColor: '#38BDF8', cursor: 'pointer' }}
+                style={{ width: '100%', accentColor: '#C2974D', cursor: 'pointer' }}
               />
             </div>
 
@@ -416,7 +696,7 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEdi
 
           {/* Graphics & Atmosphere */}
           <div style={{ marginBottom: '20px' }}>
-            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#38BDF8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#FFD700', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
               ✨ Visual Atmosphere
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: '8px' }}>
@@ -477,7 +757,7 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEdi
 
           {/* System & Cache */}
           <div style={{ marginBottom: '12px' }}>
-            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#38BDF8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#FFD700', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
               💾 Diagnostics & Cache
             </div>
             <button
@@ -526,10 +806,40 @@ export function FriendsModal({ onClose, onSelectMode, onSpectateOnline }) {
   return (
     <div className="modal-overlay" style={{ zIndex: 12000 }}>
       <div className="modal duelyst-modal" style={{ maxWidth: '540px', width: '92%' }}>
-        <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
-        <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38BDF8' }}>
-          <span>👥</span>
-          <span>Timeline Allies & Direct Peer Link</span>
+        {/* Header Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #5A422D' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '4px',
+              background: '#32261D',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.2rem'
+            }}>
+              👥
+            </div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.15rem', fontFamily: 'var(--font-display)', letterSpacing: '1.5px', color: '#F8FAFC' }}>
+                TIMELINE ALLIES & DIRECT PEER LINK
+              </h2>
+              <div style={{ fontSize: '0.7rem', color: '#C8B293', marginTop: '2px' }}>
+                Connect with other operatives in the chronosphere via peer-to-peer WebRTC coordinates
+              </div>
+            </div>
+          </div>
+          <button
+            className="modal-close"
+            onClick={() => { sounds.btnClick(); onClose(); }}
+            style={{ position: 'static' }}
+            title="Close Allies"
+          >
+            &times;
+          </button>
         </div>
 
         <div className="modal-body">
@@ -585,7 +895,7 @@ export function FriendsModal({ onClose, onSelectMode, onSpectateOnline }) {
             </div>
             <button
               className="btn btn-primary"
-              style={{ width: '100%', background: 'linear-gradient(135deg, #0284C7, #0369A1)', fontSize: '0.85rem' }}
+              style={{ width: '100%', background: 'linear-gradient(135deg, #5A3F18, #3A2C21)', fontSize: '0.85rem' }}
               onClick={() => {
                 sounds.portal();
                 onClose();
@@ -610,6 +920,47 @@ export function FriendsModal({ onClose, onSelectMode, onSpectateOnline }) {
 /* ==========================================================================
    5. COLLECTION MODAL (HISTORICAL CODEX)
    ========================================================================== */
+
+const getModalEraRibbonStyle = (era) => {
+  switch (era) {
+    case ERAS.SPANISH:
+      return {
+        background: 'linear-gradient(180deg, #7A1A12 0%, #4D0E09 100%)',
+        border: '1px solid #C2974D',
+        boxShadow: 'inset 1px 1px 0 #D45B4D, inset -1px -1px 0 #280806, 0 1px 2px rgba(0,0,0,0.6)',
+        color: '#FFE8A3'
+      };
+    case ERAS.AMERICAN:
+      return {
+        background: 'linear-gradient(180deg, #1A375A 0%, #0D2038 100%)',
+        border: '1px solid #C2974D',
+        boxShadow: 'inset 1px 1px 0 #4A7AB5, inset -1px -1px 0 #08121E, 0 1px 2px rgba(0,0,0,0.6)',
+        color: '#E8F1FC'
+      };
+    case ERAS.JAPANESE:
+      return {
+        background: 'linear-gradient(180deg, #1C4820 0%, #0F2B12 100%)',
+        border: '1px solid #C2974D',
+        boxShadow: 'inset 1px 1px 0 #468A4C, inset -1px -1px 0 #08170A, 0 1px 2px rgba(0,0,0,0.6)',
+        color: '#E2F7E4'
+      };
+    case ERAS.MYTH:
+      return {
+        background: 'linear-gradient(180deg, #6B4210 0%, #3D2405 100%)',
+        border: '1px solid #C2974D',
+        boxShadow: 'inset 1px 1px 0 #D4892A, inset -1px -1px 0 #1A1003, 0 1px 2px rgba(0,0,0,0.6)',
+        color: '#FFD700'
+      };
+    default:
+      return {
+        background: 'linear-gradient(180deg, #3A2C21 0%, #221811 100%)',
+        border: '1px solid #5A422D',
+        boxShadow: 'inset 1px 1px 0 #5C432D, inset -1px -1px 0 #140E0A',
+        color: '#C8B293'
+      };
+  }
+};
+
 export function CollectionModal({ onClose }) {
   const [activeEra, setActiveEra] = useState('all');
   const [selectedArtifact, setSelectedArtifact] = useState(null);
@@ -620,48 +971,122 @@ export function CollectionModal({ onClose }) {
 
   return (
     <div className="modal-overlay" style={{ zIndex: 12000 }}>
-      <div className="modal duelyst-modal" style={{ maxWidth: '820px', width: '94%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
-        <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
-        <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#F59E0B' }}>
-          <span>🏛️</span>
-          <span>Historical Collection & Artifact Codex</span>
+      <div
+        className="modal duelyst-modal collection-modal-container"
+        style={{
+          maxWidth: '860px',
+          width: '94%',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          background: '#28201A',
+          border: '3px solid #C2974D',
+          outline: '2px solid #140E0A',
+          boxShadow: 'inset 2px 2px 0 #EBC669, inset -2px -2px 0 #7A5823, 0 20px 60px rgba(0, 0, 0, 0.95)',
+          borderRadius: '6px',
+          padding: '20px 24px',
+          boxSizing: 'border-box'
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '2px solid #5A422D', paddingBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '4px',
+              background: '#32261D',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.3rem'
+            }}>
+              🏛️
+            </div>
+            <div>
+              <h2 style={{
+                margin: 0,
+                fontSize: '1.25rem',
+                fontFamily: 'var(--font-display)',
+                letterSpacing: '2px',
+                color: '#F8FAFC'
+              }}>
+                HISTORICAL ARTIFACT CODEX
+              </h2>
+              <div style={{ fontSize: '0.74rem', color: '#C8B293', marginTop: '2px' }}>
+                Archival repository of all authentic Philippine historical relics scattered across timelines
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{
+              fontSize: '0.68rem',
+              color: '#FFD700',
+              background: 'linear-gradient(180deg, #38281A 0%, #1F150C 100%)',
+              padding: '6px 14px',
+              borderRadius: '3px',
+              border: '1.5px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #120C06, 0 2px 3px rgba(0,0,0,0.6)',
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '1px',
+              textShadow: '1px 1px 0 #000',
+              whiteSpace: 'nowrap'
+            }}>
+              16 RELICS CATALOGED
+            </div>
+            <button
+              className="modal-close"
+              onClick={() => { sounds.btnClick(); onClose(); }}
+              style={{ position: 'static' }}
+              title="Close Codex"
+            >
+              &times;
+            </button>
+          </div>
         </div>
 
         <div className="modal-body" style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
-          <p className="collection-desc" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-            Archival repository of all 16 tangible historical Philippine relics and artifacts scattered throughout the timelines:
-          </p>
-
-          {/* Era Filter Pills */}
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+          {/* Era Filter Chunky 3D Wooden Buttons */}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
             {[
               { id: 'all', label: `All Relics (${ALL_ARTIFACTS.length})` },
               { id: ERAS.SPANISH, label: 'Spanish Era (4)' },
               { id: ERAS.AMERICAN, label: 'American Era (4)' },
               { id: ERAS.JAPANESE, label: 'Japanese Era (4)' },
               { id: ERAS.MYTH, label: 'Myth & Legend (4)' }
-            ].map(f => (
-              <button
-                key={f.id}
-                onClick={() => { sounds.btnClick(); setActiveEra(f.id); }}
-                style={{
-                  background: activeEra === f.id ? 'linear-gradient(135deg, #F59E0B, #D97706)' : 'rgba(255,255,255,0.06)',
-                  border: activeEra === f.id ? '1.5px solid #FCD34D' : '1px solid rgba(255,255,255,0.12)',
-                  color: activeEra === f.id ? '#000' : 'var(--text-secondary)',
-                  padding: '5px 12px',
-                  borderRadius: '16px',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                {f.label}
-              </button>
-            ))}
+            ].map(f => {
+              const isActive = activeEra === f.id;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => { sounds.btnClick(); setActiveEra(f.id); }}
+                  style={{
+                    background: isActive ? 'linear-gradient(180deg, #6B491E 0%, #462E10 100%)' : 'linear-gradient(180deg, #2D2118 0%, #1A130E 100%)',
+                    border: isActive ? '2px solid #C2974D' : '1.5px solid #4D3725',
+                    boxShadow: isActive ? 'inset 1px 1px 0 #FFD700, inset -1px -1px 0 #1E1204, 0 2px 0 #0A0704' : 'inset 1px 1px 0 #4D3725, inset -1px -1px 0 #0D0906, 0 2px 0 #0A0704',
+                    color: isActive ? '#FFD700' : '#A89885',
+                    padding: '6px 14px',
+                    borderRadius: '3px',
+                    textShadow: '1px 1px 0 #000',
+                    fontSize: '0.72rem',
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 700,
+                    letterSpacing: '1px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Artifacts Grid */}
-          <div className="collection-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
+          {/* Artifacts Recessed Inventory Slots Grid */}
+          <div className="collection-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '12px' }}>
             {filteredArtifacts.map(a => {
               const isSelected = selectedArtifact?.id === a.id;
               return (
@@ -669,31 +1094,54 @@ export function CollectionModal({ onClose }) {
                   key={a.id}
                   onClick={() => { sounds.btnClick(); setSelectedArtifact(a); }}
                   style={{
-                    background: isSelected ? 'rgba(245, 158, 11, 0.15)' : 'rgba(15, 23, 42, 0.8)',
-                    border: isSelected ? '2px solid #F59E0B' : '1px solid rgba(255, 255, 255, 0.12)',
-                    borderRadius: '10px',
+                    background: isSelected ? '#2D2218' : '#1C1510',
+                    border: isSelected ? '2px solid #FFD700' : '2px solid #3A2C21',
+                    borderRadius: '4px',
                     padding: '12px 10px',
                     textAlign: 'center',
                     cursor: 'pointer',
-                    transition: 'transform 0.18s ease, box-shadow 0.18s ease',
-                    boxShadow: isSelected ? '0 0 16px rgba(245, 158, 11, 0.3)' : 'none'
+                    boxShadow: isSelected
+                      ? 'inset 1px 1px 0 #FFE082, inset -1px -1px 0 #140E0A, 0 0 0 2px #5A3F18'
+                      : 'inset 2px 2px 0 #0E0A07, inset -1px -1px 0 #4A3828',
+                    transition: 'transform 0.15s ease'
                   }}
                 >
-                  <div style={{ height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
+                  <div style={{
+                    height: '80px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '8px',
+                    background: '#120D09',
+                    border: '1px solid #2F231A',
+                    borderRadius: '3px',
+                    padding: '6px'
+                  }}>
                     <img
                       src={a.image}
                       alt={a.name}
-                      style={{ maxHeight: '68px', maxWidth: '100%', objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }}
+                      style={{ maxHeight: '72px', maxWidth: '100%', objectFit: 'contain', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.8))' }}
                     />
                   </div>
-                  <div style={{ fontSize: '0.68rem', color: '#FCD34D', fontWeight: 800, textTransform: 'uppercase' }}>
+                  <div style={{ fontSize: '0.68rem', color: '#FFD700', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', fontFamily: 'var(--font-display)' }}>
                     {a.nickname}
                   </div>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#F1F5F9', marginTop: '2px', lineHeight: 1.25 }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#FFF', marginTop: '2px', lineHeight: 1.25 }}>
                     {a.name}
                   </div>
-                  <div style={{ fontSize: '0.65rem', color: '#94A3B8', marginTop: '4px' }}>
-                    {ERA_NAMES[a.era] || a.era}
+                  <div style={{ marginTop: '5px' }}>
+                    <span style={{
+                      fontSize: '0.6rem',
+                      fontWeight: 800,
+                      fontFamily: 'var(--font-display)',
+                      padding: '2px 8px',
+                      borderRadius: '2px',
+                      textShadow: '1px 1px 0 #000',
+                      display: 'inline-block',
+                      ...getModalEraRibbonStyle(a.era)
+                    }}>
+                      {ERA_NAMES[a.era] || a.era}
+                    </span>
                   </div>
                 </div>
               );
@@ -702,12 +1150,39 @@ export function CollectionModal({ onClose }) {
 
           {/* Selected Relic Details Preview */}
           {selectedArtifact && (
-            <div style={{ marginTop: '16px', background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95))', border: '1.5px solid #F59E0B', borderRadius: '10px', padding: '14px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-              <img src={selectedArtifact.image} alt={selectedArtifact.name} style={{ width: '80px', height: '80px', objectFit: 'contain', flexShrink: 0 }} />
+            <div style={{
+              marginTop: '16px',
+              background: '#201712',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 2px 2px 0 #3A2C21, inset -1px -1px 0 #0E0A07, 0 4px 8px rgba(0,0,0,0.6)',
+              borderRadius: '4px',
+              padding: '16px',
+              display: 'flex',
+              gap: '16px',
+              alignItems: 'center'
+            }}>
+              <div style={{
+                width: '88px',
+                height: '88px',
+                background: '#120D09',
+                border: '1px solid #C2974D',
+                borderRadius: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                padding: '4px'
+              }}>
+                <img src={selectedArtifact.image} alt={selectedArtifact.name} style={{ maxWidth: '80px', maxHeight: '80px', objectFit: 'contain' }} />
+              </div>
               <div>
-                <div style={{ fontSize: '0.72rem', color: '#FCD34D', fontWeight: 800, textTransform: 'uppercase' }}>{selectedArtifact.category} • {ERA_NAMES[selectedArtifact.era]}</div>
-                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#FFF' }}>{selectedArtifact.name} ("{selectedArtifact.nickname}")</div>
-                <div style={{ fontSize: '0.78rem', color: '#CBD5E1', marginTop: '4px', lineHeight: 1.35 }}>
+                <div style={{ fontSize: '0.72rem', color: '#FFD700', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', fontFamily: 'var(--font-display)' }}>
+                  {selectedArtifact.category} &bull; {ERA_NAMES[selectedArtifact.era]}
+                </div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#FFF', fontFamily: 'var(--font-display)' }}>
+                  {selectedArtifact.name} ("{selectedArtifact.nickname}")
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#C8B293', marginTop: '4px', lineHeight: 1.4 }}>
                   Authentic Philippine historical artifact required for victory. Players must collect 3 matching era clues to retrieve this relic and secure the timeline!
                 </div>
               </div>
@@ -715,8 +1190,24 @@ export function CollectionModal({ onClose }) {
           )}
         </div>
 
-        <div className="modal-actions collection-modal-actions" style={{ marginTop: '16px' }}>
-          <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => { sounds.btnClick(); onClose(); }}>
+        <div className="modal-actions collection-modal-actions" style={{ marginTop: '16px', paddingTop: '12px', borderTop: '2px solid #5A422D' }}>
+          <button
+            className="btn btn-secondary"
+            style={{
+              width: '100%',
+              background: '#3A2C21',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #1A120B, 0 3px 0 #140E0A',
+              color: '#FFD700',
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '1px',
+              textTransform: 'uppercase',
+              padding: '10px 0',
+              fontSize: '0.85rem',
+              cursor: 'pointer'
+            }}
+            onClick={() => { sounds.btnClick(); onClose(); }}
+          >
             Close Codex
           </button>
         </div>
@@ -725,9 +1216,6 @@ export function CollectionModal({ onClose }) {
   );
 }
 
-/* ==========================================================================
-   6. BUG REPORT / FEEDBACK MODAL
-   ========================================================================== */
 export function BugReportModal({ onClose }) {
   const [category, setCategory] = useState('Visual');
   const [description, setDescription] = useState('');
@@ -745,10 +1233,40 @@ export function BugReportModal({ onClose }) {
   return (
     <div className="modal-overlay" style={{ zIndex: 12000 }}>
       <div className="modal duelyst-modal bug-report-modal" style={{ maxWidth: '520px', width: '92%' }}>
-        <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
-        <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38BDF8' }}>
-          <span>🐞</span>
-          <span>Temporal Anomaly & Bug Reporter</span>
+        {/* Header Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #5A422D' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '4px',
+              background: '#32261D',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.2rem'
+            }}>
+              🐞
+            </div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.15rem', fontFamily: 'var(--font-display)', letterSpacing: '1.5px', color: '#F8FAFC' }}>
+                ANOMALY & BUG REPORTER
+              </h2>
+              <div style={{ fontSize: '0.7rem', color: '#C8B293', marginTop: '2px' }}>
+                Submit chronological turbulence reports to the development team
+              </div>
+            </div>
+          </div>
+          <button
+            className="modal-close"
+            onClick={() => { sounds.btnClick(); onClose(); }}
+            style={{ position: 'static' }}
+            title="Close Reporter"
+          >
+            &times;
+          </button>
         </div>
 
         <div className="modal-body">

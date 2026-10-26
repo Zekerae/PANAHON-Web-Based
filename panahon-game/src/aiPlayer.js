@@ -74,6 +74,26 @@ class AiController {
           return;
         }
 
+        // If danger card requires survival die roll, let bot roll interactively
+        if (state.pendingModal.type === 'danger' && state.pendingModal.needsRoll) {
+          const elapsed = Date.now() - state.pendingModal._shownAt;
+          if (elapsed < 850) {
+            this.scheduleAiStep(engine, network, 850 - elapsed);
+            return;
+          }
+          sounds.diceRoll?.();
+          const res = engine.rollDangerDie(player.id);
+          network?.sendAction({ type: 'ROLL_DANGER_DIE', playerIdx: player.id });
+          if (res?.success) {
+            sounds.artifact?.();
+          } else {
+            sounds.danger?.();
+          }
+          state.pendingModal._shownAt = Date.now();
+          this.scheduleAiStep(engine, network, 1200);
+          return;
+        }
+
         const isEventOrDanger = state.pendingModal.type === 'event' || state.pendingModal.type === 'danger';
         const speed = engine.simulationSpeed || 1;
         // Give 6.0 seconds for Event / Danger cards and 4.2s for Clues so human players and observers can comfortably read

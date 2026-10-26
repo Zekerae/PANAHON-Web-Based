@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import sounds from '../sound.js';
 import { ERA_NAMES } from '../gameData.js';
 import Dice from './game/Dice';
@@ -98,10 +98,41 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     : (isArtifact ? Math.max(2600, Math.round(5500 / speed)) : Math.max(2200, Math.round(4500 / speed)));
 
   const [isHovered, setIsHovered] = useState(false);
+  const [isRollingDanger, setIsRollingDanger] = useState(false);
   const startTimeRef = useRef(Date.now());
   const elapsedRef = useRef(0);
   const timerRef = useRef(null);
   const onDismissRef = useRef(onDismiss);
+
+  const handleRollDanger = useCallback(() => {
+    if (isRollingDanger || !modal?.needsRoll || isOtherPlayer) return;
+    setIsRollingDanger(true);
+    sounds.diceRoll?.();
+
+    setTimeout(() => {
+      const res = engine?.rollDangerDie?.(activePlayer?.id);
+      network?.sendAction?.({ type: 'ROLL_DANGER_DIE', playerIdx: activePlayer?.id });
+      setIsRollingDanger(false);
+      if (res?.success) {
+        sounds.artifact?.();
+      } else {
+        sounds.danger?.();
+      }
+    }, 700);
+  }, [isRollingDanger, modal?.needsRoll, isOtherPlayer, engine, network, activePlayer?.id]);
+
+  // Spacebar and Enter shortcut to roll survival die
+  useEffect(() => {
+    if (!isDanger || !modal?.needsRoll || isOtherPlayer || isRollingDanger) return;
+    const handleKeyDown = (e) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        handleRollDanger();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDanger, modal?.needsRoll, isOtherPlayer, isRollingDanger, handleRollDanger]);
 
   useEffect(() => {
     onDismissRef.current = onDismiss;
@@ -126,7 +157,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
 
   // High-performance timer with pause/resume support
   useEffect(() => {
-    if (!isOtherPlayer) return;
+    if (!isOtherPlayer || modal?.needsRoll) return;
 
     if (isHovered) {
       elapsedRef.current += (Date.now() - startTimeRef.current);
@@ -263,7 +294,30 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
             </div>
           </div>
 
-          {isDanger && modal.diceRoll !== undefined && (
+          {isDanger && modal.needsRoll && (
+            <div style={{
+              marginTop: '8px',
+              padding: '8px 10px',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: '8px',
+              fontSize: '0.75rem',
+              color: '#FCA5A5',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <Dice size="sm" isRolling={true} theme="hazard" />
+              <div>
+                <strong style={{ color: '#FFF' }}>Survival Hazard Check</strong>
+                <div style={{ fontSize: '0.7rem', color: '#CBD5E1', marginTop: '1px' }}>
+                  Rolling survival die to determine fate...
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isDanger && !modal.needsRoll && modal.diceRoll !== null && modal.diceRoll !== undefined && (
             <div style={{
               marginTop: '6px',
               padding: '6px 8px',
@@ -386,7 +440,48 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
             <div className="card-display-desc">{modal.description}</div>
           </div>
 
-          {isDanger && modal.diceRoll !== undefined && (
+          {isDanger && modal.needsRoll && (
+            <div className="hazard-roll-stage" style={{
+              marginTop: '14px',
+              padding: '14px',
+              background: 'linear-gradient(180deg, rgba(30, 10, 15, 0.7) 0%, rgba(15, 5, 10, 0.9) 100%)',
+              border: '1.5px solid rgba(239, 68, 68, 0.5)',
+              borderRadius: '12px',
+              boxShadow: '0 0 25px rgba(239, 68, 68, 0.25), inset 0 0 15px rgba(239, 68, 68, 0.15)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '10px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '0.76rem', fontWeight: 800, letterSpacing: '1px', color: '#FCA5A5', textTransform: 'uppercase' }}>
+                ⚠️ SURVIVAL HAZARD CHECK REQUIRED
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px' }}>
+                <Dice
+                  value={modal.diceRoll}
+                  isRolling={isRollingDanger}
+                  size="md"
+                  theme="hazard"
+                  onClick={handleRollDanger}
+                  disabled={isRollingDanger}
+                  isInteractive={!isRollingDanger}
+                  showLabel={false}
+                />
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#FDE047' }}>
+                    {isRollingDanger ? 'Tumbling Hazard Die...' : 'Roll the Die to Survive!'}
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#CBD5E1', marginTop: '2px', maxWidth: '240px', lineHeight: 1.35 }}>
+                    {modal.description}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isDanger && !modal.needsRoll && modal.diceRoll !== null && modal.diceRoll !== undefined && (
             <div className="modal-dice">
               <Dice value={modal.diceRoll} size="sm" theme={modal.success ? 'success' : 'hazard'} isInteractive={false} />
               <div className="modal-dice-result">
@@ -403,9 +498,36 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         </div>
 
         <div className="modal-actions">
-          <button className="btn btn-primary" onClick={handleDismiss} style={{ padding: '10px 24px', fontWeight: 800 }}>
-            {engine?.state?.pendingChoice?.type === 'teleportTile' ? 'Choose Destination ➔' : 'Acknowledge Directive ➔'}
-          </button>
+          {isDanger && modal.needsRoll ? (
+            <button
+              type="button"
+              className="btn btn-roll-dice"
+              style={{
+                width: '100%',
+                padding: '12px 24px',
+                fontWeight: 800,
+                fontSize: '0.95rem',
+                background: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)',
+                border: '1.5px solid #FCA5A5',
+                boxShadow: '0 0 20px rgba(239, 68, 68, 0.45)',
+                color: '#FFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                cursor: isRollingDanger ? 'not-allowed' : 'pointer'
+              }}
+              disabled={isRollingDanger}
+              onClick={handleRollDanger}
+            >
+              <span>🎲 {isRollingDanger ? 'TUMBLING DIE...' : 'ROLL SURVIVAL DIE'}</span>
+              <kbd style={{ background: 'rgba(0,0,0,0.4)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem', border: '1px solid rgba(255,255,255,0.4)' }}>SPACE</kbd>
+            </button>
+          ) : (
+            <button className="btn btn-primary" onClick={handleDismiss} style={{ padding: '10px 24px', fontWeight: 800 }}>
+              {engine?.state?.pendingChoice?.type === 'teleportTile' ? 'Choose Destination ➔' : 'Acknowledge Directive ➔'}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -423,6 +545,43 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
   const isClueHandLimit = choice.type === 'clueHandLimit';
   const isTeleport = choice.type === 'teleportTile';
   const [tileFilter, setTileFilter] = useState('all');
+  const [selectedDecipherIdx, setSelectedDecipherIdx] = useState(null);
+  const [isRevealed, setIsRevealed] = useState(false);
+  const [isAddingToHand, setIsAddingToHand] = useState(false);
+
+  useEffect(() => {
+    setSelectedDecipherIdx(null);
+    setIsRevealed(false);
+    setIsAddingToHand(false);
+  }, [choice?.type, choice?.drawnCards]);
+
+  useEffect(() => {
+    if (isDecipher && !isAi) {
+      sounds.clue?.();
+    }
+  }, [isDecipher, isAi]);
+
+  const handleDecipherCardClick = (idx) => {
+    if (!isMyTurn && network.mode === "online") return;
+    if (isRevealed || isAddingToHand) return;
+
+    sounds.clue?.();
+    setSelectedDecipherIdx(idx);
+    setIsRevealed(true);
+  };
+
+  const handleConfirmAddToHand = () => {
+    if (selectedDecipherIdx === null || isAddingToHand) return;
+    if (!isMyTurn && network.mode === "online") return;
+
+    sounds.btnClick?.();
+    setIsAddingToHand(true);
+
+    setTimeout(() => {
+      sounds.artifact?.();
+      handleSelect("pick_" + selectedDecipherIdx);
+    }, 450);
+  };
 
   const speed = engine?.simulationSpeed || 1;
   const durationMs = Math.max(2400, Math.round(4200 / speed));
@@ -547,7 +706,8 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
           )}
 
           {isDecipher && choice.drawnCards && (
-            <div className="mystery-cards-mini-row side-card-clickable">
+            <div>
+              <div className="mystery-cards-mini-row side-card-clickable">
               {choice.drawnCards.map((c, idx) => (
                 <div key={idx} className={`mystery-card-mini ${idx === 0 ? 'selected-by-bot' : ''}`}>
                   <div style={{ fontSize: '1.4rem' }}>📜</div>
@@ -555,6 +715,29 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                   {idx === 0 ? <div className="mini-choice-badge">DECIPHERED</div> : <div style={{ fontSize: '0.6rem', color: '#94A3B8' }}>Deck Return</div>}
                 </div>
               ))}
+            </div>
+
+            {choice.drawnCards[0] && (
+              <div className="ai-decipher-preview" style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(15, 23, 42, 0.85)", border: "1px solid rgba(96, 165, 250, 0.35)", borderRadius: "8px", padding: "8px 10px", margin: "8px 0", textAlign: "left" }}>
+                <img
+                  src={choice.drawnCards[0].cardImage || choice.drawnCards[0].image}
+                  alt={choice.drawnCards[0].artifactName || "Clue"}
+                  style={{ width: "42px", height: "58px", objectFit: "cover", borderRadius: "4px", border: "1px solid rgba(255,255,255,0.2)", flexShrink: 0 }}
+                  onError={(e) => { e.target.style.display = "none"; }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 700, color: choice.drawnCards[0].isDecoy ? "#EF4444" : "#60A5FA" }}>
+                    {choice.drawnCards[0].isDecoy ? "🎭 Decoy Card Drawn" : ("✨ " + (choice.drawnCards[0].artifactName || "Historical Clue"))}
+                  </div>
+                  <div style={{ fontSize: "0.7rem", color: "#CBD5E1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {choice.drawnCards[0].hint || choice.drawnCards[0].description}
+                  </div>
+                  <div style={{ fontSize: "0.65rem", color: "#94A3B8" }}>
+                    Deciphered by {activePlayer?.name || "Bot"} &bull; Moving to hand
+                  </div>
+                </div>
+              </div>
+            )}
             </div>
           )}
 
@@ -964,32 +1147,179 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
 
   return (
     <div className="modal-overlay" id="active-modal">
-      <div className="modal" style={isDecipher ? { maxWidth: '500px', width: '95%' } : {}}>
-        <div className="modal-title">{choice.title}</div>
+      <div className="modal" style={isDecipher ? { maxWidth: '560px', width: '95%' } : {}}>
+        <div className="modal-title">
+          {isDecipher ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#60A5FA' }}>
+              <span>📜</span> Clue Decipher (Historian Ability)
+            </span>
+          ) : choice.title}
+        </div>
         <div className="modal-body" style={{ textAlign: 'center', marginBottom: isDecipher ? '4px' : 'var(--space-lg)' }}>
-          <p>{choice.message}</p>
+          <p style={{ color: '#CBD5E1', fontSize: '0.88rem', margin: '4px 0 12px', lineHeight: 1.45 }}>
+            {isDecipher
+              ? (isRevealed
+                  ? "Historical intel deciphered! Inspect the discovered card below, then take it into your inventory."
+                  : "Select 1 of the 3 face-down mystery Clue Cards to decipher. The other cards will return to the timeline deck.")
+              : choice.message}
+          </p>
+
           {isDecipher && choice.drawnCards && (
             <div>
               <div className="mystery-cards-grid">
-                {choice.drawnCards.map((c, idx) => (
-                  <div
-                    key={idx}
-                    className="mystery-card choice-btn"
-                    title={`Click to choose Mystery Card #${idx + 1}`}
-                    style={(!isMyTurn && network.mode === 'online') ? { pointerEvents: 'none', opacity: 0.6 } : { cursor: 'pointer' }}
-                    onClick={() => isMyTurn && handleSelect(`pick_${idx}`)}
-                  >
-                    <div style={{ fontSize: '2.2rem', filter: 'drop-shadow(0 0 10px rgba(59, 130, 246, 0.7))' }}>📜</div>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#60A5FA', letterSpacing: '0.5px' }}>CARD #{idx + 1}</div>
-                    <div style={{ fontSize: '0.62rem', color: '#93C5FD', background: 'rgba(59, 130, 246, 0.2)', padding: '2px 8px', borderRadius: '10px', border: '1px solid rgba(59, 130, 246, 0.4)' }}>
-                      FACE DOWN
+                {choice.drawnCards.map((c, idx) => {
+                  const isSelected = selectedDecipherIdx === idx;
+                  const isDimmed = isRevealed && !isSelected;
+                  const isFlipped = isSelected && isRevealed;
+                  const eraBorder = c.era === 'spanish' ? '#EF4444' : (c.era === 'american' ? '#3B82F6' : (c.era === 'japanese' ? '#F59E0B' : '#8B5CF6'));
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`mystery-card-wrapper ${isSelected ? 'selected' : ''} ${isDimmed ? 'dimmed' : ''} ${isSelected && isAddingToHand ? 'adding-to-hand' : ''}`}
+                      style={(!isMyTurn && network.mode === 'online') ? { pointerEvents: 'none', opacity: 0.6 } : {}}
+                    >
+                      <div className={`mystery-card-inner ${isFlipped ? 'is-flipped' : ''}`}>
+                        {/* Card Back (Face Down) */}
+                        <div
+                          className="mystery-card-face mystery-card-back"
+                          onClick={() => isMyTurn && !isRevealed && handleDecipherCardClick(idx)}
+                          title={!isRevealed ? `Click to choose Mystery Card #${idx + 1}` : undefined}
+                        >
+                          <div className="card-back-ornament">⏳</div>
+                          <div className="card-back-title">CARD #{idx + 1}</div>
+                          <div className="card-back-status">
+                            {isDimmed ? 'RETURNING' : 'MYSTERY'}
+                          </div>
+                          <div className="card-back-shimmer"></div>
+                        </div>
+
+                        {/* Card Front (Revealed Clue / Decoy) */}
+                        <div
+                          className="mystery-card-face mystery-card-front"
+                          style={{ borderColor: c.isDecoy ? '#EF4444' : eraBorder }}
+                          onClick={() => onMaximize && onMaximize({
+                            title: c.isDecoy ? 'Decoy Card' : (c.artifactName || 'Clue Card'),
+                            cardType: c.isDecoy ? 'Decoy Card' : 'Clue Card',
+                            description: c.description || c.hint,
+                            image: c.cardImage || c.image,
+                            era: c.era
+                          })}
+                          title="Click to view full preview"
+                        >
+                          <div className={`card-front-badge ${c.isDecoy ? 'badge-decoy' : 'badge-authentic'}`}
+                            style={{
+                              background: c.isDecoy ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.25)',
+                              color: c.isDecoy ? '#F87171' : '#34D399',
+                              border: `1px solid ${c.isDecoy ? '#EF4444' : '#10B981'}`
+                            }}
+                          >
+                            {c.isDecoy ? '🎭 DECOY' : '✨ CLUE'}
+                          </div>
+                          <div className="card-front-img-wrap">
+                            <img
+                              src={c.cardImage || c.image}
+                              alt={c.artifactName || c.description}
+                              className="card-front-img"
+                              onError={(e) => { e.target.style.display = 'none'; }}
+                            />
+                          </div>
+                          <div className="card-front-title" title={c.artifactName || c.description}>
+                            {c.artifactName || (c.isDecoy ? 'Decoy Card' : 'Clue Card')}
+                          </div>
+                          <div className="card-front-era" style={{ backgroundColor: `${eraBorder}33`, color: eraBorder, borderColor: eraBorder }}>
+                            {ERA_NAMES[c.era]?.replace(' Era', '') || c.era}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {isRevealed && selectedDecipherIdx !== null && choice.drawnCards[selectedDecipherIdx] && (() => {
+                const chosen = choice.drawnCards[selectedDecipherIdx];
+                const hasDecoyPassive = activePlayer?.roleKey === 'HISTORIAN' && (activePlayer?.passiveCooldown || 0) <= 0;
+                const eraBorder = chosen.era === 'spanish' ? '#EF4444' : (chosen.era === 'american' ? '#3B82F6' : (chosen.era === 'japanese' ? '#F59E0B' : '#8B5CF6'));
+
+                return (
+                  <div className="decipher-dossier" style={{ animation: 'fadeInUp 0.35s ease-out' }}>
+                    <div className="decipher-dossier-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.2rem' }}>{chosen.isDecoy ? '🎭' : '🔍'}</span>
+                        <span style={{ fontWeight: 700, fontSize: '0.92rem', color: chosen.isDecoy ? '#F87171' : '#60A5FA' }}>
+                          {chosen.isDecoy ? 'Decoy Card Discovered' : (chosen.artifactName ? `Clue: ${chosen.artifactName}` : 'Historical Clue')}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '12px', background: `${eraBorder}22`, color: eraBorder, border: `1px solid ${eraBorder}55`, fontWeight: 700 }}>
+                        {ERA_NAMES[chosen.era] || chosen.era}
+                      </span>
+                    </div>
+
+                    <div className="decipher-dossier-quote" style={{ background: 'rgba(0, 0, 0, 0.45)', borderLeft: `3px solid ${chosen.isDecoy ? '#EF4444' : '#3B82F6'}`, padding: '10px 12px', borderRadius: '4px', fontSize: '0.84rem', color: '#E2E8F0', fontStyle: 'italic', marginBottom: '10px', lineHeight: 1.45, textAlign: 'left' }}>
+                      "{chosen.hint || chosen.description || 'Ancient timeline manuscript data.'}"
+                    </div>
+
+                    {chosen.isDecoy && hasDecoyPassive && (
+                      <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '6px', padding: '8px 10px', fontSize: '0.78rem', color: '#6EE7B7', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left' }}>
+                        <span>🛡️</span>
+                        <span><strong>Historian Decoy Discard Active!</strong> This decoy card will be safely neutralized and returned to the deck without consuming hand space.</span>
+                      </div>
+                    )}
+
+                    {chosen.isDecoy && !hasDecoyPassive && (
+                      <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '6px', padding: '8px 10px', fontSize: '0.78rem', color: '#FCA5A5', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left' }}>
+                        <span>⚠️</span>
+                        <span><strong>Decoy Discard on Cooldown</strong> ({activePlayer?.passiveCooldown || 0} turns left). Decoy will take 1 slot in your hand.</span>
+                      </div>
+                    )}
+
+                    {!chosen.isDecoy && (activePlayer?.clueCards?.length || 0) >= 5 && (
+                      <div style={{ background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: '6px', padding: '8px 10px', fontSize: '0.78rem', color: '#FCD34D', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left' }}>
+                        <span>⚠️</span>
+                        <span><strong>Hand Limit Full (5/5 Clues):</strong> Taking this card will trigger the discard selection modal to replace a card.</span>
+                      </div>
+                    )}
+
+                    <div className="decipher-dossier-actions" style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                      <button
+                        className={`btn ${chosen.isDecoy && hasDecoyPassive ? 'btn-success' : 'btn-primary'} decipher-add-btn`}
+                        style={{ flex: 2, padding: '10px 14px', fontSize: '0.9rem', fontWeight: 700 }}
+                        onClick={handleConfirmAddToHand}
+                        disabled={isAddingToHand}
+                      >
+                        {isAddingToHand ? (
+                          <span>✨ Taking into Hand...</span>
+                        ) : chosen.isDecoy && hasDecoyPassive ? (
+                          <span>🛡️ Neutralize Decoy & Discard ➔</span>
+                        ) : (
+                          <span>🎴 Add Card to Hand / Inventory ➔</span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ flex: 1, padding: '10px 12px', fontSize: '0.82rem' }}
+                        onClick={() => onMaximize && onMaximize({
+                          title: chosen.isDecoy ? 'Decoy Card' : (chosen.artifactName || 'Clue Card'),
+                          cardType: chosen.isDecoy ? 'Decoy Card' : 'Clue Card',
+                          description: chosen.description || chosen.hint,
+                          image: chosen.cardImage || chosen.image,
+                          era: chosen.era
+                        })}
+                      >
+                        🔍 Inspect
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-              <div style={{ fontSize: '0.82rem', color: '#93C5FD', marginTop: '12px', fontWeight: 600 }}>
-                🔍 Click any face-down mystery card above to keep it!
-              </div>
+                );
+              })()}
+
+              {!isRevealed && (
+                <div style={{ fontSize: '0.82rem', color: '#93C5FD', marginTop: '12px', fontWeight: 600 }}>
+                  🔍 Click any face-down mystery card above to decipher and reveal it!
+                </div>
+              )}
             </div>
           )}
 

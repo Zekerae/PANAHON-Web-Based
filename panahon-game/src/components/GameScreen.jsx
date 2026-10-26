@@ -293,6 +293,7 @@ function GameScreen({
         onOpenPause={handleOpenPause}
         isSpectator={effectiveIsSpectator}
         spectatorCount={spectators?.length || 0}
+        currentEra={currentPlayer?.currentEra}
       />
 
       {/* MOBILE SCREEN TABS BAR */}

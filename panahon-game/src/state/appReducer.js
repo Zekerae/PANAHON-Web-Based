@@ -1,3 +1,7 @@
+import { getSavedProfile } from '../sessionManager.js';
+
+const initialProfile = getSavedProfile();
+
 export const initialAppState = {
   currentScreen: 'title', // 'title' | 'lobby' | 'game' | 'endgame' | 'map-editor'
   lobbyMode: 'local', // 'local' | 'online'
@@ -6,7 +10,7 @@ export const initialAppState = {
   isSpectator: false,
   simulationSpeed: 1, // 1 | 1.5 | 2
   localPlayers: [
-    { name: 'Player 1', roleKey: 'HISTORIAN', type: 'human', difficulty: 'normal' },
+    { name: initialProfile.name, roleKey: initialProfile.roleKey, type: 'human', difficulty: 'normal' },
     { name: 'Bot Explorer', roleKey: 'EXPLORER', type: 'ai', difficulty: 'normal' },
     { name: 'Bot Guardian', roleKey: 'GUARDIAN', type: 'ai', difficulty: 'normal' },
     { name: 'Bot Strategist', roleKey: 'STRATEGIST', type: 'ai', difficulty: 'normal' }
@@ -18,21 +22,64 @@ export function appReducer(state, action) {
     case 'NAVIGATE':
       return { ...state, currentScreen: action.screen };
 
-    case 'OPEN_LOBBY':
+    case 'OPEN_LOBBY': {
+      const prof = getSavedProfile();
       return {
         ...state,
         currentScreen: 'lobby',
-        lobbyMode: action.mode || state.lobbyMode
+        lobbyMode: action.mode || state.lobbyMode,
+        localPlayers: state.localPlayers.map((p, idx) => {
+          if (idx === 0) {
+            const currentName = (p.name || '').trim();
+            const useName = (!currentName || currentName === 'Player 1') ? prof.name : currentName;
+            return {
+              ...p,
+              name: useName,
+              roleKey: p.roleKey || prof.roleKey
+            };
+          }
+          return p;
+        })
       };
+    }
+
+    case 'SYNC_PROFILE_NAME': {
+      const { name, roleKey } = action.payload || getSavedProfile();
+      return {
+        ...state,
+        localPlayers: state.localPlayers.map((p, idx) => {
+          if (idx === 0) {
+            return {
+              ...p,
+              name: name || p.name,
+              roleKey: roleKey || p.roleKey
+            };
+          }
+          return p;
+        })
+      };
+    }
 
     case 'SET_LOBBY_MODE':
       return { ...state, lobbyMode: action.mode };
 
-    case 'SET_LOCAL_PLAYERS':
+    case 'SET_LOCAL_PLAYERS': {
+      const prof = getSavedProfile();
+      const rawPlayers = typeof action.payload === 'function' ? action.payload(state.localPlayers) : action.payload;
+      const players = (rawPlayers || []).map((p, idx) => {
+        if (idx === 0 && p.type === 'human') {
+          const name = (p.name || '').trim();
+          if (!name || name === 'Player 1') {
+            return { ...p, name: prof.name, roleKey: p.roleKey || prof.roleKey };
+          }
+        }
+        return p;
+      });
       return {
         ...state,
-        localPlayers: typeof action.payload === 'function' ? action.payload(state.localPlayers) : action.payload
+        localPlayers: players
       };
+    }
 
     case 'START_GAME':
       return {
@@ -59,7 +106,6 @@ export function appReducer(state, action) {
 
     case 'CLOSE_GUIDE':
       return { ...state, showGuide: false };
-
 
     case 'SET_MAXIMIZED_CARD':
       return { ...state, maximizedCardData: action.cardData };

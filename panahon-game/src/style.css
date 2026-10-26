@@ -1142,6 +1142,8 @@ body {
   flex-direction: column;
   gap: 5px;
   padding-right: 3px;
+  contain: layout style paint;
+  content-visibility: auto;
 }
 
 /* Embedded Timeline Comms (Chat) in Left Panel - Seamless feed without buttons/lines */
@@ -1170,6 +1172,8 @@ body {
   padding: 6px 8px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.06);
+  contain: layout style paint;
+  content-visibility: auto;
 }
 
 .sidebar-chat-empty {
@@ -1377,6 +1381,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: var(--space-sm);
+  contain: layout style paint;
 }
 
 .board-viewport {
@@ -6103,6 +6108,8 @@ body {
   .toast {
     padding: 6px 10px !important;
     font-size: 0.72rem !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   /* Floating Quick Action Dock on Map - FRONT AND CENTER */
@@ -6449,16 +6456,18 @@ body {
   /* 2. Board Viewport & Hardware Accelerated GPU Layer */
   .board-viewport {
     touch-action: none !important;
-    contain: strict !important;
+    contain: layout style paint !important;
     transform: translateZ(0);
+    -webkit-overflow-scrolling: auto;
   }
 
   .board-map-wrapper {
     will-change: transform !important;
-    transform: translateZ(0) !important;
+    transform: translateZ(0) scale3d(var(--scale, 1), var(--scale, 1), 1) !important;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.75) !important;
     backface-visibility: hidden !important;
     -webkit-backface-visibility: hidden !important;
+    contain: layout style paint !important;
   }
 
   /* 3. SVG Path Lines: eliminate continuous CPU dash scroll & drop-shadow filters across lines */
@@ -6484,6 +6493,9 @@ body {
     filter: none !important;
     transform: none !important;
     will-change: auto !important;
+    image-rendering: pixelated !important;
+    image-rendering: -moz-crisp-edges !important;
+    image-rendering: crisp-edges !important;
   }
 
   .mario-party-space:hover .space-tile-image {
@@ -6505,6 +6517,27 @@ body {
   .mario-party-space.reachable-space .space-disc {
     box-shadow: 0 0 10px #FFD700 !important;
     animation: none !important;
+  }
+
+  /* Disable heavy animations globally on mobile for performance */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Re-enable essential animations with shorter duration */
+  .mobile-turn-pulse {
+    animation-duration: 1s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .pawn-turn-arrow {
+    animation-duration: 0.5s !important;
+    animation-iteration-count: infinite !important;
   }
 
   /* 5. Smooth Native Touch Scrolling on Tab Views */

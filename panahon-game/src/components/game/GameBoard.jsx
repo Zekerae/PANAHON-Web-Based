@@ -73,7 +73,7 @@ function GameBoard({
     if (!rafIdRef.current) {
       rafIdRef.current = requestAnimationFrame(() => {
         if (mapWrapperRef.current) {
-          mapWrapperRef.current.style.transform = `translate3d(${panRef.current.x}px, ${panRef.current.y}px, 0) scale(${zoomRef.current})`;
+          mapWrapperRef.current.style.transform = `translate3d(${panRef.current.x}px, ${panRef.current.y}px, 0) scale3d(${zoomRef.current}, ${zoomRef.current}, 1)`;
         }
         rafIdRef.current = null;
       });
@@ -386,8 +386,8 @@ function GameBoard({
           className="board-map-wrapper"
           style={{
             transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
-            transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)',
-            willChange: isDragging ? 'transform' : 'auto'
+            transition: isDragging ? 'none' : 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)',
+            willChange: isDragging ? 'transform' : 'transform'
           }}
         >
           {/* SVG Path lines connecting circle spaces */}

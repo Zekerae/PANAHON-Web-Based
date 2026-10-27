@@ -1,3 +1,4 @@
+import gameLogger from './utils/debugLogger.js';
 // ===== PANAHON: CHRONO SHIFT - Hybrid Network Manager (Supabase Realtime + WebSocket Relay) =====
 
 import sounds from './sound.js';
@@ -56,9 +57,9 @@ export class NetworkManager {
     if (this.mode === 'local') return true;
     const currP = this.engine?.getCurrentPlayer?.();
     if (currP && currP.id !== undefined) {
-      return currP.id === this.playerId;
+      return String(currP.id) === String(this.playerId);
     }
-    return playerIdx === this.playerId;
+    return String(playerIdx) === String(this.playerId);
   }
 
   generateRoomCode() {
@@ -886,6 +887,8 @@ export class NetworkManager {
     if (this.isSpectator) return false;
     if (this.mode === 'local') return true;
 
+    gameLogger.netSend(action?.type || 'UNKNOWN', { ...action, myPlayerId: this.playerId });
+
     if (this.relayType === 'supabase' && this.channel) {
       this.channel.send({
         type: 'broadcast',
@@ -1048,7 +1051,7 @@ export class NetworkManager {
 
       case 'GAME_ACTION':
         this.executeRemoteAction(msg.action);
-        if (this.isHost) {
+        if (this.isHost && (!msg.action?.type || !msg.action.type.startsWith('INITIATIVE_'))) {
           this.broadcastState(this.engine.getState());
         }
         break;
@@ -1082,6 +1085,7 @@ export class NetworkManager {
 
   executeRemoteAction(action) {
     if (!action) return;
+    gameLogger.netRecv(action?.type || 'UNKNOWN', action);
 
     if (this.onInitiativeAction && action.type && action.type.startsWith('INITIATIVE_')) {
       try {
@@ -1106,7 +1110,7 @@ export class NetworkManager {
               this.playerId = myNewP.id;
             }
             this.engine.state.players.forEach(p => {
-              p.isLocal = !this.isSpectator && (p.id === this.playerId);
+              p.isLocal = !this.isSpectator && (String(p.id) === String(this.playerId));
             });
           }
           if (this.onTurnOrderSet) {

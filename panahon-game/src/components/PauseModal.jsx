@@ -7,6 +7,7 @@ export default function PauseModal({
   isOpen,
   onResume,
   onOpenGuide,
+  onOpenDebug,
   soundMuted,
   onToggleSound,
   onSaveAndExit,
@@ -211,6 +212,31 @@ export default function PauseModal({
             }}
           >
             {soundMuted ? '🔇 AUDIO: MUTED (CLICK TO UNMUTE)' : '🔊 AUDIO: ON (CLICK TO MUTE)'}
+          </button>
+
+          <button
+            className="btn btn-secondary pause-btn"
+            style={{
+              padding: '10px 14px',
+              fontSize: '0.80rem',
+              minWidth: 0,
+              width: '100%',
+              background: 'linear-gradient(180deg, #2D1F15 0%, #1A120C 100%)',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A',
+              color: '#FFD700',
+              fontWeight: 800,
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '0.8px',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+            onClick={() => {
+              sounds.btnClick();
+              if (onOpenDebug) onOpenDebug();
+            }}
+          >
+            🐛 TELEMETRY & DEBUG CONSOLE (`)
           </button>
 
           {/* GUI Scaling Adjustment Control */}

@@ -1,3 +1,4 @@
+import gameLogger, { LOG_CATEGORIES } from './utils/debugLogger.js';
 // ===== PANAHON: CHRONO SHIFT - Game Engine =====
 
 import {
@@ -292,6 +293,8 @@ export class GameEngine {
 
     this.state.players = newPlayers;
     this.state.currentPlayerIndex = 0;
+    gameLogger.turn(`Turn concluded for ${player.name}. Advancing to ${nextPlayer.name} (Round ${this.state.currentPlayerIndex === 0 ? this.state.turnNumber : this.state.turnNumber})`);
+    gameLogger.phase('Phase reset to rolling for next player');
     this.state.phase = 'rolling';
     this.state.diceResult = null;
     this.state.movesRemaining = 0;
@@ -399,6 +402,8 @@ export class GameEngine {
     } else {
       this.addLog('dice', `🎲 ${player.name} rolled a ${result}!`);
     }
+    gameLogger.dice(`${player.name} rolled a ${result}${bonus > 0 ? ` (+${bonus} bonus = ${result + bonus})` : ''}. Moves remaining: ${this.state.movesRemaining}`);
+    gameLogger.phase('Phase transitioned from rolling -> moving');
     this.notify();
     return result;
   }
@@ -1478,6 +1483,9 @@ export class GameEngine {
       this.addLog('ability', `⚡ ${trapOwner.name} gained +1 Energy from Trap Mastery! (Now: ${trapOwner.energy}/${GAME_CONSTANTS.MAX_ENERGY})`);
     }
 
+    // Set phase to cardResolution and log trap trigger
+    this.state.phase = 'cardResolution';
+    gameLogger.action(`Temporal Trap triggered by ${player.name} on ${tile.id}! Trap owner: ${ownerName}`);
     // Draw a danger card as penalty
     this.drawDangerCard(player);
     this.notify();
@@ -2195,8 +2203,10 @@ export class GameEngine {
 
     if (this.state.movesRemaining > 0) {
       this.state.phase = 'moving';
-    } else if (this.state.phase === 'cardResolution') {
+      gameLogger.phase(`Modal dismissed: moves remain (${this.state.movesRemaining}), returning to moving phase`);
+    } else {
       this.state.phase = 'action';
+      gameLogger.phase('Modal dismissed: 0 moves remaining, phase set to action');
     }
     this.notify();
   }

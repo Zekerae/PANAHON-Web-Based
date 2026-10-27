@@ -192,7 +192,7 @@ function GameActions({
             {state.phase === "rolling" && (
               <span style={{ color: "#94806A" }}>Awaiting roll...</span>
             )}
-            {state.phase === "action" && (
+            {(state.phase === "action" || (state.movesRemaining <= 0 && state.phase !== "rolling" && !state.pendingModal && !state.pendingChoice)) && (
               <span style={{ color: "#4ADE80" }}>Resolving action...</span>
             )}
           </div>

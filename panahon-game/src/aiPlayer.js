@@ -1,3 +1,4 @@
+import gameLogger from './utils/debugLogger.js';
 // ===== PANAHON: CHRONO SHIFT - AI Player Controller (Warcraft III Style Bot Brain) =====
 
 import { ROLES, TILE_TYPES, ERA_ORDER, ERA_NAMES } from './gameData.js';
@@ -108,6 +109,7 @@ class AiController {
           return;
         }
 
+        gameLogger.ai(`${player.name} dismissed pending modal`);
         engine.dismissModal();
         network?.sendAction({ type: 'DISMISS_MODAL' });
         this.scheduleAiStep(engine, network, 450);
@@ -194,6 +196,7 @@ class AiController {
 
         // Roll the die
         sounds.diceRoll?.();
+        gameLogger.ai(`${player.name} is executing dice roll`);
         const result = engine.rollDice();
         if (result) {
           network?.sendAction({ type: 'ROLL_DICE', result });
@@ -312,6 +315,7 @@ class AiController {
 
         // D. Finish Turn
         sounds.btnClick?.();
+        gameLogger.ai(`${player.name} finished turn, calling endTurn()`);
         engine.endTurn();
         network?.sendAction({ type: 'END_TURN' });
         this.scheduleAiStep(engine, network, 750);

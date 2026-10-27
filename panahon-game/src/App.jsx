@@ -445,7 +445,8 @@ export default function App() {
     unreadChatCount,
     onResetUnreadChat: resetUnread,
     onSaveAndExit: handleSaveAndExit,
-    onAbandonGame: handleAbandonGame
+    onAbandonGame: handleAbandonGame,
+    onToast: showToast
   };
 
   const endgameProps = {

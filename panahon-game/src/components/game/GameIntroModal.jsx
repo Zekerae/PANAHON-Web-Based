@@ -36,9 +36,11 @@ export default function GameIntroModal({
 
   // Auto-roll timers ref
   const rollTimeoutsRef = useRef([]);
+  const aiRollingRef = useRef(false);
   const clearAllTimeouts = () => {
     rollTimeoutsRef.current.forEach((t) => clearTimeout(t));
     rollTimeoutsRef.current = [];
+    aiRollingRef.current = false;
   };
 
   useEffect(() => {
@@ -59,30 +61,58 @@ export default function GameIntroModal({
     return groups.filter((g) => Array.isArray(g) && g.length > 1).flat();
   }, [groups]);
 
-  // The local player on THIS machine (in online mode, match network.myPlayerName, playerId, or isLocal)
+  const activeTiedPlayerIds = useMemo(() => {
+    return new Set((activeTiedPlayers || []).map((p) => p.id));
+  }, [activeTiedPlayers]);
+
+  // The local player on THIS machine
   const myLocalPlayer = useMemo(() => {
     if (isSpectator) return null;
     if (isOnline) {
-      return (
-        players.find(
-          (p) =>
-            p.roleKey !== 'SPECTATOR' &&
-            ((network?.myPlayerName && p.name === network.myPlayerName) ||
-            p.id === network?.playerId ||
-            p.isLocal)
-        ) || null
-      );
+      if (typeof network?.playerId === 'number') {
+        const byId = players.find((p) => p.id === network.playerId && p.roleKey !== 'SPECTATOR');
+        if (byId) return byId;
+      }
+      if (network?.myPlayerName) {
+        const byName = players.find((p) => p.name === network.myPlayerName && p.roleKey !== 'SPECTATOR');
+        if (byName) return byName;
+      }
+      const byLocal = players.find((p) => p.isLocal && p.roleKey !== 'SPECTATOR');
+      if (byLocal) return byLocal;
+      return null;
     }
-    // Offline local: the human player
+
+    // Offline local / pass-and-play:
+    // First, select the next active tied human player who has not yet rolled
+    const unrolledHuman = players.find(
+      (p) => !p.isAi && activeTiedPlayerIds.has(p.id) && currentRolls[p.id] === undefined
+    );
+    if (unrolledHuman) return unrolledHuman;
+
+    // Next, any tied player who hasn't rolled yet
+    const anyUnrolledTied = players.find(
+      (p) => activeTiedPlayerIds.has(p.id) && currentRolls[p.id] === undefined
+    );
+    if (anyUnrolledTied) return anyUnrolledTied;
+
+    // Fallback
     return players.find((p) => !p.isAi) || players[0] || null;
-  }, [players, isSpectator, isOnline, network?.myPlayerName, network?.playerId]);
+  }, [
+    players,
+    isSpectator,
+    isOnline,
+    network?.myPlayerName,
+    network?.playerId,
+    activeTiedPlayerIds,
+    currentRolls
+  ]);
 
   const canMyPlayerRoll = useMemo(() => {
     if (isSpectator || !myLocalPlayer) return false;
-    const isTied = activeTiedPlayers.some((p) => p.id === myLocalPlayer.id);
+    const isTied = activeTiedPlayerIds.has(myLocalPlayer.id);
     const hasRolled = currentRolls[myLocalPlayer.id] !== undefined;
     return isTied && !hasRolled && !rollingPlayerId && !isEvaluating;
-  }, [myLocalPlayer, activeTiedPlayers, currentRolls, rollingPlayerId, isEvaluating]);
+  }, [myLocalPlayer, activeTiedPlayerIds, currentRolls, rollingPlayerId, isEvaluating]);
 
   // Compute locked ranks for display
   useEffect(() => {
@@ -218,9 +248,20 @@ export default function GameIntroModal({
         return;
       }
 
+      // In offline local mode, let human players finish rolling before AI bots roll
+      const humansToRoll = activeTiedPlayers.filter(
+        (p) => !p.isAi && startingRolls[p.id] === undefined
+      );
+      if (!isOnline && humansToRoll.length > 0) {
+        return;
+      }
+
+      if (aiRollingRef.current) return;
+      aiRollingRef.current = true;
+
       let accumulatedRolls = { ...startingRolls };
       botsToRoll.forEach((bot, index) => {
-        const delay = 450 * (index + 1);
+        const delay = 350 + index * 650;
         const t = setTimeout(() => {
           setRollingPlayerId(bot.id);
           sounds.diceRoll();
@@ -228,27 +269,34 @@ export default function GameIntroModal({
           const rollT = setTimeout(() => {
             const val = Math.floor(Math.random() * 6) + 1;
             accumulatedRolls[bot.id] = val;
-            setCurrentRolls((prev) => ({ ...prev, [bot.id]: val }));
+
+            setCurrentRolls((prev) => {
+              const nextRolls = { ...prev, [bot.id]: val };
+
+              // Broadcast AI roll in online mode
+              if (isOnline && isHost && network) {
+                network.sendAction({
+                  type: "INITIATIVE_ROLL",
+                  playerId: bot.id,
+                  roll: val
+                });
+              }
+
+              const allDone = activeTiedPlayers.every(
+                (p) => nextRolls[p.id] !== undefined
+              );
+              if (allDone) {
+                aiRollingRef.current = false;
+                const evalTimeout = setTimeout(() => {
+                  evaluateRoundResults(nextRolls);
+                }, 400);
+                rollTimeoutsRef.current.push(evalTimeout);
+              }
+
+              return nextRolls;
+            });
+
             setRollingPlayerId(null);
-
-            // Broadcast AI roll in online mode
-            if (isOnline && isHost && network) {
-              network.sendAction({
-                type: "INITIATIVE_ROLL",
-                playerId: bot.id,
-                roll: val
-              });
-            }
-
-            const allDone = activeTiedPlayers.every(
-              (p) => accumulatedRolls[p.id] !== undefined
-            );
-            if (allDone) {
-              const evalTimeout = setTimeout(() => {
-                evaluateRoundResults(accumulatedRolls);
-              }, 400);
-              rollTimeoutsRef.current.push(evalTimeout);
-            }
           }, 550);
           rollTimeoutsRef.current.push(rollT);
         }, delay);
@@ -258,44 +306,79 @@ export default function GameIntroModal({
     [activeTiedPlayers, isOnline, isHost, network, evaluateRoundResults]
   );
 
-  // Human player clicks roll button or hits Spacebar
-  const handleHumanRoll = useCallback(() => {
-    if (!canMyPlayerRoll || !myLocalPlayer) return;
+  // Human player clicks roll button, card, or hits Spacebar
+  const handleHumanRoll = useCallback(
+    (targetPlayerId) => {
+      if (isEvaluating || rollingPlayerId !== null) return;
 
-    setRollingPlayerId(myLocalPlayer.id);
-    sounds.diceRoll();
+      const rollPlayer = (targetPlayerId !== undefined)
+        ? (players.find((p) => p.id === targetPlayerId) || myLocalPlayer)
+        : myLocalPlayer;
 
-    const rollDuration = 550;
-    const t = setTimeout(() => {
-      const val = Math.floor(Math.random() * 6) + 1;
-      const updatedRolls = { ...currentRolls, [myLocalPlayer.id]: val };
-      setCurrentRolls(updatedRolls);
-      setRollingPlayerId(null);
+      if (!rollPlayer) return;
 
-      // In online mode, broadcast my roll to all peers!
-      if (isOnline && network) {
-        network.sendAction({
-          type: "INITIATIVE_ROLL",
-          playerId: myLocalPlayer.id,
-          roll: val
+      // Ensure this player is in an active tied bracket and hasn't rolled yet
+      const isTied = activeTiedPlayerIds.has(rollPlayer.id);
+      if (!isTied) return;
+      if (currentRolls[rollPlayer.id] !== undefined) return;
+
+      // In online mode, you can only roll your own assigned operative
+      if (isOnline && (!myLocalPlayer || rollPlayer.id !== myLocalPlayer.id)) return;
+
+      setRollingPlayerId(rollPlayer.id);
+      sounds.diceRoll();
+
+      const rollDuration = 550;
+      const t = setTimeout(() => {
+        const val = Math.floor(Math.random() * 6) + 1;
+
+        setCurrentRolls((prev) => {
+          const updatedRolls = { ...prev, [rollPlayer.id]: val };
+
+          // In online mode, broadcast roll to all peers!
+          if (isOnline && network) {
+            network.sendAction({
+              type: "INITIATIVE_ROLL",
+              playerId: rollPlayer.id,
+              roll: val
+            });
+          }
+
+          // If Host (or offline), check if round is complete or trigger AI bot rolls
+          if (!isOnline || isHost) {
+            const allDone = activeTiedPlayers.every((p) => updatedRolls[p.id] !== undefined);
+            if (allDone && activeTiedPlayers.length > 0) {
+              const evalT = setTimeout(() => {
+                evaluateRoundResults(updatedRolls);
+              }, 400);
+              rollTimeoutsRef.current.push(evalT);
+            } else {
+              triggerAiRolls(updatedRolls);
+            }
+          }
+
+          return updatedRolls;
         });
-      }
 
-      // If Host (or offline), trigger any pending AI bot rolls
-      if (!isOnline || isHost) {
-        triggerAiRolls(updatedRolls);
-      }
-    }, rollDuration);
-    rollTimeoutsRef.current.push(t);
-  }, [
-    canMyPlayerRoll,
-    myLocalPlayer,
-    currentRolls,
-    isOnline,
-    isHost,
-    network,
-    triggerAiRolls
-  ]);
+        setRollingPlayerId(null);
+      }, rollDuration);
+      rollTimeoutsRef.current.push(t);
+    },
+    [
+      isEvaluating,
+      rollingPlayerId,
+      players,
+      myLocalPlayer,
+      activeTiedPlayers,
+      activeTiedPlayerIds,
+      currentRolls,
+      isOnline,
+      isHost,
+      network,
+      evaluateRoundResults,
+      triggerAiRolls
+    ]
+  );
 
   // Network listener for synchronized initiative rolls, tie-breakers, and turn order
   useEffect(() => {
@@ -318,7 +401,7 @@ export default function GameIntroModal({
           const t = setTimeout(() => {
             setCurrentRolls((prev) => {
               const nextRolls = { ...prev, [playerId]: roll };
-              // If Host, check if this completed the active round
+              // If Host, check if this completed the active round or if remaining bots must roll
               if (isHost) {
                 const allDone = activeTiedPlayers.every(
                   (p) => nextRolls[p.id] !== undefined
@@ -328,6 +411,13 @@ export default function GameIntroModal({
                     evaluateRoundResults(nextRolls);
                   }, 400);
                   rollTimeoutsRef.current.push(evalT);
+                } else {
+                  const remainingBots = activeTiedPlayers.filter(
+                    (p) => p.isAi && nextRolls[p.id] === undefined
+                  );
+                  if (remainingBots.length > 0 && !aiRollingRef.current) {
+                    triggerAiRolls(nextRolls);
+                  }
                 }
               }
               return nextRolls;
@@ -378,19 +468,25 @@ export default function GameIntroModal({
     return () => {
       network.onInitiativeAction = null;
     };
-  }, [network, isOnline, isHost, activeTiedPlayers, evaluateRoundResults]);
+  }, [network, isOnline, isHost, activeTiedPlayers, evaluateRoundResults, triggerAiRolls]);
 
-  // If no human needs to roll (spectator mode or human already locked), auto-trigger AI rolls (Host only)
+  // If no human needs to roll (spectator mode or humans finished), auto-trigger AI rolls (Host only)
   useEffect(() => {
     if (stage !== STAGE_INITIATIVE || isEvaluating || rollingPlayerId !== null) return;
     if (isOnline && !isHost) return;
 
-    if (!canMyPlayerRoll && activeTiedPlayers.length > 0) {
-      const activeUnrolled = activeTiedPlayers.filter((p) => currentRolls[p.id] === undefined);
-      if (activeUnrolled.length > 0 && rollTimeoutsRef.current.length === 0) {
+    if (activeTiedPlayers.length > 0) {
+      const activeUnrolledBots = activeTiedPlayers.filter((p) => p.isAi && currentRolls[p.id] === undefined);
+      const activeUnrolledHumans = activeTiedPlayers.filter((p) => !p.isAi && currentRolls[p.id] === undefined);
+
+      const shouldTrigger = isOnline
+        ? activeUnrolledBots.length > 0
+        : (activeUnrolledBots.length > 0 && activeUnrolledHumans.length === 0);
+
+      if (shouldTrigger && !aiRollingRef.current) {
         const startTimer = setTimeout(() => {
           triggerAiRolls(currentRolls);
-        }, 500);
+        }, 400);
         rollTimeoutsRef.current.push(startTimer);
       }
     }
@@ -398,7 +494,6 @@ export default function GameIntroModal({
     stage,
     isEvaluating,
     rollingPlayerId,
-    canMyPlayerRoll,
     activeTiedPlayers,
     currentRolls,
     triggerAiRolls,
@@ -498,9 +593,9 @@ export default function GameIntroModal({
           e.preventDefault();
           handleProceedToInitiative();
         } else if (stage === STAGE_INITIATIVE) {
-          if (canMyPlayerRoll) {
+          if (canMyPlayerRoll && myLocalPlayer) {
             e.preventDefault();
-            handleHumanRoll();
+            handleHumanRoll(myLocalPlayer.id);
           }
         } else if (stage === STAGE_CEREMONY) {
           if (!isOnline || isHost) {
@@ -747,18 +842,27 @@ export default function GameIntroModal({
                 const isRolling = rollingPlayerId === p.id;
                 const isLocked = lockedRanks[p.id] !== undefined;
                 const lockedRank = lockedRanks[p.id];
-                const isTied = !isLocked && activeTiedPlayers.some((tp) => tp.id === p.id);
+                const isTied = !isLocked && activeTiedPlayerIds.has(p.id);
                 const isMe = Boolean(myLocalPlayer && p.id === myLocalPlayer.id);
-                const canClickThis = isMe && isTied && rollVal === undefined && !isRolling && !isEvaluating;
+                const canClickThis = Boolean(
+                  !isLocked &&
+                  isTied &&
+                  rollVal === undefined &&
+                  !isRolling &&
+                  !isEvaluating &&
+                  rollingPlayerId === null &&
+                  (isOnline ? isMe : (!p.isAi || isMe))
+                );
 
                 return (
                   <div
                     key={p.id ?? idx}
                     className={`initiative-player-card ${isTied ? "is-active-roller" : ""} ${isLocked ? "is-locked" : ""} ${canClickThis ? "can-click-roll" : ""}`}
                     style={{
-                      borderColor: isTied ? "#F5C442" : isLocked ? "#5A422D" : "#3A281E"
+                      borderColor: isTied ? "#F5C442" : isLocked ? "#5A422D" : "#3A281E",
+                      cursor: canClickThis ? "pointer" : "default"
                     }}
-                    onClick={canClickThis ? handleHumanRoll : undefined}
+                    onClick={canClickThis ? () => handleHumanRoll(p.id) : undefined}
                   >
                     <div className="initiative-card-top">
                       <div className="initiative-avatar-box">
@@ -785,7 +889,7 @@ export default function GameIntroModal({
                         theme={isTied ? "chrono" : "hazard"}
                         disabled={isLocked || (rollVal !== undefined && !isRolling)}
                         isInteractive={canClickThis}
-                        onClick={canClickThis ? handleHumanRoll : undefined}
+                        onClick={canClickThis ? () => handleHumanRoll(p.id) : undefined}
                       />
                     </div>
 
@@ -804,6 +908,10 @@ export default function GameIntroModal({
                       ) : isMe ? (
                         <span className="status-text text-accent font-bold animate-pulse">
                           👉 YOUR TURN TO ROLL!
+                        </span>
+                      ) : canClickThis ? (
+                        <span className="status-text text-accent font-bold">
+                          👉 CLICK TO ROLL!
                         </span>
                       ) : (
                         <span className="status-text text-muted">
@@ -833,10 +941,10 @@ export default function GameIntroModal({
                 <button
                   type="button"
                   className="btn btn-primary initiative-roll-btn animate-bounce"
-                  onClick={handleHumanRoll}
+                  onClick={() => handleHumanRoll(myLocalPlayer?.id)}
                   disabled={rollingPlayerId !== null || isEvaluating}
                 >
-                  🎲 ROLL INITIATIVE DIE <span className="key-hint">SPACE</span>
+                  🎲 ROLL FOR {(myLocalPlayer?.name || 'OPERATIVE').toUpperCase()} <span className="key-hint">SPACE</span>
                 </button>
               ) : (
                 <div className="initiative-eval-notice">

@@ -150,6 +150,11 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
     };
 
     network.onStateUpdate = (state) => {
+      if (state && Array.isArray(state.players)) {
+        state.players.forEach(p => {
+          p.isLocal = !network.isSpectator && (network.isHost ? p.id === 0 : p.id === network.playerId);
+        });
+      }
       engine.loadState(state);
       if (network.isSpectator && onGameStartSuccess) {
         onGameStartSuccess({ isSpectator: true });

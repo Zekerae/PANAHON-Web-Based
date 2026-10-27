@@ -1,3 +1,5 @@
+import DebugLogModal from './debug/DebugLogModal.jsx';
+import gameLogger, { LOG_CATEGORIES } from '../utils/debugLogger.js';
 import React, { useState, useCallback, useMemo, useRef, useEffect, memo } from 'react';
 import sounds from '../sound.js';
 import GameHeader from './game/GameHeader.jsx';
@@ -25,7 +27,8 @@ function GameScreen({
   unreadChatCount,
   onResetUnreadChat,
   onSaveAndExit,
-  onAbandonGame
+  onAbandonGame,
+  onToast
 }) {
   const [activeHandTab, setActiveHandTab] = useState('mission');
   const [inspectedPlayerId, setInspectedPlayerId] = useState(null);
@@ -36,6 +39,7 @@ function GameScreen({
   const [autoFollow, setAutoFollow] = useState(true);
   const [omniscientIntel, setOmniscientIntel] = useState(false);
   const [showIntro, setShowIntro] = useState(() => !state?.hasCompletedIntro);
+  const [showDebugModal, setShowDebugModal] = useState(false);
 
   const effectiveIsSpectator = Boolean(
     isSpectator ||
@@ -112,12 +116,22 @@ function GameScreen({
     }
   }, [chatMessages, onResetUnreadChat]);
 
-  // Global ESC key handler
+  // Global ESC and ` (Backquote/F2) key handler for Pause & Telemetry Console
   React.useEffect(() => {
     const handleKeyDown = (e) => {
+      if (e.key === '`' || e.code === 'Backquote' || e.key === 'F2') {
+        const tag = e.target?.tagName?.toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
+        e.preventDefault();
+        sounds.btnClick();
+        setShowDebugModal(prev => !prev);
+        return;
+      }
       if (showIntro) return;
       if (e.key === 'Escape') {
-        if (isPaused) {
+        if (showDebugModal) {
+          setShowDebugModal(false);
+        } else if (isPaused) {
           handleResume();
         } else {
           handleOpenPause();
@@ -126,7 +140,7 @@ function GameScreen({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showIntro, isPaused, handleResume, handleOpenPause]);
+  }, [showIntro, isPaused, showDebugModal, handleResume, handleOpenPause]);
 
   // Auto-follow current turn operative in spectator mode
   React.useEffect(() => {
@@ -341,14 +355,18 @@ function GameScreen({
   }, [state.phase, isMyTurn, currentPlayer, state.currentPlayerIndex, engine, network]);
 
   const handleEndTurn = useCallback(() => {
-    if (state.phase !== 'action' || !isMyTurn) return;
+    if (state.phase !== 'action' || !isMyTurn) {
+      gameLogger.warn(LOG_CATEGORIES.TURN, `handleEndTurn blocked: phase="${state.phase}", isMyTurn=${isMyTurn}, movesRemaining=${state.movesRemaining}`);
+      return;
+    }
     sounds.btnClick();
+    gameLogger.turn(`Local player clicked End Turn: ${currentPlayer?.name} (P#${state.currentPlayerIndex})`);
     engine.endTurn();
     network.sendAction({ type: 'END_TURN' });
     if (network.isHost) {
       network.broadcastState(engine.getState());
     }
-  }, [state.phase, isMyTurn, engine, network]);
+  }, [state.phase, isMyTurn, engine, network, currentPlayer, state.currentPlayerIndex, state.movesRemaining]);
 
   const handleTimeWarp = useCallback(() => {
     if (state.phase !== 'action' || !isMyTurn) return;
@@ -406,6 +424,7 @@ function GameScreen({
         turnNumber={state.turnNumber}
         onOpenGuide={onOpenGuide}
         onOpenPause={handleOpenPause}
+        onOpenDebug={() => setShowDebugModal(true)}
         isSpectator={effectiveIsSpectator}
         spectatorCount={spectators?.length || 0}
         currentEra={currentPlayer?.currentEra}
@@ -774,6 +793,10 @@ function GameScreen({
         isOpen={isPaused}
         onResume={handleResume}
         onOpenGuide={onOpenGuide}
+        onOpenDebug={() => {
+          handleResume();
+          setShowDebugModal(true);
+        }}
         soundMuted={soundMuted}
         onToggleSound={onToggleSound}
         onSaveAndExit={() => {
@@ -786,6 +809,15 @@ function GameScreen({
         }}
         state={state}
         network={network}
+      />
+
+      {/* 8. CHRONO TELEMETRY & DEBUG CONSOLE */}
+      <DebugLogModal
+        isOpen={showDebugModal}
+        onClose={() => setShowDebugModal(false)}
+        engine={engine}
+        network={network}
+        onToast={onToast}
       />
     </div>
   );

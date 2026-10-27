@@ -102,12 +102,20 @@ function PlayerSidebar({
 
               {/* Row 2: Compact Dual Stat Bars (Energy & Paradox on ONE row) */}
               <div className="player-bars-row">
-                <div className="compact-bar-group" title={`Energy: ${p.energy}/10`}>
+                <div
+                  className={`compact-bar-group ${p.energy <= 0 ? "is-exhausted" : ""}`}
+                  title={p.energy <= 0 ? `Exhausted (0/10) - Cannot roll die, must rest!` : `Energy: ${p.energy}/10`}
+                >
                   <span className="compact-bar-label">EN</span>
                   <div className="stat-bar compact-stat-bar">
                     <div className="stat-bar-fill energy-fill" style={{ width: `${(p.energy / 10) * 100}%` }}></div>
                   </div>
-                  <span className="compact-bar-val energy-val">{p.energy}/10</span>
+                  <span
+                    className="compact-bar-val energy-val"
+                    style={{ color: p.energy <= 0 ? "#FF7675" : undefined, fontWeight: p.energy <= 0 ? 800 : undefined }}
+                  >
+                    {p.energy <= 0 ? "0/10 💤" : `${p.energy}/10`}
+                  </span>
                 </div>
 
                 <div className="compact-bar-group" title={`Paradox: ${p.paradox}/5`}>
@@ -139,6 +147,23 @@ function PlayerSidebar({
                     📦 {p.artifactCards.length}
                   </span>
                 ) : null}
+                {p.skipNextTurn && (
+                  <span
+                    className="footer-skip-badge"
+                    style={{
+                      background: "rgba(244, 63, 94, 0.25)",
+                      border: "1px solid #F43F5E",
+                      color: "#FDA4AF",
+                      padding: "1px 5px",
+                      borderRadius: "3px",
+                      fontSize: "0.6rem",
+                      fontWeight: 800
+                    }}
+                    title="Hazard Penalty: Will skip next turn!"
+                  >
+                    ⛔ Skip
+                  </span>
+                )}
               </div>
             </div>
           );

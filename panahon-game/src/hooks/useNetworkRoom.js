@@ -28,6 +28,20 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
     return () => window.removeEventListener('panahon_profile_updated', handleProfileUpdate);
   }, []);
 
+  // If current room has other players and our selected role is already taken, switch to first available role
+  useEffect(() => {
+    if (currentRoomPlayers && currentRoomPlayers.length > 0) {
+      const otherPlayers = currentRoomPlayers.filter((p) => p.name !== onlinePlayerName);
+      const otherRoles = new Set(otherPlayers.map((p) => p.roleKey));
+      if (otherRoles.has(onlineSelectedRole)) {
+        const available = ['HISTORIAN', 'EXPLORER', 'GUARDIAN', 'STRATEGIST'].find((rk) => !otherRoles.has(rk));
+        if (available) {
+          setOnlineSelectedRole(available);
+        }
+      }
+    }
+  }, [currentRoomPlayers, onlinePlayerName, onlineSelectedRole]);
+
   useEffect(() => {
     if (!network) return;
 

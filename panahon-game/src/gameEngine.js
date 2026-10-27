@@ -136,14 +136,28 @@ export class GameEngine {
       }));
     });
 
+    // Guarantee every player in the match has a unique role
+    const usedRoles = new Set();
+    const sanitizedConfigs = playerConfigs.map((config, idx) => {
+      let roleKey = config.roleKey;
+      if (!roleKey || usedRoles.has(roleKey)) {
+        roleKey = ROLE_ORDER.find(r => !usedRoles.has(r)) || ROLE_ORDER[idx % ROLE_ORDER.length];
+      }
+      usedRoles.add(roleKey);
+      return {
+        ...config,
+        roleKey
+      };
+    });
+
     // Scatter players across eras randomly
     const shuffledEras = [...ERA_ORDER].sort(() => Math.random() - 0.5);
-    while (shuffledEras.length < playerConfigs.length) {
+    while (shuffledEras.length < sanitizedConfigs.length) {
       shuffledEras.push(...[...ERA_ORDER].sort(() => Math.random() - 0.5));
     }
 
     // Create players
-    const players = playerConfigs.map((config, idx) => {
+    const players = sanitizedConfigs.map((config, idx) => {
       const role = ROLES[config.roleKey];
       const mission = allMissions[idx];
       const startEra = shuffledEras[idx];
@@ -222,18 +236,64 @@ export class GameEngine {
       gameOver: false,
       winner: null,
       pendingModal: null,
-      pendingChoice: null
+      pendingChoice: null,
+      hasCompletedIntro: false
     };
 
     this.logEntries = [];
     this.addLog('system', 'Game started! The timeline needs your help.');
     
-    // Determine first player by rolling
-    this.addLog('system', `${players[0].name} goes first!`);
+    // Turn order will be finalized via Initiative Roll-Off
+    this.addLog('system', `${players[0].name} is ready for initiative roll!`);
 
     this.startTimer();
     this.notify();
     return this.state;
+  }
+
+  setPlayerTurnOrder(orderedPlayers) {
+    if (!this.state || !Array.isArray(orderedPlayers) || orderedPlayers.length === 0) return false;
+
+    // Create an ID mapping: old player.id -> new index
+    const idMap = {};
+    const newPlayers = orderedPlayers.map((p, newIdx) => {
+      idMap[p.id] = newIdx;
+      return {
+        ...p,
+        id: newIdx
+      };
+    });
+
+    // Update board tiles to reflect new player IDs
+    if (this.state.board) {
+      Object.keys(this.state.board).forEach(eraKey => {
+        const eraTiles = this.state.board[eraKey];
+        if (Array.isArray(eraTiles)) {
+          eraTiles.forEach(tile => {
+            if (Array.isArray(tile.players)) {
+              tile.players = tile.players.map(oldId => (idMap[oldId] !== undefined ? idMap[oldId] : oldId));
+            }
+            if (tile.trap && idMap[tile.trap.ownerId] !== undefined) {
+              tile.trap.ownerId = idMap[tile.trap.ownerId];
+            }
+          });
+        }
+      });
+    }
+
+    this.state.players = newPlayers;
+    this.state.currentPlayerIndex = 0;
+    this.state.phase = 'rolling';
+    this.state.diceResult = null;
+    this.state.movesRemaining = 0;
+    this.state.hasCompletedIntro = true;
+
+    const firstPlayer = newPlayers[0];
+    this.addLog('system', `🎲 Initiative resolved! Turn order: ${newPlayers.map((p, i) => `#${i + 1} ${p.name}`).join(' → ')}.`);
+    this.addLog('system', `🏆 ${firstPlayer.name} takes the first turn!`);
+
+    this.notify();
+    return true;
   }
 
   // --- Timer ---
@@ -295,17 +355,17 @@ export class GameEngine {
 
     const player = this.getCurrentPlayer();
 
-    // Check skip turn
+    // Check skip turn: cannot roll die when turn is skipped!
     if (player.skipNextTurn) {
-      player.skipNextTurn = false;
-      this.addLog('player', `${player.name} skips this turn!`);
-      this.endTurn();
+      this.addLog('warning', `⛔ ${player.name} cannot roll the die: turn is skipped due to Hazard Penalty!`);
       return null;
     }
 
-    // Check stranded
+    // Check 0 Energy: Cannot roll die when exhausted! Must rest to recover energy.
     if (player.energy <= 0) {
       player.stranded = true;
+      this.addLog('warning', `⛔ ${player.name} is exhausted (0 Energy) and cannot roll the die! Must Rest to recover.`);
+      return null;
     }
 
     const result = rollDie();
@@ -360,9 +420,15 @@ export class GameEngine {
     // Check tile interaction
     const tile = eraTiles[targetIdx];
     
-    // Check for trap
-    if (tile.trap && tile.trap.ownerId !== player.id) {
+    // Check for trap: Ensnare enemy player (planter is immune)
+    if (tile.trap && !this.isTrapImmune(player, tile.trap)) {
       this.triggerTrap(player, tile);
+      this.state.movesRemaining = 0;
+      this.state.movementDirection = 'forward';
+      this.state.momentumActive = false;
+      this.state.momentumUsedMidTile = false;
+      this.notify();
+      return true;
     }
 
     // If artifact tile, player can choose to stop
@@ -444,9 +510,12 @@ export class GameEngine {
 
     const tile = eraTiles[newIdx];
 
-    // Check trap
-    if (tile.trap && tile.trap.ownerId !== player.id) {
+    // Check trap: Ensnare enemy player (planter is immune)
+    if (tile.trap && !this.isTrapImmune(player, tile.trap)) {
       this.triggerTrap(player, tile);
+      this.state.movesRemaining = 0;
+      this.state.movementDirection = 'forward';
+      this.notify();
       return true;
     }
 
@@ -649,9 +718,10 @@ export class GameEngine {
 
         this.addLog('travel', `✨ ${player.name} teleported to Space #${targetTile.index + 1} (${targetTile.type.toUpperCase()}) in ${ERA_NAMES[targetEra]} via Anito Guidance!`);
 
-        // Check for enemy trap
-        if (targetTile.trap && targetTile.trap.ownerId !== player.id) {
+        // Check for enemy trap (planter is immune)
+        if (targetTile.trap && !this.isTrapImmune(player, targetTile.trap)) {
           this.triggerTrap(player, targetTile);
+          return;
         }
 
         // Resolve landing on destination tile
@@ -713,6 +783,12 @@ export class GameEngine {
 
   // --- Tile Resolution ---
   resolveTile(player, tile) {
+    // If landing on an armed enemy trap, trigger it immediately (planter is immune)
+    if (tile.trap && !this.isTrapImmune(player, tile.trap)) {
+      this.triggerTrap(player, tile);
+      return;
+    }
+
     this.state.phase = 'cardResolution';
 
     switch (tile.type) {
@@ -898,7 +974,7 @@ export class GameEngine {
       return null;
     }
 
-    const targetIdx = playerIdx !== undefined ? playerIdx : this.state.currentPlayerIndex;
+    const targetIdx = playerIdx !== undefined ? playerIdx : (modal.playerId !== undefined ? modal.playerId : this.state.currentPlayerIndex);
     const player = this.state.players[targetIdx];
     if (!player) return null;
 
@@ -1057,47 +1133,108 @@ export class GameEngine {
 
   // --- Paradox Tile ---
   handleParadoxTile(player) {
-    this.modifyParadox(player, 1);
+    const outcome = this.modifyParadox(player, 1, true);
+    const { oldParadox, newParadox, triggeredDanger, criticalOverload } = outcome;
+
+    let consequenceDesc = 'A localized temporal fracture distorts causality, placing intense friction on your chrono-suit (+1 Paradox).';
+    if (criticalOverload) {
+      consequenceDesc = 'CRITICAL TEMPORAL OVERLOAD! Paradox threshold breached (5/5). Spacetime collapsed: Global Timeline +2, -3 Points, Suit reset to Level 2.';
+    } else if (triggeredDanger) {
+      consequenceDesc = 'SEVERE INSTABILITY! Paradox reached Level 4 — Chrono-suit destabilized! A Hazard Anomaly will strike upon stabilization!';
+    } else if (newParadox >= 3 && oldParadox < 3) {
+      consequenceDesc = 'TEMPORAL FRICTION! Paradox reached Level 3 — Chronometric feedback drained -1 Energy!';
+    } else if (newParadox >= 2 && oldParadox < 2) {
+      consequenceDesc = 'CAUSAL DISSONANCE! Paradox reached Level 2 — Timeline discord cost -1 Victory Point!';
+    }
+
     this.state.pendingModal = {
-      type: 'danger',
-      title: 'Paradox Zone!',
-      description: 'A temporal anomaly distorts the area! Your Paradox Meter increases by 1.',
+      type: 'paradox',
+      cardType: '🌀 TEMPORAL PARADOX NODE 🌀',
+      title: 'Paradox Zone Breach!',
+      description: consequenceDesc,
+      playerId: player.id,
+      playerName: player.name,
+      oldParadox: oldParadox,
+      newParadox: newParadox,
+      maxParadox: GAME_CONSTANTS.MAX_PARADOX || 5,
+      triggeredDanger: triggeredDanger,
+      triggerDangerPlayerId: triggeredDanger ? player.id : undefined,
+      criticalOverload: criticalOverload,
+      era: player.currentEra,
+      tileIndex: player.tileIndex,
       image: null
     };
-    this.addLog('paradox', `${player.name} entered a Paradox Zone! Paradox +1.`);
-    this.state.phase = 'action';
+
+    this.addLog('paradox', `🌀 ${player.name} entered a Paradox Zone in ${ERA_NAMES[player.currentEra]}! Paradox: ${oldParadox} ➔ ${newParadox}.`);
+    this.state.phase = 'cardResolution';
     this.notify();
   }
 
-  // --- Trap ---
+  // --- Trap Immunity & Execution ---
+  isTrapImmune(player, trap) {
+    if (!trap || !player) return true;
+    if (trap.ownerId !== undefined && (player.id === trap.ownerId || String(player.id) === String(trap.ownerId))) {
+      return true;
+    }
+    if (trap.ownerName && player.name === trap.ownerName) {
+      return true;
+    }
+    if (player.roleKey === 'STRATEGIST' && (!trap.ownerRole || trap.ownerRole === 'STRATEGIST')) {
+      return true;
+    }
+    return false;
+  }
+
   triggerTrap(player, tile) {
-    const trapOwner = this.state.players[tile.trap.ownerId];
-    this.addLog('trap', `${player.name} triggered ${trapOwner.name}'s trap!`);
-    
+    if (!tile.trap) return;
+    const trap = tile.trap;
+    tile.trap = null;
+
+    // Find the trap owner (the Strategist who planted it)
+    const trapOwner = this.state.players.find(
+      p => p.id === trap.ownerId ||
+           String(p.id) === String(trap.ownerId) ||
+           (trap.ownerName && p.name === trap.ownerName) ||
+           p.roleKey === 'STRATEGIST'
+    ) || this.state.players[trap.ownerId];
+
+    const ownerName = trapOwner ? trapOwner.name : 'The Strategist';
+    this.addLog('trap', `🕸️ ${player.name} landed on ${ownerName}'s Temporal Trap!`);
+
+    // Strategist passive: +1 energy to trap owner
+    if (trapOwner) {
+      this.modifyEnergy(trapOwner, 1);
+      this.addLog('ability', `⚡ ${trapOwner.name} gained +1 Energy from Trap Mastery! (Now: ${trapOwner.energy}/${GAME_CONSTANTS.MAX_ENERGY})`);
+    }
+
     // Draw a danger card as penalty
     this.drawDangerCard(player);
-    
-    // Strategist passive: +1 energy to trap owner
-    this.modifyEnergy(trapOwner, 1);
-    this.addLog('ability', `${trapOwner.name} gained +1 Energy from Trap Mastery!`);
-    
-    tile.trap = null;
+    this.notify();
   }
 
   // --- Resource Modification ---
   modifyEnergy(player, amount) {
+    const prevEnergy = player.energy;
     player.energy = Math.max(0, Math.min(GAME_CONSTANTS.MAX_ENERGY, player.energy + amount));
     if (player.energy <= 0) {
       player.stranded = true;
-      this.addLog('warning', `${player.name} is stranded! (0 Energy)`);
+      if (prevEnergy > 0) {
+        this.modifyParadox(player, 1);
+        this.addLog('paradox', `⚠️ ${player.name} reached 0 Energy (Exhaustion)! Suffered +1 Paradox.`);
+      } else {
+        this.addLog('warning', `${player.name} has 0 Energy (Exhausted)! Must Rest to recover.`);
+      }
     } else {
       player.stranded = false;
     }
   }
 
-  modifyParadox(player, amount) {
+  modifyParadox(player, amount, skipDangerModal = false) {
     const oldParadox = player.paradox;
     player.paradox = Math.max(0, Math.min(GAME_CONSTANTS.MAX_PARADOX, player.paradox + amount));
+
+    let triggeredDanger = false;
+    let criticalOverload = false;
 
     // Check paradox level effects
     if (player.paradox >= 2 && oldParadox < 2) {
@@ -1109,15 +1246,21 @@ export class GameEngine {
       this.addLog('paradox', `${player.name}: Paradox Level 3 — Lost 1 Energy!`);
     }
     if (player.paradox >= 4 && oldParadox < 4) {
+      triggeredDanger = true;
       this.addLog('paradox', `${player.name}: Paradox Level 4 — Must draw a Danger Card!`);
-      this.drawDangerCard(player);
+      if (!skipDangerModal) {
+        this.drawDangerCard(player);
+      }
     }
     if (player.paradox >= 5) {
+      criticalOverload = true;
       this.modifyTimelineMeter(2);
       player.points -= 3;
       player.paradox = 2;
       this.addLog('paradox', `${player.name}: CRITICAL BREACH! Timeline +2, -3 Points, Paradox reset to 2!`);
     }
+
+    return { oldParadox, newParadox: player.paradox, triggeredDanger, criticalOverload };
   }
 
   modifyTimelineMeter(amount) {
@@ -1226,10 +1369,16 @@ export class GameEngine {
         }
         this.modifyEnergy(player, -2);
         const currentTile = this.state.board[player.currentEra][player.tileIndex];
-        currentTile.trap = { ownerId: player.id };
+        currentTile.trap = {
+          ownerId: player.id,
+          ownerName: player.name,
+          ownerRole: player.roleKey,
+          era: player.currentEra,
+          tileIndex: player.tileIndex
+        };
         player.usedAbilityThisTurn = true;
         player.activeCooldown = ROLES.STRATEGIST.active.cooldown;
-        this.addLog('ability', `${player.name} planted a Temporal Trap!`);
+        this.addLog('ability', `🕸️ ${player.name} planted a Temporal Trap on Space #${player.tileIndex + 1}!`);
         break;
     }
 
@@ -1299,14 +1448,33 @@ export class GameEngine {
     return true;
   }
 
+  skipPlayerTurn(playerIdx) {
+    const idx = playerIdx !== undefined ? playerIdx : this.state.currentPlayerIndex;
+    const player = this.state.players[idx];
+    if (!player) return false;
+
+    player.skipNextTurn = false;
+    this.addLog('danger', `⛔ ${player.name}'s turn was skipped (Hazard Penalty)!`);
+    this.endTurn();
+    return true;
+  }
+
   rest(playerIdx) {
     const player = this.state.players[playerIdx];
     if (this.state.currentPlayerIndex !== playerIdx) return false;
+    if (player.skipNextTurn) {
+      this.addLog('warning', `⛔ ${player.name} cannot rest: turn is skipped due to Hazard Penalty!`);
+      return false;
+    }
 
     this.modifyEnergy(player, 3);
     this.addLog('action', `${player.name} rested and recovered 3 Energy.`);
     this.endTurn();
     return true;
+  }
+
+  restPlayer(playerIdx) {
+    return this.rest(playerIdx);
   }
 
   tradeEnergy(fromIdx, toIdx, amount) {
@@ -1571,7 +1739,20 @@ export class GameEngine {
     if (this.state.pendingModal?.type === 'danger' && this.state.pendingModal?.needsRoll) {
       this.rollDangerDie(this.state.pendingModal.playerId);
     }
+    const wasParadoxModal = this.state.pendingModal?.type === 'paradox';
+    const queuedDangerPlayerId = this.state.pendingModal?.triggerDangerPlayerId;
+
     this.state.pendingModal = null;
+
+    if (wasParadoxModal && queuedDangerPlayerId !== undefined) {
+      const targetPlayer = this.state.players.find(p => p.id === queuedDangerPlayerId);
+      if (targetPlayer) {
+        this.drawDangerCard(targetPlayer);
+        this.notify();
+        return;
+      }
+    }
+
     if (this.state.movesRemaining > 0) {
       this.state.phase = 'moving';
     } else if (this.state.phase === 'cardResolution') {

@@ -799,7 +799,7 @@ function GameBoard({
                 else if (tileType === "danger") icon = "⚠️";
                 else if (tileType === "artifact") icon = "🏆";
                 else if (tileType === "timegate") icon = "🌀";
-                else if (tileType === "paradox") icon = "⏳";
+                else if (tileType === "paradox") icon = "🌀";
                 else if (tileType === "start") icon = "🚩";
 
                 return (
@@ -846,6 +846,15 @@ function GameBoard({
                       </span>
                     )}
 
+                    {tileType === "paradox" && playersOnTile.length > 0 && (
+                      <div className="paradox-anomaly-presence" aria-hidden="true">
+                        <div className="paradox-anomaly-distortion" />
+                        <div className="paradox-anomaly-ring ring-1" />
+                        <div className="paradox-anomaly-ring ring-2" />
+                        <div className="paradox-anomaly-tag">⚠️ +1 PARADOX</div>
+                      </div>
+                    )}
+
                     {playersOnTile.length > 0 && (
                       <div className="tile-players">
                         {playersOnTile.map(p => {
@@ -857,6 +866,7 @@ function GameBoard({
                               title={`${p.name} (${p.role?.name || ""})`}
                             >
                               {isPawnTurn && <div className="pawn-turn-arrow">▼ YOU</div>}
+                              {p.skipNextTurn && <div className="pawn-skip-indicator" title="Turn Skipped">⛔</div>}
                               <div className="pawn-badge" style={{ background: p.color }}>P{(p.id ?? 0) + 1}</div>
                               {p.role?.avatar && <img src={p.role.avatar} className="pawn-sprite" alt={p.name} draggable={false} />}
                               <div className="pawn-pedestal" style={{ background: p.color, boxShadow: `0 0 10px ${p.color}, 0 0 4px #fff` }}>

@@ -6,6 +6,7 @@ import GameBoard from './game/GameBoard.jsx';
 import GameActions from './game/GameActions.jsx';
 import PlayerHand from './game/PlayerHand.jsx';
 import PauseModal from './PauseModal.jsx';
+import GameIntroModal from './game/GameIntroModal.jsx';
 import Dice from './game/Dice.jsx';
 
 function GameScreen({
@@ -34,6 +35,30 @@ function GameScreen({
   const [isPaused, setIsPaused] = useState(false);
   const [autoFollow, setAutoFollow] = useState(true);
   const [omniscientIntel, setOmniscientIntel] = useState(false);
+  const [showIntro, setShowIntro] = useState(() => !state.hasCompletedIntro);
+
+  const handleIntroComplete = useCallback((orderedPlayers) => {
+    setShowIntro(false);
+    if (engine) {
+      engine.setPlayerTurnOrder(orderedPlayers);
+      if (network && network.mode === 'online') {
+        const myNewPlayer = orderedPlayers.find(p => p.name === network.myPlayerName || p.connectionId === network.playerId);
+        if (myNewPlayer) {
+          network.playerId = myNewPlayer.id;
+        }
+        network.sendAction({ type: 'SET_TURN_ORDER', orderedPlayers });
+      }
+      engine.isPaused = false;
+      engine.startTimer();
+    }
+  }, [engine, network]);
+
+  useEffect(() => {
+    if (showIntro && engine) {
+      engine.isPaused = true;
+      engine.stopTimer();
+    }
+  }, [showIntro, engine]);
 
   const handleResume = useCallback(() => {
     setIsPaused(false);
@@ -61,6 +86,7 @@ function GameScreen({
   // Global ESC key handler
   React.useEffect(() => {
     const handleKeyDown = (e) => {
+      if (showIntro) return;
       if (e.key === 'Escape') {
         if (isPaused) {
           handleResume();
@@ -71,7 +97,7 @@ function GameScreen({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPaused, handleResume, handleOpenPause]);
+  }, [showIntro, isPaused, handleResume, handleOpenPause]);
 
   if (!state || !engine) return null;
 
@@ -133,9 +159,27 @@ function GameScreen({
   const seconds = typeof state.gameTimeRemaining === 'number' ? state.gameTimeRemaining % 60 : 0;
   const timerStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
+  const handleRest = useCallback(() => {
+    if (state.phase === 'moving' || !isMyTurn) return;
+    sounds.btnClick();
+    engine.rest(state.currentPlayerIndex);
+    network.sendAction({ type: 'REST', playerIdx: state.currentPlayerIndex });
+  }, [state.phase, state.currentPlayerIndex, isMyTurn, engine, network]);
+
   // Actions
+  const handleAcknowledgeSkip = useCallback(() => {
+    if (!isMyTurn || isRolling) return;
+    sounds.btnClick();
+    engine.skipPlayerTurn(state.currentPlayerIndex);
+    network.sendAction({ type: 'SKIP_TURN', playerIdx: state.currentPlayerIndex });
+  }, [isMyTurn, isRolling, state.currentPlayerIndex, engine, network]);
+
   const handleRollDice = useCallback(() => {
     if (isRolling || state.phase !== 'rolling' || !isMyTurn) return;
+    if (currentPlayer && (currentPlayer.energy <= 0 || currentPlayer.skipNextTurn)) {
+      sounds.danger?.();
+      return;
+    }
     setIsRolling(true);
     setShowMobileDice(true);
     sounds.diceRoll();
@@ -153,7 +197,7 @@ function GameScreen({
         setShowMobileDice(false);
       }, 950);
     }, 650);
-  }, [isRolling, state.phase, isMyTurn, engine, network]);
+  }, [isRolling, state.phase, isMyTurn, currentPlayer, engine, network]);
 
   const handleStepMove = useCallback(() => {
     if (state.phase !== 'moving' || state.movesRemaining <= 0 || !isMyTurn) return;
@@ -167,6 +211,7 @@ function GameScreen({
   // Spacebar, Enter, or Arrow key shortcuts to roll dice or step move
   React.useEffect(() => {
     const handleKeyDown = (e) => {
+      if (showIntro) return;
       const tag = e.target?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) {
         return;
@@ -174,7 +219,13 @@ function GameScreen({
       if (e.code === 'Space' || e.key === ' ') {
         if (state?.phase === 'rolling' && isMyTurn && !isRolling && !isPaused) {
           e.preventDefault();
-          handleRollDice();
+          if (currentPlayer && currentPlayer.skipNextTurn) {
+            handleAcknowledgeSkip();
+          } else if (currentPlayer && currentPlayer.energy <= 0) {
+            handleRest();
+          } else {
+            handleRollDice();
+          }
           return;
         }
         if (state?.phase === 'moving' && isMyTurn && !isPaused && (state?.movesRemaining || 0) > 0) {
@@ -193,7 +244,7 @@ function GameScreen({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state?.phase, state?.movesRemaining, isMyTurn, isRolling, isPaused, handleRollDice, handleStepMove]);
+  }, [showIntro, state?.phase, state?.movesRemaining, isMyTurn, isRolling, isPaused, currentPlayer, handleRollDice, handleStepMove, handleRest, handleAcknowledgeSkip]);
 
   const handleMoveToTile = useCallback((tileId) => {
     if (state.pendingChoice?.type === 'teleportTile' && isMyTurn) {
@@ -235,12 +286,7 @@ function GameScreen({
     }
   }, [state.phase, state.hasMovedThisTurn, state.stepsTakenThisTurn, state.currentPlayerIndex, isMyTurn, engine, network]);
 
-  const handleRest = useCallback(() => {
-    if (state.phase === 'moving' || !isMyTurn) return;
-    sounds.btnClick();
-    engine.rest(state.currentPlayerIndex);
-    network.sendAction({ type: 'REST', playerIdx: state.currentPlayerIndex });
-  }, [state.phase, state.currentPlayerIndex, isMyTurn, engine, network]);
+
 
   const handleUseSkill = useCallback(() => {
     if (state.phase !== 'action' || !isMyTurn) return;
@@ -419,14 +465,34 @@ function GameScreen({
           <div className="mobile-dock-inner">
             {state.phase === 'rolling' && (
               <div className="mobile-dock-roll-group" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <button
-                  type="button"
-                  className="btn btn-roll-dice mobile-dock-roll-btn"
-                  disabled={isRolling}
-                  onClick={handleRollDice}
-                >
-                  <span>🎲 ROLL DIE</span>
-                </button>
+                {currentPlayer?.skipNextTurn ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary mobile-dock-roll-btn"
+                    style={{ background: "#BE123C", borderColor: "#F43F5E" }}
+                    onClick={handleAcknowledgeSkip}
+                  >
+                    <span>⏭️ SKIP TURN (HAZARD)</span>
+                  </button>
+                ) : currentPlayer?.energy <= 0 ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary mobile-dock-roll-btn"
+                    style={{ background: "#27AE60", borderColor: "#2ECC71" }}
+                    onClick={handleRest}
+                  >
+                    <span>💤 REST (+3 EN)</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-roll-dice mobile-dock-roll-btn"
+                    disabled={isRolling}
+                    onClick={handleRollDice}
+                  >
+                    <span>🎲 ROLL DIE</span>
+                  </button>
+                )}
               </div>
             )}
 
@@ -551,6 +617,7 @@ function GameScreen({
         onInteractMomentum={handleInteractMomentum}
         onReverseTime={handleReverseTime}
         onRest={handleRest}
+        onAcknowledgeSkip={handleAcknowledgeSkip}
         onUseSkill={handleUseSkill}
         onReturnArtifact={handleReturnArtifact}
         onEndTurn={handleEndTurn}
@@ -579,6 +646,17 @@ function GameScreen({
         omniscientIntel={omniscientIntel}
       />
 
+
+      {/* 6. GAME INTRODUCTION & INITIATIVE ROLL-OFF */}
+      <GameIntroModal
+        isOpen={showIntro}
+        players={state.players || []}
+        engine={engine}
+        network={network}
+        isSpectator={effectiveIsSpectator}
+        onComplete={handleIntroComplete}
+        onSkip={() => handleIntroComplete(state.players)}
+      />
 
       {/* 7. PAUSE MENU MODAL */}
       <PauseModal

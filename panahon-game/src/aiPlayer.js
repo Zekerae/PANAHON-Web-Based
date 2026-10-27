@@ -94,7 +94,7 @@ class AiController {
           return;
         }
 
-        const isEventOrDanger = state.pendingModal.type === 'event' || state.pendingModal.type === 'danger';
+        const isEventOrDanger = state.pendingModal.type === 'event' || state.pendingModal.type === 'danger' || state.pendingModal.type === 'paradox';
         const speed = engine.simulationSpeed || 1;
         // Give 6.0 seconds for Event / Danger cards and 4.2s for Clues so human players and observers can comfortably read
         const requiredDuration = isEventOrDanger
@@ -156,6 +156,24 @@ class AiController {
 
       // 4. Rolling Phase (Abilities are strictly used post-movement in Action Phase)
       if (state.phase === 'rolling') {
+        // If turn is skipped due to hazard penalty, bot skips turn without rolling!
+        if (player.skipNextTurn) {
+          sounds.danger?.();
+          engine.skipPlayerTurn(player.id);
+          network?.sendAction({ type: 'SKIP_TURN', playerIdx: player.id });
+          this.scheduleAiStep(engine, network, 900);
+          return;
+        }
+
+        // If exhausted (0 Energy), bot cannot roll the die; bot must Rest to recover energy!
+        if (player.energy <= 0 || player.stranded) {
+          sounds.btnClick?.();
+          engine.rest(player.id);
+          network?.sendAction({ type: 'REST', playerIdx: player.id });
+          this.scheduleAiStep(engine, network, 800);
+          return;
+        }
+
         // Roll the die
         sounds.diceRoll?.();
         const result = engine.rollDice();

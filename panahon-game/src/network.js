@@ -1069,6 +1069,15 @@ export class NetworkManager {
   executeRemoteAction(action) {
     if (!action) return;
     switch (action.type) {
+      case 'SET_TURN_ORDER':
+        if (Array.isArray(action.orderedPlayers)) {
+          this.engine.setPlayerTurnOrder(action.orderedPlayers);
+        }
+        break;
+      case 'SKIP_TURN':
+        sounds.danger();
+        this.engine.skipPlayerTurn(action.playerIdx);
+        break;
       case 'ROLL_DICE':
         sounds.diceRoll();
         if (action.result) {

@@ -92,6 +92,21 @@ export default function LobbyScreen({
 
   const updateSlot = (idx, patch) => {
     const updated = [...localPlayers];
+    if (patch.roleKey && patch.roleKey !== updated[idx].roleKey) {
+      const oldRole = updated[idx].roleKey;
+      const targetRole = patch.roleKey;
+      // If another active slot already has this role, swap them so all characters remain strictly unique!
+      const conflictIdx = updated.findIndex((p, i) => i !== idx && p.type !== "closed" && p.roleKey === targetRole);
+      if (conflictIdx !== -1) {
+        updated[conflictIdx] = { ...updated[conflictIdx], roleKey: oldRole };
+      }
+    }
+    if (patch.type && patch.type !== "closed" && updated[idx].type === "closed") {
+      // Opening a slot: assign an unused role so no duplicate exists
+      const usedRoles = new Set(updated.filter((p, i) => i !== idx && p.type !== "closed").map(p => p.roleKey));
+      const availableRole = ROLE_ORDER.find(rk => !usedRoles.has(rk)) || ROLE_ORDER[idx % ROLE_ORDER.length];
+      patch.roleKey = availableRole;
+    }
     updated[idx] = { ...updated[idx], ...patch };
     if (idx === 0 && updated[0].type === "human") {
       if (patch.name !== undefined || patch.roleKey !== undefined) {
@@ -600,11 +615,14 @@ export default function LobbyScreen({
                         value={player.roleKey}
                         onChange={(e) => updateSlot(idx, { roleKey: e.target.value })}
                       >
-                        {roleKeys.map(rk => (
-                          <option key={rk} value={rk}>
-                            {ROLES[rk].name}
-                          </option>
-                        ))}
+                        {roleKeys.map(rk => {
+                          const conflictSlot = localPlayers.find((p, i) => i !== idx && p.type !== "closed" && p.roleKey === rk);
+                          return (
+                            <option key={rk} value={rk}>
+                              {ROLES[rk].name} {conflictSlot ? `(Swap with ${conflictSlot.name || `P${localPlayers.indexOf(conflictSlot) + 1}`})` : ""}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
 
@@ -820,30 +838,56 @@ export default function LobbyScreen({
                   {roleKeys.map(rk => {
                     const role = ROLES[rk];
                     const isSel = onlineSelectedRole === rk;
+                    const takenBy = currentRoomPlayers?.find(p => p.roleKey === rk && p.name !== onlinePlayerName);
+                    const isTaken = Boolean(takenBy);
+
                     return (
                       <div
                         key={rk}
-                        onClick={() => { sounds.btnClick(); setOnlineSelectedRole(rk); savePlayerProfile(onlinePlayerName, rk); }}
+                        onClick={() => {
+                          if (isTaken) {
+                            sounds.danger?.();
+                            return;
+                          }
+                          sounds.btnClick();
+                          setOnlineSelectedRole(rk);
+                          savePlayerProfile(onlinePlayerName, rk);
+                        }}
                         style={{
-                          background: isSel ? "#382C22" : "#1C1510",
-                          border: isSel ? "2px solid #FFD700" : "1.5px solid #3D2F23",
+                          background: isTaken ? "#150E0A" : (isSel ? "#382C22" : "#1C1510"),
+                          border: isTaken ? "1.5px dashed #4A281E" : (isSel ? "2px solid #FFD700" : "1.5px solid #3D2F23"),
                           boxShadow: isSel ? "inset 1px 1px 0 #EBD07D, 0 0 12px rgba(255, 215, 0, 0.4)" : "inset 1px 1px 0 #0F0A07",
                           borderRadius: "6px",
                           padding: "10px",
-                          cursor: "pointer",
+                          cursor: isTaken ? "not-allowed" : "pointer",
+                          opacity: isTaken ? 0.45 : 1,
                           display: "flex",
                           alignItems: "center",
                           gap: "8px",
-                          transition: "all 0.15s ease"
+                          transition: "all 0.15s ease",
+                          position: "relative"
                         }}
+                        title={isTaken ? `Character already selected by ${takenBy.name}` : undefined}
                       >
-                        <img src={role.avatar} alt={role.name} style={{ width: "36px", height: "36px", borderRadius: "4px", objectFit: "cover", border: "1.5px solid #5A422D", imageRendering: "pixelated" }} />
+                        <img
+                          src={role.avatar}
+                          alt={role.name}
+                          style={{
+                            width: "36px",
+                            height: "36px",
+                            borderRadius: "4px",
+                            objectFit: "cover",
+                            border: "1.5px solid #5A422D",
+                            imageRendering: "pixelated",
+                            filter: isTaken ? "grayscale(90%)" : "none"
+                          }}
+                        />
                         <div>
-                          <div style={{ fontSize: "0.76rem", fontWeight: 800, fontFamily: "var(--font-display)", color: isSel ? "#FFD700" : "#F5EEDC" }}>
+                          <div style={{ fontSize: "0.76rem", fontWeight: 800, fontFamily: "var(--font-display)", color: isTaken ? "#8C7764" : (isSel ? "#FFD700" : "#F5EEDC") }}>
                             {role.name}
                           </div>
-                          <div style={{ fontSize: "0.64rem", color: "#64748B" }}>
-                            {role.passive.name}
+                          <div style={{ fontSize: "0.64rem", color: isTaken ? "#EF4444" : "#64748B", fontWeight: isTaken ? 700 : 400 }}>
+                            {isTaken ? `🔒 Taken by ${takenBy.name}` : role.passive.name}
                           </div>
                         </div>
                       </div>

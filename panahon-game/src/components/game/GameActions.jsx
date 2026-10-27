@@ -15,6 +15,7 @@ function GameActions({
   onInteractMomentum,
   onReverseTime,
   onRest,
+  onAcknowledgeSkip,
   onUseSkill,
   onReturnArtifact,
   onEndTurn,
@@ -33,6 +34,8 @@ function GameActions({
 
   const isStartOfMovement = state.phase === 'moving' && !state.hasMovedThisTurn && (!state.stepsTakenThisTurn || state.stepsTakenThisTurn === 0);
   const isMovingBackward = state.movementDirection === 'backward';
+  const isExhausted = Boolean(currentPlayer && currentPlayer.energy <= 0);
+  const isSkipped = Boolean(currentPlayer && currentPlayer.skipNextTurn);
   const canReverseTime = isMyTurn && isStartOfMovement && !isMovingBackward && currentPlayer.reverseTimeCooldown === 0 && currentPlayer.energy >= GAME_CONSTANTS.REVERSE_TIME_COST;
 
   let reverseTimeBadge = '-3 Energy';
@@ -533,19 +536,62 @@ function GameActions({
               fontSize: "0.58rem",
               padding: "2px 6px",
               borderRadius: "3px",
-              background: "#140E0A",
-              border: "1px solid #C2974D",
-              color: "#FDE047",
+              background: isSkipped ? "#4C0519" : (isExhausted ? "#4A1818" : "#140E0A"),
+              border: isSkipped ? "1px solid #F43F5E" : (isExhausted ? "1px solid #E74C3C" : "1px solid #C2974D"),
+              color: isSkipped ? "#FDA4AF" : (isExhausted ? "#FF7675" : "#FDE047"),
               fontFamily: "var(--font-display)",
               fontWeight: 700
             }}>
-              AWAITING ROLL
+              {isSkipped ? "TURN SKIPPED (HAZARD)" : (isExhausted ? "EXHAUSTED (0 ENERGY)" : "AWAITING ROLL")}
             </span>
           </div>
 
           <div style={{ fontSize: "0.72rem", color: "#C8B293", marginBottom: "10px", lineHeight: 1.35 }}>
-            Roll the movement die to navigate along the timeline, or rest to recover Chrono Energy.
+            {isSkipped
+              ? "Operative is recovering from a previous hazard and must skip this turn."
+              : "Roll the movement die to navigate along the timeline, or rest to recover Chrono Energy."}
           </div>
+
+          {/* STATUS NOTICE: SKIPPED, EXHAUSTED, OR STANDARD */}
+          {isSkipped ? (
+            <div className="skip-turn-alert-box animate-pulse" style={{
+              background: "linear-gradient(90deg, #3D1220 0%, #240A14 100%)",
+              border: "1.5px solid #F43F5E",
+              borderRadius: "4px",
+              padding: "10px 12px",
+              marginBottom: "10px",
+              boxShadow: "0 0 14px rgba(244, 63, 94, 0.3)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                <span style={{ fontSize: "1rem" }}>⛔</span>
+                <span style={{ fontFamily: "var(--font-display)", fontSize: "0.68rem", color: "#FDA4AF", fontWeight: 700 }}>
+                  HAZARD PENALTY — TURN SKIPPED
+                </span>
+              </div>
+              <div style={{ fontSize: "0.72rem", color: "#FECDD3", lineHeight: 1.35 }}>
+                You were detained or cursed by a Hazard Anomaly and must skip this turn. You cannot roll the movement die or move this round.
+              </div>
+            </div>
+          ) : isExhausted ? (
+            <div className="exhaustion-alert-box animate-pulse" style={{
+              background: "linear-gradient(90deg, #421614 0%, #2A100E 100%)",
+              border: "1.5px solid #E74C3C",
+              borderRadius: "4px",
+              padding: "10px 12px",
+              marginBottom: "10px",
+              boxShadow: "0 0 14px rgba(231, 76, 60, 0.3)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                <span style={{ fontSize: "1rem" }}>⚠️</span>
+                <span style={{ fontFamily: "var(--font-display)", fontSize: "0.68rem", color: "#FF7675", fontWeight: 700 }}>
+                  0 ENERGY — EXHAUSTED (+1 PARADOX)
+                </span>
+              </div>
+              <div style={{ fontSize: "0.72rem", color: "#E0B4B4", lineHeight: 1.35 }}>
+                You have reached 0 Energy and suffered +1 Paradox. You cannot roll the die or move. The only action you can take is to <strong>Rest</strong> to recover +3 Energy and skip your turn.
+              </div>
+            </div>
+          ) : null}
 
           {/* DICE ROLLING SECTION */}
           <div className="roll-phase-dice-card" style={{
@@ -553,85 +599,149 @@ function GameActions({
             alignItems: "center",
             gap: "12px",
             padding: "10px 12px",
-            background: "#140E0A",
+            background: (isSkipped || isExhausted) ? "#1F1212" : "#140E0A",
             borderRadius: "4px",
-            border: "1.5px solid #4A3423",
-            marginBottom: "10px"
+            border: isSkipped ? "1.5px solid #BE123C" : (isExhausted ? "1.5px solid #8C2A2A" : "1.5px solid #4A3423"),
+            marginBottom: "10px",
+            opacity: (isSkipped || isExhausted) ? 0.75 : 1
           }}>
             <Dice
               value={state.diceResult}
               isRolling={isRolling}
               size="md"
-              theme="chrono"
-              onClick={() => { sounds.diceRoll?.(); onRollDice(); }}
-              disabled={!isMyTurn || isRolling}
-              isInteractive={isMyTurn && !isRolling}
+              theme={(isSkipped || isExhausted) ? "hazard" : "chrono"}
+              onClick={(!isExhausted && !isSkipped) ? () => { sounds.diceRoll?.(); onRollDice(); } : undefined}
+              disabled={!isMyTurn || isRolling || isExhausted || isSkipped}
+              isInteractive={isMyTurn && !isRolling && !isExhausted && !isSkipped}
               showLabel={false}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: "0.82rem", fontWeight: 800, color: "#FFD700", letterSpacing: "0.3px" }}>
-                {isRolling ? "Tumbling Die..." : (state.diceResult ? `Rolled: ${state.diceResult}` : "Chrono Movement Die")}
+              <div style={{ fontSize: "0.82rem", fontWeight: 800, color: isSkipped ? "#FDA4AF" : (isExhausted ? "#FF7675" : "#FFD700"), letterSpacing: "0.3px" }}>
+                {isSkipped ? "Die Locked (Turn Skipped)" : (isExhausted ? "Die Locked (0 Energy)" : (isRolling ? "Tumbling Die..." : (state.diceResult ? `Rolled: ${state.diceResult}` : "Chrono Movement Die")))}
               </div>
-              <div style={{ fontSize: "0.68rem", color: "#C8B293", marginTop: "3px", lineHeight: 1.3 }}>
-                {isRolling ? "Determining your timeline trajectory..." : "Roll 1–6 movement spaces along the path."}
+              <div style={{ fontSize: "0.68rem", color: isSkipped ? "#FECDD3" : (isExhausted ? "#FFAAAA" : "#C8B293"), marginTop: "3px", lineHeight: 1.3 }}>
+                {isSkipped ? "Detained/cursed by hazard penalty. Cannot roll the die this turn." : (isExhausted ? "Cannot roll while exhausted. You must rest to recover energy." : (isRolling ? "Determining your timeline trajectory..." : "Roll 1–6 movement spaces along the path."))}
               </div>
             </div>
           </div>
 
-          <button
-            className="btn btn-primary"
-            style={{
-              width: "100%",
-              minWidth: 0,
-              padding: "10px 14px",
-              fontSize: "0.82rem",
-              fontWeight: 800,
-              letterSpacing: "1px",
-              borderRadius: "4px",
-              border: "2px solid #F5C442",
-              background: "linear-gradient(180deg, #4D3826 0%, #352518 100%)",
-              color: "#FFD700",
-              boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 3px 0 #120E0A",
-              marginBottom: "10px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px"
-            }}
-            disabled={!isMyTurn || isRolling}
-            onClick={() => { sounds.diceRoll?.(); onRollDice(); }}
-          >
-            <span>🎲 ROLL MOVEMENT DIE</span>
-            <kbd style={{ background: "#140E0A", border: "1px solid #5A422D", padding: "1px 5px", borderRadius: "3px", fontSize: "0.62rem" }}>SPACE</kbd>
-          </button>
-
-          {/* REST (SKIP TURN) ALTERNATIVE */}
-          <div style={{ display: "flex", gap: "8px" }}>
+          {/* ACTION BUTTONS: ACKNOWLEDGE SKIP IF SKIPPED, REST IF EXHAUSTED, ROLL/REST OTHERWISE */}
+          {isSkipped ? (
             <button
-              className="action-btn"
+              className="btn btn-primary animate-glow"
               style={{
-                flex: 1,
-                padding: "8px 10px",
-                fontSize: "0.72rem",
-                background: "#140E0A",
-                border: "1.5px solid #4A3423",
+                width: "100%",
+                minWidth: 0,
+                padding: "12px 14px",
+                fontSize: "0.82rem",
+                fontWeight: 800,
+                letterSpacing: "1px",
                 borderRadius: "4px",
-                color: "#C8B293",
-                cursor: "pointer",
+                border: "2px solid #F43F5E",
+                background: "linear-gradient(180deg, #BE123C 0%, #881337 100%)",
+                color: "#FFF",
+                boxShadow: "0 0 16px rgba(244, 63, 94, 0.4)",
+                marginBottom: "10px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: "6px"
+                gap: "8px",
+                cursor: isMyTurn ? "pointer" : "not-allowed"
               }}
               disabled={!isMyTurn || isRolling}
-              title="Skip your turn to recover +3 Chrono Energy"
-              onClick={() => { sounds.btnClick?.(); onRest(); }}
+              onClick={() => { sounds.btnClick?.(); onAcknowledgeSkip?.(); }}
+              title="Acknowledge skipped turn and pass to next player"
             >
-              <span>💤</span>
-              <span>Rest (Skip Turn)</span>
-              <span style={{ fontSize: "0.64rem", color: "#F5C442", fontWeight: "bold" }}>+3 Energy</span>
+              <span>⏭️ ACKNOWLEDGE SKIPPED TURN</span>
+              <kbd style={{ background: "#4C0519", border: "1px solid #F43F5E", padding: "1px 5px", borderRadius: "3px", fontSize: "0.62rem" }}>SPACE</kbd>
             </button>
-          </div>
+          ) : isExhausted ? (
+            <button
+              className="btn btn-primary animate-glow"
+              style={{
+                width: "100%",
+                minWidth: 0,
+                padding: "12px 14px",
+                fontSize: "0.82rem",
+                fontWeight: 800,
+                letterSpacing: "1px",
+                borderRadius: "4px",
+                border: "2px solid #2ECC71",
+                background: "linear-gradient(180deg, #27AE60 0%, #196F3D 100%)",
+                color: "#FFF",
+                boxShadow: "0 0 16px rgba(46, 204, 113, 0.4)",
+                marginBottom: "10px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                cursor: "pointer"
+              }}
+              disabled={!isMyTurn || isRolling}
+              onClick={() => { sounds.btnClick?.(); onRest(); }}
+              title="Rest to recover +3 Chrono Energy and skip your turn"
+            >
+              <span>💤 REST TO RECOVER (+3 ENERGY)</span>
+              <kbd style={{ background: "#0D3D22", border: "1px solid #2ECC71", padding: "1px 5px", borderRadius: "3px", fontSize: "0.62rem" }}>SPACE</kbd>
+            </button>
+          ) : (
+            <>
+              <button
+                className="btn btn-primary"
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  padding: "10px 14px",
+                  fontSize: "0.82rem",
+                  fontWeight: 800,
+                  letterSpacing: "1px",
+                  borderRadius: "4px",
+                  border: "2px solid #F5C442",
+                  background: "linear-gradient(180deg, #4D3826 0%, #352518 100%)",
+                  color: "#FFD700",
+                  boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 3px 0 #120E0A",
+                  marginBottom: "10px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px"
+                }}
+                disabled={!isMyTurn || isRolling}
+                onClick={() => { sounds.diceRoll?.(); onRollDice(); }}
+              >
+                <span>🎲 ROLL MOVEMENT DIE</span>
+                <kbd style={{ background: "#140E0A", border: "1px solid #5A422D", padding: "1px 5px", borderRadius: "3px", fontSize: "0.62rem" }}>SPACE</kbd>
+              </button>
+
+              {/* REST (SKIP TURN) ALTERNATIVE */}
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  className="action-btn"
+                  style={{
+                    flex: 1,
+                    padding: "8px 10px",
+                    fontSize: "0.72rem",
+                    background: "#140E0A",
+                    border: "1.5px solid #4A3423",
+                    borderRadius: "4px",
+                    color: "#C8B293",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px"
+                  }}
+                  disabled={!isMyTurn || isRolling}
+                  title="Skip your turn to recover +3 Chrono Energy"
+                  onClick={() => { sounds.btnClick?.(); onRest(); }}
+                >
+                  <span>💤</span>
+                  <span>Rest (Skip Turn)</span>
+                  <span style={{ fontSize: "0.64rem", color: "#F5C442", fontWeight: "bold" }}>+3 Energy</span>
+                </button>
+              </div>
+            </>
+          )}
 
           <div style={{ marginTop: "8px", fontSize: "0.64rem", color: "#8C7764", textAlign: "center", fontStyle: "italic" }}>
             Turn completion will be available in Phase 2 after moving.
@@ -680,31 +790,48 @@ function GameActions({
           {canReverseTime && (
             <div style={{ marginBottom: "8px", padding: "8px 10px", background: "#140E0A", border: "1.5px solid #8C6239", borderRadius: "4px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.72rem", color: "#F5C442", fontWeight: 600, marginBottom: "6px" }}>
-                <span>⏪ Reverse Time Option</span>
-                <span style={{ fontSize: "0.64rem", color: "#C8B293" }}>Start of turn only</span>
+                <span>⏪ Reverse Time</span>
+                <span style={{ fontSize: "0.64rem", color: "#C8B293" }}>Start of turn</span>
               </div>
               <button
                 className="btn"
                 style={{
                   width: "100%",
-                  padding: "7px 10px",
-                  fontSize: "0.74rem",
-                  fontWeight: "bold",
+                  padding: "8px 12px",
+                  fontSize: "0.82rem",
+                  fontWeight: 800,
+                  letterSpacing: "0.4px",
                   background: "linear-gradient(180deg, #4D3826 0%, #352518 100%)",
                   border: "1.5px solid #F5C442",
                   color: "#FFD700",
                   borderRadius: "4px",
+                  boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: "6px",
+                  gap: "8px",
                   cursor: "pointer"
                 }}
                 onClick={onReverseTime}
+                title={`Spend 3 Chrono Energy to reverse movement direction and walk ${state.movesRemaining} spaces backward`}
               >
-                <span>⏪ Reverse Direction (-3 En)</span>
-                <span style={{ fontSize: "0.68rem", opacity: 0.9 }}>Walk {state.movesRemaining} spaces backward</span>
+                <span>⏪ Reverse Time</span>
+                <span style={{
+                  fontSize: "0.68rem",
+                  background: "#251B12",
+                  border: "1px solid #8C6239",
+                  color: "#F5C442",
+                  padding: "2px 6px",
+                  borderRadius: "3px",
+                  fontWeight: 700,
+                  whiteSpace: "nowrap"
+                }}>
+                  -3 EN
+                </span>
               </button>
+              <div style={{ fontSize: "0.65rem", color: "#C8B293", textAlign: "center", marginTop: "5px" }}>
+                Walk {state.movesRemaining} {state.movesRemaining === 1 ? "space" : "spaces"} backward instead
+              </div>
             </div>
           )}
 

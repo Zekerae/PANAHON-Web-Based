@@ -29,6 +29,9 @@ export default function App() {
   if (!engineRef.current) {
     engineRef.current = new GameEngine();
     networkRef.current = new NetworkManager(engineRef.current);
+    if (typeof window !== 'undefined') {
+      window.engine = engineRef.current;
+    }
   }
   const engine = engineRef.current;
   const network = networkRef.current;

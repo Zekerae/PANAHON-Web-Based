@@ -6,6 +6,108 @@ import Dice from './game/Dice';
 export function MaximizedCardPreview({ data, onClose }) {
   if (!data) return null;
 
+  if (data.isParadox) {
+    const oldP = data.oldParadox ?? 0;
+    const newP = data.newParadox ?? 1;
+    const maxP = data.maxParadox ?? 5;
+    const isCritical = data.criticalOverload || newP >= 5;
+    const isDangerTriggered = data.triggeredDanger || (newP === 4 && oldP < 4);
+
+    return (
+      <div className="modal-overlay paradox-rift-modal-overlay" style={{ zIndex: 10000 }}>
+        <div className="paradox-rift-backdrop" />
+        <div className="modal paradox-card-modal card-preview-modal" style={{ maxWidth: "480px", width: "92%", animation: "modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+          <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
+          <div className="paradox-header">
+            <div className="paradox-header-badge">
+              <span className="paradox-bolt">⚡</span>
+              <span>DIMENSIONAL ANOMALY INSPECTION</span>
+              <span className="paradox-bolt">⚡</span>
+            </div>
+            <div className="paradox-title">🌀 PARADOX ZONE BREACH! 🌀</div>
+            {data.era && (
+              <div className="paradox-sector-tag">
+                TIMELINE SECTOR: <span>{ERA_NAMES[data.era]?.toUpperCase() || data.era}</span> • TILE #{Number(data.tileIndex ?? 0) + 1}
+              </div>
+            )}
+          </div>
+
+          <div className="modal-body paradox-modal-body" style={{ textAlign: "center" }}>
+            <div className="paradox-chamber-stage">
+              <div className="paradox-vortex-container">
+                <div className="paradox-vortex-ring ring-outer" />
+                <div className="paradox-vortex-ring ring-inner" />
+                <div className="paradox-vortex-core">
+                  <span className="paradox-vortex-glyph">⏳</span>
+                </div>
+              </div>
+
+              <div className={`paradox-status-badge ${isCritical ? "status-critical" : (isDangerTriggered ? "status-danger" : "status-warning")}`}>
+                {isCritical
+                  ? "💥 CRITICAL TIMELINE COLLAPSE BREACH (+2 Timeline)"
+                  : isDangerTriggered
+                    ? "⚠️ SEVERE INSTABILITY: HAZARD STRIKE IMMINENT"
+                    : newP >= 3
+                      ? "⚡ TEMPORAL FRICTION: -1 ENERGY"
+                      : newP >= 2
+                        ? "📉 CAUSAL DISSONANCE: -1 POINT"
+                        : "⚠️ CAUSALITY STRESS: +1 PARADOX"}
+              </div>
+            </div>
+
+            <div className="paradox-meter-container">
+              <div className="paradox-meter-header">
+                <span className="paradox-meter-title">CHRONO-SUIT PARADOX GAUGE</span>
+                <span className="paradox-meter-count">
+                  <span className="old-count">{oldP}</span>
+                  <span className="arrow-sep">➔</span>
+                  <span className="new-count">{newP}</span>
+                  <span className="max-count"> / {maxP}</span>
+                </span>
+              </div>
+
+              <div className="paradox-pip-bar">
+                {[1, 2, 3, 4, 5].map((lvl) => {
+                  const wasFilled = oldP >= lvl;
+                  const isNewlyFilled = !wasFilled && (newP >= lvl || (isCritical && lvl === 5));
+                  const penaltyLabel = lvl === 2 ? "-1 Point" : lvl === 3 ? "-1 Energy" : lvl === 4 ? "Danger Card" : lvl === 5 ? "+2 Timeline" : "Stable";
+
+                  return (
+                    <div
+                      key={lvl}
+                      className={`paradox-pip-slot ${wasFilled ? "filled" : ""} ${isNewlyFilled ? "newly-filled pulsing" : ""}`}
+                    >
+                      <div className="pip-level-num">LVL {lvl}</div>
+                      <div className="pip-gem">
+                        <span className="pip-glyph">{lvl >= 4 ? "💀" : lvl >= 2 ? "⚠️" : "💠"}</span>
+                      </div>
+                      <div className="pip-penalty-tag">{penaltyLabel}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="paradox-lore-box">
+              <div className="paradox-lore-desc">{data.description}</div>
+              {data.playerName && (
+                <div className="paradox-affected-player">
+                  Operative Affected: <strong>{data.playerName}</strong>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="modal-actions paradox-modal-actions">
+            <button className="btn btn-primary paradox-stabilize-btn" onClick={() => { sounds.btnClick(); onClose(); }}>
+              Close Inspection
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="modal-overlay" style={{ zIndex: 10000 }}>
       <div className="modal card-preview-modal" style={{ maxWidth: '460px', width: '92%', animation: 'modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)' }}>
@@ -88,13 +190,14 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   const isArtifact = modal.type === 'artifact';
   const isClue = modal.isClue || modal.cardType === 'Clue Card' || modal.cardType === 'Decoy Card';
   const isTemporalOccurrence = modal.title === 'Temporal Occurrence!' || (modal.description && modal.description.includes('Temporal Occurrence'));
+  const isParadox = modal.type === 'paradox' || modal.title === 'Paradox Zone Breach!';
 
   // Hide other players' and bots' clue cards (unless observing as spectator)
   const isSecretToMe = isClue && !isMyCard && !isSpectator;
 
   // Duration: 6.0 seconds for Event / Danger cards, 5.5s for Artifacts, 4.5s for Clues/Info
   const speed = engine?.simulationSpeed || 1;
-  const durationMs = (isDanger || isEvent)
+  const durationMs = (isDanger || isEvent || isParadox)
     ? Math.max(3000, Math.round(6000 / speed))
     : (isArtifact ? Math.max(2600, Math.round(5500 / speed)) : Math.max(2200, Math.round(4500 / speed)));
 
@@ -146,6 +249,16 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   }, [isTemporalOccurrence]);
 
   useEffect(() => {
+    if (isParadox) {
+      sounds.paradox?.();
+      const t = setTimeout(() => {
+        sounds.timeRift?.();
+      }, 160);
+      return () => clearTimeout(t);
+    }
+  }, [isParadox]);
+
+  useEffect(() => {
     startTimeRef.current = Date.now();
     elapsedRef.current = 0;
   }, [modal?.title, modal?._timestamp, modal?.id]);
@@ -191,7 +304,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     };
   }, [isOtherPlayer, isHovered, durationMs, modal?.title, modal?._timestamp, modal?.id, modal?.diceRoll, modal?.needsRoll]);
 
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     sounds.btnClick();
     if (!network?.isSpectator && (network?.mode !== 'online' || modal.playerId === undefined || modal.playerId === network.playerId)) {
       if (typeof engine?.dismissModal === 'function') {
@@ -200,21 +313,38 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
       network?.sendAction?.({ type: 'DISMISS_MODAL' });
     }
     onDismissRef.current?.();
-  };
+  }, [network, modal.playerId, engine]);
+
+  // Spacebar and Enter shortcut for active player to stabilize paradox suit
+  useEffect(() => {
+    if (!isParadox || isOtherPlayer) return;
+    const handleKeyDown = (e) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        handleDismiss();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isParadox, isOtherPlayer, handleDismiss]);
 
   if (isOtherPlayer) {
-    const cardClass = isTemporalOccurrence
-      ? 'side-card-temporal event-card'
+    const cardClass = isParadox
+      ? 'side-card-paradox danger-card'
+      : (isTemporalOccurrence
+        ? 'side-card-temporal event-card'
+        : (isDanger
+          ? 'side-card-danger danger-card'
+          : (isEvent
+            ? 'side-card-event event-card'
+            : (isArtifact
+              ? 'side-card-artifact artifact-card'
+              : 'side-card-clue clue-card'))));
+    const timerFillGradient = isParadox
+      ? 'linear-gradient(90deg, #D946EF, #9333EA)'
       : (isDanger
-        ? 'side-card-danger danger-card'
-        : (isEvent
-          ? 'side-card-event event-card'
-          : (isArtifact
-            ? 'side-card-artifact artifact-card'
-            : 'side-card-clue clue-card')));
-    const timerFillGradient = isDanger
-      ? 'linear-gradient(90deg, #EF4444, #F97316)'
-      : (isEvent ? 'linear-gradient(90deg, #F59E0B, #FCD34D)' : (isArtifact ? 'linear-gradient(90deg, #10B981, #34D399)' : 'linear-gradient(90deg, #3B82F6, #60A5FA)'));
+        ? 'linear-gradient(90deg, #EF4444, #F97316)'
+        : (isEvent ? 'linear-gradient(90deg, #F59E0B, #FCD34D)' : (isArtifact ? 'linear-gradient(90deg, #10B981, #34D399)' : 'linear-gradient(90deg, #3B82F6, #60A5FA)')));
 
     const isSecretClue = isSecretToMe;
     const displayCardType = isSecretClue ? 'Secret Clue' : (modal.cardType || modal.title);
@@ -229,7 +359,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
       if (isSecretClue) return;
       onMaximize({
         title: modal.title,
-        cardType: modal.cardType || (isDanger ? 'Hazard Anomaly' : (isEvent ? 'Temporal Event' : 'Intel Card')),
+        cardType: modal.cardType || (isParadox ? '🌀 Temporal Paradox Node' : (isDanger ? 'Hazard Anomaly' : (isEvent ? 'Temporal Event' : 'Intel Card'))),
         description: modal.description,
         image: modal.image,
         diceRoll: modal.diceRoll,
@@ -239,7 +369,15 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         failMsg: modal.failMsg,
         isDanger,
         isEvent,
-        era: modal.era
+        isParadox,
+        oldParadox: modal.oldParadox,
+        newParadox: modal.newParadox,
+        maxParadox: modal.maxParadox,
+        criticalOverload: modal.criticalOverload,
+        triggeredDanger: modal.triggeredDanger,
+        era: modal.era,
+        tileIndex: modal.tileIndex,
+        playerName: drawingPlayer?.name || modal.playerName
       });
     };
 
@@ -311,6 +449,11 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                 ⏳
               </div>
             )}
+            {isParadox && !previewImage && (
+              <div style={{ fontSize: '1.4rem', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(217, 70, 239, 0.2)', border: '1.5px solid #D946EF', borderRadius: '4px', flexShrink: 0, boxShadow: '0 0 10px rgba(217, 70, 239, 0.4)' }}>
+                🌀
+              </div>
+            )}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-primary)' }}>{previewTitle}</div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.35, marginTop: '2px' }}>
@@ -318,6 +461,31 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               </div>
             </div>
           </div>
+
+          {isParadox && (
+            <div style={{ marginTop: "8px", padding: "6px 8px", background: "rgba(59, 7, 100, 0.35)", border: "1px solid rgba(217, 70, 239, 0.4)", borderRadius: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                <span style={{ fontSize: "0.68rem", fontWeight: 800, color: "#F0ABFC", letterSpacing: "0.5px" }}>SUIT PARADOX GAUGE</span>
+                <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#FFD700" }}>
+                  {modal.oldParadox ?? 0} ➔ <strong style={{ color: "#F43F5E" }}>{modal.newParadox ?? 1}</strong> / {modal.maxParadox ?? 5}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: "4px" }}>
+                {[1, 2, 3, 4, 5].map(lvl => (
+                  <div
+                    key={lvl}
+                    style={{
+                      flex: 1,
+                      height: "6px",
+                      borderRadius: "2px",
+                      background: (modal.newParadox ?? 1) >= lvl ? "linear-gradient(90deg, #D946EF, #C084FC)" : "rgba(255,255,255,0.1)",
+                      boxShadow: (modal.newParadox ?? 1) >= lvl ? "0 0 6px #D946EF" : "none"
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {isDanger && modal.needsRoll && (
             <div style={{
@@ -460,6 +628,124 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     );
   }
 
+  if (isParadox) {
+    const oldP = modal.oldParadox ?? 0;
+    const newP = modal.newParadox ?? 1;
+    const maxP = modal.maxParadox ?? 5;
+    const isCritical = modal.criticalOverload || newP >= 5;
+    const isDangerTriggered = modal.triggeredDanger || (newP === 4 && oldP < 4);
+
+    return (
+      <div className="modal-overlay paradox-rift-modal-overlay" id="active-modal">
+        <div className="paradox-rift-backdrop" />
+        <div className="paradox-shockwave-ring ring-1" />
+        <div className="paradox-shockwave-ring ring-2" />
+
+        <div className="modal paradox-card-modal" role="dialog" aria-label="Paradox Zone Breach">
+          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+
+          <div className="paradox-header">
+            <div className="paradox-header-badge">
+              <span className="paradox-bolt">⚡</span>
+              <span>DIMENSIONAL ANOMALY DETECTED</span>
+              <span className="paradox-bolt">⚡</span>
+            </div>
+            <div className="paradox-title">🌀 PARADOX ZONE BREACH! 🌀</div>
+            {modal.era && (
+              <div className="paradox-sector-tag">
+                TIMELINE SECTOR: <span>{ERA_NAMES[modal.era]?.toUpperCase() || modal.era}</span> • TILE #{Number(modal.tileIndex ?? 0) + 1}
+              </div>
+            )}
+          </div>
+
+          <div className="modal-body paradox-modal-body">
+            {/* Hypnotic Chrono Singularity Core */}
+            <div className="paradox-chamber-stage">
+              <div className="paradox-vortex-container">
+                <div className="paradox-vortex-ring ring-outer" />
+                <div className="paradox-vortex-ring ring-inner" />
+                <div className="paradox-vortex-core">
+                  <span className="paradox-vortex-glyph">⏳</span>
+                </div>
+                <div className="paradox-lightning-arc arc-1" />
+                <div className="paradox-lightning-arc arc-2" />
+              </div>
+
+              {/* Status Alert Badge */}
+              <div className={`paradox-status-badge ${isCritical ? "status-critical" : (isDangerTriggered ? "status-danger" : "status-warning")}`}>
+                {isCritical
+                  ? "💥 CRITICAL TIMELINE COLLAPSE BREACH (+2 Global Timeline Meter)"
+                  : isDangerTriggered
+                    ? "⚠️ SEVERE INSTABILITY: HAZARD ANOMALY IMMINENT"
+                    : newP >= 3
+                      ? "⚡ TEMPORAL FRICTION: -1 ENERGY DRAINED"
+                      : newP >= 2
+                        ? "📉 CAUSAL DISSONANCE: -1 VICTORY POINT LOST"
+                        : "⚠️ CAUSALITY STRESS: CHRONO-SUIT STRAIN (+1 PARADOX)"}
+              </div>
+            </div>
+
+            {/* Paradox Meter Breakdown (1 to 5) */}
+            <div className="paradox-meter-container">
+              <div className="paradox-meter-header">
+                <span className="paradox-meter-title">CHRONO-SUIT PARADOX GAUGE</span>
+                <span className="paradox-meter-count">
+                  <span className="old-count">{oldP}</span>
+                  <span className="arrow-sep">➔</span>
+                  <span className="new-count">{newP}</span>
+                  <span className="max-count"> / {maxP}</span>
+                </span>
+              </div>
+
+              <div className="paradox-pip-bar">
+                {[1, 2, 3, 4, 5].map((lvl) => {
+                  const wasFilled = oldP >= lvl;
+                  const isNewlyFilled = !wasFilled && (newP >= lvl || (isCritical && lvl === 5));
+                  const isOverloadReset = isCritical && lvl > 2;
+                  const penaltyLabel = lvl === 2 ? "-1 Point" : lvl === 3 ? "-1 Energy" : lvl === 4 ? "Danger Card" : lvl === 5 ? "+2 Timeline" : "Stable";
+
+                  return (
+                    <div
+                      key={lvl}
+                      className={`paradox-pip-slot ${wasFilled ? "filled" : ""} ${isNewlyFilled ? "newly-filled pulsing" : ""} ${isOverloadReset ? "overloaded" : ""}`}
+                    >
+                      <div className="pip-level-num">LVL {lvl}</div>
+                      <div className="pip-gem">
+                        <span className="pip-glyph">{lvl >= 4 ? "💀" : lvl >= 2 ? "⚠️" : "💠"}</span>
+                      </div>
+                      <div className="pip-penalty-tag">{penaltyLabel}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Lore / Consequence Description */}
+            <div className="paradox-lore-box">
+              <div className="paradox-lore-desc">{modal.description}</div>
+              {modal.playerName && (
+                <div className="paradox-affected-player">
+                  Operative Affected: <strong>{modal.playerName}</strong>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="modal-actions paradox-modal-actions">
+            <button
+              className="btn btn-primary paradox-stabilize-btn"
+              onClick={handleDismiss}
+              autoFocus
+            >
+              <span>🛡️ STABILIZE CHRONO-SUIT</span>
+              <kbd className="paradox-kbd">SPACE / ENTER</kbd>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`modal-overlay ${isTemporalOccurrence ? "temporal-rift-modal-overlay" : ""}`} id="active-modal">
       <div className={`modal ${isTemporalOccurrence ? "temporal-occurrence-card-modal" : ""}`}>
@@ -479,6 +765,31 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
             <div className="card-display-title">{modal.title}</div>
             <div className="card-display-desc">{modal.description}</div>
           </div>
+
+          {isParadox && (
+            <div style={{ marginTop: "8px", padding: "6px 8px", background: "rgba(59, 7, 100, 0.35)", border: "1px solid rgba(217, 70, 239, 0.4)", borderRadius: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                <span style={{ fontSize: "0.68rem", fontWeight: 800, color: "#F0ABFC", letterSpacing: "0.5px" }}>SUIT PARADOX GAUGE</span>
+                <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#FFD700" }}>
+                  {modal.oldParadox ?? 0} ➔ <strong style={{ color: "#F43F5E" }}>{modal.newParadox ?? 1}</strong> / {modal.maxParadox ?? 5}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: "4px" }}>
+                {[1, 2, 3, 4, 5].map(lvl => (
+                  <div
+                    key={lvl}
+                    style={{
+                      flex: 1,
+                      height: "6px",
+                      borderRadius: "2px",
+                      background: (modal.newParadox ?? 1) >= lvl ? "linear-gradient(90deg, #D946EF, #C084FC)" : "rgba(255,255,255,0.1)",
+                      boxShadow: (modal.newParadox ?? 1) >= lvl ? "0 0 6px #D946EF" : "none"
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {isDanger && modal.needsRoll && (
             <div className="hazard-roll-stage" style={{
@@ -840,59 +1151,110 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
 
     return (
       <div className="modal-overlay" id="active-modal">
-        <div className="modal" style={{ maxWidth: "740px", width: "95%", maxHeight: "90vh", overflowY: "auto" }}>
-          <div className="modal-title" style={{ color: "#F59E0B", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+        <div className="modal" style={{ maxWidth: "800px", width: "95%", maxHeight: "90vh", overflowY: "auto", boxSizing: "border-box" }}>
+          <div className="modal-title" style={{ color: "#F5C442", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
             <span>🎴</span> Hand Limit Reached (5/5 Clue Cards)
           </div>
 
           <div className="modal-body" style={{ textAlign: "center", marginBottom: "var(--space-md)" }}>
-            <p style={{ fontSize: "0.88rem", color: "var(--text-secondary)", margin: "0 auto 16px", maxWidth: "600px", lineHeight: 1.45 }}>
+            <p style={{ fontSize: "0.85rem", color: "#C8B293", margin: "0 auto 16px", maxWidth: "620px", lineHeight: 1.45 }}>
               Your clue inventory is full! You excavated a new card. You must either <strong>discard this drawn card</strong> back to the {ERA_NAMES[drawn.era] || drawn.era} pool, or <strong>keep it and discard 1 card</strong> from your hand.
             </p>
 
             {/* NEWLY DRAWN CARD SECTION */}
             <div style={{
-              background: "linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)",
-              border: "2px solid rgba(245, 158, 11, 0.6)",
-              borderRadius: "12px",
+              background: "linear-gradient(180deg, #251B12 0%, #17100B 100%)",
+              border: "2px solid #C2974D",
+              borderRadius: "6px",
               padding: "14px",
-              marginBottom: "18px",
-              boxShadow: "0 0 20px rgba(245, 158, 11, 0.15)",
+              marginBottom: "16px",
+              boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 4px 14px rgba(0, 0, 0, 0.6)",
               textAlign: "left"
             }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px", flexWrap: "wrap", gap: "6px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ background: "#F59E0B", color: "#000", fontSize: "0.7rem", fontWeight: 800, padding: "2px 8px", borderRadius: "4px", textTransform: "uppercase" }}>
+                  <span style={{
+                    background: "#F5C442",
+                    color: "#1A110A",
+                    fontSize: "0.70rem",
+                    fontWeight: 800,
+                    padding: "2px 8px",
+                    borderRadius: "3px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    fontFamily: "var(--font-display)"
+                  }}>
                     ✨ Newly Drawn Card
                   </span>
-                  <span style={{ fontSize: "0.75rem", color: "#94A3B8", background: "rgba(255,255,255,0.06)", padding: "2px 8px", borderRadius: "4px" }}>
+                  <span style={{
+                    fontSize: "0.72rem",
+                    color: "#D4AF37",
+                    background: "#140E0A",
+                    border: "1px solid #5A422D",
+                    padding: "2px 8px",
+                    borderRadius: "3px",
+                    fontWeight: 700
+                  }}>
                     {ERA_NAMES[drawn.era] || drawn.era}
                   </span>
                 </div>
                 {drawn.artifactId === missionArtifactId && (
-                  <span style={{ fontSize: "0.72rem", color: "#FCD34D", fontWeight: 700, background: "rgba(245, 158, 11, 0.2)", padding: "2px 8px", borderRadius: "4px", border: "1px solid rgba(245, 158, 11, 0.4)" }}>
+                  <span style={{
+                    fontSize: "0.72rem",
+                    color: "#FFD700",
+                    fontWeight: 700,
+                    background: "#3A2A14",
+                    padding: "2px 8px",
+                    borderRadius: "3px",
+                    border: "1px solid #FFD700"
+                  }}>
                     ⭐ Matches Target Relic!
                   </span>
                 )}
               </div>
 
-              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
                 {(drawn.cardImage || drawn.image) ? (
                   <img
                     src={drawn.cardImage || drawn.image}
                     alt={drawn.hint || "Clue"}
-                    style={{ width: "64px", height: "64px", objectFit: "cover", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.2)", flexShrink: 0 }}
+                    style={{
+                      width: "60px",
+                      height: "60px",
+                      objectFit: "contain",
+                      borderRadius: "6px",
+                      border: "1.5px solid #8C6239",
+                      background: "#140E0A",
+                      flexShrink: 0
+                    }}
                   />
                 ) : (
-                  <div style={{ width: "64px", height: "64px", background: "rgba(255,255,255,0.05)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem", flexShrink: 0 }}>
+                  <div style={{
+                    width: "60px",
+                    height: "60px",
+                    background: "#140E0A",
+                    border: "1.5px solid #8C6239",
+                    borderRadius: "6px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "2rem",
+                    flexShrink: 0
+                  }}>
                     {drawn.isDecoy ? "🎭" : "🔍"}
                   </div>
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: "0.95rem", color: drawn.isDecoy ? "#F87171" : "#60A5FA" }}>
+                  <div style={{
+                    fontWeight: 700,
+                    fontSize: "0.95rem",
+                    color: drawn.isDecoy ? "#F87171" : "#FFD700",
+                    fontFamily: "var(--font-display)",
+                    letterSpacing: "0.5px"
+                  }}>
                     {drawn.isDecoy ? "🎭 Decoy Card (False Lead)" : (drawn.hint || drawn.description || "Clue Card")}
                   </div>
-                  <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginTop: "4px", lineHeight: 1.35 }}>
+                  <div style={{ fontSize: "0.80rem", color: "#C8B293", marginTop: "4px", lineHeight: 1.35 }}>
                     {drawn.description || drawn.hint}
                   </div>
                 </div>
@@ -900,21 +1262,42 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
 
               <div style={{ marginTop: "14px", display: "flex", justifyContent: "flex-end" }}>
                 <button
+                  type="button"
                   className="btn choice-btn"
                   style={{
-                    background: "rgba(239, 68, 68, 0.2)",
-                    border: "1px solid rgba(239, 68, 68, 0.6)",
-                    color: "#FCA5A5",
-                    fontSize: "0.82rem",
+                    minWidth: 0,
+                    maxWidth: "100%",
                     padding: "8px 16px",
-                    fontWeight: 700,
-                    borderRadius: "8px",
-                    cursor: "pointer"
+                    fontSize: "0.80rem",
+                    fontWeight: 800,
+                    letterSpacing: "0.5px",
+                    background: "linear-gradient(180deg, #5C2222 0%, #3B1212 100%)",
+                    border: "1.5px solid #E57373",
+                    color: "#FFCDD2",
+                    borderRadius: "4px",
+                    boxShadow: "inset 1px 1px 0 #EF9A9A, inset -1px -1px 0 #2A0808, 0 2px 0 #120E0A",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    boxSizing: "border-box"
                   }}
                   disabled={!isMyTurn && network.mode === "online"}
                   onClick={() => handleSelect("discard_drawn")}
+                  title={`Discard this newly drawn card and return it to the ${ERA_NAMES[drawn.era] || drawn.era} pool`}
                 >
-                  ❌ Discard Drawn Card (Return to {ERA_NAMES[drawn.era] || drawn.era} Pool)
+                  <span>❌ Discard Drawn Card</span>
+                  <span style={{
+                    fontSize: "0.66rem",
+                    background: "#220A0A",
+                    border: "1px solid #E57373",
+                    color: "#FFCDD2",
+                    padding: "2px 6px",
+                    borderRadius: "3px",
+                    fontWeight: 700
+                  }}>
+                    Return to {ERA_NAMES[drawn.era]?.replace(" Era", "") || drawn.era} Pool
+                  </span>
                 </button>
               </div>
             </div>
@@ -925,24 +1308,27 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
               alignItems: "center",
               justifyContent: "center",
               gap: "12px",
-              margin: "14px 0 12px",
-              color: "var(--text-secondary)",
+              margin: "16px 0 14px",
+              color: "#C2974D",
               fontSize: "0.75rem",
               fontWeight: 700,
               textTransform: "uppercase",
-              letterSpacing: "1px"
+              letterSpacing: "1px",
+              fontFamily: "var(--font-display)"
             }}>
-              <span style={{ height: "1px", flex: 1, background: "rgba(255,255,255,0.1)" }}></span>
+              <span style={{ height: "1px", flex: 1, background: "linear-gradient(90deg, transparent, #8C6239)" }}></span>
               <span>OR Keep Drawn Card & Discard 1 From Hand</span>
-              <span style={{ height: "1px", flex: 1, background: "rgba(255,255,255,0.1)" }}></span>
+              <span style={{ height: "1px", flex: 1, background: "linear-gradient(90deg, #8C6239, transparent)" }}></span>
             </div>
 
             {/* HAND CARDS GRID */}
             <div style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(115px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
               gap: "10px",
-              marginTop: "10px"
+              marginTop: "10px",
+              boxSizing: "border-box",
+              width: "100%"
             }}>
               {handCards.map((c, idx) => {
                 const isMatch = c.artifactId === missionArtifactId;
@@ -950,21 +1336,43 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                   <div
                     key={idx}
                     style={{
-                      background: "rgba(15, 23, 42, 0.85)",
-                      border: c.isDecoy ? "1px dashed rgba(239, 68, 68, 0.5)" : (isMatch ? "1px solid rgba(245, 158, 11, 0.6)" : "1px solid rgba(59, 130, 246, 0.4)"),
-                      borderRadius: "8px",
+                      background: isMatch
+                        ? "linear-gradient(180deg, #322212 0%, #1D140B 100%)"
+                        : c.isDecoy
+                        ? "linear-gradient(180deg, #2D1414 0%, #1A0B0B 100%)"
+                        : "linear-gradient(180deg, #241A12 0%, #17100B 100%)",
+                      border: isMatch
+                        ? "2px solid #F5C442"
+                        : c.isDecoy
+                        ? "1.5px dashed #EF4444"
+                        : "1.5px solid #8C6239",
+                      borderRadius: "6px",
                       padding: "10px 8px",
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "space-between",
                       textAlign: "center",
                       position: "relative",
-                      minHeight: "170px"
+                      minWidth: 0,
+                      minHeight: "215px",
+                      boxShadow: isMatch
+                        ? "inset 1px 1px 0 #FFF099, 0 0 12px rgba(245, 196, 66, 0.3)"
+                        : "inset 1px 1px 0 rgba(235, 208, 125, 0.15), 0 3px 6px rgba(0, 0, 0, 0.5)",
+                      boxSizing: "border-box",
+                      overflow: "hidden"
                     }}
                   >
-                    <div>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px", fontSize: "0.65rem" }}>
-                        <span style={{ color: "#94A3B8", background: "rgba(255,255,255,0.06)", padding: "1px 5px", borderRadius: "3px" }}>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px", fontSize: "0.62rem" }}>
+                        <span style={{
+                          color: "#D4AF37",
+                          background: "#140E0A",
+                          border: "1px solid #5A422D",
+                          padding: "1px 5px",
+                          borderRadius: "3px",
+                          fontWeight: 700,
+                          whiteSpace: "nowrap"
+                        }}>
                           {ERA_NAMES[c.era]?.replace(" Era", "") || c.era}
                         </span>
                         {c.isDecoy ? (
@@ -972,43 +1380,86 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                         ) : isMatch ? (
                           <span style={{ color: "#FCD34D", fontWeight: 700 }}>⭐ Mission</span>
                         ) : (
-                          <span style={{ color: "#60A5FA" }}>🔍 Clue</span>
+                          <span style={{ color: "#C8B293" }}>🔍 Clue</span>
                         )}
                       </div>
 
-                      {(c.cardImage || c.image) ? (
-                        <img
-                          src={c.cardImage || c.image}
-                          alt="card"
-                          style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "4px", margin: "0 auto 6px", display: "block", border: "1px solid rgba(255,255,255,0.1)" }}
-                        />
-                      ) : (
-                        <div style={{ fontSize: "1.5rem", margin: "4px 0" }}>{c.isDecoy ? "🎭" : "📜"}</div>
-                      )}
+                      <div style={{
+                        height: "46px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        margin: "2px 0 6px"
+                      }}>
+                        {(c.cardImage || c.image) ? (
+                          <img
+                            src={c.cardImage || c.image}
+                            alt="card"
+                            style={{
+                              width: "42px",
+                              height: "42px",
+                              objectFit: "contain",
+                              borderRadius: "4px",
+                              border: "1px solid #5A422D",
+                              background: "#140E0A"
+                            }}
+                          />
+                        ) : (
+                          <div style={{ fontSize: "1.6rem" }}>{c.isDecoy ? "🎭" : "📜"}</div>
+                        )}
+                      </div>
 
-                      <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.25, maxHeight: "38px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <div style={{
+                        fontSize: "0.70rem",
+                        fontWeight: 700,
+                        color: isMatch ? "#FFD700" : "#EBD07D",
+                        lineHeight: 1.25,
+                        minHeight: "36px",
+                        maxHeight: "36px",
+                        overflow: "hidden",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        textOverflow: "ellipsis",
+                        wordBreak: "break-word"
+                      }}>
                         {c.hint || c.description || (c.isDecoy ? "Decoy Card" : "Clue Card")}
                       </div>
                     </div>
 
                     <button
+                      type="button"
                       className="btn choice-btn"
                       style={{
-                        marginTop: "8px",
-                        fontSize: "0.68rem",
-                        padding: "6px 4px",
-                        background: "rgba(59, 130, 246, 0.15)",
-                        border: "1px solid rgba(59, 130, 246, 0.4)",
-                        color: "#93C5FD",
-                        borderRadius: "6px",
-                        fontWeight: 700,
+                        marginTop: "10px",
+                        width: "100%",
+                        minWidth: 0,
+                        maxWidth: "100%",
+                        boxSizing: "border-box",
+                        fontSize: "0.70rem",
+                        fontWeight: 800,
+                        letterSpacing: "0.3px",
+                        padding: "7px 4px",
+                        background: "linear-gradient(180deg, #4D3826 0%, #352518 100%)",
+                        border: "1.5px solid #F5C442",
+                        color: "#FFD700",
+                        borderRadius: "4px",
+                        boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A",
                         cursor: "pointer",
-                        lineHeight: 1.2
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "4px",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis"
                       }}
                       disabled={!isMyTurn && network.mode === "online"}
                       onClick={() => handleSelect(`discard_hand_${idx}`)}
+                      title={`Discard this card and keep the newly drawn card`}
                     >
-                      🔄 Discard #{idx + 1} & Keep New
+                      <span>🗑️</span>
+                      <span>Discard #{idx + 1}</span>
                     </button>
                   </div>
                 );
@@ -1016,7 +1467,7 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
             </div>
 
             {!isMyTurn && network.mode === "online" && (
-              <div style={{ fontSize: "0.85rem", color: "#60A5FA", marginTop: "14px", fontWeight: 600 }}>
+              <div style={{ fontSize: "0.85rem", color: "#F5C442", marginTop: "14px", fontWeight: 600 }}>
                 ⏳ Waiting for {activePlayer.name} to choose...
               </div>
             )}

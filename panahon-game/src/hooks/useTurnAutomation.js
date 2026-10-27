@@ -26,6 +26,13 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
   const hasMovedThisTurn = Boolean(state?.hasMovedThisTurn);
   const stepsTakenThisTurn = state?.stepsTakenThisTurn || 0;
 
+  const currentPlayer = state?.players?.[currentPlayerIndex];
+  const roleKey = currentPlayer?.roleKey;
+  const energy = currentPlayer?.energy || 0;
+  const reverseTimeCooldown = currentPlayer?.reverseTimeCooldown || 0;
+  const temporalForesightCooldown = currentPlayer?.temporalForesightCooldown || 0;
+  const hasUsedForesightThisTurn = Boolean(currentPlayer?.hasUsedForesightThisTurn);
+
   useEffect(() => {
     if (!state || !engine || !network || !isGameActive) {
       clearAutoMove();
@@ -84,16 +91,31 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
       if (autoMoveTimerRef.current) return;
 
       const isStartOfTurn = !hasMovedThisTurn && stepsTakenThisTurn === 0;
-      const currentPlayer = state.players?.[currentPlayerIndex];
+
       const canReverseTime = isStartOfTurn &&
         movementDirection !== "backward" &&
         currentPlayer &&
-        currentPlayer.reverseTimeCooldown === 0 &&
-        currentPlayer.energy >= 3;
+        reverseTimeCooldown === 0 &&
+        energy >= 3;
+
+      const canUseForesight = isStartOfTurn &&
+        roleKey === "CHRONOMANCER" &&
+        temporalForesightCooldown <= 0 &&
+        !hasUsedForesightThisTurn;
+
+      // CRITICAL: At the start of movement, if the human player has pre-movement decisions available
+      // (e.g. Chronomancer's Temporal Foresight to adjust dice roll +/- 1, or Reverse Time to move backward),
+      // DO NOT auto-move! Wait for player to decide and click an ability or confirm movement.
+      if (isStartOfTurn && (canReverseTime || canUseForesight)) {
+        clearAutoMove();
+        return;
+      }
 
       let effectiveDelay = delayMs;
       if (effectiveDelay === undefined) {
-        effectiveDelay = isStartOfTurn ? (canReverseTime ? 2200 : 700) : 380;
+        effectiveDelay = isStartOfTurn
+          ? 700
+          : Math.max(180, Math.round(380 / (simulationSpeed || 1)));
       }
 
       autoMoveTimerRef.current = setTimeout(() => {
@@ -110,7 +132,8 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
           sounds.moveStep();
           engine.movePlayerStep();
           network.sendAction({ type: "MOVE_STEP" });
-          checkAndTriggerAutoMove(380);
+          const stepSpeed = Math.max(180, Math.round(380 / (simulationSpeed || 1)));
+          checkAndTriggerAutoMove(stepSpeed);
         }
       }, effectiveDelay);
     };
@@ -133,6 +156,11 @@ export function useTurnAutomation({ engine, network, state, onGameOver, isGameAc
     movementDirection,
     hasMovedThisTurn,
     stepsTakenThisTurn,
+    roleKey,
+    energy,
+    reverseTimeCooldown,
+    temporalForesightCooldown,
+    hasUsedForesightThisTurn,
     isGameActive,
     simulationSpeed,
     engine,

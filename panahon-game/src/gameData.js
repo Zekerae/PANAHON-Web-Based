@@ -470,14 +470,14 @@ export const ROLES = {
     color: '#3498DB',
     passive: {
       name: 'Chrono-Stride',
-      description: 'Reduced Time Gate travel cost to 1 Energy',
+      description: 'Reduced Time Gate travel cost to 1 Energy.',
       cooldown: 0 // Always active
     },
     active: {
       name: 'Momentum',
-      description: 'Surge forward with +2 Bonus Movement steps along the timeline (2 Turn CD, 2 Energy Cost)',
+      description: 'Pause movement to interact with a tile, then continue moving remaining rolled spaces (2 Turn CD, 3 Energy Cost).',
       cooldown: 2,
-      energyCost: 2
+      energyCost: 3
     }
   },
   GUARDIAN: {

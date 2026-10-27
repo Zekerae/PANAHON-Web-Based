@@ -1132,9 +1132,7 @@ export class NetworkManager {
         sounds.diceRoll();
         if (action.result) {
           const player = this.engine.getCurrentPlayer();
-          const bonus = (this.engine.state.momentumActive || player.roleKey === 'EXPLORER')
-            ? (player.bonusMoves || (this.engine.state.momentumActive ? 2 : 0))
-            : (player.bonusMoves || 0);
+          const bonus = player.bonusMoves || 0;
 
           this.engine.state.diceResult = action.result;
           this.engine.state.initialRoll = action.result;
@@ -1147,7 +1145,7 @@ export class NetworkManager {
           this.engine.state.phase = 'moving';
 
           if (bonus > 0) {
-            this.engine.addLog('dice', `🎲 ${player.name} rolled a ${action.result} (+${bonus} Momentum Surge = ${action.result + bonus} Total Spaces)!`);
+            this.engine.addLog('dice', `🎲 ${player.name} rolled a ${action.result}${bonus > 0 ? ` (+${bonus} Bonus Spaces = ${action.result + bonus} Total)` : ''}!`);
           } else {
             this.engine.addLog('dice', `🎲 ${player.name} rolled a ${action.result}!`);
           }

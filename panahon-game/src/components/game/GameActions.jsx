@@ -41,8 +41,9 @@ function GameActions({
   const canReverseTime = isMyTurn && isStartOfMovement && !isMovingBackward && currentPlayer.reverseTimeCooldown === 0 && currentPlayer.energy >= GAME_CONSTANTS.REVERSE_TIME_COST;
   const isChronomancer = currentPlayer.roleKey === 'CHRONOMANCER';
   const isExplorer = currentPlayer.roleKey === 'EXPLORER';
-  const isMomentumPrimed = isExplorer && Boolean(state.momentumActive || (currentPlayer.bonusMoves && currentPlayer.bonusMoves > 0));
+  const isMomentumPrimed = isExplorer && Boolean(state.momentumActive);
   const canUseForesight = isMyTurn && isStartOfMovement && isChronomancer && (!currentPlayer.temporalForesightCooldown || currentPlayer.temporalForesightCooldown <= 0) && !currentPlayer.hasUsedForesightThisTurn;
+  const hasPreMovementDecision = isMyTurn && isStartOfMovement && (canReverseTime || canUseForesight);
 
   let reverseTimeBadge = '-3 Energy';
   let reverseTimeTitle = 'Roll movement die first. Reverse Time can only be activated after rolling at the start of your turn.';
@@ -77,14 +78,14 @@ function GameActions({
   const hasEnoughEnergy = (currentPlayer.energy || 0) >= activeCost;
   const isAbilityOnCooldown = (currentPlayer.activeCooldown || 0) > 0;
   const hasUsedAbilityThisTurn = Boolean(currentPlayer.usedAbilityThisTurn);
-  const isAbilityPhase = isExplorer ? (state.phase === 'rolling') : (state.phase === 'action');
+  const isAbilityPhase = isExplorer ? (state.phase === 'rolling' || state.phase === 'moving') : (state.phase === 'action');
   const canUseAbilityNow = isMyTurn && isAbilityPhase && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && hasEnoughEnergy && !isMomentumPrimed;
 
   let abilityBadge = `-${activeCost} En`;
   let abilityStatusText = activeSkill.description || 'Activate operative ability.';
   if (isExplorer && isMomentumPrimed) {
-    abilityBadge = '+2 Primed ⚡';
-    abilityStatusText = 'Momentum is primed! Roll the movement die to surge +2 spaces forward.';
+    abilityBadge = 'Active 🏃';
+    abilityStatusText = 'Momentum is active! Pause on any tile during movement to interact with it, then continue moving.';
   } else if (hasUsedAbilityThisTurn) {
     abilityBadge = 'Used this turn';
     abilityStatusText = isExplorer ? 'Momentum was already activated this turn.' : 'Ability already activated this turn.';
@@ -94,9 +95,9 @@ function GameActions({
   } else if (!hasEnoughEnergy) {
     abilityBadge = `Need ${activeCost} En`;
     abilityStatusText = `Requires ${activeCost} Chrono Energy (You have ${currentPlayer.energy || 0}).`;
-  } else if (isExplorer && state.phase !== 'rolling') {
-    abilityBadge = 'Rolling Phase Only';
-    abilityStatusText = 'Momentum must be activated before rolling the movement die!';
+  } else if (isExplorer && state.phase !== 'rolling' && state.phase !== 'moving') {
+    abilityBadge = 'Turn Phase Only';
+    abilityStatusText = 'Momentum can be activated before rolling or during movement!';
   }
 
   const currentTile = state.board?.[currentPlayer.currentEra]?.[currentPlayer.tileIndex];
@@ -755,19 +756,19 @@ function GameActions({
                       border: isMomentumPrimed ? "1px solid #2ECC71" : "1px solid #8C6239",
                       color: isMomentumPrimed ? "#4ADE80" : (canUseAbilityNow ? "#FFD700" : "#FCA5A5")
                     }}>
-                      {isMomentumPrimed ? "✓ PRIMED (+2 MOVES)" : abilityBadge}
+                      {isMomentumPrimed ? "✓ ACTIVE (PAUSE & INTERACT)" : abilityBadge}
                     </span>
                   </div>
 
                   {isMomentumPrimed ? (
                     <div style={{ fontSize: "0.68rem", color: "#4ADE80", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
                       <span>✨</span>
-                      <span>Kinetic Chronal Thrusters Primed! Roll the die to surge forward with +2 spaces!</span>
+                      <span>Momentum Active! During your movement, you can pause to interact with a tile, then continue moving remaining rolled spaces!</span>
                     </div>
                   ) : (
                     <>
                       <div style={{ fontSize: "0.68rem", color: "#C8B293", marginBottom: "8px", lineHeight: 1.3 }}>
-                        Surge forward with +2 Bonus Movement steps along the timeline on this turn's roll!
+                        Pause movement to interact with a tile, then continue moving remaining rolled spaces (2 Turn CD, 3 Energy Cost).
                       </div>
                       <button
                         type="button"
@@ -789,7 +790,7 @@ function GameActions({
                         title={abilityStatusText}
                         onClick={() => { sounds.abilityActivate?.(); onUseSkill(); }}
                       >
-                        <span>⚡ ACTIVATE MOMENTUM (+2 MOVES) • -2 EN</span>
+                        <span>🏃 ACTIVATE MOMENTUM (PAUSE & INTERACT) • -3 EN</span>
                       </button>
                     </>
                   )}
@@ -823,7 +824,7 @@ function GameActions({
                 disabled={!isMyTurn || isRolling}
                 onClick={() => { sounds.diceRoll?.(); onRollDice(); }}
               >
-                <span>🎲 {isMomentumPrimed ? "ROLL MOVEMENT DIE (+2 MOMENTUM PRIMED)" : "ROLL MOVEMENT DIE"}</span>
+                <span>🎲 {isMomentumPrimed ? "ROLL MOVEMENT DIE (MOMENTUM ACTIVE)" : "ROLL MOVEMENT DIE"}</span>
                 <kbd style={{ background: isMomentumPrimed ? "#0A192F" : "#140E0A", border: isMomentumPrimed ? "1px solid #38BDF8" : "1px solid #5A422D", padding: "1px 5px", borderRadius: "3px", fontSize: "0.62rem" }}>SPACE</kbd>
               </button>
 
@@ -900,6 +901,33 @@ function GameActions({
               {state.movesRemaining} / {state.totalMoves || state.diceResult || 1} MOVES LEFT
             </span>
           </div>
+
+          {hasPreMovementDecision && (
+            <div style={{
+              marginBottom: "10px",
+              padding: "9px 10px",
+              background: "linear-gradient(135deg, rgba(26, 188, 156, 0.22) 0%, rgba(245, 196, 66, 0.15) 100%)",
+              border: "1.5px solid #1ABC9C",
+              borderRadius: "4px",
+              boxShadow: "0 0 12px rgba(26, 188, 156, 0.25)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "#5EEAD4", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span>⏳</span> TRAJECTORY CHOICE
+                </span>
+                <span style={{ fontSize: "0.58rem", color: "#FDE047", fontWeight: 700, background: "#140E0A", padding: "1px 6px", borderRadius: "3px", border: "1px solid #8C6239" }}>
+                  AUTO-MOVE PAUSED
+                </span>
+              </div>
+              <div style={{ fontSize: "0.68rem", color: "#F3E8D0", lineHeight: "1.3" }}>
+                {canUseForesight && canReverseTime
+                  ? "Choose whether to adjust roll with Temporal Foresight (+1/-1) or Reverse Time (-3 En) below before stepping, or confirm movement."
+                  : canUseForesight
+                  ? "Chronomancer: Use Temporal Foresight (+1 / -1) below or confirm movement."
+                  : "Activate Reverse Time to walk backward (-3 En), or confirm forward movement."}
+              </div>
+            </div>
+          )}
 
           {canReverseTime && (
             <div style={{ marginBottom: "8px", padding: "8px 10px", background: "#140E0A", border: "1.5px solid #8C6239", borderRadius: "4px" }}>
@@ -1015,10 +1043,10 @@ function GameActions({
                 <span className="badge" style={{ background: "#38271A", border: "1px solid #F5C442", color: "#FFD700", fontSize: "0.62rem", padding: "2px 6px", borderRadius: "3px", fontWeight: "bold" }}>Manual Move</span>
               </div>
               <div style={{ fontSize: "0.72rem", color: "#C8B293", margin: "6px 0" }}>
-                Moves left: <strong style={{ color: "#FFD700" }}>{state.movesRemaining}</strong> spaces. Pause & interact with any tile!
+                Moves left: <strong style={{ color: "#FFD700" }}>{state.movesRemaining}</strong> spaces. Pause and interact with this tile!
               </div>
 
-              {!state.momentumUsedMidTile && state.board[currentPlayer.currentEra][currentPlayer.tileIndex].type !== "start" ? (
+              {!state.momentumUsedMidTile && state.board[currentPlayer.currentEra][currentPlayer.tileIndex].type !== "start" && state.board[currentPlayer.currentEra][currentPlayer.tileIndex].type !== "empty" ? (
                 <button
                   className="btn btn-accent"
                   style={{
@@ -1029,16 +1057,18 @@ function GameActions({
                     background: "linear-gradient(180deg, #4D3826 0%, #352518 100%)",
                     border: "1.5px solid #F5C442",
                     color: "#FFD700",
-                    borderRadius: "4px"
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontWeight: 800
                   }}
                   disabled={!isMyTurn}
                   onClick={onInteractMomentum}
                 >
-                  ✨ Interact with Current Space ({state.board[currentPlayer.currentEra][currentPlayer.tileIndex].type.toUpperCase()})
+                  ✨ Pause & Interact with Tile ({state.board[currentPlayer.currentEra][currentPlayer.tileIndex].type.toUpperCase()})
                 </button>
               ) : (state.momentumUsedMidTile && (
                 <div style={{ fontSize: "0.68rem", color: "#4ADE80", marginBottom: "6px" }}>
-                  ✓ Tile interaction used! Continue moving to finish.
+                  ✓ Tile interaction completed! Continue moving remaining rolled spaces.
                 </div>
               ))}
 
@@ -1061,6 +1091,38 @@ function GameActions({
             </div>
           ) : (
             <div style={{ marginTop: "8px", padding: "10px", background: "#140E0A", border: "1.5px solid #4A3423", borderRadius: "4px" }}>
+              {isExplorer && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && (
+                <div style={{ marginBottom: "8px", padding: "8px 10px", background: "#1E150F", border: "1.5px solid #6E4924", borderRadius: "4px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "0.74rem", fontWeight: 800, color: "#FFD700" }}>🏃 Momentum Ability</span>
+                    <span style={{ fontSize: "0.62rem", color: hasEnoughEnergy ? "#FDE047" : "#FCA5A5", fontWeight: 700 }}>
+                      {hasEnoughEnergy ? "-3 Energy" : "Need 3 Energy"}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: "0.66rem", color: "#C8B293", marginBottom: "6px" }}>
+                    Pause movement to interact with this tile, then continue moving remaining rolled spaces.
+                  </div>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={!canUseAbilityNow}
+                    onClick={() => { sounds.abilityActivate?.(); onUseSkill(); }}
+                    style={{
+                      width: "100%",
+                      padding: "6px",
+                      fontSize: "0.72rem",
+                      fontWeight: 800,
+                      background: canUseAbilityNow ? "linear-gradient(180deg, #4D3826 0%, #352518 100%)" : "#221913",
+                      border: canUseAbilityNow ? "1.5px solid #F5C442" : "1px solid #4A3423",
+                      color: canUseAbilityNow ? "#FFD700" : "#6B7280",
+                      borderRadius: "4px",
+                      cursor: canUseAbilityNow ? "pointer" : "not-allowed"
+                    }}
+                  >
+                    🏃 Activate Momentum (-3 En)
+                  </button>
+                </div>
+              )}
               <button
                 className="btn btn-primary"
                 style={{
@@ -1073,23 +1135,35 @@ function GameActions({
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "8px",
-                  background: "linear-gradient(180deg, #4D3826 0%, #352518 100%)",
-                  border: "2px solid #F5C442",
-                  color: "#FFD700",
+                  background: hasPreMovementDecision
+                    ? "linear-gradient(180deg, #5A422D 0%, #3D2B1E 100%)"
+                    : "linear-gradient(180deg, #4D3826 0%, #352518 100%)",
+                  border: hasPreMovementDecision ? "2px solid #5EEAD4" : "2px solid #F5C442",
+                  color: hasPreMovementDecision ? "#5EEAD4" : "#FFD700",
                   borderRadius: "4px",
-                  boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 3px 0 #120E0A"
+                  boxShadow: hasPreMovementDecision
+                    ? "0 0 10px rgba(94, 234, 212, 0.35), inset 1px 1px 0 #5EEAD4"
+                    : "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 3px 0 #120E0A"
                 }}
                 disabled={!isMyTurn}
                 onClick={onStepMove}
               >
-                <span>{isMovingBackward ? "⬅️ Step Backward" : "➡️ Move Forward"}</span>
+                <span>
+                  {hasPreMovementDecision
+                    ? (isMovingBackward ? "⬅️ Confirm & Step Backward" : "➡️ Confirm & Move Forward")
+                    : (isMovingBackward ? "⬅️ Step Backward" : "➡️ Move Forward")}
+                </span>
                 <span style={{ fontSize: "0.68rem", background: "#251B12", border: "1px solid #8C6239", color: "#F5C442", padding: "2px 6px", borderRadius: "3px", fontWeight: 700 }}>
                   {state.movesRemaining} {state.movesRemaining === 1 ? "step left" : "steps left"}
                 </span>
               </button>
 
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontSize: "0.70rem", color: "#C8B293", marginTop: "8px", textAlign: "center" }}>
-                <span>{isMovingBackward ? "⏪ Moving in Reverse" : "🚶 Stepping along timeline"} &bull; Click tile or press <strong>Space</strong></span>
+                <span>
+                  {hasPreMovementDecision
+                    ? "✨ Decision pending • Click tile, confirm button, or press Space"
+                    : (isMovingBackward ? "⏪ Moving in Reverse • Click tile or press Space" : "🚶 Stepping along timeline • Click tile or press Space")}
+                </span>
               </div>
             </div>
           )}

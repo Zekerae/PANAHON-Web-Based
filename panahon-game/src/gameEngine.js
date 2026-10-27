@@ -100,11 +100,30 @@ export class GameEngine {
     return this.state;
   }
 
-  loadState(newState) {
-    if (!newState) return;
-    this.state = newState;
-    this.notify('remote_state');
+  rehydrateState(state) {
+    if (!state) return;
+    if (state.eventDecks) {
+      for (const era of Object.keys(state.eventDecks)) {
+        if (Array.isArray(state.eventDecks[era])) {
+          state.eventDecks[era] = state.eventDecks[era].map(card => {
+            if (card && typeof card.effect === 'function') return card;
+            const canonical = (EVENT_CARDS[era] || []).find(c => c.id === card?.id || c.name === card?.name) ||
+              Object.values(EVENT_CARDS).flat().find(c => c.id === card?.id || c.name === card?.name);
+            return canonical ? { ...canonical, ...card, effect: canonical.effect } : card;
+          });
+        }
+      }
+    }
   }
+
+  loadState(stateData, source = 'remote_state') {
+    if (!stateData) return;
+    const parsed = typeof stateData === 'string' ? JSON.parse(stateData) : stateData;
+    this.rehydrateState(parsed);
+    this.state = parsed;
+    this.notify(source);
+  }
+
 
   // --- Initialize Game ---
   initGame(playerConfigs) {
@@ -310,6 +329,8 @@ export class GameEngine {
 
   // --- Timer ---
   startTimer() {
+    this.isPaused = false;
+    if (this.state) this.state.isPaused = false;
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.timerInterval = setInterval(() => {
       if (!this.state || this.state.gameOver) {
@@ -319,7 +340,11 @@ export class GameEngine {
       }
       if (this.isPaused || this.state.isPaused) return;
 
-      this.state.gameTimeRemaining--;
+      if (typeof this.state.gameTimeRemaining !== 'number' || isNaN(this.state.gameTimeRemaining)) {
+        this.state.gameTimeRemaining = (GAME_CONSTANTS.GAME_TIME_MINUTES || 40) * 60;
+      }
+
+      this.state.gameTimeRemaining = Math.max(0, this.state.gameTimeRemaining - 1);
       if (this.state.gameTimeRemaining <= 0) {
         this.endGame('timeout');
       }
@@ -386,10 +411,7 @@ export class GameEngine {
     this.state.stepsTakenThisTurn = 0;
     this.state.hasMovedThisTurn = false;
 
-    // Apply Momentum bonus if active
-    const bonus = (this.state.momentumActive || player.roleKey === 'EXPLORER')
-      ? (player.bonusMoves || (this.state.momentumActive ? 2 : 0))
-      : (player.bonusMoves || 0);
+    const bonus = player.bonusMoves || 0;
 
     this.state.totalMoves = result + bonus;
     this.state.movesRemaining = result + bonus;
@@ -398,7 +420,7 @@ export class GameEngine {
     this.state.phase = 'moving';
 
     if (bonus > 0) {
-      this.addLog('dice', `🎲 ${player.name} rolled a ${result} (+${bonus} Momentum Surge = ${result + bonus} Total Spaces)!`);
+      this.addLog('dice', `🎲 ${player.name} rolled a ${result} (+${bonus} Bonus Spaces = ${result + bonus} Total)!`);
     } else {
       this.addLog('dice', `🎲 ${player.name} rolled a ${result}!`);
     }
@@ -553,7 +575,7 @@ export class GameEngine {
   adjustTemporalForesight(playerIdx, delta) {
     const player = this.state.players[playerIdx];
     if (this.state.currentPlayerIndex !== playerIdx) return false;
-    if (this.state.phase !== 'moving' || (this.state.stepsTakenThisTurn || 0) > 0) {
+    if (this.state.phase !== 'moving' || this.state.hasMovedThisTurn || (this.state.stepsTakenThisTurn || 0) > 0) {
       this.addLog('warning', 'Temporal Foresight can only be used right after rolling before taking any steps!');
       return false;
     }
@@ -1042,28 +1064,36 @@ export class GameEngine {
 
     this.state.phase = 'cardResolution';
 
-    switch (tile.type) {
-      case TILE_TYPES.CLUE:
-        this.drawClueCard(player);
-        break;
-      case TILE_TYPES.EVENT:
-        this.drawEventCard(player);
-        break;
-      case TILE_TYPES.DANGER:
-        this.drawDangerCard(player);
-        break;
-      case TILE_TYPES.ARTIFACT:
-        this.handleArtifactTile(player);
-        break;
-      case TILE_TYPES.TIMEGATE:
-        this.handleTimeGate(player);
-        break;
-      case TILE_TYPES.PARADOX:
-        this.handleParadoxTile(player);
-        break;
-      default:
+    try {
+      switch (tile.type) {
+        case TILE_TYPES.CLUE:
+          this.drawClueCard(player);
+          break;
+        case TILE_TYPES.EVENT:
+          this.drawEventCard(player);
+          break;
+        case TILE_TYPES.DANGER:
+          this.drawDangerCard(player);
+          break;
+        case TILE_TYPES.ARTIFACT:
+          this.handleArtifactTile(player);
+          break;
+        case TILE_TYPES.TIMEGATE:
+          this.handleTimeGate(player);
+          break;
+        case TILE_TYPES.PARADOX:
+          this.handleParadoxTile(player);
+          break;
+        default:
+          this.state.phase = 'action';
+          break;
+      }
+    } catch (err) {
+      console.error('[Engine] Unexpected error in resolveTile:', err);
+      gameLogger.error(LOG_CATEGORIES.ENGINE, `Error resolving tile ${tile.type}: ${err?.message}`);
+      if (!this.state.pendingModal && !this.state.pendingChoice) {
         this.state.phase = 'action';
-        break;
+      }
     }
 
     this.notify();
@@ -1170,7 +1200,35 @@ export class GameEngine {
       return;
     }
 
-    const result = card.effect(player, this);
+    // Resolve effect function (either on card or looked up from canonical EVENT_CARDS)
+    let effectFn = typeof card.effect === 'function' ? card.effect : null;
+    if (!effectFn) {
+      const canonical = (EVENT_CARDS[era] || []).find(c => c.id === card.id || c.name === card.name) ||
+        Object.values(EVENT_CARDS).flat().find(c => c.id === card.id || c.name === card.name);
+      if (canonical && typeof canonical.effect === 'function') {
+        effectFn = canonical.effect;
+        if (!card.description) card.description = canonical.description;
+        if (!card.image) card.image = canonical.image;
+        if (!card.name) card.name = canonical.name;
+      }
+    }
+
+    let result = '';
+    if (typeof effectFn === 'function') {
+      try {
+        result = effectFn(player, this);
+      } catch (err) {
+        console.error('[Engine] Error running event card effect:', err);
+        gameLogger.error(LOG_CATEGORIES.CARDS, `Error executing effect for event card ${card.name || card.id}: ${err?.message}`);
+        result = card.description || 'Event resolved.';
+      }
+    } else {
+      console.warn(`[Engine] Event card ${card.id || card.name} has no executable effect function.`);
+      gameLogger.warn(LOG_CATEGORIES.CARDS, `Event card ${card.id || card.name} has no effect function.`);
+      result = card.description || 'Event resolved.';
+    }
+
+    gameLogger.card(`Player ${player.name} drew Event Card: "${card.name || card.id}" (${era}) - Result: ${result}`);
 
     this.state.pendingModal = {
       type: 'event',
@@ -1587,8 +1645,8 @@ export class GameEngine {
     // Explorer ability (Momentum) is primed before rolling the movement die (in 'rolling' phase).
     // Other character abilities are activated in 'action' phase after movement.
     if (player.roleKey === 'EXPLORER') {
-      if (this.state.phase !== 'rolling') {
-        this.addLog('warning', 'Explorer Momentum must be activated before rolling the movement die!');
+      if (this.state.phase !== 'rolling' && this.state.phase !== 'moving') {
+        this.addLog('warning', 'Explorer Momentum can be activated before rolling or during your movement!');
         return false;
       }
     } else {
@@ -1632,15 +1690,15 @@ export class GameEngine {
         break;
 
       case 'EXPLORER':
-        // Momentum (Rolling Phase - Before Roll Die): Surge forward with +2 Bonus Movement steps!
-        if (player.energy < 2) {
-          this.addLog('warning', 'Not enough Energy for Momentum!');
+        // Momentum (Active Ability): Pause movement to interact with a tile, then continue moving remaining rolled spaces (2 Turn CD, 3 Energy Cost)
+        if (player.energy < 3) {
+          this.addLog('warning', 'Not enough Energy for Momentum! (Requires 3 Energy)');
           return false;
         }
-        this.modifyEnergy(player, -2);
+        this.modifyEnergy(player, -3);
         player.usedAbilityThisTurn = true;
-        player.activeCooldown = ROLES.EXPLORER.active.cooldown;
-        player.bonusMoves = 2;
+        player.activeCooldown = ROLES.EXPLORER.active.cooldown || 2;
+        player.bonusMoves = 0;
         this.state.momentumActive = true;
         this.state.momentumUsedMidTile = false;
 
@@ -1652,12 +1710,11 @@ export class GameEngine {
           playerRole: 'The Explorer',
           playerAvatar: player.role?.avatar || 'assets/Characters/Copy of adventurer.png',
           playerColor: player.color || '#3498DB',
-          title: '⚡ MOMENTUM SURGE! ⚡',
-          subtitle: 'EXPLORER ACTIVE ABILITY PRIMED',
-          description: `${player.name} ignited kinetic chronal thrusters! Your upcoming die roll will surge with +2 Bonus Movement steps along the timeline!`,
-          bonusMoves: 2
+          title: '🏃 MOMENTUM ACTIVATED! 🏃',
+          subtitle: 'EXPLORER ACTIVE ABILITY (2 Turn CD, 3 Energy Cost)',
+          description: `${player.name} activated Momentum! During movement this turn, pause to interact with the tile you are standing on, and then continue moving your remaining rolled spaces!`
         };
-        this.addLog('ability', `⚡ ${player.name} activated Momentum! +2 Bonus Movement steps primed for the upcoming roll!`);
+        this.addLog('ability', `🏃 ${player.name} activated Momentum (3 Energy Cost)! Can pause and interact with a tile mid-movement, then continue moving.`);
         this.notify();
         return true;
 
@@ -2281,10 +2338,7 @@ export class GameEngine {
     });
   }
 
-  loadState(stateData) {
-    this.state = typeof stateData === 'string' ? JSON.parse(stateData) : stateData;
-    this.notify();
-  }
+// loadState is defined above with automatic rehydration
 }
 
 export default GameEngine;

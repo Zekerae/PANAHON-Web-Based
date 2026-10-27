@@ -176,12 +176,12 @@ class AiController {
           return;
         }
 
-        // Explorer Active Ability: Momentum (+2 Bonus Movement steps primed before rolling die)
+        // Explorer Active Ability: Momentum (Pause movement to interact with a tile, then continue moving remaining spaces)
         if (
           player.roleKey === 'EXPLORER' &&
           !player.usedAbilityThisTurn &&
           (!player.activeCooldown || player.activeCooldown <= 0) &&
-          player.energy >= 2 &&
+          player.energy >= 3 &&
           !state.momentumActive &&
           Math.random() < 0.75
         ) {
@@ -229,12 +229,26 @@ class AiController {
             if (targetTile?.type === 'clue' || targetTile?.type === 'artifact') bestDelta = -1;
           }
           if (bestDelta !== 0) {
-            engine.adjustTemporalForesight(player.id, bestDelta);
-            network?.sendAction({ type: 'ADJUST_FORESIGHT', playerIdx: player.id, delta: bestDelta });
+            engine.adjustTemporalForesight(state.currentPlayerIndex, bestDelta);
+            network?.sendAction({ type: 'ADJUST_FORESIGHT', playerIdx: state.currentPlayerIndex, delta: bestDelta });
             this.scheduleAiStep(engine, network, 600);
             return;
           }
         }
+        // Explorer Momentum: Pause and interact with mid-movement tile if valuable
+        if (state.momentumActive && !state.momentumUsedMidTile && state.movesRemaining > 0) {
+          const currentTile = state.board[player.currentEra]?.[player.tileIndex];
+          if (currentTile && (currentTile.type === 'clue' || currentTile.type === 'event' || currentTile.type === 'artifact')) {
+            sounds.portal?.();
+            const interacted = engine.interactMomentumTile(player.id);
+            if (interacted) {
+              network?.sendAction({ type: 'INTERACT_MOMENTUM', playerIdx: player.id });
+              this.scheduleAiStep(engine, network, 650);
+              return;
+            }
+          }
+        }
+
         if (state.movesRemaining > 0) {
           sounds.moveStep?.();
           const ok = engine.movePlayerStep();

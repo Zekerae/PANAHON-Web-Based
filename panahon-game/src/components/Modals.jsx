@@ -1381,16 +1381,16 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               {isMomentum && (
                 <>
                   <div className="ability-stat-pill">
-                    <span className="pill-label">BONUS MOVES</span>
-                    <span className="pill-val" style={{ color: '#38BDF8' }}>+2 Spaces</span>
+                    <span className="pill-label">TILE ACTION</span>
+                    <span className="pill-val" style={{ color: '#38BDF8' }}>Mid-Move Interact</span>
                   </div>
                   <div className="ability-stat-pill">
-                    <span className="pill-label">ACCELERATION</span>
-                    <span className="pill-val" style={{ color: '#FCD34D' }}>Hyper-Sonic</span>
+                    <span className="pill-label">MOMENTUM</span>
+                    <span className="pill-val" style={{ color: '#FCD34D' }}>Continue Rolling</span>
                   </div>
                   <div className="ability-stat-pill">
                     <span className="pill-label">ENERGY COST</span>
-                    <span className="pill-val" style={{ color: '#60A5FA' }}>-2 Energy</span>
+                    <span className="pill-val" style={{ color: '#60A5FA' }}>-3 Energy</span>
                   </div>
                 </>
               )}

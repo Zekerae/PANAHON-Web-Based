@@ -108,7 +108,7 @@ function GameHeader({
           </div>
         )}
 
-        <div className="game-timer" title="Turn Timer">
+        <div className="game-timer" title="Expedition Timer (Time remaining before spacetime collapse)">
           <span>⏱️</span>
           <span>{timerStr}</span>
         </div>

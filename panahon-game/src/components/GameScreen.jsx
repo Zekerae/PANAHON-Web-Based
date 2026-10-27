@@ -86,12 +86,22 @@ function GameScreen({
     };
   }, [network, engine]);
 
+  // Lifecycle Timer Manager: Keep timer running while in-game and not paused
   useEffect(() => {
-    if (showIntro && engine) {
+    if (!engine) return;
+    if (!showIntro && !isPaused && !state?.gameOver) {
+      engine.isPaused = false;
+      if (engine.state) engine.state.isPaused = false;
+      engine.startTimer();
+    } else {
       engine.isPaused = true;
+      if (engine.state) engine.state.isPaused = true;
       engine.stopTimer();
     }
-  }, [showIntro, engine]);
+    return () => {
+      if (engine) engine.stopTimer();
+    };
+  }, [showIntro, isPaused, engine, state?.gameOver]);
 
   const handleResume = useCallback(() => {
     setIsPaused(false);
@@ -190,8 +200,11 @@ function GameScreen({
   if (timelineLevel >= 4) timelineClass = 'danger';
   else if (timelineLevel >= 2) timelineClass = 'warning';
 
-  const minutes = typeof state.gameTimeRemaining === 'number' ? Math.floor(state.gameTimeRemaining / 60) : 15;
-  const seconds = typeof state.gameTimeRemaining === 'number' ? state.gameTimeRemaining % 60 : 0;
+  const totalRemainingSeconds = typeof state?.gameTimeRemaining === 'number'
+    ? state.gameTimeRemaining
+    : 2400; // 40 minutes default
+  const minutes = Math.floor(totalRemainingSeconds / 60);
+  const seconds = totalRemainingSeconds % 60;
   const timerStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
   const handleRest = useCallback(() => {
@@ -395,6 +408,8 @@ function GameScreen({
     (!currentPlayer?.temporalForesightCooldown || currentPlayer?.temporalForesightCooldown <= 0) &&
     !currentPlayer?.hasUsedForesightThisTurn;
 
+  const hasPreMovementDecision = canReverseTime || canUseForesight;
+
   const role = currentPlayer?.role || {};
   const activeSkill = role.active || {};
   const activeCost = activeSkill.energyCost || 0;
@@ -402,8 +417,8 @@ function GameScreen({
   const isAbilityOnCooldown = (currentPlayer?.activeCooldown || 0) > 0;
   const hasUsedAbilityThisTurn = Boolean(currentPlayer?.usedAbilityThisTurn);
   const isExplorer = currentPlayer?.roleKey === 'EXPLORER';
-  const isAbilityPhase = isExplorer ? (state.phase === 'rolling') : (state.phase === 'action');
-  const isMomentumPrimed = isExplorer && Boolean(state.momentumActive || (currentPlayer?.bonusMoves && currentPlayer?.bonusMoves > 0));
+  const isAbilityPhase = isExplorer ? (state.phase === 'rolling' || state.phase === 'moving') : (state.phase === 'action');
+  const isMomentumPrimed = isExplorer && Boolean(state.momentumActive);
   const canUseAbilityNow = isMyTurn && isAbilityPhase && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && hasEnoughEnergy && !isMomentumPrimed;
 
   const currentTile = state?.board?.[currentPlayer?.currentEra]?.[currentPlayer?.tileIndex];
@@ -569,8 +584,8 @@ function GameScreen({
                         }}
                         onClick={handleUseSkill}
                       >
-                        <span>⚡ Momentum</span>
-                        <span style={{ fontSize: '0.68rem', opacity: 0.9 }}>-2En</span>
+                        <span>🏃 Momentum</span>
+                        <span style={{ fontSize: '0.68rem', opacity: 0.9 }}>-3En</span>
                       </button>
                     )}
                     <button
@@ -585,7 +600,7 @@ function GameScreen({
                         boxShadow: '0 0 12px rgba(56, 189, 248, 0.4)'
                       } : undefined}
                     >
-                      <span>🎲 {isMomentumPrimed ? "ROLL (+2 MOMENTUM)" : "ROLL DIE"}</span>
+                      <span>🎲 {isMomentumPrimed ? "ROLL (MOMENTUM ACTIVE)" : "ROLL DIE"}</span>
                     </button>
                   </>
                 )}
@@ -641,12 +656,29 @@ function GameScreen({
                   </>
                 )}
 
+                {state.momentumActive && !state.momentumUsedMidTile && currentTile?.type !== 'start' && currentTile?.type !== 'empty' && (
+                  <button
+                    type="button"
+                    className="btn btn-warning mobile-dock-btn"
+                    onClick={handleInteractMomentum}
+                  >
+                    ✨ Pause & Interact
+                  </button>
+                )}
+
                 <button
                   type="button"
                   className="btn btn-primary mobile-dock-btn mobile-dock-move-btn"
                   onClick={handleStepMove}
+                  style={hasPreMovementDecision ? {
+                    borderColor: '#5EEAD4',
+                    color: '#5EEAD4',
+                    boxShadow: '0 0 10px rgba(94, 234, 212, 0.4)'
+                  } : undefined}
                 >
-                  {state.movementDirection === 'backward' ? '⬅️ Step Back' : '➡️ Step Forward'}
+                  {hasPreMovementDecision
+                    ? (state.movementDirection === 'backward' ? '⬅️ Confirm Back' : '➡️ Confirm Move')
+                    : (state.movementDirection === 'backward' ? '⬅️ Step Back' : '➡️ Step Forward')}
                 </button>
               </div>
             )}

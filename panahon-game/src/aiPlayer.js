@@ -186,6 +186,34 @@ class AiController {
 
       // 5. Moving Phase
       if (state.phase === 'moving') {
+        // Chronomancer Temporal Foresight: Smart +1 / -1 adjustment
+        if (
+          player.roleKey === 'CHRONOMANCER' &&
+          player.temporalForesightCooldown === 0 &&
+          !player.hasUsedForesightThisTurn &&
+          (state.stepsTakenThisTurn || 0) === 0
+        ) {
+          const eraTiles = state.board[player.currentEra] || [];
+          const dir = state.movementDirection === 'backward' ? -1 : 1;
+          const moves = state.movesRemaining;
+          let bestDelta = 0;
+          if (moves < 6) {
+            const nextIdx = (player.tileIndex + dir * (moves + 1) + eraTiles.length) % eraTiles.length;
+            const targetTile = eraTiles[nextIdx];
+            if (targetTile?.type === 'clue' || targetTile?.type === 'artifact') bestDelta = 1;
+          }
+          if (bestDelta === 0 && moves > 1) {
+            const prevIdx = (player.tileIndex + dir * (moves - 1) + eraTiles.length) % eraTiles.length;
+            const targetTile = eraTiles[prevIdx];
+            if (targetTile?.type === 'clue' || targetTile?.type === 'artifact') bestDelta = -1;
+          }
+          if (bestDelta !== 0) {
+            engine.adjustTemporalForesight(player.id, bestDelta);
+            network?.sendAction({ type: 'ADJUST_FORESIGHT', playerIdx: player.id, delta: bestDelta });
+            this.scheduleAiStep(engine, network, 600);
+            return;
+          }
+        }
         if (state.movesRemaining > 0) {
           sounds.moveStep?.();
           const ok = engine.movePlayerStep();
@@ -238,6 +266,16 @@ class AiController {
               shouldCast = true;
             }
           }
+          } else if (player.roleKey === 'ROGUE') {
+            const targets = state.players.filter(p => p.id !== player.id && p.currentEra === player.currentEra && Math.abs(p.tileIndex - player.tileIndex) <= 2);
+            if (targets.length > 0 && player.energy >= 2) {
+              shouldCast = true;
+            }
+          } else if (player.roleKey === 'CHRONOMANCER') {
+            const enemies = state.players.filter(p => p.id !== player.id && !p.skipNextTurn);
+            if (enemies.length > 0 && player.energy >= 3) {
+              shouldCast = true;
+            }
 
           if (shouldCast) {
             sounds.portal?.();
@@ -360,6 +398,25 @@ class AiController {
       sounds.btnClick?.();
       engine.resolveChoice(chosenAction);
       network?.sendAction({ type: 'RESOLVE_CHOICE', action: chosenAction });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
+    if (choiceType === 'roguePickpocket') {
+      const options = choice.options || [];
+      const clueOption = options.find(o => o.action.startsWith('steal_clue_'));
+      const action = clueOption ? clueOption.action : (options[0]?.action || 'continue');
+      engine.resolveChoice(action);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
+    if (choiceType === 'chronomancerTimeStop') {
+      const options = choice.options || [];
+      const action = options[0]?.action || 'continue';
+      engine.resolveChoice(action);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
       this.scheduleAiStep(engine, network, 650);
       return;
     }

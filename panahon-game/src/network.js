@@ -1131,6 +1131,10 @@ export class NetworkManager {
         sounds.portal();
         this.engine.reverseTime(action.playerIdx);
         break;
+      case 'ADJUST_FORESIGHT':
+        sounds.btnClick();
+        this.engine.adjustTemporalForesight(action.playerIdx, action.delta);
+        break;
       case 'REST':
         sounds.btnClick();
         this.engine.rest(action.playerIdx);

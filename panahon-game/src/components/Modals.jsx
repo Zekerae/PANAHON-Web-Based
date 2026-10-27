@@ -1664,6 +1664,14 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#60A5FA' }}>
               <span>📜</span> Clue Decipher (Historian Ability)
             </span>
+          ) : choice.type === 'roguePickpocket' ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#C084FC' }}>
+              <span>🗡️</span> Pickpocket / Swipe (Rogue)
+            </span>
+          ) : choice.type === 'chronomancerTimeStop' ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#2DD4BF' }}>
+              <span>⌛</span> Time Stop (Chronomancer)
+            </span>
           ) : choice.title}
         </div>
         <div className="modal-body" style={{ textAlign: 'center', marginBottom: isDecipher ? '4px' : 'var(--space-lg)' }}>

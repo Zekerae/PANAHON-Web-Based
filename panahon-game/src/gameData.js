@@ -515,10 +515,46 @@ export const ROLES = {
       cooldown: 2,
       energyCost: 2
     }
+  },
+  ROGUE: {
+    id: 'rogue',
+    name: 'The Rogue',
+    description: 'Master of shadows, swift theft, and opportunism',
+    avatar: 'assets/Characters/rogue_128x128.png',
+    color: '#9B59B6',
+    passive: {
+      name: 'Shadow Pockets',
+      description: 'When passing through or landing on an occupied tile, steal 1 Energy or 1 Clue Card (once per player per turn)',
+      cooldown: 0
+    },
+    active: {
+      name: 'Pickpocket',
+      description: 'Target a player within 2 tiles to steal 1 Clue Card or 2 Energy (3 Turn CD, 2 Energy Cost)',
+      cooldown: 3,
+      energyCost: 2
+    }
+  },
+  CHRONOMANCER: {
+    id: 'chronomancer',
+    name: 'The Chronomancer',
+    description: 'Bends the flow of time and alters temporal destiny',
+    avatar: 'assets/Characters/chronomancer_128x128.png',
+    color: '#1ABC9C',
+    passive: {
+      name: 'Temporal Foresight',
+      description: 'Once per 3 turns, adjust rolled movement die result by +1 or -1 (within 1-6 range)',
+      cooldown: 3
+    },
+    active: {
+      name: 'Time Stop',
+      description: 'Skip the next turn of a chosen operative (3 Turn CD, 3 Energy Cost)',
+      cooldown: 3,
+      energyCost: 3
+    }
   }
 };
 
-export const ROLE_ORDER = ['HISTORIAN', 'EXPLORER', 'GUARDIAN', 'STRATEGIST'];
+export const ROLE_ORDER = ['HISTORIAN', 'EXPLORER', 'GUARDIAN', 'STRATEGIST', 'ROGUE', 'CHRONOMANCER'];
 
 // Artifacts (16 total, 4 per era)
 export const ARTIFACTS = {
@@ -1232,5 +1268,5 @@ export const GAME_CONSTANTS = {
 };
 
 // Player colors
-export const PLAYER_COLORS = ['#E74C3C', '#3498DB', '#2ECC71', '#F39C12'];
-export const PLAYER_COLOR_NAMES = ['Red', 'Blue', 'Green', 'Orange'];
+export const PLAYER_COLORS = ['#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6', '#1ABC9C'];
+export const PLAYER_COLOR_NAMES = ['Red', 'Blue', 'Green', 'Orange', 'Purple', 'Teal'];

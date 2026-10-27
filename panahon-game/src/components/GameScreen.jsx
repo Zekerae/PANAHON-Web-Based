@@ -286,6 +286,18 @@ function GameScreen({
     }
   }, [state.phase, state.hasMovedThisTurn, state.stepsTakenThisTurn, state.currentPlayerIndex, isMyTurn, engine, network]);
 
+  const handleAdjustForesight = useCallback((delta) => {
+    if (!isMyTurn) return;
+    if (state.phase !== 'moving' || state.hasMovedThisTurn || (state.stepsTakenThisTurn && state.stepsTakenThisTurn > 0)) {
+      return;
+    }
+    sounds.btnClick();
+    const ok = engine.adjustTemporalForesight(state.currentPlayerIndex, delta);
+    if (ok) {
+      network.sendAction({ type: 'ADJUST_FORESIGHT', playerIdx: state.currentPlayerIndex, delta });
+    }
+  }, [state.phase, state.hasMovedThisTurn, state.stepsTakenThisTurn, state.currentPlayerIndex, isMyTurn, engine, network, sounds]);
+
 
 
   const handleUseSkill = useCallback(() => {
@@ -333,6 +345,14 @@ function GameScreen({
     state.movementDirection !== 'backward' &&
     currentPlayer?.reverseTimeCooldown === 0 &&
     (currentPlayer?.energy || 0) >= 3;
+
+  const canUseForesight = isMyTurn &&
+    state.phase === 'moving' &&
+    !state.hasMovedThisTurn &&
+    (!state.stepsTakenThisTurn || state.stepsTakenThisTurn === 0) &&
+    currentPlayer?.roleKey === 'CHRONOMANCER' &&
+    (!currentPlayer?.temporalForesightCooldown || currentPlayer?.temporalForesightCooldown <= 0) &&
+    !currentPlayer?.hasUsedForesightThisTurn;
 
   const role = currentPlayer?.role || {};
   const activeSkill = role.active || {};
@@ -512,6 +532,39 @@ function GameScreen({
                   </button>
                 )}
 
+                {canUseForesight && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn mobile-dock-btn"
+                      disabled={state.movesRemaining <= 1}
+                      onClick={() => handleAdjustForesight(-1)}
+                      style={{
+                        background: state.movesRemaining > 1 ? '#13352F' : '#221913',
+                        border: '1.5px solid #1ABC9C',
+                        color: state.movesRemaining > 1 ? '#5EEAD4' : '#6B7280'
+                      }}
+                      title="Temporal Foresight: -1 Space"
+                    >
+                      ⏳ -1 Sp
+                    </button>
+                    <button
+                      type="button"
+                      className="btn mobile-dock-btn"
+                      disabled={state.movesRemaining >= 6}
+                      onClick={() => handleAdjustForesight(1)}
+                      style={{
+                        background: state.movesRemaining < 6 ? '#13352F' : '#221913',
+                        border: '1.5px solid #1ABC9C',
+                        color: state.movesRemaining < 6 ? '#5EEAD4' : '#6B7280'
+                      }}
+                      title="Temporal Foresight: +1 Space"
+                    >
+                      ⏳ +1 Sp
+                    </button>
+                  </>
+                )}
+
                 <button
                   type="button"
                   className="btn btn-primary mobile-dock-btn mobile-dock-move-btn"
@@ -616,6 +669,7 @@ function GameScreen({
         onStepMove={handleStepMove}
         onInteractMomentum={handleInteractMomentum}
         onReverseTime={handleReverseTime}
+        onAdjustForesight={handleAdjustForesight}
         onRest={handleRest}
         onAcknowledgeSkip={handleAcknowledgeSkip}
         onUseSkill={handleUseSkill}

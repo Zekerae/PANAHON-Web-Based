@@ -14,6 +14,7 @@ function GameActions({
   onStepMove,
   onInteractMomentum,
   onReverseTime,
+  onAdjustForesight,
   onRest,
   onAcknowledgeSkip,
   onUseSkill,
@@ -37,6 +38,8 @@ function GameActions({
   const isExhausted = Boolean(currentPlayer && currentPlayer.energy <= 0);
   const isSkipped = Boolean(currentPlayer && currentPlayer.skipNextTurn);
   const canReverseTime = isMyTurn && isStartOfMovement && !isMovingBackward && currentPlayer.reverseTimeCooldown === 0 && currentPlayer.energy >= GAME_CONSTANTS.REVERSE_TIME_COST;
+  const isChronomancer = currentPlayer.roleKey === 'CHRONOMANCER';
+  const canUseForesight = isMyTurn && isStartOfMovement && isChronomancer && (!currentPlayer.temporalForesightCooldown || currentPlayer.temporalForesightCooldown <= 0) && !currentPlayer.hasUsedForesightThisTurn;
 
   let reverseTimeBadge = '-3 Energy';
   let reverseTimeTitle = 'Roll movement die first. Reverse Time can only be activated after rolling at the start of your turn.';
@@ -831,6 +834,59 @@ function GameActions({
               </button>
               <div style={{ fontSize: "0.65rem", color: "#C8B293", textAlign: "center", marginTop: "5px" }}>
                 Walk {state.movesRemaining} {state.movesRemaining === 1 ? "space" : "spaces"} backward instead
+              </div>
+            </div>
+          )}
+
+          {canUseForesight && (
+            <div style={{ marginBottom: "8px", padding: "8px 10px", background: "#140E0A", border: "1.5px solid #1ABC9C", borderRadius: "4px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.72rem", color: "#1ABC9C", fontWeight: 700, marginBottom: "6px" }}>
+                <span>⏳ Temporal Foresight</span>
+                <span style={{ fontSize: "0.64rem", color: "#C8B293" }}>Passive &bull; 1 / 3 Turns</span>
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={state.movesRemaining <= 1}
+                  onClick={() => onAdjustForesight?.(-1)}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    padding: "7px 6px",
+                    fontSize: "0.72rem",
+                    fontWeight: 800,
+                    background: state.movesRemaining > 1 ? "linear-gradient(180deg, #1C3833 0%, #102622 100%)" : "#1A1512",
+                    border: state.movesRemaining > 1 ? "1.5px solid #1ABC9C" : "1px solid #4A3423",
+                    color: state.movesRemaining > 1 ? "#5EEAD4" : "#6B7280",
+                    borderRadius: "4px",
+                    cursor: state.movesRemaining > 1 ? "pointer" : "not-allowed"
+                  }}
+                  title="Adjust movement die by -1 (Min: 1 space)"
+                >
+                  ➖ -1 Space ({state.movesRemaining - 1})
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={state.movesRemaining >= 6}
+                  onClick={() => onAdjustForesight?.(1)}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    padding: "7px 6px",
+                    fontSize: "0.72rem",
+                    fontWeight: 800,
+                    background: state.movesRemaining < 6 ? "linear-gradient(180deg, #1C3833 0%, #102622 100%)" : "#1A1512",
+                    border: state.movesRemaining < 6 ? "1.5px solid #1ABC9C" : "1px solid #4A3423",
+                    color: state.movesRemaining < 6 ? "#5EEAD4" : "#6B7280",
+                    borderRadius: "4px",
+                    cursor: state.movesRemaining < 6 ? "pointer" : "not-allowed"
+                  }}
+                  title="Adjust movement die by +1 (Max: 6 spaces)"
+                >
+                  ➕ +1 Space ({state.movesRemaining + 1})
+                </button>
               </div>
             </div>
           )}

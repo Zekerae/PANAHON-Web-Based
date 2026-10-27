@@ -7145,6 +7145,42 @@ body {
 }
 
 @media (max-width: 920px), (max-height: 550px) {
+  /* MOBILE HIGH-PERFORMANCE RENDERING OPTIMIZATIONS */
+  .chrono-particles-overlay {
+    display: none !important;
+  }
+
+  .board-era-vignette {
+    animation: none !important;
+    opacity: 0.12 !important;
+  }
+
+  .temporal-vignette-pulse {
+    animation: none !important;
+  }
+
+  .board-viewport {
+    touch-action: pan-x pan-y !important;
+    -webkit-overflow-scrolling: touch !important;
+    contain: layout paint !important;
+  }
+
+  .board-container {
+    contain: layout paint !important;
+  }
+
+  .board-path-line {
+    filter: none !important;
+  }
+
+  .board-tile-node {
+    filter: none !important;
+  }
+
+  .player-pawn {
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.85)) !important;
+  }
+
   /* Strictly enforce SINGLE-CONTAINER, ZERO-OUTER-SCROLL for mobile app experience */
   html, body {
     overflow: hidden !important;

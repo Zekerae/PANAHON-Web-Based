@@ -203,6 +203,9 @@ export class GameEngine {
         passiveCooldown: 0,
         activeCooldown: 0,
         reverseTimeCooldown: 0,
+        temporalForesightCooldown: 0,
+        hasUsedForesightThisTurn: false,
+        shadowPocketsTriggered: [],
         usedAbilityThisTurn: false,
 
         // Clue tracking: how many clues collected per artifact
@@ -413,6 +416,7 @@ export class GameEngine {
     player.previousTileIndex = currentIdx;
     player.tileIndex = targetIdx;
     eraTiles[targetIdx].players.push(player.id);
+    this.checkShadowPockets(player, targetIdx);
     this.state.movesRemaining--;
     this.state.stepsTakenThisTurn = (this.state.stepsTakenThisTurn || 0) + 1;
     this.state.hasMovedThisTurn = true;
@@ -482,6 +486,89 @@ export class GameEngine {
     return true;
   }
 
+  // Rogue Passive: Shadow Pockets
+  checkShadowPockets(player, targetIdx) {
+    if (player.roleKey !== 'ROGUE') return;
+    const eraTiles = this.state.board[player.currentEra];
+    const tile = eraTiles?.[targetIdx];
+    if (!tile || !tile.players || tile.players.length === 0) return;
+
+    if (!player.shadowPocketsTriggered) player.shadowPocketsTriggered = [];
+
+    const otherPlayerIds = tile.players.filter(id => id !== player.id);
+    for (const victimId of otherPlayerIds) {
+      if (player.shadowPocketsTriggered.includes(victimId)) continue;
+      
+      const victim = this.state.players.find(p => p.id === victimId);
+      if (!victim) continue;
+
+      player.shadowPocketsTriggered.push(victimId);
+
+      // Steal 1 Clue Card or 1 Energy (if available)
+      if (victim.clueCards && victim.clueCards.length > 0) {
+        const stolenCard = victim.clueCards.pop();
+        if (stolenCard.artifactId && victim.clueProgress?.[stolenCard.artifactId] > 0) {
+          victim.clueProgress[stolenCard.artifactId]--;
+        }
+
+        if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 5)) {
+          this.returnClueToDeck(stolenCard);
+          this.addLog('ability', `🥷 Shadow Pockets: ${player.name} pickpocketed a Clue Card (${stolenCard.hint || stolenCard.description}) from ${victim.name}, but inventory was full so it dissolved back to timeline!`);
+        } else {
+          player.clueCards.push(stolenCard);
+          if (stolenCard.artifactId && !stolenCard.isDecoy) {
+            player.clueProgress[stolenCard.artifactId] = (player.clueProgress[stolenCard.artifactId] || 0) + 1;
+          }
+          this.addLog('ability', `🥷 Shadow Pockets: ${player.name} silently pickpocketed a Clue Card (${stolenCard.hint || stolenCard.description}) from ${victim.name}!`);
+        }
+      } else if (victim.energy > 0) {
+        this.modifyEnergy(victim, -1);
+        this.modifyEnergy(player, 1);
+        this.addLog('ability', `🥷 Shadow Pockets: ${player.name} slipped past ${victim.name} and swiped 1 Chrono Energy!`);
+      } else {
+        this.addLog('ability', `🥷 Shadow Pockets: ${player.name} brushed past ${victim.name}, but their pockets were empty!`);
+      }
+    }
+  }
+
+  // Chronomancer Passive: Temporal Foresight
+  adjustTemporalForesight(playerIdx, delta) {
+    const player = this.state.players[playerIdx];
+    if (this.state.currentPlayerIndex !== playerIdx) return false;
+    if (this.state.phase !== 'moving' || (this.state.stepsTakenThisTurn || 0) > 0) {
+      this.addLog('warning', 'Temporal Foresight can only be used right after rolling before taking any steps!');
+      return false;
+    }
+    if (player.roleKey !== 'CHRONOMANCER') return false;
+    if (player.temporalForesightCooldown > 0) {
+      this.addLog('warning', `Temporal Foresight is on cooldown (${player.temporalForesightCooldown} turns left)!`);
+      return false;
+    }
+    if (player.hasUsedForesightThisTurn) {
+      this.addLog('warning', 'Temporal Foresight already used this turn!');
+      return false;
+    }
+    if (delta !== 1 && delta !== -1) return false;
+
+    const currentMoves = this.state.movesRemaining;
+    const newMoves = currentMoves + delta;
+    if (newMoves < 1 || newMoves > 6) {
+      this.addLog('warning', 'Adjusted moves must remain strictly between 1 and 6 spaces!');
+      return false;
+    }
+
+    this.state.movesRemaining = newMoves;
+    if (this.state.diceResult) {
+      this.state.diceResult += delta;
+    }
+    player.temporalForesightCooldown = 3;
+    player.hasUsedForesightThisTurn = true;
+
+    this.addLog('ability', `⏳ Temporal Foresight: ${player.name} altered timeline probability (${delta > 0 ? '+1' : '-1'}), adjusting moves to ${newMoves} spaces!`);
+    this.notify();
+    return true;
+  }
+
   // Determine next tile index using custom node-graph connections and approach routing rules
   getNextTileIndex(player, era, currentIdx, dir = 1) {
     const total = this.state?.board?.[era]?.length || 25;
@@ -504,6 +591,7 @@ export class GameEngine {
     player.previousTileIndex = currentIdx;
     player.tileIndex = newIdx;
     eraTiles[newIdx].players.push(player.id);
+    this.checkShadowPockets(player, newIdx);
     this.state.movesRemaining--;
     this.state.stepsTakenThisTurn = (this.state.stepsTakenThisTurn || 0) + 1;
     this.state.hasMovedThisTurn = true;
@@ -658,6 +746,47 @@ export class GameEngine {
           this.state.phase = returnPhase;
         }
       }
+    } else if (choiceType === 'roguePickpocket') {
+      if (action.startsWith('steal_clue_')) {
+        const victimId = parseInt(action.replace('steal_clue_', ''), 10);
+        const victim = this.state.players.find(p => p.id === victimId);
+        if (victim && victim.clueCards && victim.clueCards.length > 0) {
+          const stolenCard = victim.clueCards.pop();
+          if (stolenCard.artifactId && victim.clueProgress?.[stolenCard.artifactId] > 0) {
+            victim.clueProgress[stolenCard.artifactId]--;
+          }
+          if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 5)) {
+            this.promptClueHandLimit(player, stolenCard, returnPhase);
+            return;
+          } else {
+            player.clueCards.push(stolenCard);
+            if (stolenCard.artifactId && !stolenCard.isDecoy) {
+              player.clueProgress[stolenCard.artifactId] = (player.clueProgress[stolenCard.artifactId] || 0) + 1;
+            }
+            this.addLog('ability', `🗡️ Pickpocket Success: ${player.name} swiped a Clue Card (${stolenCard.hint || stolenCard.description}) from ${victim.name}!`);
+          }
+        }
+      } else if (action.startsWith('steal_energy_')) {
+        const victimId = parseInt(action.replace('steal_energy_', ''), 10);
+        const victim = this.state.players.find(p => p.id === victimId);
+        if (victim && victim.energy > 0) {
+          const amount = Math.min(2, victim.energy);
+          this.modifyEnergy(victim, -amount);
+          this.modifyEnergy(player, amount);
+          this.addLog('ability', `🗡️ Pickpocket Success: ${player.name} siphoned ${amount} Chrono Energy from ${victim.name}!`);
+        }
+      }
+      this.state.phase = returnPhase;
+    } else if (choiceType === 'chronomancerTimeStop') {
+      if (action.startsWith('freeze_')) {
+        const victimId = parseInt(action.replace('freeze_', ''), 10);
+        const victim = this.state.players.find(p => p.id === victimId);
+        if (victim) {
+          victim.skipNextTurn = true;
+          this.addLog('ability', `⌛ TIME STOP! ${player.name} trapped ${victim.name} in temporal stasis! Their next turn will be skipped!`);
+        }
+      }
+      this.state.phase = returnPhase;
     } else if (choiceType === 'clueHandLimit') {
       const drawnCard = choice.drawnCard;
 
@@ -1380,6 +1509,94 @@ export class GameEngine {
         player.activeCooldown = ROLES.STRATEGIST.active.cooldown;
         this.addLog('ability', `🕸️ ${player.name} planted a Temporal Trap on Space #${player.tileIndex + 1}!`);
         break;
+
+      case 'ROGUE': {
+        // Pickpocket / Swipe: Target a player within 2 tiles to steal 1 Clue Card or 2 Energy (3 Turn CD, 2 Energy Cost)
+        if (player.energy < 2) {
+          this.addLog('warning', 'Not enough Energy for Pickpocket! Requires 2 Energy.');
+          return false;
+        }
+
+        const targets = this.state.players.filter(p => 
+          p.id !== player.id && 
+          p.currentEra === player.currentEra && 
+          Math.abs(p.tileIndex - player.tileIndex) <= 2
+        );
+
+        if (targets.length === 0) {
+          this.addLog('warning', 'No operatives within 2 tiles to Pickpocket!');
+          return false;
+        }
+
+        this.modifyEnergy(player, -2);
+        player.usedAbilityThisTurn = true;
+        player.activeCooldown = ROLES.ROGUE.active.cooldown;
+
+        const options = [];
+        targets.forEach(tgt => {
+          if (tgt.clueCards && tgt.clueCards.length > 0) {
+            options.push({
+              label: `🔍 Steal 1 Clue Card from ${tgt.name} (${tgt.clueCards.length} held)`,
+              action: `steal_clue_${tgt.id}`
+            });
+          }
+          if (tgt.energy > 0) {
+            const stealAmount = Math.min(2, tgt.energy);
+            options.push({
+              label: `⚡ Steal ${stealAmount} Energy from ${tgt.name} (${tgt.energy} En held)`,
+              action: `steal_energy_${tgt.id}`
+            });
+          }
+        });
+
+        if (options.length === 0) {
+          this.addLog('info', `${player.name} scanned nearby operatives, but their pockets are completely barren!`);
+          break;
+        }
+
+        this.state.pendingChoice = {
+          type: 'roguePickpocket',
+          returnPhase: this.state.phase,
+          title: '🗡️ Pickpocket / Swipe (Rogue)',
+          message: 'Choose an operative within 2 tiles to pickpocket:',
+          options
+        };
+        this.addLog('ability', `🗡️ ${player.name} targets nearby operatives with Pickpocket!`);
+        break;
+      }
+
+      case 'CHRONOMANCER': {
+        // Time Stop: Skips one turn for chosen player (3 energy and 3 turns CD)
+        if (player.energy < 3) {
+          this.addLog('warning', 'Not enough Energy for Time Stop! Requires 3 Energy.');
+          return false;
+        }
+
+        const targets = this.state.players.filter(p => p.id !== player.id);
+        if (targets.length === 0) {
+          this.addLog('warning', 'No other operatives to target with Time Stop!');
+          return false;
+        }
+
+        this.modifyEnergy(player, -3);
+        player.usedAbilityThisTurn = true;
+        player.activeCooldown = ROLES.CHRONOMANCER.active.cooldown;
+
+        const options = targets.map(tgt => ({
+          label: `⏳ Freeze ${tgt.name} in Time (Skip next turn)`,
+          action: `freeze_${tgt.id}`
+        }));
+
+        this.state.pendingChoice = {
+          type: 'chronomancerTimeStop',
+          returnPhase: this.state.phase,
+          title: '⌛ Time Stop (Chronomancer)',
+          message: 'Choose an operative to trap in temporal stasis and skip their next turn:',
+          options
+        };
+        this.addLog('ability', `⌛ ${player.name} channels chronal energy to cast Time Stop!`);
+        break;
+      }
     }
 
     this.notify();
@@ -1696,9 +1913,12 @@ export class GameEngine {
 
     const nextPlayer = this.getCurrentPlayer();
     nextPlayer.usedAbilityThisTurn = false;
+    nextPlayer.hasUsedForesightThisTurn = false;
+    nextPlayer.shadowPocketsTriggered = [];
     if (nextPlayer.passiveCooldown > 0) nextPlayer.passiveCooldown--;
     if (nextPlayer.activeCooldown > 0) nextPlayer.activeCooldown--;
     if (nextPlayer.reverseTimeCooldown > 0) nextPlayer.reverseTimeCooldown--;
+    if (nextPlayer.temporalForesightCooldown > 0) nextPlayer.temporalForesightCooldown--;
 
     this.state.phase = 'rolling';
     this.state.diceResult = null;

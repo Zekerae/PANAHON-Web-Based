@@ -719,7 +719,7 @@ function GameBoard({
           style={{
             transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale3d(${zoom}, ${zoom}, 1)`,
             transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)',
-            willChange: isDragging ? 'transform' : 'transform'
+            willChange: isDragging ? 'transform' : 'auto'
           }}
         >
           {/* SVG Path lines connecting circle spaces */}

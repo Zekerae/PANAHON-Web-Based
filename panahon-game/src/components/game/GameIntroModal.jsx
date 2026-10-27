@@ -19,6 +19,9 @@ export default function GameIntroModal({
   const [stage, setStage] = useState(STAGE_BRIEFING);
   const [briefingTab, setBriefingTab] = useState("lore"); // "lore" | "roster"
 
+  const isOnline = Boolean(network && network.mode === "online");
+  const isHost = Boolean(!isOnline || network?.isHost);
+
   // Initiative State
   // groups: Array of player arrays, preserving rank order from 1st place to last.
   // When a group has length > 1, those players are tied and must re-roll within their bracket.
@@ -55,15 +58,29 @@ export default function GameIntroModal({
     return groups.filter((g) => g.length > 1).flat();
   }, [groups]);
 
-  // Find human player among active rollers
-  const humanActiveRoller = useMemo(() => {
+  // The local player on THIS machine (in online mode, match network.myPlayerName, playerId, or isLocal)
+  const myLocalPlayer = useMemo(() => {
     if (isSpectator) return null;
-    return activeTiedPlayers.find((p) => !p.isAi) || null;
-  }, [activeTiedPlayers, isSpectator]);
+    if (isOnline) {
+      return (
+        players.find(
+          (p) =>
+            (network?.myPlayerName && p.name === network.myPlayerName) ||
+            p.id === network?.playerId ||
+            p.isLocal
+        ) || null
+      );
+    }
+    // Offline local: the human player
+    return players.find((p) => !p.isAi) || players[0] || null;
+  }, [players, isSpectator, isOnline, network?.myPlayerName, network?.playerId]);
 
-  const hasHumanRolledThisRound = Boolean(
-    !humanActiveRoller || currentRolls[humanActiveRoller.id] !== undefined
-  );
+  const canMyPlayerRoll = useMemo(() => {
+    if (!myLocalPlayer) return false;
+    const isTied = activeTiedPlayers.some((p) => p.id === myLocalPlayer.id);
+    const hasRolled = currentRolls[myLocalPlayer.id] !== undefined;
+    return isTied && !hasRolled && !rollingPlayerId && !isEvaluating;
+  }, [myLocalPlayer, activeTiedPlayers, currentRolls, rollingPlayerId, isEvaluating]);
 
   // Compute locked ranks for display
   useEffect(() => {
@@ -78,87 +95,11 @@ export default function GameIntroModal({
     setLockedRanks(newLocked);
   }, [groups]);
 
-  // Roll a d6 for a given player
-  const rollForPlayer = useCallback(
-    (player, callback) => {
-      setRollingPlayerId(player.id);
-      sounds.diceRoll();
-
-      const rollDuration = 550;
-      const t = setTimeout(() => {
-        const val = Math.floor(Math.random() * 6) + 1;
-        setCurrentRolls((prev) => {
-          const next = { ...prev, [player.id]: val };
-          return next;
-        });
-        setRollingPlayerId(null);
-        if (callback) callback(val);
-      }, rollDuration);
-      rollTimeoutsRef.current.push(t);
-    },
-    []
-  );
-
-  // Trigger automated rolls for AI bots in active tied groups
-  const triggerAiRolls = useCallback(
-    (startingRolls) => {
-      const botsToRoll = activeTiedPlayers.filter(
-        (p) => p.isAi && startingRolls[p.id] === undefined
-      );
-
-      if (botsToRoll.length === 0) {
-        evaluateRoundResults(startingRolls);
-        return;
-      }
-
-      let accumulatedRolls = { ...startingRolls };
-      botsToRoll.forEach((bot, index) => {
-        const delay = 450 * (index + 1);
-        const t = setTimeout(() => {
-          rollForPlayer(bot, (val) => {
-            accumulatedRolls[bot.id] = val;
-            if (Object.keys(accumulatedRolls).length >= activeTiedPlayers.length) {
-              const evalTimeout = setTimeout(() => {
-                evaluateRoundResults(accumulatedRolls);
-              }, 400);
-              rollTimeoutsRef.current.push(evalTimeout);
-            }
-          });
-        }, delay);
-        rollTimeoutsRef.current.push(t);
-      });
-    },
-    [activeTiedPlayers, rollForPlayer]
-  );
-
-  // Human player clicks roll button or hits Spacebar
-  const handleHumanRoll = useCallback(() => {
-    if (!humanActiveRoller || currentRolls[humanActiveRoller.id] !== undefined || rollingPlayerId !== null || isEvaluating) {
-      return;
-    }
-    rollForPlayer(humanActiveRoller, (humanVal) => {
-      const updatedRolls = { ...currentRolls, [humanActiveRoller.id]: humanVal };
-      triggerAiRolls(updatedRolls);
-    });
-  }, [humanActiveRoller, currentRolls, rollingPlayerId, isEvaluating, rollForPlayer, triggerAiRolls]);
-
-  // If no human needs to roll (spectator mode or human already locked), auto-trigger AI rolls
-  useEffect(() => {
-    if (stage !== STAGE_INITIATIVE || isEvaluating || rollingPlayerId !== null) return;
-    if (!humanActiveRoller && activeTiedPlayers.length > 0) {
-      const activeUnrolled = activeTiedPlayers.filter((p) => currentRolls[p.id] === undefined);
-      if (activeUnrolled.length > 0 && rollTimeoutsRef.current.length === 0) {
-        const startTimer = setTimeout(() => {
-          triggerAiRolls(currentRolls);
-        }, 500);
-        rollTimeoutsRef.current.push(startTimer);
-      }
-    }
-  }, [stage, isEvaluating, rollingPlayerId, humanActiveRoller, activeTiedPlayers, currentRolls, triggerAiRolls]);
-
-  // Evaluate round results and form new groups
+  // Evaluate round results and form new groups (Host-authoritative in online mode)
   const evaluateRoundResults = useCallback(
     (rolls) => {
+      if (isOnline && !isHost) return;
+
       setIsEvaluating(true);
       const newGroups = [];
       let foundTieInThisRound = false;
@@ -199,7 +140,17 @@ export default function GameIntroModal({
         const msg = tiedDetails
           .map((t) => `${t.names} tied with roll of ${t.score}`)
           .join(" • ");
-        setTieNotice(`⚔️ TIE DETECTED: ${msg}! Re-rolling for position...`);
+        const tieMsg = `⚔️ TIE DETECTED: ${msg}! Re-rolling for position...`;
+        setTieNotice(tieMsg);
+
+        if (isOnline && isHost && network) {
+          network.sendAction({
+            type: "INITIATIVE_TIE_REROLL",
+            newGroups,
+            round: round + 1,
+            msg: tieMsg
+          });
+        }
 
         const t = setTimeout(() => {
           setGroups(newGroups);
@@ -217,6 +168,13 @@ export default function GameIntroModal({
         setGroups(newGroups);
         sounds.victory();
 
+        if (isOnline && isHost && network) {
+          network.sendAction({
+            type: "INITIATIVE_FINAL_ORDER",
+            finalTurnOrder: resolvedOrder
+          });
+        }
+
         const t = setTimeout(() => {
           setIsEvaluating(false);
           setStage(STAGE_CEREMONY);
@@ -224,11 +182,220 @@ export default function GameIntroModal({
         rollTimeoutsRef.current.push(t);
       }
     },
-    [groups]
+    [groups, isOnline, isHost, network, round]
   );
+
+  // Trigger automated rolls for AI bots in active tied groups
+  const triggerAiRolls = useCallback(
+    (startingRolls) => {
+      // In online mode, only the Host controls AI bot rolls
+      if (isOnline && !isHost) return;
+
+      const botsToRoll = activeTiedPlayers.filter(
+        (p) => p.isAi && startingRolls[p.id] === undefined
+      );
+
+      if (botsToRoll.length === 0) {
+        // Check if all active tied players have rolls
+        const allTiedHaveRolls = activeTiedPlayers.every(
+          (p) => startingRolls[p.id] !== undefined
+        );
+        if (allTiedHaveRolls && activeTiedPlayers.length > 0) {
+          evaluateRoundResults(startingRolls);
+        }
+        return;
+      }
+
+      let accumulatedRolls = { ...startingRolls };
+      botsToRoll.forEach((bot, index) => {
+        const delay = 450 * (index + 1);
+        const t = setTimeout(() => {
+          setRollingPlayerId(bot.id);
+          sounds.diceRoll();
+
+          const rollT = setTimeout(() => {
+            const val = Math.floor(Math.random() * 6) + 1;
+            accumulatedRolls[bot.id] = val;
+            setCurrentRolls((prev) => ({ ...prev, [bot.id]: val }));
+            setRollingPlayerId(null);
+
+            // Broadcast AI roll in online mode
+            if (isOnline && isHost && network) {
+              network.sendAction({
+                type: "INITIATIVE_ROLL",
+                playerId: bot.id,
+                roll: val
+              });
+            }
+
+            const allDone = activeTiedPlayers.every(
+              (p) => accumulatedRolls[p.id] !== undefined
+            );
+            if (allDone) {
+              const evalTimeout = setTimeout(() => {
+                evaluateRoundResults(accumulatedRolls);
+              }, 400);
+              rollTimeoutsRef.current.push(evalTimeout);
+            }
+          }, 550);
+          rollTimeoutsRef.current.push(rollT);
+        }, delay);
+        rollTimeoutsRef.current.push(t);
+      });
+    },
+    [activeTiedPlayers, isOnline, isHost, network, evaluateRoundResults]
+  );
+
+  // Human player clicks roll button or hits Spacebar
+  const handleHumanRoll = useCallback(() => {
+    if (!canMyPlayerRoll || !myLocalPlayer) return;
+
+    setRollingPlayerId(myLocalPlayer.id);
+    sounds.diceRoll();
+
+    const rollDuration = 550;
+    const t = setTimeout(() => {
+      const val = Math.floor(Math.random() * 6) + 1;
+      const updatedRolls = { ...currentRolls, [myLocalPlayer.id]: val };
+      setCurrentRolls(updatedRolls);
+      setRollingPlayerId(null);
+
+      // In online mode, broadcast my roll to all peers!
+      if (isOnline && network) {
+        network.sendAction({
+          type: "INITIATIVE_ROLL",
+          playerId: myLocalPlayer.id,
+          roll: val
+        });
+      }
+
+      // If Host (or offline), trigger any pending AI bot rolls
+      if (!isOnline || isHost) {
+        triggerAiRolls(updatedRolls);
+      }
+    }, rollDuration);
+    rollTimeoutsRef.current.push(t);
+  }, [
+    canMyPlayerRoll,
+    myLocalPlayer,
+    currentRolls,
+    isOnline,
+    isHost,
+    network,
+    triggerAiRolls
+  ]);
+
+  // Network listener for synchronized initiative rolls, tie-breakers, and turn order
+  useEffect(() => {
+    if (!network || !isOnline) return;
+
+    network.onInitiativeAction = (action) => {
+      if (!action) return;
+
+      if (action.type === "INITIATIVE_STAGE") {
+        if (action.stage) {
+          setStage(action.stage);
+          sounds.btnClick();
+        }
+      } else if (action.type === "INITIATIVE_ROLL") {
+        const { playerId, roll } = action;
+        if (playerId !== undefined && roll !== undefined) {
+          setRollingPlayerId(playerId);
+          sounds.diceRoll();
+
+          const t = setTimeout(() => {
+            setCurrentRolls((prev) => {
+              const nextRolls = { ...prev, [playerId]: roll };
+              // If Host, check if this completed the active round
+              if (isHost) {
+                const allDone = activeTiedPlayers.every(
+                  (p) => nextRolls[p.id] !== undefined
+                );
+                if (allDone && activeTiedPlayers.length > 0) {
+                  const evalT = setTimeout(() => {
+                    evaluateRoundResults(nextRolls);
+                  }, 400);
+                  rollTimeoutsRef.current.push(evalT);
+                }
+              }
+              return nextRolls;
+            });
+            setRollingPlayerId(null);
+          }, 550);
+          rollTimeoutsRef.current.push(t);
+        }
+      } else if (action.type === "INITIATIVE_TIE_REROLL") {
+        const { newGroups, round: nextRound, msg } = action;
+        sounds.danger();
+        setTieNotice(msg || "⚔️ TIE DETECTED! Re-rolling for position...");
+
+        const t = setTimeout(() => {
+          if (newGroups) setGroups(newGroups);
+          if (nextRound) setRound(nextRound);
+          setCurrentRolls({});
+          setTieNotice(null);
+          setIsEvaluating(false);
+          clearAllTimeouts();
+        }, 1600);
+        rollTimeoutsRef.current.push(t);
+      } else if (action.type === "INITIATIVE_FINAL_ORDER") {
+        const { finalTurnOrder: order } = action;
+        if (order && order.length > 0) {
+          setFinalTurnOrder(order);
+          sounds.victory();
+          const t = setTimeout(() => {
+            setIsEvaluating(false);
+            setStage(STAGE_CEREMONY);
+          }, 800);
+          rollTimeoutsRef.current.push(t);
+        }
+      } else if (action.type === "INITIATIVE_FAST_FORWARD") {
+        const { rolls, finalTurnOrder: order } = action;
+        clearAllTimeouts();
+        setRollingPlayerId(null);
+        if (rolls) setCurrentRolls(rolls);
+        if (order) setFinalTurnOrder(order);
+        sounds.victory();
+        setIsEvaluating(false);
+        setStage(STAGE_CEREMONY);
+      }
+    };
+
+    return () => {
+      network.onInitiativeAction = null;
+    };
+  }, [network, isOnline, isHost, activeTiedPlayers, evaluateRoundResults]);
+
+  // If no human needs to roll (spectator mode or human already locked), auto-trigger AI rolls (Host only)
+  useEffect(() => {
+    if (stage !== STAGE_INITIATIVE || isEvaluating || rollingPlayerId !== null) return;
+    if (isOnline && !isHost) return;
+
+    if (!canMyPlayerRoll && activeTiedPlayers.length > 0) {
+      const activeUnrolled = activeTiedPlayers.filter((p) => currentRolls[p.id] === undefined);
+      if (activeUnrolled.length > 0 && rollTimeoutsRef.current.length === 0) {
+        const startTimer = setTimeout(() => {
+          triggerAiRolls(currentRolls);
+        }, 500);
+        rollTimeoutsRef.current.push(startTimer);
+      }
+    }
+  }, [
+    stage,
+    isEvaluating,
+    rollingPlayerId,
+    canMyPlayerRoll,
+    activeTiedPlayers,
+    currentRolls,
+    triggerAiRolls,
+    isOnline,
+    isHost
+  ]);
 
   // Fast-forward / instant resolve
   const handleQuickResolve = useCallback(() => {
+    if (isOnline && !isHost) return;
+
     clearAllTimeouts();
     setRollingPlayerId(null);
 
@@ -257,19 +424,41 @@ export default function GameIntroModal({
       tempGroups = newGroups;
     }
 
+    const resolvedOrder = tempGroups.flat();
     sounds.victory();
     setCurrentRolls(currentRoundRolls);
     setGroups(tempGroups);
-    setFinalTurnOrder(tempGroups.flat());
+    setFinalTurnOrder(resolvedOrder);
     setIsEvaluating(false);
     setStage(STAGE_CEREMONY);
-  }, [groups, currentRolls]);
+
+    if (isOnline && isHost && network) {
+      network.sendAction({
+        type: "INITIATIVE_FAST_FORWARD",
+        rolls: currentRoundRolls,
+        finalTurnOrder: resolvedOrder
+      });
+    }
+  }, [groups, currentRolls, isOnline, isHost, network]);
+
+  // Advance from Briefing to Initiative
+  const handleProceedToInitiative = () => {
+    sounds.btnClick();
+    setStage(STAGE_INITIATIVE);
+    if (isOnline && isHost && network) {
+      network.sendAction({
+        type: "INITIATIVE_STAGE",
+        stage: STAGE_INITIATIVE
+      });
+    }
+  };
 
   // Handle final expedition commencement
   const handleCommence = useCallback(() => {
     sounds.turnStart();
+    const orderToCommence = finalTurnOrder.length > 0 ? finalTurnOrder : players;
     if (onComplete) {
-      onComplete(finalTurnOrder.length > 0 ? finalTurnOrder : players);
+      onComplete(orderToCommence);
     }
   }, [finalTurnOrder, players, onComplete]);
 
@@ -283,25 +472,27 @@ export default function GameIntroModal({
       if (e.key === " " || e.code === "Space") {
         if (stage === STAGE_BRIEFING) {
           e.preventDefault();
-          setStage(STAGE_INITIATIVE);
-          sounds.btnClick();
+          handleProceedToInitiative();
         } else if (stage === STAGE_INITIATIVE) {
-          if (humanActiveRoller && currentRolls[humanActiveRoller.id] === undefined && !rollingPlayerId && !isEvaluating) {
+          if (canMyPlayerRoll) {
             e.preventDefault();
             handleHumanRoll();
           }
         } else if (stage === STAGE_CEREMONY) {
-          e.preventDefault();
-          handleCommence();
+          if (!isOnline || isHost) {
+            e.preventDefault();
+            handleCommence();
+          }
         }
       } else if (e.key === "Enter") {
         if (stage === STAGE_BRIEFING) {
           e.preventDefault();
-          setStage(STAGE_INITIATIVE);
-          sounds.btnClick();
+          handleProceedToInitiative();
         } else if (stage === STAGE_CEREMONY) {
-          e.preventDefault();
-          handleCommence();
+          if (!isOnline || isHost) {
+            e.preventDefault();
+            handleCommence();
+          }
         }
       }
     };
@@ -310,10 +501,9 @@ export default function GameIntroModal({
   }, [
     isOpen,
     stage,
-    humanActiveRoller,
-    currentRolls,
-    rollingPlayerId,
-    isEvaluating,
+    canMyPlayerRoll,
+    isOnline,
+    isHost,
     handleHumanRoll,
     handleCommence
   ]);
@@ -331,13 +521,19 @@ export default function GameIntroModal({
           </div>
           <h2 className="intro-title">
             {stage === STAGE_BRIEFING && "CHRONO-EXPEDITION: MISSION BRIEFING"}
-            {stage === STAGE_INITIATIVE && (round === 1 ? "🎲 TABLETOP INITIATIVE: ROLL FOR FIRST TURN" : `⚔️ TIE-BREAKER RE-ROLL (ROUND ${round})`)}
+            {stage === STAGE_INITIATIVE &&
+              (round === 1
+                ? "🎲 TABLETOP INITIATIVE: ROLL FOR FIRST TURN"
+                : `⚔️ TIE-BREAKER RE-ROLL (ROUND ${round})`)}
             {stage === STAGE_CEREMONY && "🏆 INITIATIVE DETERMINED • EXPEDITION ORDER"}
           </h2>
           <div className="intro-subtitle">
-            {stage === STAGE_BRIEFING && "PHILIPPINE ARCHIPELAGO TIMELINE CONVERGENCE CRISIS"}
-            {stage === STAGE_INITIATIVE && "Standard board game rules: The highest roll takes first turn. Tied operatives must roll again until all positions are settled!"}
-            {stage === STAGE_CEREMONY && "All positions uniquely settled down to the last place. The expedition begins!"}
+            {stage === STAGE_BRIEFING &&
+              "PHILIPPINE ARCHIPELAGO TIMELINE CONVERGENCE CRISIS"}
+            {stage === STAGE_INITIATIVE &&
+              "Standard board game rules: The highest roll takes first turn. Tied operatives must roll again until all positions are settled!"}
+            {stage === STAGE_CEREMONY &&
+              "All positions uniquely settled down to the last place. The expedition begins!"}
           </div>
         </div>
 
@@ -427,16 +623,25 @@ export default function GameIntroModal({
               <div className="intro-roster-grid">
                 {players.map((p, idx) => {
                   const role = ROLES[p.roleKey] || {};
+                  const isMe = Boolean(myLocalPlayer && p.id === myLocalPlayer.id);
+
                   return (
-                    <div key={p.id ?? idx} className="intro-operative-card" style={{ borderTop: `4px solid ${p.color || role.color || "#C2974D"}` }}>
+                    <div
+                      key={p.id ?? idx}
+                      className="intro-operative-card"
+                      style={{ borderTop: `4px solid ${p.color || role.color || "#C2974D"}` }}
+                    >
                       <div className="operative-avatar-wrap">
                         <img
                           src={role.avatar || "assets/Characters/Copy of librarian.png"}
                           alt={p.name}
                           className="operative-avatar-img"
                         />
-                        <span className="operative-type-tag" style={{ background: p.isAi ? "#3A281E" : "#8C6721" }}>
-                          {p.isAi ? "🤖 AI BOT" : "⭐ OPERATIVE (YOU)"}
+                        <span
+                          className="operative-type-tag"
+                          style={{ background: isMe ? "#15803D" : p.isAi ? "#3A281E" : "#8C6721" }}
+                        >
+                          {isMe ? "⭐ OPERATIVE (YOU)" : p.isAi ? "🤖 AI BOT" : "👤 ALLY"}
                         </span>
                       </div>
                       <div className="operative-info">
@@ -464,7 +669,7 @@ export default function GameIntroModal({
 
             {/* FOOTER ACTIONS */}
             <div className="intro-actions-bar">
-              {onSkip && (
+              {(!isOnline || isHost) && onSkip && (
                 <button
                   type="button"
                   className="btn btn-secondary intro-btn-skip"
@@ -476,16 +681,26 @@ export default function GameIntroModal({
                   ⚡ Fast-Track Game Start
                 </button>
               )}
-              <button
-                type="button"
-                className="btn btn-primary intro-btn-proceed"
-                onClick={() => {
-                  sounds.btnClick();
-                  setStage(STAGE_INITIATIVE);
-                }}
-              >
-                🎲 PROCEED TO ROLL FOR FIRST TURN → <span className="key-hint">SPACE</span>
-              </button>
+              {(!isOnline || isHost) ? (
+                <button
+                  type="button"
+                  className="btn btn-primary intro-btn-proceed"
+                  onClick={handleProceedToInitiative}
+                >
+                  🎲 PROCEED TO ROLL FOR FIRST TURN → <span className="key-hint">SPACE</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary intro-btn-proceed"
+                  onClick={() => {
+                    sounds.btnClick();
+                    setStage(STAGE_INITIATIVE);
+                  }}
+                >
+                  🎲 PROCEED TO ROLL FOR FIRST TURN →
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -509,17 +724,17 @@ export default function GameIntroModal({
                 const isLocked = lockedRanks[p.id] !== undefined;
                 const lockedRank = lockedRanks[p.id];
                 const isTied = !isLocked && activeTiedPlayers.some((tp) => tp.id === p.id);
-                const isHuman = !p.isAi && !isSpectator;
-                const canHumanClick = isHuman && isTied && rollVal === undefined && !isRolling && !isEvaluating;
+                const isMe = Boolean(myLocalPlayer && p.id === myLocalPlayer.id);
+                const canClickThis = isMe && isTied && rollVal === undefined && !isRolling && !isEvaluating;
 
                 return (
                   <div
                     key={p.id ?? idx}
-                    className={`initiative-player-card ${isTied ? "is-active-roller" : ""} ${isLocked ? "is-locked" : ""} ${canHumanClick ? "can-click-roll" : ""}`}
+                    className={`initiative-player-card ${isTied ? "is-active-roller" : ""} ${isLocked ? "is-locked" : ""} ${canClickThis ? "can-click-roll" : ""}`}
                     style={{
                       borderColor: isTied ? "#F5C442" : isLocked ? "#5A422D" : "#3A281E"
                     }}
-                    onClick={canHumanClick ? handleHumanRoll : undefined}
+                    onClick={canClickThis ? handleHumanRoll : undefined}
                   >
                     <div className="initiative-card-top">
                       <div className="initiative-avatar-box">
@@ -532,7 +747,7 @@ export default function GameIntroModal({
                       <div className="initiative-card-meta">
                         <div className="initiative-player-name">{p.name}</div>
                         <div className="initiative-player-type" style={{ color: p.color || role.color }}>
-                          {p.isAi ? "AI BOT" : "YOU"} • {role.name || p.roleKey}
+                          {isMe ? "⭐ YOU" : p.isAi ? "🤖 AI BOT" : "👤 OPERATIVE"} • {role.name || p.roleKey}
                         </div>
                       </div>
                     </div>
@@ -545,8 +760,8 @@ export default function GameIntroModal({
                         size="lg"
                         theme={isTied ? "chrono" : "hazard"}
                         disabled={isLocked || (rollVal !== undefined && !isRolling)}
-                        isInteractive={canHumanClick}
-                        onClick={canHumanClick ? handleHumanRoll : undefined}
+                        isInteractive={canClickThis}
+                        onClick={canClickThis ? handleHumanRoll : undefined}
                       />
                     </div>
 
@@ -562,12 +777,14 @@ export default function GameIntroModal({
                         <span className="status-text status-locked">
                           🔒 Rank #{lockedRank} Confirmed
                         </span>
-                      ) : isHuman ? (
+                      ) : isMe ? (
                         <span className="status-text text-accent font-bold animate-pulse">
                           👉 YOUR TURN TO ROLL!
                         </span>
                       ) : (
-                        <span className="status-text text-muted">Awaiting turn...</span>
+                        <span className="status-text text-muted">
+                          {p.isAi ? "Awaiting turn..." : `Awaiting ${p.name}'s roll...`}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -577,16 +794,18 @@ export default function GameIntroModal({
 
             {/* INITIATIVE CONTROLS */}
             <div className="initiative-controls-bar">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleQuickResolve}
-                title="Immediately resolve all rolls and tie-breakers"
-              >
-                ⚡ Fast-Forward All Rolls
-              </button>
+              {(!isOnline || isHost) && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleQuickResolve}
+                  title="Immediately resolve all rolls and tie-breakers"
+                >
+                  ⚡ Fast-Forward All Rolls
+                </button>
+              )}
 
-              {humanActiveRoller && currentRolls[humanActiveRoller.id] === undefined ? (
+              {canMyPlayerRoll ? (
                 <button
                   type="button"
                   className="btn btn-primary initiative-roll-btn animate-bounce"
@@ -672,13 +891,31 @@ export default function GameIntroModal({
 
             {/* COMMENCE BUTTON */}
             <div className="ceremony-actions-bar">
-              <button
-                type="button"
-                className="btn btn-primary ceremony-commence-btn animate-glow"
-                onClick={handleCommence}
-              >
-                🚀 COMMENCE EXPEDITION → <span className="key-hint">ENTER / SPACE</span>
-              </button>
+              {(!isOnline || isHost) ? (
+                <button
+                  type="button"
+                  className="btn btn-primary ceremony-commence-btn animate-glow"
+                  onClick={handleCommence}
+                >
+                  🚀 COMMENCE EXPEDITION → <span className="key-hint">ENTER / SPACE</span>
+                </button>
+              ) : (
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: "0.82rem",
+                    color: "#FCD34D",
+                    letterSpacing: "1px",
+                    padding: "10px 20px",
+                    background: "rgba(26, 18, 11, 0.85)",
+                    border: "1.5px solid #C2974D",
+                    borderRadius: "6px"
+                  }}
+                  className="animate-pulse"
+                >
+                  ⏳ Expedition Host is finalizing launch...
+                </div>
+              )}
             </div>
           </div>
         )}

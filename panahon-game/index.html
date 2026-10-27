@@ -4,8 +4,18 @@
   <meta charset="UTF-8" />
   <script>
     try {
+      var isMobile = (window.innerWidth <= 768 || window.innerHeight <= 550);
       var s = localStorage.getItem('panahon_gui_scale');
-      if (s) { document.documentElement.style.zoom = s; }
+      var mobOverride = localStorage.getItem('panahon_gui_scale_mobile_override');
+      if (s) {
+        var num = parseFloat(s);
+        if (!isNaN(num)) {
+          if (isMobile && num > 1.05 && !mobOverride) {
+            num = 1.0;
+          }
+          document.documentElement.style.zoom = num;
+        }
+      }
     } catch(e) {}
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />

@@ -233,6 +233,7 @@ export class GameEngine {
       temporalOccurrenceId: null,
       temporalOccurrenceAnnounced: false,
       diceResult: null,
+      totalMoves: 0,
       movesRemaining: 0,
       movementDirection: 'forward', // 'forward' | 'backward'
       momentumActive: false,
@@ -261,11 +262,13 @@ export class GameEngine {
     if (!this.state || !Array.isArray(orderedPlayers) || orderedPlayers.length === 0) return false;
 
     // Create an ID mapping: old player.id -> new index
+    // Preserve full original in-memory player object so cards, mission, energy, isLocal are untouched
     const idMap = {};
     const newPlayers = orderedPlayers.map((p, newIdx) => {
-      idMap[p.id] = newIdx;
+      const orig = (this.state.players && this.state.players.find(curr => curr.name === p.name || curr.id === p.id)) || p;
+      idMap[orig.id] = newIdx;
       return {
-        ...p,
+        ...orig,
         id: newIdx
       };
     });
@@ -379,16 +382,23 @@ export class GameEngine {
     this.state.initialRoll = result;
     this.state.stepsTakenThisTurn = 0;
     this.state.hasMovedThisTurn = false;
-    this.state.movesRemaining = result + (player.bonusMoves || 0);
+
+    // Apply Momentum bonus if active
+    const bonus = (this.state.momentumActive || player.roleKey === 'EXPLORER')
+      ? (player.bonusMoves || (this.state.momentumActive ? 2 : 0))
+      : (player.bonusMoves || 0);
+
+    this.state.totalMoves = result + bonus;
+    this.state.movesRemaining = result + bonus;
     this.state.movementDirection = 'forward';
-    if (player.roleKey !== 'EXPLORER' || !this.state.momentumActive) {
-      this.state.momentumActive = false;
-      this.state.momentumUsedMidTile = false;
-    }
     player.bonusMoves = 0;
     this.state.phase = 'moving';
 
-    this.addLog('dice', `${player.name} rolled a ${result}!`);
+    if (bonus > 0) {
+      this.addLog('dice', `🎲 ${player.name} rolled a ${result} (+${bonus} Momentum Surge = ${result + bonus} Total Spaces)!`);
+    } else {
+      this.addLog('dice', `🎲 ${player.name} rolled a ${result}!`);
+    }
     this.notify();
     return result;
   }
@@ -1556,17 +1566,28 @@ export class GameEngine {
 
   // --- Abilities ---
   useActiveAbility(playerIdx) {
-    if (this.state.phase !== 'action') {
-      this.addLog('warning', 'Character abilities can only be activated during the Action Phase after movement!');
-      return false;
-    }
     const player = this.state.players[playerIdx];
+    if (!player) return false;
     if (this.state.currentPlayerIndex !== playerIdx) return false;
     if (player.usedAbilityThisTurn) {
       this.addLog('warning', `${player.name} has already used an ability this turn!`);
       return false;
     }
     if (player.activeCooldown > 0) return false;
+
+    // Explorer ability (Momentum) is primed before rolling the movement die (in 'rolling' phase).
+    // Other character abilities are activated in 'action' phase after movement.
+    if (player.roleKey === 'EXPLORER') {
+      if (this.state.phase !== 'rolling') {
+        this.addLog('warning', 'Explorer Momentum must be activated before rolling the movement die!');
+        return false;
+      }
+    } else {
+      if (this.state.phase !== 'action') {
+        this.addLog('warning', 'Character abilities can only be activated during the Action Phase after movement!');
+        return false;
+      }
+    }
 
     switch (player.roleKey) {
       case 'HISTORIAN':
@@ -1602,7 +1623,7 @@ export class GameEngine {
         break;
 
       case 'EXPLORER':
-        // Momentum (Action Phase): Surge forward with +2 Bonus Movement steps!
+        // Momentum (Rolling Phase - Before Roll Die): Surge forward with +2 Bonus Movement steps!
         if (player.energy < 2) {
           this.addLog('warning', 'Not enough Energy for Momentum!');
           return false;
@@ -1610,12 +1631,10 @@ export class GameEngine {
         this.modifyEnergy(player, -2);
         player.usedAbilityThisTurn = true;
         player.activeCooldown = ROLES.EXPLORER.active.cooldown;
-        this.state.movesRemaining = 2;
-        this.state.diceResult = 2;
-        this.state.stepsTakenThisTurn = 0;
-        this.state.hasMovedThisTurn = false;
-        this.state.phase = 'moving';
-        this.state.movementDirection = 'forward';
+        player.bonusMoves = 2;
+        this.state.momentumActive = true;
+        this.state.momentumUsedMidTile = false;
+
         this.state.pendingModal = {
           type: 'abilityActivate',
           abilityKey: 'MOMENTUM',
@@ -1625,12 +1644,13 @@ export class GameEngine {
           playerAvatar: player.role?.avatar || 'assets/Characters/Copy of adventurer.png',
           playerColor: player.color || '#3498DB',
           title: '⚡ MOMENTUM SURGE! ⚡',
-          subtitle: 'EXPLORER ACTIVE ABILITY',
-          description: `${player.name} ignited kinetic chronal thrusters! Gained +2 Bonus Movement steps along the timeline!`,
+          subtitle: 'EXPLORER ACTIVE ABILITY PRIMED',
+          description: `${player.name} ignited kinetic chronal thrusters! Your upcoming die roll will surge with +2 Bonus Movement steps along the timeline!`,
           bonusMoves: 2
         };
-        this.addLog('ability', `${player.name} activated Momentum! Surges forward with +2 Bonus Movement steps!`);
-        break;
+        this.addLog('ability', `⚡ ${player.name} activated Momentum! +2 Bonus Movement steps primed for the upcoming roll!`);
+        this.notify();
+        return true;
 
       case 'GUARDIAN':
         // Temporal Repair
@@ -2117,12 +2137,16 @@ export class GameEngine {
     this.state.phase = 'rolling';
     this.state.diceResult = null;
     this.state.initialRoll = null;
+    this.state.totalMoves = 0;
     this.state.movesRemaining = 0;
     this.state.stepsTakenThisTurn = 0;
     this.state.hasMovedThisTurn = false;
     this.state.movementDirection = 'forward';
     this.state.momentumActive = false;
     this.state.momentumUsedMidTile = false;
+    for (const p of this.state.players) {
+      p.bonusMoves = 0;
+    }
     this.state.pendingModal = null;
     this.state.pendingChoice = null;
 

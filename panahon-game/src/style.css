@@ -11931,3 +11931,381 @@ html, body, #app, .app-root {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* ==========================================================================
+   MOBILE & COMPACT VIEWPORT RESPONSIVE SYSTEM (TITLE SCREEN, LOBBY & MODALS)
+   Ensures proportional scaling on mobile landscape (height <= 550px) and portrait
+   ========================================================================== */
+
+/* 1. Mobile Landscape (max-height: 550px) - Primary fix for phones rotated horizontally */
+@media (max-height: 550px) {
+  /* Title Screen Header Bar */
+  .duelyst-top-bar {
+    padding: 6px 14px !important;
+    height: auto !important;
+  }
+
+  .duelyst-top-right-nav {
+    gap: 5px !important;
+  }
+
+  .retro-nav-btn {
+    padding: 3px 8px !important;
+    font-size: 0.52rem !important;
+    gap: 4px !important;
+    border-width: 1px !important;
+    border-radius: 4px !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6) !important;
+  }
+
+  .retro-nav-icon {
+    font-size: 0.68rem !important;
+  }
+
+  /* Title Screen Main Layout Container */
+  .duelyst-main-layout {
+    padding: 34px 18px 8px !important;
+    gap: 20px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    height: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  .duelyst-left-section {
+    width: 250px !important;
+    max-width: 44vw !important;
+    justify-content: center !important;
+    height: 100% !important;
+    max-height: calc(100vh - 42px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Title Screen Brand Logo */
+  .duelyst-logo-wrapper {
+    margin-bottom: 6px !important;
+  }
+
+  .main-menu-logo-video {
+    max-width: 190px !important;
+    max-height: 92px !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .main-menu-logo {
+    max-width: 180px !important;
+    max-height: 85px !important;
+  }
+
+  /* Vertical Navigation Menu & Buttons */
+  .duelyst-nav-menu {
+    gap: 4px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .duelyst-menu-link {
+    padding: 5px 10px !important;
+    margin-bottom: 3px !important;
+    gap: 8px !important;
+    border-width: 1.5px !important;
+    border-radius: 4px !important;
+    box-shadow: inset 1px 1px 0 #ebd07d, inset -1px -1px 0 #5c3e16, 0 2px 0 #120e0a !important;
+  }
+
+  .duelyst-menu-link .menu-link-bullet {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .duelyst-menu-link .menu-link-bullet svg,
+  .duelyst-menu-link .constellation-icon {
+    width: 11px !important;
+    height: 11px !important;
+  }
+
+  .duelyst-menu-link .menu-link-text {
+    font-size: 0.60rem !important;
+    letter-spacing: 1.2px !important;
+  }
+
+  .duelyst-menu-link .menu-link-arrow {
+    font-size: 0.55rem !important;
+    margin-left: 3px !important;
+  }
+
+  .duelyst-menu-link .menu-link-tag {
+    font-size: 0.48rem !important;
+    padding: 1px 4px !important;
+    margin-left: 4px !important;
+    letter-spacing: 0.8px !important;
+  }
+
+  /* Play Modes Drawer */
+  .duelyst-play-drawer {
+    margin: 3px 0 5px 10px !important;
+    padding: 5px 8px !important;
+    gap: 4px !important;
+    border-radius: 8px !important;
+    max-height: 130px !important;
+    overflow-y: auto !important;
+  }
+
+  .duelyst-sub-btn {
+    padding: 4px 8px !important;
+    gap: 6px !important;
+    border-radius: 5px !important;
+  }
+
+  .duelyst-sub-btn .sub-btn-icon {
+    font-size: 0.85rem !important;
+  }
+
+  .duelyst-sub-btn .sub-btn-title {
+    font-size: 0.58rem !important;
+    letter-spacing: 0.8px !important;
+  }
+
+  .duelyst-sub-btn .sub-btn-desc {
+    font-size: 0.48rem !important;
+    display: none !important;
+  }
+
+  /* Title Screen Credits & Dev Links */
+  .duelyst-credits {
+    font-size: 0.50rem !important;
+    gap: 4px !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  .duelyst-credits span,
+  .duelyst-credits button {
+    font-size: 0.50rem !important;
+  }
+
+  /* Chrono Core Center Orb */
+  .duelyst-orb-section {
+    gap: 12px !important;
+  }
+
+  .chrono-orb-container {
+    width: 64px !important;
+    height: 64px !important;
+  }
+
+  .chrono-orb-outer-ring {
+    border-width: 1.5px !important;
+  }
+
+  .chrono-orb-middle-ring {
+    width: 50px !important;
+    height: 50px !important;
+    border-width: 1px !important;
+  }
+
+  .chrono-orb-inner-ring {
+    width: 36px !important;
+    height: 36px !important;
+    border-width: 1.5px !important;
+    box-shadow: 0 0 10px rgba(194, 151, 77, 0.4), inset 1px 1px 0 #FFD700 !important;
+  }
+
+  .crystal-glyph {
+    font-size: 0.88rem !important;
+  }
+
+  .chrono-orb-caption {
+    top: -17px !important;
+  }
+
+  .caption-number {
+    font-size: 0.68rem !important;
+  }
+
+  .caption-label {
+    font-size: 0.44rem !important;
+    letter-spacing: 0.8px !important;
+  }
+
+  /* Reconnect Mission Card */
+  .duelyst-reconnect-card {
+    padding: 6px 10px !important;
+    gap: 5px !important;
+    max-width: 180px !important;
+    border-radius: 6px !important;
+  }
+
+  .reconnect-badge {
+    font-size: 0.54rem !important;
+  }
+
+  .reconnect-details {
+    font-size: 0.54rem !important;
+  }
+
+  .reconnect-action-btn {
+    padding: 3px 8px !important;
+    font-size: 0.55rem !important;
+  }
+
+  /* Lobby Screen Landscape Optimization */
+  .lobby-screen {
+    padding: 8px 14px 20px !important;
+    gap: 8px !important;
+  }
+
+  .lobby-title {
+    font-size: 1.2rem !important;
+    margin: 0 !important;
+  }
+
+  .lobby-panel {
+    padding: 8px 12px !important;
+    gap: 6px !important;
+  }
+
+  .player-slots {
+    gap: 6px !important;
+  }
+
+  .player-slot {
+    padding: 5px 8px !important;
+    min-height: auto !important;
+  }
+
+  .player-slot-avatar {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  .lobby-discipline-grid {
+    gap: 6px !important;
+  }
+
+  .discipline-card {
+    padding: 6px 8px !important;
+  }
+
+  /* Modals on Landscape Mobile */
+  .modal,
+  .modal.duelyst-modal {
+    max-height: 94vh !important;
+    padding: 10px 14px !important;
+    max-width: min(94vw, 540px) !important;
+  }
+
+  .modal-title {
+    font-size: 0.92rem !important;
+    margin-bottom: 4px !important;
+  }
+
+  .modal-body {
+    max-height: calc(88vh - 60px) !important;
+  }
+}
+
+/* 2. Ultra-Compact Mobile Landscape (max-height: 400px) */
+@media (max-height: 400px) {
+  .duelyst-main-layout {
+    padding: 30px 14px 6px !important;
+    gap: 14px !important;
+  }
+
+  .duelyst-left-section {
+    width: 215px !important;
+  }
+
+  .main-menu-logo-video {
+    max-width: 160px !important;
+    max-height: 75px !important;
+  }
+
+  .duelyst-menu-link {
+    padding: 4px 8px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .duelyst-menu-link .menu-link-text {
+    font-size: 0.54rem !important;
+  }
+
+  .retro-nav-btn {
+    padding: 2px 6px !important;
+    font-size: 0.48rem !important;
+  }
+
+  .chrono-orb-container {
+    width: 52px !important;
+    height: 52px !important;
+  }
+
+  .chrono-orb-caption {
+    top: -15px !important;
+  }
+}
+
+/* 3. Mobile Portrait Viewport (max-width: 768px and orientation: portrait, or max-width: 600px) */
+@media (max-width: 768px) and (orientation: portrait), (max-width: 600px) {
+  .duelyst-top-bar {
+    padding: 8px 12px !important;
+    height: auto !important;
+  }
+
+  .duelyst-top-right-nav {
+    width: 100% !important;
+    justify-content: space-between !important;
+    gap: 4px !important;
+  }
+
+  .retro-nav-btn {
+    padding: 4px 6px !important;
+    font-size: 0.52rem !important;
+    flex: 1 1 auto !important;
+    justify-content: center !important;
+  }
+
+  .duelyst-main-layout {
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    padding: 54px 16px 20px !important;
+    gap: 16px !important;
+    overflow-y: auto !important;
+  }
+
+  .duelyst-left-section {
+    width: 100% !important;
+    max-width: 320px !important;
+    align-items: center !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  .duelyst-logo-wrapper {
+    justify-content: center !important;
+    margin-bottom: 12px !important;
+  }
+
+  .main-menu-logo-video {
+    max-width: 250px !important;
+  }
+
+  .duelyst-nav-menu {
+    width: 100% !important;
+    gap: 7px !important;
+  }
+
+  .duelyst-menu-link {
+    width: 100% !important;
+    padding: 8px 16px !important;
+    font-size: 0.68rem !important;
+  }
+
+  .duelyst-orb-section {
+    margin-top: 10px !important;
+    justify-content: center !important;
+  }
+}

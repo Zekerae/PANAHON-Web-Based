@@ -42,16 +42,39 @@ function GameScreen({
     if (engine) {
       engine.setPlayerTurnOrder(orderedPlayers);
       if (network && network.mode === 'online') {
-        const myNewPlayer = orderedPlayers.find(p => p.name === network.myPlayerName || p.connectionId === network.playerId);
+        const myNewPlayer = engine.state.players?.find(p => 
+          (network.myPlayerName && p.name === network.myPlayerName) ||
+          (network.initialPlayerId !== null && p.connectionId === network.initialPlayerId)
+        );
         if (myNewPlayer) {
           network.playerId = myNewPlayer.id;
+        }
+        if (engine.state.players) {
+          engine.state.players.forEach(p => {
+            p.isLocal = !effectiveIsSpectator && (p.id === network.playerId);
+          });
         }
         network.sendAction({ type: 'SET_TURN_ORDER', orderedPlayers });
       }
       engine.isPaused = false;
       engine.startTimer();
     }
-  }, [engine, network]);
+  }, [engine, network, effectiveIsSpectator]);
+
+  useEffect(() => {
+    if (network) {
+      network.onTurnOrderSet = () => {
+        setShowIntro(false);
+        if (engine) {
+          engine.isPaused = false;
+          engine.startTimer();
+        }
+      };
+    }
+    return () => {
+      if (network) network.onTurnOrderSet = null;
+    };
+  }, [network, engine]);
 
   useEffect(() => {
     if (showIntro && engine) {
@@ -301,11 +324,13 @@ function GameScreen({
 
 
   const handleUseSkill = useCallback(() => {
-    if (state.phase !== 'action' || !isMyTurn) return;
+    const isExplorer = currentPlayer?.roleKey === 'EXPLORER';
+    const requiredPhase = isExplorer ? 'rolling' : 'action';
+    if (state.phase !== requiredPhase || !isMyTurn) return;
     sounds.btnClick();
     engine.useActiveAbility(state.currentPlayerIndex);
     network.sendAction({ type: 'USE_ABILITY', playerIdx: state.currentPlayerIndex });
-  }, [state.phase, state.currentPlayerIndex, isMyTurn, engine, network]);
+  }, [state.phase, state.currentPlayerIndex, isMyTurn, currentPlayer?.roleKey, engine, network, sounds]);
 
   const handleReturnArtifact = useCallback(() => {
     if (state.phase !== 'action' || !isMyTurn) return;
@@ -360,7 +385,10 @@ function GameScreen({
   const hasEnoughEnergy = (currentPlayer?.energy || 0) >= activeCost;
   const isAbilityOnCooldown = (currentPlayer?.activeCooldown || 0) > 0;
   const hasUsedAbilityThisTurn = Boolean(currentPlayer?.usedAbilityThisTurn);
-  const canUseAbilityNow = isMyTurn && state.phase === 'action' && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && hasEnoughEnergy;
+  const isExplorer = currentPlayer?.roleKey === 'EXPLORER';
+  const isAbilityPhase = isExplorer ? (state.phase === 'rolling') : (state.phase === 'action');
+  const isMomentumPrimed = isExplorer && Boolean(state.momentumActive || (currentPlayer?.bonusMoves && currentPlayer?.bonusMoves > 0));
+  const canUseAbilityNow = isMyTurn && isAbilityPhase && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && hasEnoughEnergy && !isMomentumPrimed;
 
   const currentTile = state.board?.[currentPlayer?.currentEra]?.[currentPlayer?.tileIndex];
   const isOnTimeGate = currentTile?.type === 'timeGate';
@@ -510,14 +538,37 @@ function GameScreen({
                     <span>💤 REST (+3 EN)</span>
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    className="btn btn-roll-dice mobile-dock-roll-btn"
-                    disabled={isRolling}
-                    onClick={handleRollDice}
-                  >
-                    <span>🎲 ROLL DIE</span>
-                  </button>
+                  <>
+                    {isExplorer && canUseAbilityNow && (
+                      <button
+                        type="button"
+                        className="btn btn-accent mobile-dock-btn"
+                        style={{
+                          background: 'linear-gradient(135deg, #0284C7, #0369A1)',
+                          border: '1.5px solid #38BDF8',
+                          color: '#FFF'
+                        }}
+                        onClick={handleUseSkill}
+                      >
+                        <span>⚡ Momentum</span>
+                        <span style={{ fontSize: '0.68rem', opacity: 0.9 }}>-2En</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-roll-dice mobile-dock-roll-btn"
+                      disabled={isRolling}
+                      onClick={handleRollDice}
+                      style={isMomentumPrimed ? {
+                        background: 'linear-gradient(180deg, #0284C7 0%, #0369A1 100%)',
+                        borderColor: '#38BDF8',
+                        color: '#E0F2FE',
+                        boxShadow: '0 0 12px rgba(56, 189, 248, 0.4)'
+                      } : undefined}
+                    >
+                      <span>🎲 {isMomentumPrimed ? "ROLL (+2 MOMENTUM)" : "ROLL DIE"}</span>
+                    </button>
+                  </>
                 )}
               </div>
             )}
@@ -583,7 +634,7 @@ function GameScreen({
 
             {state.phase === 'action' && (
               <div className="mobile-dock-action-group">
-                {canUseAbilityNow && (
+                {canUseAbilityNow && !isExplorer && (
                   <button
                     type="button"
                     className="btn btn-accent mobile-dock-btn"

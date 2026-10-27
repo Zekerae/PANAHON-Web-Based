@@ -174,6 +174,24 @@ class AiController {
           return;
         }
 
+        // Explorer Active Ability: Momentum (+2 Bonus Movement steps primed before rolling die)
+        if (
+          player.roleKey === 'EXPLORER' &&
+          !player.usedAbilityThisTurn &&
+          (!player.activeCooldown || player.activeCooldown <= 0) &&
+          player.energy >= 2 &&
+          !state.momentumActive &&
+          Math.random() < 0.75
+        ) {
+          sounds.portal?.();
+          const used = engine.useActiveAbility(player.id);
+          if (used) {
+            network?.sendAction({ type: 'USE_ABILITY', playerIdx: player.id });
+            this.scheduleAiStep(engine, network, 800);
+            return;
+          }
+        }
+
         // Roll the die
         sounds.diceRoll?.();
         const result = engine.rollDice();
@@ -260,12 +278,6 @@ class AiController {
             if (currentTile.type === TILE_TYPES.CLUE || currentTile.type === TILE_TYPES.ARTIFACT) {
               shouldCast = true;
             }
-          } else if (player.roleKey === 'EXPLORER') {
-            // Explorer uses Momentum (+2 Bonus Movement steps) post-movement
-            if (player.energy >= 2 && Math.random() < 0.6) {
-              shouldCast = true;
-            }
-          }
           } else if (player.roleKey === 'ROGUE') {
             const targets = state.players.filter(p => p.id !== player.id && p.currentEra === player.currentEra && Math.abs(p.tileIndex - player.tileIndex) <= 2);
             if (targets.length > 0 && player.energy >= 2) {
@@ -276,6 +288,7 @@ class AiController {
             if (enemies.length > 0 && player.energy >= 3) {
               shouldCast = true;
             }
+          }
 
           if (shouldCast) {
             sounds.portal?.();

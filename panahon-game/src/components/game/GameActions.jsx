@@ -40,6 +40,8 @@ function GameActions({
   const isTimeStopped = Boolean(currentPlayer && currentPlayer.timeStoppedBy);
   const canReverseTime = isMyTurn && isStartOfMovement && !isMovingBackward && currentPlayer.reverseTimeCooldown === 0 && currentPlayer.energy >= GAME_CONSTANTS.REVERSE_TIME_COST;
   const isChronomancer = currentPlayer.roleKey === 'CHRONOMANCER';
+  const isExplorer = currentPlayer.roleKey === 'EXPLORER';
+  const isMomentumPrimed = isExplorer && Boolean(state.momentumActive || (currentPlayer.bonusMoves && currentPlayer.bonusMoves > 0));
   const canUseForesight = isMyTurn && isStartOfMovement && isChronomancer && (!currentPlayer.temporalForesightCooldown || currentPlayer.temporalForesightCooldown <= 0) && !currentPlayer.hasUsedForesightThisTurn;
 
   let reverseTimeBadge = '-3 Energy';
@@ -75,19 +77,26 @@ function GameActions({
   const hasEnoughEnergy = (currentPlayer.energy || 0) >= activeCost;
   const isAbilityOnCooldown = (currentPlayer.activeCooldown || 0) > 0;
   const hasUsedAbilityThisTurn = Boolean(currentPlayer.usedAbilityThisTurn);
-  const canUseAbilityNow = isMyTurn && state.phase === 'action' && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && hasEnoughEnergy;
+  const isAbilityPhase = isExplorer ? (state.phase === 'rolling') : (state.phase === 'action');
+  const canUseAbilityNow = isMyTurn && isAbilityPhase && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && hasEnoughEnergy && !isMomentumPrimed;
 
   let abilityBadge = `-${activeCost} En`;
   let abilityStatusText = activeSkill.description || 'Activate operative ability.';
-  if (hasUsedAbilityThisTurn) {
+  if (isExplorer && isMomentumPrimed) {
+    abilityBadge = '+2 Primed ⚡';
+    abilityStatusText = 'Momentum is primed! Roll the movement die to surge +2 spaces forward.';
+  } else if (hasUsedAbilityThisTurn) {
     abilityBadge = 'Used this turn';
-    abilityStatusText = 'Ability already activated this turn.';
+    abilityStatusText = isExplorer ? 'Momentum was already activated this turn.' : 'Ability already activated this turn.';
   } else if (isAbilityOnCooldown) {
     abilityBadge = `CD: ${currentPlayer.activeCooldown}T`;
     abilityStatusText = `On cooldown for ${currentPlayer.activeCooldown} more turn(s).`;
   } else if (!hasEnoughEnergy) {
     abilityBadge = `Need ${activeCost} En`;
     abilityStatusText = `Requires ${activeCost} Chrono Energy (You have ${currentPlayer.energy || 0}).`;
+  } else if (isExplorer && state.phase !== 'rolling') {
+    abilityBadge = 'Rolling Phase Only';
+    abilityStatusText = 'Momentum must be activated before rolling the movement die!';
   }
 
   const currentTile = state.board?.[currentPlayer.currentEra]?.[currentPlayer.tileIndex];
@@ -722,6 +731,71 @@ function GameActions({
             </button>
           ) : (
             <>
+              {isExplorer && (
+                <div style={{
+                  marginBottom: "10px",
+                  padding: "9px 10px",
+                  borderRadius: "4px",
+                  background: "#140E0A",
+                  border: isMomentumPrimed ? "1.5px solid #38BDF8" : (canUseAbilityNow ? "1.5px solid #F5C442" : "1px solid #4A3423"),
+                  boxShadow: isMomentumPrimed ? "0 0 10px rgba(56, 189, 248, 0.3)" : (canUseAbilityNow ? "0 0 8px rgba(245, 196, 66, 0.15)" : "inset 0 1px 3px rgba(0,0,0,0.6)")
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                    <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#E2E8F0", display: "flex", alignItems: "center", gap: "5px" }}>
+                      <span>⚡</span>
+                      <span>Explorer Ability:</span>
+                      <strong style={{ color: "#38BDF8" }}>MOMENTUM</strong>
+                    </span>
+                    <span style={{
+                      fontSize: "0.60rem",
+                      fontWeight: 700,
+                      padding: "2px 6px",
+                      borderRadius: "3px",
+                      background: isMomentumPrimed ? "#0C2E24" : "#251B12",
+                      border: isMomentumPrimed ? "1px solid #2ECC71" : "1px solid #8C6239",
+                      color: isMomentumPrimed ? "#4ADE80" : (canUseAbilityNow ? "#FFD700" : "#FCA5A5")
+                    }}>
+                      {isMomentumPrimed ? "✓ PRIMED (+2 MOVES)" : abilityBadge}
+                    </span>
+                  </div>
+
+                  {isMomentumPrimed ? (
+                    <div style={{ fontSize: "0.68rem", color: "#4ADE80", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                      <span>✨</span>
+                      <span>Kinetic Chronal Thrusters Primed! Roll the die to surge forward with +2 spaces!</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: "0.68rem", color: "#C8B293", marginBottom: "8px", lineHeight: 1.3 }}>
+                        Surge forward with +2 Bonus Movement steps along the timeline on this turn's roll!
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        style={{
+                          width: "100%",
+                          padding: "7px 10px",
+                          fontSize: "0.74rem",
+                          fontWeight: 700,
+                          borderRadius: "4px",
+                          background: canUseAbilityNow ? "linear-gradient(180deg, #1E3A5F 0%, #0F2038 100%)" : "#221913",
+                          border: canUseAbilityNow ? "1.5px solid #38BDF8" : "1.5px solid #4A3423",
+                          color: canUseAbilityNow ? "#38BDF8" : "#735E4E",
+                          boxShadow: canUseAbilityNow ? "inset 1px 1px 0 #7DD3FC, inset -1px -1px 0 #075985, 0 3px 0 #081628" : "none",
+                          opacity: canUseAbilityNow ? 1 : 0.6,
+                          cursor: canUseAbilityNow ? "pointer" : "not-allowed"
+                        }}
+                        disabled={!canUseAbilityNow}
+                        title={abilityStatusText}
+                        onClick={() => { sounds.abilityActivate?.(); onUseSkill(); }}
+                      >
+                        <span>⚡ ACTIVATE MOMENTUM (+2 MOVES) • -2 EN</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
               <button
                 className="btn btn-primary"
                 style={{
@@ -732,10 +806,14 @@ function GameActions({
                   fontWeight: 800,
                   letterSpacing: "1px",
                   borderRadius: "4px",
-                  border: "2px solid #F5C442",
-                  background: "linear-gradient(180deg, #4D3826 0%, #352518 100%)",
-                  color: "#FFD700",
-                  boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 3px 0 #120E0A",
+                  border: isMomentumPrimed ? "2px solid #38BDF8" : "2px solid #F5C442",
+                  background: isMomentumPrimed
+                    ? "linear-gradient(180deg, #1E3A5F 0%, #0F2038 100%)"
+                    : "linear-gradient(180deg, #4D3826 0%, #352518 100%)",
+                  color: isMomentumPrimed ? "#E0F2FE" : "#FFD700",
+                  boxShadow: isMomentumPrimed
+                    ? "inset 1px 1px 0 #7DD3FC, inset -1px -1px 0 #075985, 0 0 14px rgba(56, 189, 248, 0.4)"
+                    : "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 3px 0 #120E0A",
                   marginBottom: "10px",
                   display: "flex",
                   alignItems: "center",
@@ -745,8 +823,8 @@ function GameActions({
                 disabled={!isMyTurn || isRolling}
                 onClick={() => { sounds.diceRoll?.(); onRollDice(); }}
               >
-                <span>🎲 ROLL MOVEMENT DIE</span>
-                <kbd style={{ background: "#140E0A", border: "1px solid #5A422D", padding: "1px 5px", borderRadius: "3px", fontSize: "0.62rem" }}>SPACE</kbd>
+                <span>🎲 {isMomentumPrimed ? "ROLL MOVEMENT DIE (+2 MOMENTUM PRIMED)" : "ROLL MOVEMENT DIE"}</span>
+                <kbd style={{ background: isMomentumPrimed ? "#0A192F" : "#140E0A", border: isMomentumPrimed ? "1px solid #38BDF8" : "1px solid #5A422D", padding: "1px 5px", borderRadius: "3px", fontSize: "0.62rem" }}>SPACE</kbd>
               </button>
 
               {/* REST (SKIP TURN) ALTERNATIVE */}
@@ -819,7 +897,7 @@ function GameActions({
               fontFamily: "var(--font-display)",
               fontWeight: 700
             }}>
-              {state.movesRemaining} / {state.diceResult || 1} MOVES LEFT
+              {state.movesRemaining} / {state.totalMoves || state.diceResult || 1} MOVES LEFT
             </span>
           </div>
 
@@ -1061,19 +1139,24 @@ function GameActions({
           </div>
 
           {/* POST-MOVE ABILITY ACTIVATION */}
-          <div style={{
-            marginBottom: "10px",
-            padding: "9px 10px",
-            borderRadius: "4px",
-            background: "#140E0A",
-            border: canUseAbilityNow ? "1.5px solid #C2974D" : "1px solid #4A3423",
-            boxShadow: "inset 0 1px 3px rgba(0,0,0,0.6)"
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-              <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#E2E8F0", display: "flex", alignItems: "center", gap: "4px" }}>
-                <span>✨</span>
-                <span>Operative Ability:</span>
-                <strong style={{ color: currentPlayer.color || "#FFD700" }}>{activeSkill.name}</strong>
+          {isExplorer ? (
+            <div style={{
+              marginBottom: "10px",
+              padding: "8px 10px",
+              borderRadius: "4px",
+              background: "#140E0A",
+              border: "1px solid #4A3423",
+              boxShadow: "inset 0 1px 3px rgba(0,0,0,0.6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between"
+            }}>
+              <span style={{ fontSize: "0.68rem", color: "#C8B293", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span>⚡</span>
+                <strong style={{ color: "#38BDF8" }}>Explorer Momentum:</strong>
+                <span style={{ color: hasUsedAbilityThisTurn ? "#4ADE80" : "#8C7764", fontStyle: "italic" }}>
+                  {hasUsedAbilityThisTurn ? "✓ Added +2 Bonus Spaces on your roll this turn" : "Activated before rolling movement die"}
+                </span>
               </span>
               <span style={{
                 fontSize: "0.60rem",
@@ -1082,45 +1165,73 @@ function GameActions({
                 borderRadius: "3px",
                 background: "#251B12",
                 border: "1px solid #8C6239",
-                color: hasUsedAbilityThisTurn ? "#C8B293" : (canUseAbilityNow ? "#FFD700" : "#FCA5A5")
+                color: hasUsedAbilityThisTurn ? "#4ADE80" : "#8C7764"
               }}>
-                {hasUsedAbilityThisTurn ? "✓ Used" : abilityBadge}
+                {hasUsedAbilityThisTurn ? "Used" : "Before Roll"}
               </span>
             </div>
-
-            {hasUsedAbilityThisTurn ? (
-              <div style={{ fontSize: "0.68rem", color: "#8C7764", fontStyle: "italic" }}>
-                ✓ {activeSkill.name} was already activated this turn.
+          ) : (
+            <div style={{
+              marginBottom: "10px",
+              padding: "9px 10px",
+              borderRadius: "4px",
+              background: "#140E0A",
+              border: canUseAbilityNow ? "1.5px solid #C2974D" : "1px solid #4A3423",
+              boxShadow: "inset 0 1px 3px rgba(0,0,0,0.6)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#E2E8F0", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span>✨</span>
+                  <span>Operative Ability:</span>
+                  <strong style={{ color: currentPlayer.color || "#FFD700" }}>{activeSkill.name}</strong>
+                </span>
+                <span style={{
+                  fontSize: "0.60rem",
+                  fontWeight: 700,
+                  padding: "2px 6px",
+                  borderRadius: "3px",
+                  background: "#251B12",
+                  border: "1px solid #8C6239",
+                  color: hasUsedAbilityThisTurn ? "#C8B293" : (canUseAbilityNow ? "#FFD700" : "#FCA5A5")
+                }}>
+                  {hasUsedAbilityThisTurn ? "✓ Used" : abilityBadge}
+                </span>
               </div>
-            ) : (
-              <>
-                <div style={{ fontSize: "0.68rem", color: "#C8B293", marginBottom: "8px", lineHeight: 1.3 }}>
-                  {activeSkill.description}
+
+              {hasUsedAbilityThisTurn ? (
+                <div style={{ fontSize: "0.68rem", color: "#8C7764", fontStyle: "italic" }}>
+                  ✓ {activeSkill.name} was already activated this turn.
                 </div>
-                <button
-                  className="btn btn-primary"
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    fontSize: "0.74rem",
-                    fontWeight: 700,
-                    borderRadius: "4px",
-                    background: canUseAbilityNow ? "linear-gradient(180deg, #4D3826 0%, #352518 100%)" : "#221913",
-                    border: canUseAbilityNow ? "2px solid #F5C442" : "1.5px solid #4A3423",
-                    color: canUseAbilityNow ? "#FFD700" : "#735E4E",
-                    boxShadow: canUseAbilityNow ? "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 3px 0 #120E0A" : "none",
-                    opacity: canUseAbilityNow ? 1 : 0.6,
-                    cursor: canUseAbilityNow ? "pointer" : "not-allowed"
-                  }}
-                  disabled={!canUseAbilityNow}
-                  title={abilityStatusText}
-                  onClick={() => { sounds.abilityActivate?.(); onUseSkill(); }}
-                >
-                  <span>✨ ACTIVATE {activeSkill.name.toUpperCase()} ({abilityBadge})</span>
-                </button>
-              </>
-            )}
-          </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: "0.68rem", color: "#C8B293", marginBottom: "8px", lineHeight: 1.3 }}>
+                    {activeSkill.description}
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      fontSize: "0.74rem",
+                      fontWeight: 700,
+                      borderRadius: "4px",
+                      background: canUseAbilityNow ? "linear-gradient(180deg, #4D3826 0%, #352518 100%)" : "#221913",
+                      border: canUseAbilityNow ? "2px solid #F5C442" : "1.5px solid #4A3423",
+                      color: canUseAbilityNow ? "#FFD700" : "#735E4E",
+                      boxShadow: canUseAbilityNow ? "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 3px 0 #120E0A" : "none",
+                      opacity: canUseAbilityNow ? 1 : 0.6,
+                      cursor: canUseAbilityNow ? "pointer" : "not-allowed"
+                    }}
+                    disabled={!canUseAbilityNow}
+                    title={abilityStatusText}
+                    onClick={() => { sounds.abilityActivate?.(); onUseSkill(); }}
+                  >
+                    <span>✨ ACTIVATE {activeSkill.name.toUpperCase()} ({abilityBadge})</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           {/* CONTEXTUAL ACTIONS: RELIC RETURN & TIME WARP */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "10px" }}>

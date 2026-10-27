@@ -12,6 +12,13 @@ export function getGuiScale() {
     if (saved) {
       const parsed = parseFloat(saved);
       if (!isNaN(parsed) && parsed >= 0.7 && parsed <= 1.6) {
+        // If on small mobile device/viewport and saved scale was set on desktop (> 1.05),
+        // do not inherit bloated desktop zoom on mobile screen unless explicitly set on mobile
+        const isMobileScreen = window.innerWidth <= 768 || window.innerHeight <= 550;
+        const hasMobileOverride = localStorage.getItem('panahon_gui_scale_mobile_override');
+        if (isMobileScreen && parsed > 1.05 && !hasMobileOverride) {
+          return DEFAULT_SCALE;
+        }
         return parsed;
       }
     }
@@ -24,6 +31,10 @@ export function setGuiScale(scale) {
   const clamped = Math.min(1.5, Math.max(0.75, Number(scale) || DEFAULT_SCALE));
   try {
     localStorage.setItem(STORAGE_KEY, String(clamped));
+    const isMobileScreen = window.innerWidth <= 768 || window.innerHeight <= 550;
+    if (isMobileScreen) {
+      localStorage.setItem('panahon_gui_scale_mobile_override', 'true');
+    }
   } catch (_) {}
 
   // Apply directly to root document element for 1-to-1 native zoom equivalent
@@ -40,6 +51,9 @@ export function setGuiScale(scale) {
 }
 
 export function resetGuiScale() {
+  try {
+    localStorage.removeItem('panahon_gui_scale_mobile_override');
+  } catch (_) {}
   const res = setGuiScale(DEFAULT_SCALE);
   try {
     sounds.btnClick?.();

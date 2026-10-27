@@ -15,6 +15,7 @@ export class NetworkManager {
     this.supabase = null;
     this.roomCode = null;
     this.playerId = null;
+    this.initialPlayerId = null;
     this.isHost = false;
     this.players = [];
     this.chatMessages = [];
@@ -42,6 +43,8 @@ export class NetworkManager {
     this.onRoomJoined = null;
     this.onGameStart = null;
     this.onConnectionStatus = null;
+    this.onInitiativeAction = null;
+    this.onTurnOrderSet = null;
   }
 
   setMode(mode) {
@@ -51,6 +54,10 @@ export class NetworkManager {
   isMyTurn(playerIdx) {
     if (this.isSpectator) return false;
     if (this.mode === 'local') return true;
+    const currP = this.engine?.getCurrentPlayer?.();
+    if (currP && currP.id !== undefined) {
+      return currP.id === this.playerId;
+    }
     return playerIdx === this.playerId;
   }
 
@@ -78,6 +85,7 @@ export class NetworkManager {
     this.mode = 'online';
     this.isHost = true;
     this.playerId = 0;
+    this.initialPlayerId = 0;
     this.myPlayerName = playerName;
     this.myRoleKey = roleKey;
     this.roomCode = this.generateRoomCode();
@@ -209,6 +217,7 @@ export class NetworkManager {
               assignedId++;
             }
             this.playerId = assignedId;
+            this.initialPlayerId = assignedId;
 
             const myPlayerObj = {
               id: assignedId,
@@ -757,6 +766,7 @@ export class NetworkManager {
     this.mode = 'online';
     this.roomCode = (onlineInfo.roomCode || '').trim().toUpperCase();
     this.playerId = typeof onlineInfo.playerId === 'number' ? onlineInfo.playerId : 0;
+    this.initialPlayerId = this.playerId;
     this.isHost = Boolean(onlineInfo.isHost);
     this.myPlayerName = onlineInfo.playerName || 'Castaway';
     this.myRoleKey = onlineInfo.roleKey || 'HISTORIAN';
@@ -1068,10 +1078,36 @@ export class NetworkManager {
 
   executeRemoteAction(action) {
     if (!action) return;
+
+    if (this.onInitiativeAction && action.type && action.type.startsWith('INITIATIVE_')) {
+      try {
+        this.onInitiativeAction(action);
+      } catch (err) {
+        console.error('[Network] onInitiativeAction error:', err);
+      }
+      return;
+    }
+
     switch (action.type) {
       case 'SET_TURN_ORDER':
         if (Array.isArray(action.orderedPlayers)) {
           this.engine.setPlayerTurnOrder(action.orderedPlayers);
+          // Re-sync local playerId to my character's new ID
+          if (this.engine.state.players) {
+            const myNewP = this.engine.state.players.find(p => 
+              (this.myPlayerName && p.name === this.myPlayerName) ||
+              (this.initialPlayerId !== null && p.connectionId === this.initialPlayerId)
+            );
+            if (myNewP) {
+              this.playerId = myNewP.id;
+            }
+            this.engine.state.players.forEach(p => {
+              p.isLocal = !this.isSpectator && (p.id === this.playerId);
+            });
+          }
+          if (this.onTurnOrderSet) {
+            this.onTurnOrderSet(action.orderedPlayers);
+          }
         }
         break;
       case 'SKIP_TURN': {
@@ -1087,11 +1123,26 @@ export class NetworkManager {
       case 'ROLL_DICE':
         sounds.diceRoll();
         if (action.result) {
+          const player = this.engine.getCurrentPlayer();
+          const bonus = (this.engine.state.momentumActive || player.roleKey === 'EXPLORER')
+            ? (player.bonusMoves || (this.engine.state.momentumActive ? 2 : 0))
+            : (player.bonusMoves || 0);
+
           this.engine.state.diceResult = action.result;
-          this.engine.state.movesRemaining = action.result;
+          this.engine.state.initialRoll = action.result;
+          this.engine.state.totalMoves = action.result + bonus;
+          this.engine.state.movesRemaining = action.result + bonus;
+          this.engine.state.stepsTakenThisTurn = 0;
+          this.engine.state.hasMovedThisTurn = false;
           this.engine.state.movementDirection = 'forward';
+          player.bonusMoves = 0;
           this.engine.state.phase = 'moving';
-          this.engine.addLog('dice', `${this.engine.getCurrentPlayer().name} rolled a ${action.result}!`);
+
+          if (bonus > 0) {
+            this.engine.addLog('dice', `🎲 ${player.name} rolled a ${action.result} (+${bonus} Momentum Surge = ${action.result + bonus} Total Spaces)!`);
+          } else {
+            this.engine.addLog('dice', `🎲 ${player.name} rolled a ${action.result}!`);
+          }
           this.engine.notify();
         } else {
           this.engine.rollDice();

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import sounds from '../sound.js';
-import { ROLES } from '../gameData.js';
+import { ROLES, ROLE_ORDER } from '../gameData.js';
 import { getSavedProfile } from '../sessionManager.js';
 
 export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess }) {
@@ -12,7 +12,14 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
   const [onlineSelectedRole, setOnlineSelectedRole] = useState(() => {
     return getSavedProfile().roleKey;
   });
-  const [onlineRoomCodeInput, setOnlineRoomCodeInput] = useState('');
+  const [onlineRoomCodeInput, setOnlineRoomCodeInput] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      return (p.get('room') || p.get('join') || '').toUpperCase().trim();
+    } catch {
+      return '';
+    }
+  });
   const [spectators, setSpectators] = useState([]);
   const [isSpectator, setIsSpectator] = useState(false);
   const [canSpectatePrompt, setCanSpectatePrompt] = useState(null);
@@ -34,7 +41,7 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
       const otherPlayers = currentRoomPlayers.filter((p) => p.name !== onlinePlayerName);
       const otherRoles = new Set(otherPlayers.map((p) => p.roleKey));
       if (otherRoles.has(onlineSelectedRole)) {
-        const available = ['HISTORIAN', 'EXPLORER', 'GUARDIAN', 'STRATEGIST'].find((rk) => !otherRoles.has(rk));
+        const available = ROLE_ORDER.find((rk) => !otherRoles.has(rk));
         if (available) {
           setOnlineSelectedRole(available);
         }

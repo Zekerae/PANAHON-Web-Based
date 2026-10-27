@@ -2,9 +2,25 @@ import { getSavedProfile } from '../sessionManager.js';
 
 const initialProfile = getSavedProfile();
 
+function getInitialScreen() {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    if (p.has('room') || p.has('join')) return 'lobby';
+  } catch {}
+  return 'title';
+}
+
+function getInitialLobbyMode() {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    if (p.has('room') || p.has('join') || p.get('mode') === 'online') return 'online';
+  } catch {}
+  return 'local';
+}
+
 export const initialAppState = {
-  currentScreen: 'title', // 'title' | 'lobby' | 'game' | 'endgame' | 'map-editor'
-  lobbyMode: 'local', // 'local' | 'online'
+  currentScreen: getInitialScreen(), // 'title' | 'lobby' | 'game' | 'endgame' | 'map-editor'
+  lobbyMode: getInitialLobbyMode(), // 'local' | 'online'
   showGuide: false,
   maximizedCardData: null,
   isSpectator: false,

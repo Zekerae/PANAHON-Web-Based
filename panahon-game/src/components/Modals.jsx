@@ -1,10 +1,184 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import sounds from '../sound.js';
-import { ERA_NAMES } from '../gameData.js';
+import { ERA_NAMES, ARTIFACTS } from '../gameData.js';
 import Dice from './game/Dice';
 
 export function MaximizedCardPreview({ data, onClose }) {
   if (!data) return null;
+
+  if (data.isAbilityActivate) {
+    const pName = data.playerName || 'Operative';
+    const pAvatar = data.playerAvatar || 'assets/Characters/Copy of adventurer.png';
+    const pColor = data.playerColor || '#38BDF8';
+    const pRole = data.playerRole || 'Operative';
+
+    const abilityKey = data.abilityKey || 'GENERIC';
+    const isMomentum = abilityKey === 'MOMENTUM';
+    const isTrap = abilityKey === 'TEMPORAL_TRAP';
+    const isRepair = abilityKey === 'TEMPORAL_REPAIR';
+    const isPickpocket = abilityKey === 'PICKPOCKET' || abilityKey === 'SHADOW_POCKETS';
+    const isDecoyDiscard = abilityKey === 'DECOY_DISCARD';
+    const isForesight = abilityKey === 'TEMPORAL_FORESIGHT';
+    const isReverseTime = abilityKey === 'REVERSE_TIME';
+
+    const themeClass = isMomentum
+      ? 'theme-momentum'
+      : (isTrap
+        ? 'theme-trap'
+        : (isRepair
+          ? 'theme-repair'
+          : (isPickpocket
+            ? 'theme-pickpocket'
+            : (isDecoyDiscard
+              ? 'theme-decoy'
+              : (isForesight
+                ? 'theme-foresight'
+                : 'theme-reverse')))));
+
+    const icon = isMomentum
+      ? '⚡'
+      : (isTrap
+        ? '🕸️'
+        : (isRepair
+          ? '✨'
+          : (isPickpocket
+            ? '🗡️'
+            : (isDecoyDiscard
+              ? '📜'
+              : (isForesight
+                ? '🔮'
+                : '⏪')))));
+
+    return (
+      <div className={`modal-overlay ability-immersion-overlay ${themeClass}`} style={{ zIndex: 10000 }}>
+        <div className="ability-vignette-backdrop" />
+        <div className="modal ability-immersion-modal card-preview-modal" style={{ maxWidth: "520px", width: "92%", animation: "modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+          <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
+          <div className="ability-modal-header">
+            <div className="ability-header-badge">
+              <span>{icon}</span>
+              <span>{data.subtitle || 'ABILITY INSPECTION'}</span>
+              <span>{icon}</span>
+            </div>
+            <div className="ability-modal-title">{data.title}</div>
+          </div>
+
+          <div className="modal-body ability-modal-body">
+            <div className="ability-showcase-stage">
+              <div className="ability-single-operative">
+                <div className="ability-avatar-large-wrap" style={{ borderColor: pColor, boxShadow: `0 0 24px ${pColor}, inset 0 0 14px ${pColor}` }}>
+                  <img src={pAvatar} alt={pName} className="operative-large-img" />
+                  <div className="ability-floating-icon">{icon}</div>
+                </div>
+                <div className="ability-hero-caption">
+                  <div className="hero-name" style={{ color: pColor }}>{pName}</div>
+                  <div className="hero-class">{pRole}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="ability-lore-card">
+              <div className="ability-lore-text">{data.description}</div>
+            </div>
+          </div>
+
+          <div className="modal-actions ability-modal-actions">
+            <button className="btn btn-primary ability-confirm-btn" onClick={() => { sounds.btnClick(); onClose(); }}>
+              Close Inspection
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (!data) return null;
+
+  if (data.isTimeStop) {
+    const casterName = data.casterName || 'Chronomancer';
+    const casterAvatar = data.casterAvatar || 'assets/Characters/chronomancer_128x128.png';
+    const casterColor = data.casterColor || '#38BDF8';
+    const casterRole = data.casterRole || 'CHRONOMANCER';
+
+    const victimName = data.victimName || data.playerName || 'Operative';
+    const victimAvatar = data.victimAvatar || 'assets/Characters/adventurer_128x128.png';
+    const victimColor = data.victimColor || '#FDA4AF';
+    const victimRole = data.victimRole || 'Operative';
+
+    return (
+      <div className="modal-overlay timestop-modal-overlay" style={{ zIndex: 10000 }}>
+        <div className="timestop-frost-vignette" />
+        <div className="modal timestop-card-modal card-preview-modal" style={{ maxWidth: "520px", width: "92%", animation: "modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+          <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
+          <div className="timestop-header">
+            <div className="timestop-header-badge">
+              <span>⏳</span>
+              <span>TEMPORAL STASIS</span>
+              <span>⏳</span>
+            </div>
+            <div className="timestop-title">⌛ TIME STOPPED! ⌛</div>
+            <div className="timestop-subtitle">CHRONOMANCER'S TIME WEAVING MAGIC</div>
+          </div>
+
+          <div className="modal-body timestop-modal-body" style={{ textAlign: "center" }}>
+            <div className="timestop-chamber-stage">
+              <div className="timestop-operative-card caster-operative">
+                <div className="operative-role-tag" style={{ color: casterColor }}>CASTER</div>
+                <div className="operative-portrait-wrap">
+                  <img src={casterAvatar} alt={casterName} className="operative-img" />
+                </div>
+                <div className="operative-name" style={{ color: casterColor }}>{casterName}</div>
+                <div className="operative-class-badge">{casterRole}</div>
+              </div>
+
+              <div className="timestop-stasis-conduit">
+                <div className="stasis-rune-orb">
+                  <span className="stasis-rune-glyph">⌛</span>
+                </div>
+                <div className="stasis-beam-status">TIME FREEZE</div>
+              </div>
+
+              <div className="timestop-operative-card victim-operative frozen">
+                <div className="operative-role-tag" style={{ color: '#EF4444' }}>FROZEN TARGET</div>
+                <div className="operative-portrait-wrap frozen-portrait">
+                  <img src={victimAvatar} alt={victimName} className="operative-img frozen-sprite" />
+                  <div className="stasis-ice-crystal" />
+                </div>
+                <div className="operative-name" style={{ color: victimColor }}>{victimName}</div>
+                <div className="operative-class-badge frozen-badge">TURN SKIPPED</div>
+              </div>
+            </div>
+
+            <div className="timestop-lore-box">
+              <div className="timestop-lore-desc">
+                {data.description || `<strong>${victimName}</strong> was caught in Chronomancer <strong>${casterName}</strong>'s temporal freeze! All movement is locked in stasis—their next turn is skipped.`}
+              </div>
+            </div>
+
+            <div className="timestop-specs-grid">
+              <div className="timestop-spec-item">
+                <div className="spec-label">CASTER</div>
+                <div className="spec-val" style={{ color: '#FFD700' }}>{casterName}</div>
+              </div>
+              <div className="timestop-spec-item">
+                <div className="spec-label">EFFECT</div>
+                <div className="spec-val" style={{ color: '#EF4444' }}>TURN SKIPPED</div>
+              </div>
+              <div className="timestop-spec-item">
+                <div className="spec-label">DURATION</div>
+                <div className="spec-val" style={{ color: '#F59E0B' }}>1 TURN</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="modal-actions timestop-modal-actions">
+            <button className="btn btn-primary timestop-confirm-btn" onClick={() => { sounds.btnClick(); onClose(); }}>
+              CLOSE
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (data.isParadox) {
     const oldP = data.oldParadox ?? 0;
@@ -20,11 +194,11 @@ export function MaximizedCardPreview({ data, onClose }) {
           <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
           <div className="paradox-header">
             <div className="paradox-header-badge">
-              <span className="paradox-bolt">⚡</span>
-              <span>DIMENSIONAL ANOMALY INSPECTION</span>
-              <span className="paradox-bolt">⚡</span>
+              <span>⏳</span>
+              <span>TEMPORAL ANOMALY DETECTED</span>
+              <span>⏳</span>
             </div>
-            <div className="paradox-title">🌀 PARADOX ZONE BREACH! 🌀</div>
+            <div className="paradox-title">🌀 PARADOX BREACH! 🌀</div>
             {data.era && (
               <div className="paradox-sector-tag">
                 TIMELINE SECTOR: <span>{ERA_NAMES[data.era]?.toUpperCase() || data.era}</span> • TILE #{Number(data.tileIndex ?? 0) + 1}
@@ -37,27 +211,33 @@ export function MaximizedCardPreview({ data, onClose }) {
               <div className="paradox-vortex-container">
                 <div className="paradox-vortex-ring ring-outer" />
                 <div className="paradox-vortex-ring ring-inner" />
-                <div className="paradox-vortex-core">
-                  <span className="paradox-vortex-glyph">⏳</span>
+                <div className="paradox-vortex-tile-wrapper">
+                  <img
+                    src="/assets/Tiles/paradox_tile.png"
+                    alt="Paradox Tile"
+                    className="paradox-chamber-tile-img"
+                  />
                 </div>
+                <div className="paradox-lightning-arc arc-1" />
+                <div className="paradox-lightning-arc arc-2" />
               </div>
 
               <div className={`paradox-status-badge ${isCritical ? "status-critical" : (isDangerTriggered ? "status-danger" : "status-warning")}`}>
                 {isCritical
-                  ? "💥 CRITICAL TIMELINE COLLAPSE BREACH (+2 Timeline)"
+                  ? "💥 CRITICAL BREACH (+2 Timeline Meter)"
                   : isDangerTriggered
-                    ? "⚠️ SEVERE INSTABILITY: HAZARD STRIKE IMMINENT"
+                    ? "⚠️ SEVERE INSTABILITY: HAZARD ANOMALY IMMINENT"
                     : newP >= 3
-                      ? "⚡ TEMPORAL FRICTION: -1 ENERGY"
+                      ? "⚡ TEMPORAL DRAIN: -1 ENERGY"
                       : newP >= 2
-                        ? "📉 CAUSAL DISSONANCE: -1 POINT"
-                        : "⚠️ CAUSALITY STRESS: +1 PARADOX"}
+                        ? "📉 CAUSAL DISCORD: -1 POINT"
+                        : "⚠️ TEMPORAL FRICTION (+1 PARADOX)"}
               </div>
             </div>
 
             <div className="paradox-meter-container">
               <div className="paradox-meter-header">
-                <span className="paradox-meter-title">CHRONO-SUIT PARADOX GAUGE</span>
+                <span className="paradox-meter-title">PARADOX METER</span>
                 <span className="paradox-meter-count">
                   <span className="old-count">{oldP}</span>
                   <span className="arrow-sep">➔</span>
@@ -100,6 +280,261 @@ export function MaximizedCardPreview({ data, onClose }) {
 
           <div className="modal-actions paradox-modal-actions">
             <button className="btn btn-primary paradox-stabilize-btn" onClick={() => { sounds.btnClick(); onClose(); }}>
+              Close Inspection
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (data.isDanger) {
+    return (
+      <div className="modal-overlay danger-modal-overlay" style={{ zIndex: 10000 }}>
+        <div className="danger-vignette-backdrop" />
+        <div className="modal danger-card-modal card-preview-modal" style={{ maxWidth: "530px", width: "94%", animation: "modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+          <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
+
+          <div className="danger-header">
+            <div className="danger-header-badge">
+              <span>⚠️</span>
+              <span>HISTORICAL HAZARD STRIKE</span>
+              <span>⚠️</span>
+            </div>
+            <div className="danger-title">
+              <span>🚨</span>
+              <span>{data.title || 'HAZARD ANOMALY'}</span>
+              <span>🚨</span>
+            </div>
+            {data.era && (
+              <div className="danger-sector-tag">
+                SECTOR: <span>{ERA_NAMES[data.era]?.toUpperCase() || data.era}</span> • HAZARD STRIKE
+              </div>
+            )}
+          </div>
+
+          <div className="modal-body danger-modal-body">
+            <div className="danger-chamber-stage">
+              <div className="danger-card-frame">
+                {data.image ? (
+                  <img src={data.image} alt={data.title} className="danger-card-img" />
+                ) : (
+                  <div className="danger-fallback-icon">⚠️</div>
+                )}
+                <div className="danger-tile-token">
+                  <img src="/assets/Tiles/danger_tile.png" alt="Danger Tile" className="danger-mini-tile-img" />
+                </div>
+              </div>
+              <div className="danger-status-alert">
+                {data.diceRoll !== null && data.diceRoll !== undefined ? (
+                  data.success ? <span className="text-success">✓ HAZARD EVADED SAFELY</span> : <span className="text-danger">💥 HAZARD PENALTY INFLICTED</span>
+                ) : (
+                  <span>⚠️ SURVIVAL HAZARD CHECK REQUIRED</span>
+                )}
+              </div>
+            </div>
+
+            <div className="danger-lore-box">
+              <div className="danger-lore-title">HAZARD REPORT</div>
+              <div className="danger-lore-desc">{data.description}</div>
+            </div>
+
+            {data.diceRoll !== null && data.diceRoll !== undefined && (
+              <div className={`danger-outcome-plaque ${data.success ? 'outcome-evaded' : 'outcome-failed'}`}>
+                <div className="outcome-dice-wrap">
+                  <Dice value={data.diceRoll} size="sm" theme={data.success ? 'success' : 'hazard'} isInteractive={false} />
+                </div>
+                <div className="outcome-details">
+                  <div className="outcome-verdict">
+                    {data.success ? '✓ HAZARD EVADED!' : '✗ HAZARD TRIGGERED!'}
+                    <span className="outcome-roll-val">(Rolled {data.diceRoll})</span>
+                  </div>
+                  <div className="outcome-msg">
+                    {data.success ? (data.successMsg || 'Survival check passed!') : (data.failMsg || 'Hazard penalty suffered!')}
+                  </div>
+                  {data.guardianReduction && (
+                    <div className="guardian-relief-tag">
+                      🛡️ GUARDIAN MASTERY: Hazard penalty reduced by 1!
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="modal-actions danger-modal-actions">
+            <button className="btn btn-primary danger-continue-btn" onClick={() => { sounds.btnClick(); onClose(); }}>
+              Close Inspection
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (data.isEvent) {
+    return (
+      <div className="modal-overlay event-modal-overlay" style={{ zIndex: 10000 }}>
+        <div className="event-vignette-backdrop" />
+        <div className="modal event-card-modal card-preview-modal" style={{ maxWidth: "530px", width: "94%", animation: "modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+          <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
+
+          <div className="event-header">
+            <div className="event-header-badge">
+              <span>⚡</span>
+              <span>CHRONAL TIMELINE EVENT</span>
+              <span>⚡</span>
+            </div>
+            <div className="event-title">
+              <span>📜</span>
+              <span>{data.title || 'TIMELINE EVENT'}</span>
+              <span>📜</span>
+            </div>
+            {data.era && (
+              <div className="event-sector-tag">
+                HISTORICAL SECTOR: <span>{ERA_NAMES[data.era]?.toUpperCase() || data.era}</span> • CHRONO SHIFT
+              </div>
+            )}
+          </div>
+
+          <div className="modal-body event-modal-body">
+            <div className="event-chamber-stage">
+              <div className="event-card-frame">
+                {data.image ? (
+                  <img src={data.image} alt={data.title} className="event-card-img" />
+                ) : (
+                  <div className="event-fallback-icon">⚡</div>
+                )}
+                <div className="event-tile-token">
+                  <img src="/assets/Tiles/event_tile.png" alt="Event Tile" className="event-mini-tile-img" />
+                </div>
+              </div>
+              <div className="event-interference-tag">
+                <span>🌀</span>
+                <span>TIMELINE INTERFERENCE FLUX APPLIED</span>
+              </div>
+            </div>
+
+            <div className="event-lore-box">
+              <div className="event-lore-title">HISTORICAL DIVERGENCE REPORT</div>
+              <div className="event-lore-desc">{data.description}</div>
+            </div>
+
+            {data.resultText && (
+              <div className="event-consequence-plaque">
+                <div className="consequence-label">CHRONO RESOLUTION RESULT</div>
+                <div className="consequence-text">⚡ {data.resultText}</div>
+              </div>
+            )}
+          </div>
+
+          <div className="modal-actions event-modal-actions">
+            <button className="btn btn-primary event-confirm-btn" onClick={() => { sounds.btnClick(); onClose(); }}>
+              Close Inspection
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (data.isClue) {
+    const isDecoy = data.isDecoy || data.cardType === 'Decoy Card' || data.title?.includes('Decoy');
+    const clueCount = data.clueCount ?? 1;
+    const maxClues = data.maxClues ?? 5;
+    const relicName = data.artifactName || (data.artifactId && ARTIFACTS[data.era]?.find(a => a.id === data.artifactId)?.name) || 'Historical Relic';
+    const progressCount = data.artifactProgress ?? 1;
+
+    return (
+      <div className="modal-overlay clue-modal-overlay" style={{ zIndex: 10000 }}>
+        <div className="clue-vignette-backdrop" />
+        <div className="modal clue-card-modal card-preview-modal" style={{ maxWidth: "530px", width: "94%", animation: "modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+          <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
+
+          <div className="clue-header">
+            <div className="clue-header-badge">
+              <span>📜</span>
+              <span>HISTORICAL INTEL DISCOVERY</span>
+              <span>📜</span>
+            </div>
+            <div className="clue-title">
+              <span>🔍</span>
+              <span>{data.title || (isDecoy ? 'DECOY ANOMALY!' : 'CLUE FOUND!')}</span>
+              <span>🔍</span>
+            </div>
+            {data.era && (
+              <div className="clue-sector-tag">
+                TIMELINE SECTOR: <span>{ERA_NAMES[data.era]?.toUpperCase() || data.era}</span> • ARCHIVAL INTEL
+              </div>
+            )}
+          </div>
+
+          <div className="modal-body clue-modal-body">
+            <div className="clue-chamber-stage">
+              <div className="clue-card-frame">
+                {data.image ? (
+                  <img src={data.image} alt={data.title} className="clue-card-img" />
+                ) : (
+                  <div className="clue-fallback-icon">🔍</div>
+                )}
+                <div className="clue-tile-token">
+                  <img src="/assets/Tiles/clue_tile.png" alt="Clue Tile" className="clue-mini-tile-img" />
+                </div>
+              </div>
+
+              <div className={`clue-seal-badge ${isDecoy ? 'seal-decoy' : 'seal-authentic'}`}>
+                {isDecoy ? (
+                  <span>⚠️ DECOY INTEL — FALSE ANOMALY LEAD</span>
+                ) : (
+                  <span>✓ VERIFIED HISTORICAL ARTIFACT CLUE</span>
+                )}
+              </div>
+            </div>
+
+            <div className="clue-lore-box">
+              <div className="clue-lore-title">DECRYPTED FIELD NOTES</div>
+              <div className="clue-lore-desc">{data.description}</div>
+              {data.hint && data.hint !== data.description && (
+                <div className="clue-hint-line">
+                  <span>💡</span> <em>Context: {data.hint}</em>
+                </div>
+              )}
+            </div>
+
+            <div className="clue-specs-grid">
+              <div className="clue-spec-item">
+                <div className="spec-label">ASSOCIATED RELIC</div>
+                <div className="spec-val" style={{ color: isDecoy ? '#FCA5A5' : '#FFD700' }}>
+                  {isDecoy ? 'None (Decoy Trail)' : relicName}
+                </div>
+                {!isDecoy && (
+                  <div className="spec-sub">
+                    Intel: <strong>{progressCount} / 3</strong> Fragments
+                  </div>
+                )}
+              </div>
+
+              <div className="clue-spec-item">
+                <div className="spec-label">CLUE SATCHEL</div>
+                <div className="spec-val" style={{ color: '#FDE047' }}>
+                  {clueCount} / {maxClues} HELD
+                </div>
+                <div className="satchel-pip-row">
+                  {[...Array(maxClues)].map((_, i) => (
+                    <span
+                      key={i}
+                      className={`satchel-pip ${i < clueCount ? 'pip-filled' : 'pip-empty'}`}
+                    >
+                      {i < clueCount ? '📜' : '⬝'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="modal-actions clue-modal-actions">
+            <button className="btn btn-primary clue-confirm-btn" onClick={() => { sounds.btnClick(); onClose(); }}>
               Close Inspection
             </button>
           </div>
@@ -191,14 +626,19 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   const isClue = modal.isClue || modal.cardType === 'Clue Card' || modal.cardType === 'Decoy Card';
   const isTemporalOccurrence = modal.title === 'Temporal Occurrence!' || (modal.description && modal.description.includes('Temporal Occurrence'));
   const isParadox = modal.type === 'paradox' || modal.title === 'Paradox Zone Breach!';
+  const isTimeStop = modal.type === 'timeStop' || modal.title?.includes('Time Stop') || modal.title?.includes('TEMPORAL STASIS');
+  const isAbilityActivate = modal.type === 'abilityActivate';
+
+  // In local mode or when user is victim/caster, treat as time stop for me
+  const isTimeStopForMe = isTimeStop && (!isOnline || network?.playerId === modal.victimId || network?.playerId === modal.playerId);
 
   // Hide other players' and bots' clue cards (unless observing as spectator)
   const isSecretToMe = isClue && !isMyCard && !isSpectator;
 
-  // Duration: 6.0 seconds for Event / Danger cards, 5.5s for Artifacts, 4.5s for Clues/Info
+  // Duration: 6.0 seconds for Event / Danger / TimeStop cards, 5.5s for Artifacts, 4.5s for Clues/Info
   const speed = engine?.simulationSpeed || 1;
-  const durationMs = (isDanger || isEvent || isParadox)
-    ? Math.max(3000, Math.round(6000 / speed))
+  const durationMs = (isDanger || isEvent || isParadox || isTimeStop)
+    ? Math.max(3500, Math.round(6500 / speed))
     : (isArtifact ? Math.max(2600, Math.round(5500 / speed)) : Math.max(2200, Math.round(4500 / speed)));
 
   const [isHovered, setIsHovered] = useState(false);
@@ -242,11 +682,36 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     onDismissRef.current = onDismiss;
   }, [onDismiss]);
 
+  // Immersion sound effects on tile landing
+  useEffect(() => {
+    if (isClue && !isTemporalOccurrence && !isParadox && !isTimeStop && !isAbilityActivate) {
+      sounds.clueDiscovery?.() || sounds.clue?.();
+    }
+  }, [isClue, isTemporalOccurrence, isParadox, isTimeStop, isAbilityActivate, modal?._timestamp, modal?.title]);
+
+  useEffect(() => {
+    if (isEvent && !isTemporalOccurrence && !isParadox && !isTimeStop && !isAbilityActivate) {
+      sounds.eventTrigger?.();
+    }
+  }, [isEvent, isTemporalOccurrence, isParadox, isTimeStop, isAbilityActivate, modal?._timestamp, modal?.title]);
+
+  useEffect(() => {
+    if (isDanger && !isTemporalOccurrence && !isParadox && !isTimeStop && !isAbilityActivate) {
+      sounds.dangerAlarm?.() || sounds.danger?.();
+    }
+  }, [isDanger, isTemporalOccurrence, isParadox, isTimeStop, isAbilityActivate, modal?._timestamp, modal?.title]);
+
   useEffect(() => {
     if (isTemporalOccurrence) {
       sounds.timeRift?.();
     }
   }, [isTemporalOccurrence]);
+
+  useEffect(() => {
+    if (isTimeStop) {
+      sounds.timeFreeze?.() || sounds.timeRift?.();
+    }
+  }, [isTimeStop]);
 
   useEffect(() => {
     if (isParadox) {
@@ -257,6 +722,35 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
       return () => clearTimeout(t);
     }
   }, [isParadox]);
+
+  useEffect(() => {
+    if (isAbilityActivate) {
+      switch (modal.abilityKey) {
+        case 'MOMENTUM':
+          sounds.momentumSurge?.();
+          break;
+        case 'TEMPORAL_TRAP':
+          sounds.trapPlant?.();
+          break;
+        case 'TEMPORAL_REPAIR':
+          sounds.holyRepair?.();
+          break;
+        case 'PICKPOCKET':
+        case 'SHADOW_POCKETS':
+          sounds.shadowSwipe?.();
+          break;
+        case 'DECOY_DISCARD':
+          sounds.decipherScroll?.();
+          break;
+        case 'TEMPORAL_FORESIGHT':
+        case 'REVERSE_TIME':
+          sounds.chronalRewind?.();
+          break;
+        default:
+          sounds.abilityActivate?.();
+      }
+    }
+  }, [isAbilityActivate, modal?.abilityKey]);
 
   useEffect(() => {
     startTimeRef.current = Date.now();
@@ -315,9 +809,10 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     onDismissRef.current?.();
   }, [network, modal.playerId, engine]);
 
-  // Spacebar and Enter shortcut for active player to stabilize paradox suit
+  // Spacebar and Enter shortcut for active player / victim to acknowledge modals when not waiting for a die roll
   useEffect(() => {
-    if (!isParadox || isOtherPlayer) return;
+    if (isDanger && modal?.needsRoll && !isOtherPlayer) return; // Handled by handleRollDanger
+    if (isOtherPlayer && (!isTimeStop || !isTimeStopForMe)) return;
     const handleKeyDown = (e) => {
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
@@ -326,25 +821,33 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isParadox, isOtherPlayer, handleDismiss]);
+  }, [isDanger, modal?.needsRoll, isOtherPlayer, isTimeStop, isTimeStopForMe, handleDismiss]);
 
-  if (isOtherPlayer) {
-    const cardClass = isParadox
-      ? 'side-card-paradox danger-card'
-      : (isTemporalOccurrence
-        ? 'side-card-temporal event-card'
-        : (isDanger
-          ? 'side-card-danger danger-card'
-          : (isEvent
-            ? 'side-card-event event-card'
-            : (isArtifact
-              ? 'side-card-artifact artifact-card'
-              : 'side-card-clue clue-card'))));
-    const timerFillGradient = isParadox
-      ? 'linear-gradient(90deg, #D946EF, #9333EA)'
-      : (isDanger
-        ? 'linear-gradient(90deg, #EF4444, #F97316)'
-        : (isEvent ? 'linear-gradient(90deg, #F59E0B, #FCD34D)' : (isArtifact ? 'linear-gradient(90deg, #10B981, #34D399)' : 'linear-gradient(90deg, #3B82F6, #60A5FA)')));
+  if (isOtherPlayer && (!isTimeStop || !isTimeStopForMe)) {
+    const cardClass = isTimeStop
+      ? 'side-card-timestop event-card'
+      : (isAbilityActivate
+        ? 'side-card-ability event-card'
+        : (isParadox
+          ? 'side-card-paradox danger-card'
+          : (isTemporalOccurrence
+            ? 'side-card-temporal event-card'
+            : (isDanger
+              ? 'side-card-danger danger-card'
+              : (isEvent
+                ? 'side-card-event event-card'
+                : (isArtifact
+                  ? 'side-card-artifact artifact-card'
+                  : 'side-card-clue clue-card'))))));
+    const timerFillGradient = isTimeStop
+      ? 'linear-gradient(90deg, #00FFFF, #0E7490)'
+      : (isAbilityActivate
+        ? (modal.playerColor ? `linear-gradient(90deg, ${modal.playerColor}, #F59E0B)` : 'linear-gradient(90deg, #38BDF8, #6366F1)')
+        : (isParadox
+          ? 'linear-gradient(90deg, #D946EF, #9333EA)'
+          : (isDanger
+            ? 'linear-gradient(90deg, #EF4444, #F97316)'
+            : (isEvent ? 'linear-gradient(90deg, #F59E0B, #FCD34D)' : (isArtifact ? 'linear-gradient(90deg, #10B981, #34D399)' : 'linear-gradient(90deg, #3B82F6, #60A5FA)')))));
 
     const isSecretClue = isSecretToMe;
     const displayCardType = isSecretClue ? 'Secret Clue' : (modal.cardType || modal.title);
@@ -359,7 +862,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
       if (isSecretClue) return;
       onMaximize({
         title: modal.title,
-        cardType: modal.cardType || (isParadox ? '🌀 Temporal Paradox Node' : (isDanger ? 'Hazard Anomaly' : (isEvent ? 'Temporal Event' : 'Intel Card'))),
+        cardType: modal.cardType || (isTimeStop ? '⌛ Temporal Stasis Field' : (isParadox ? '🌀 Temporal Paradox Node' : (isDanger ? 'Hazard Anomaly' : (isEvent ? 'Temporal Event' : 'Intel Card')))),
         description: modal.description,
         image: modal.image,
         diceRoll: modal.diceRoll,
@@ -370,6 +873,27 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         isDanger,
         isEvent,
         isParadox,
+        isTimeStop,
+        isClue,
+        isDecoy: modal.isDecoy,
+        hint: modal.hint,
+        artifactId: modal.artifactId,
+        artifactName: modal.artifactName,
+        clueCount: modal.clueCount,
+        maxClues: modal.maxClues,
+        artifactProgress: modal.artifactProgress,
+        resultText: modal.resultText,
+        cardName: modal.cardName,
+        cardNickname: modal.cardNickname,
+        guardianReduction: modal.guardianReduction,
+        victimName: modal.victimName,
+        victimAvatar: modal.victimAvatar,
+        victimRole: modal.victimRole,
+        victimColor: modal.victimColor,
+        casterName: modal.casterName,
+        casterAvatar: modal.casterAvatar,
+        casterRole: modal.casterRole,
+        casterColor: modal.casterColor,
         oldParadox: modal.oldParadox,
         newParadox: modal.newParadox,
         maxParadox: modal.maxParadox,
@@ -447,6 +971,11 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
             {isSecretClue && (
               <div style={{ fontSize: '1.4rem', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '4px', flexShrink: 0 }}>
                 ⏳
+              </div>
+            )}
+            {isTimeStop && !previewImage && (
+              <div style={{ fontSize: '1.4rem', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(6, 182, 212, 0.2)', border: '1.5px solid #22D3EE', borderRadius: '4px', flexShrink: 0, boxShadow: '0 0 10px rgba(34, 211, 238, 0.4)' }}>
+                ⌛
               </div>
             )}
             {isParadox && !previewImage && (
@@ -628,6 +1157,359 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     );
   }
 
+  if (isTimeStop) {
+    const casterName = modal.casterName || 'Chronomancer';
+    const casterAvatar = modal.casterAvatar || 'assets/Characters/chronomancer_128x128.png';
+    const casterColor = modal.casterColor || '#38BDF8';
+    const casterRole = modal.casterRole || 'CHRONOMANCER';
+
+    const victimName = modal.victimName || drawingPlayer?.name || 'Operative';
+    const victimAvatar = modal.victimAvatar || drawingPlayer?.role?.avatar || 'assets/Characters/Copy of adventurer.png';
+    const victimColor = modal.victimColor || drawingPlayer?.color || '#FDA4AF';
+    const victimRole = modal.victimRole || drawingPlayer?.role?.name || drawingPlayer?.roleKey || 'Operative';
+
+    return (
+      <div className="modal-overlay timestop-modal-overlay" id="active-modal">
+        <div className="timestop-frost-vignette" />
+        <div className="timestop-shockwave-ring ring-1" />
+        <div className="timestop-shockwave-ring ring-2" />
+        <div className="timestop-clock-gears">
+          <div className="clock-dial">
+            <span className="clock-num num-12">XII</span>
+            <span className="clock-num num-3">III</span>
+            <span className="clock-num num-6">VI</span>
+            <span className="clock-num num-9">IX</span>
+            <div className="clock-hand hand-hour" />
+            <div className="clock-hand hand-minute" />
+            <div className="clock-center-freeze" />
+          </div>
+        </div>
+
+        <div className="modal timestop-card-modal" role="dialog" aria-label="Temporal Stasis (Time Stop)">
+          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+
+          <div className="timestop-header">
+            <div className="timestop-header-badge">
+              <span>⏳</span>
+              <span>TEMPORAL STASIS</span>
+              <span>⏳</span>
+            </div>
+            <div className="timestop-title">⌛ TIME STOPPED! ⌛</div>
+            <div className="timestop-subtitle">
+              CHRONOMANCER'S TIME WEAVING MAGIC
+            </div>
+          </div>
+
+          <div className="modal-body timestop-modal-body">
+            <div className="timestop-chamber-stage">
+              <div className="timestop-operative-card caster-operative">
+                <div className="operative-role-tag" style={{ color: casterColor }}>CASTER</div>
+                <div className="operative-portrait-wrap">
+                  <img src={casterAvatar} alt={casterName} className="operative-img" />
+                </div>
+                <div className="operative-name" style={{ color: casterColor }}>{casterName}</div>
+                <div className="operative-class-badge">{casterRole}</div>
+              </div>
+
+              <div className="timestop-stasis-conduit">
+                <div className="stasis-rune-orb">
+                  <span className="stasis-rune-glyph">⌛</span>
+                </div>
+                <div className="stasis-beam-status">TIME FREEZE</div>
+              </div>
+
+              <div className="timestop-operative-card victim-operative frozen">
+                <div className="operative-role-tag" style={{ color: '#EF4444' }}>FROZEN TARGET</div>
+                <div className="operative-portrait-wrap frozen-portrait">
+                  <img src={victimAvatar} alt={victimName} className="operative-img frozen-sprite" />
+                  <div className="stasis-ice-crystal" />
+                  <div className="stasis-lock-symbol">🔒</div>
+                </div>
+                <div className="operative-name" style={{ color: victimColor }}>{victimName}</div>
+                <div className="operative-class-badge frozen-badge">TURN SKIPPED</div>
+              </div>
+            </div>
+
+            <div className="timestop-lore-box">
+              <div className="timestop-lore-desc">
+                <strong>{victimName}</strong> was caught in Chronomancer <strong>{casterName}</strong>'s temporal freeze! All movement is locked in stasis—their next turn is skipped.
+              </div>
+            </div>
+
+            <div className="timestop-specs-grid">
+              <div className="timestop-spec-item">
+                <div className="spec-label">CASTER</div>
+                <div className="spec-val" style={{ color: '#FFD700' }}>{casterName}</div>
+              </div>
+              <div className="timestop-spec-item">
+                <div className="spec-label">EFFECT</div>
+                <div className="spec-val" style={{ color: '#EF4444' }}>TURN SKIPPED</div>
+              </div>
+              <div className="timestop-spec-item">
+                <div className="spec-label">DURATION</div>
+                <div className="spec-val" style={{ color: '#F59E0B' }}>1 TURN</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="modal-actions timestop-modal-actions">
+            <button className="btn btn-primary timestop-confirm-btn" onClick={handleDismiss}>
+              <span>⌛</span>
+              <span>CONTINUE</span>
+              <kbd className="timestop-kbd">[ SPACE ]</kbd>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAbilityActivate) {
+    const pName = modal.playerName || drawingPlayer?.name || 'Operative';
+    const pAvatar = modal.playerAvatar || drawingPlayer?.role?.avatar || 'assets/Characters/Copy of adventurer.png';
+    const pColor = modal.playerColor || drawingPlayer?.color || '#38BDF8';
+    const pRole = modal.playerRole || drawingPlayer?.role?.name || drawingPlayer?.roleKey || 'Operative';
+
+    const abilityKey = modal.abilityKey || 'GENERIC';
+    const isMomentum = abilityKey === 'MOMENTUM';
+    const isTrap = abilityKey === 'TEMPORAL_TRAP';
+    const isRepair = abilityKey === 'TEMPORAL_REPAIR';
+    const isPickpocket = abilityKey === 'PICKPOCKET' || abilityKey === 'SHADOW_POCKETS';
+    const isDecoyDiscard = abilityKey === 'DECOY_DISCARD';
+    const isForesight = abilityKey === 'TEMPORAL_FORESIGHT';
+    const isReverseTime = abilityKey === 'REVERSE_TIME';
+
+    const themeClass = isMomentum
+      ? 'theme-momentum'
+      : (isTrap
+        ? 'theme-trap'
+        : (isRepair
+          ? 'theme-repair'
+          : (isPickpocket
+            ? 'theme-pickpocket'
+            : (isDecoyDiscard
+              ? 'theme-decoy'
+              : (isForesight
+                ? 'theme-foresight'
+                : 'theme-reverse')))));
+
+    const icon = isMomentum
+      ? '⚡'
+      : (isTrap
+        ? '🕸️'
+        : (isRepair
+          ? '✨'
+          : (isPickpocket
+            ? '🗡️'
+            : (isDecoyDiscard
+              ? '📜'
+              : (isForesight
+                ? '🔮'
+                : '⏪')))));
+
+    return (
+      <div className={`modal-overlay ability-immersion-overlay ${themeClass}`} id="active-modal">
+        <div className="ability-vignette-backdrop" />
+        <div className="ability-shockwave-ring ring-1" />
+        <div className="ability-shockwave-ring ring-2" />
+
+        <div className="modal ability-immersion-modal" role="dialog" aria-label={modal.title}>
+          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+
+          <div className="ability-modal-header">
+            <div className="ability-header-badge">
+              <span>{icon}</span>
+              <span>{modal.subtitle || 'OPERATIVE ABILITY ACTIVATED'}</span>
+              <span>{icon}</span>
+            </div>
+            <div className="ability-modal-title">{modal.title}</div>
+          </div>
+
+          <div className="modal-body ability-modal-body">
+            <div className="ability-showcase-stage">
+              {isPickpocket && modal.victimName ? (
+                <div className="ability-dual-showdown">
+                  <div className="ability-operative-card operative-rogue">
+                    <div className="operative-role-tag" style={{ color: pColor }}>THIEF</div>
+                    <div className="operative-avatar-halo" style={{ borderColor: pColor, boxShadow: `0 0 16px ${pColor}` }}>
+                      <img src={pAvatar} alt={pName} className="operative-hero-img" />
+                    </div>
+                    <div className="operative-hero-name" style={{ color: pColor }}>{pName}</div>
+                    <div className="operative-hero-role">{pRole}</div>
+                  </div>
+
+                  <div className="ability-versus-nexus">
+                    <div className="ability-loot-orb">
+                      <span className="loot-glyph">{modal.stolenType === 'clue' ? '🔍' : '⚡'}</span>
+                    </div>
+                    <div className="ability-beam-label">
+                      {modal.stolenType === 'clue' ? 'CLUE SWIPED' : `${modal.stolenAmount || 2} EN SIPHONED`}
+                    </div>
+                  </div>
+
+                  <div className="ability-operative-card operative-victim">
+                    <div className="operative-role-tag" style={{ color: '#F43F5E' }}>TARGET</div>
+                    <div className="operative-avatar-halo" style={{ borderColor: '#F43F5E', boxShadow: '0 0 16px #F43F5E' }}>
+                      <img src={modal.victimAvatar || 'assets/Characters/Copy of adventurer.png'} alt={modal.victimName} className="operative-hero-img" />
+                    </div>
+                    <div className="operative-hero-name" style={{ color: modal.victimColor || '#FDA4AF' }}>{modal.victimName}</div>
+                    <div className="operative-hero-role">LOOT EXPOSED</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="ability-single-operative">
+                  <div className="ability-avatar-large-wrap" style={{ borderColor: pColor, boxShadow: `0 0 24px ${pColor}, inset 0 0 14px ${pColor}` }}>
+                    <img src={pAvatar} alt={pName} className="operative-large-img" />
+                    <div className="ability-avatar-orbit-ring" />
+                    <div className="ability-floating-icon">{icon}</div>
+                  </div>
+                  <div className="ability-hero-caption">
+                    <div className="hero-name" style={{ color: pColor }}>{pName}</div>
+                    <div className="hero-class">{pRole}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="ability-lore-card">
+              <div className="ability-lore-text">
+                {modal.description}
+              </div>
+            </div>
+
+            <div className="ability-stats-grid">
+              {isMomentum && (
+                <>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">BONUS MOVES</span>
+                    <span className="pill-val" style={{ color: '#38BDF8' }}>+2 Spaces</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">ACCELERATION</span>
+                    <span className="pill-val" style={{ color: '#FCD34D' }}>Hyper-Sonic</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">ENERGY COST</span>
+                    <span className="pill-val" style={{ color: '#60A5FA' }}>-2 Energy</span>
+                  </div>
+                </>
+              )}
+
+              {isTrap && (
+                <>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">MINE SPACE</span>
+                    <span className="pill-val" style={{ color: '#F59E0B' }}>Tile #{Number(modal.tileIndex ?? 0) + 1}</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">STATUS</span>
+                    <span className="pill-val" style={{ color: '#EF4444' }}>Armed & Lethal</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">TRAP MASTERY</span>
+                    <span className="pill-val" style={{ color: '#10B981' }}>+1 En on Trigger</span>
+                  </div>
+                </>
+              )}
+
+              {isRepair && (
+                <>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">REPAIR FOCUS</span>
+                    <span className="pill-val" style={{ color: '#10B981' }}>{modal.mode === 'reduceEnergy' ? 'Mend Paradox' : 'Recharge Energy'}</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">TIMELINE STABILITY</span>
+                    <span className="pill-val" style={{ color: '#34D399' }}>Restored</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">CHRONO-CORE</span>
+                    <span className="pill-val" style={{ color: '#6EE7B7' }}>Shields Online</span>
+                  </div>
+                </>
+              )}
+
+              {isPickpocket && (
+                <>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">MARK</span>
+                    <span className="pill-val" style={{ color: '#C084FC' }}>{modal.victimName || 'Operative'}</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">SWIPED</span>
+                    <span className="pill-val" style={{ color: '#F472B6' }}>{modal.stolenType === 'clue' ? '1 Clue Card' : `${modal.stolenAmount || 2} Energy`}</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">STEALTH</span>
+                    <span className="pill-val" style={{ color: '#A855F7' }}>Unbroken</span>
+                  </div>
+                </>
+              )}
+
+              {isDecoyDiscard && (
+                <>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">DECOY STATUS</span>
+                    <span className="pill-val" style={{ color: '#F59E0B' }}>Neutralized</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">ARCHIVE DESTINY</span>
+                    <span className="pill-val" style={{ color: '#10B981' }}>Burned to Ash</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">HAND CAPACITY</span>
+                    <span className="pill-val" style={{ color: '#EBD07D' }}>Preserved</span>
+                  </div>
+                </>
+              )}
+
+              {isForesight && (
+                <>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">ORIGINAL ROLL</span>
+                    <span className="pill-val" style={{ color: '#94A3B8' }}>{modal.oldRoll ?? '-'}</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">SHIFT</span>
+                    <span className="pill-val" style={{ color: '#22D3EE' }}>{(modal.delta ?? 0) > 0 ? '+1 Space' : '-1 Space'}</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">DESTINY</span>
+                    <span className="pill-val" style={{ color: '#67E8F9' }}>{modal.newRoll ?? '-'} Spaces</span>
+                  </div>
+                </>
+              )}
+
+              {isReverseTime && (
+                <>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">CHRONO COST</span>
+                    <span className="pill-val" style={{ color: '#F43F5E' }}>-3 Energy</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">VECTOR</span>
+                    <span className="pill-val" style={{ color: '#C084FC' }}>Backwards</span>
+                  </div>
+                  <div className="ability-stat-pill">
+                    <span className="pill-label">REWIND DISTANCE</span>
+                    <span className="pill-val" style={{ color: '#EC4899' }}>{modal.movesRemaining ?? '-'} Spaces</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="modal-actions ability-modal-actions">
+            <button className="btn btn-primary ability-confirm-btn" onClick={handleDismiss}>
+              <span>{icon}</span>
+              <span>CONTINUE [ SPACE ]</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isParadox) {
     const oldP = modal.oldParadox ?? 0;
     const newP = modal.newParadox ?? 1;
@@ -646,11 +1528,11 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
 
           <div className="paradox-header">
             <div className="paradox-header-badge">
-              <span className="paradox-bolt">⚡</span>
-              <span>DIMENSIONAL ANOMALY DETECTED</span>
-              <span className="paradox-bolt">⚡</span>
+              <span>⏳</span>
+              <span>TEMPORAL ANOMALY DETECTED</span>
+              <span>⏳</span>
             </div>
-            <div className="paradox-title">🌀 PARADOX ZONE BREACH! 🌀</div>
+            <div className="paradox-title">🌀 PARADOX BREACH! 🌀</div>
             {modal.era && (
               <div className="paradox-sector-tag">
                 TIMELINE SECTOR: <span>{ERA_NAMES[modal.era]?.toUpperCase() || modal.era}</span> • TILE #{Number(modal.tileIndex ?? 0) + 1}
@@ -664,8 +1546,12 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               <div className="paradox-vortex-container">
                 <div className="paradox-vortex-ring ring-outer" />
                 <div className="paradox-vortex-ring ring-inner" />
-                <div className="paradox-vortex-core">
-                  <span className="paradox-vortex-glyph">⏳</span>
+                <div className="paradox-vortex-tile-wrapper">
+                  <img
+                    src="/assets/Tiles/paradox_tile.png"
+                    alt="Paradox Tile"
+                    className="paradox-chamber-tile-img"
+                  />
                 </div>
                 <div className="paradox-lightning-arc arc-1" />
                 <div className="paradox-lightning-arc arc-2" />
@@ -674,21 +1560,21 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               {/* Status Alert Badge */}
               <div className={`paradox-status-badge ${isCritical ? "status-critical" : (isDangerTriggered ? "status-danger" : "status-warning")}`}>
                 {isCritical
-                  ? "💥 CRITICAL TIMELINE COLLAPSE BREACH (+2 Global Timeline Meter)"
+                  ? "💥 CRITICAL BREACH (+2 Timeline Meter)"
                   : isDangerTriggered
                     ? "⚠️ SEVERE INSTABILITY: HAZARD ANOMALY IMMINENT"
                     : newP >= 3
-                      ? "⚡ TEMPORAL FRICTION: -1 ENERGY DRAINED"
+                      ? "⚡ TEMPORAL DRAIN: -1 ENERGY"
                       : newP >= 2
-                        ? "📉 CAUSAL DISSONANCE: -1 VICTORY POINT LOST"
-                        : "⚠️ CAUSALITY STRESS: CHRONO-SUIT STRAIN (+1 PARADOX)"}
+                        ? "📉 CAUSAL DISCORD: -1 POINT"
+                        : "⚠️ TEMPORAL FRICTION (+1 PARADOX)"}
               </div>
             </div>
 
             {/* Paradox Meter Breakdown (1 to 5) */}
             <div className="paradox-meter-container">
               <div className="paradox-meter-header">
-                <span className="paradox-meter-title">CHRONO-SUIT PARADOX GAUGE</span>
+                <span className="paradox-meter-title">PARADOX METER</span>
                 <span className="paradox-meter-count">
                   <span className="old-count">{oldP}</span>
                   <span className="arrow-sep">➔</span>
@@ -725,7 +1611,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               <div className="paradox-lore-desc">{modal.description}</div>
               {modal.playerName && (
                 <div className="paradox-affected-player">
-                  Operative Affected: <strong>{modal.playerName}</strong>
+                  Traveler: <strong>{modal.playerName}</strong>
                 </div>
               )}
             </div>
@@ -737,8 +1623,334 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               onClick={handleDismiss}
               autoFocus
             >
-              <span>🛡️ STABILIZE CHRONO-SUIT</span>
-              <kbd className="paradox-kbd">SPACE / ENTER</kbd>
+              <span>🛡️</span>
+              <span>CONTINUE</span>
+              <kbd className="paradox-kbd">[ SPACE ]</kbd>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isDanger) {
+    return (
+      <div className="modal-overlay danger-modal-overlay" id="active-modal">
+        <div className="danger-vignette-backdrop" />
+        <div className="danger-shockwave-ring ring-1" />
+        <div className="danger-shockwave-ring ring-2" />
+
+        <div className="modal danger-card-modal" role="dialog" aria-label="Hazard Anomaly Strike">
+          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+
+          <div className="danger-header">
+            <div className="danger-header-badge">
+              <span>⚠️</span>
+              <span>HISTORICAL HAZARD STRIKE</span>
+              <span>⚠️</span>
+            </div>
+            <div className="danger-title">
+              <span>🚨</span>
+              <span>{modal.title || 'HAZARD ANOMALY!'}</span>
+              <span>🚨</span>
+            </div>
+            {modal.era && (
+              <div className="danger-sector-tag">
+                SECTOR: <span>{ERA_NAMES[modal.era]?.toUpperCase() || modal.era}</span> • HAZARD STRIKE
+              </div>
+            )}
+          </div>
+
+          <div className="modal-body danger-modal-body">
+            <div className="danger-chamber-stage">
+              <div className="danger-card-frame">
+                {modal.image ? (
+                  <img src={modal.image} alt={modal.title} className="danger-card-img" />
+                ) : (
+                  <div className="danger-fallback-icon">⚠️</div>
+                )}
+                <div className="danger-tile-token">
+                  <img src="/assets/Tiles/danger_tile.png" alt="Danger Tile" className="danger-mini-tile-img" />
+                </div>
+              </div>
+
+              <div className="danger-status-alert">
+                {modal.needsRoll ? (
+                  <span>⚠️ IMMINENT DANGER: SURVIVAL ROLL REQUIRED</span>
+                ) : modal.success ? (
+                  <span className="text-success">✓ HAZARD EVADED SAFELY</span>
+                ) : (
+                  <span className="text-danger">💥 HAZARD PENALTY INFLICTED</span>
+                )}
+              </div>
+            </div>
+
+            <div className="danger-lore-box">
+              <div className="danger-lore-title">HAZARD REPORT</div>
+              <div className="danger-lore-desc">{modal.description}</div>
+            </div>
+
+            {modal.needsRoll ? (
+              <div className="danger-survival-stage">
+                <div className="survival-rule-banner">
+                  <span className="rule-icon">🎲</span>
+                  <span className="rule-text">TUMBLE THE SURVIVAL DIE TO DETERMINE YOUR FATE</span>
+                </div>
+                <div className="danger-dice-roll-area">
+                  <Dice
+                    value={modal.diceRoll}
+                    isRolling={isRollingDanger}
+                    size="md"
+                    theme="hazard"
+                    onClick={handleRollDanger}
+                    disabled={isRollingDanger}
+                    isInteractive={!isRollingDanger}
+                    showLabel={false}
+                  />
+                  <div className="dice-action-caption">
+                    <div className="caption-bold">{isRollingDanger ? 'Tumbling Survival Die...' : 'Roll to Survive!'}</div>
+                    <div className="caption-sub">Press Space or click the die</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className={`danger-outcome-plaque ${modal.success ? 'outcome-evaded' : 'outcome-failed'}`}>
+                <div className="outcome-dice-wrap">
+                  <Dice value={modal.diceRoll} size="sm" theme={modal.success ? 'success' : 'hazard'} isInteractive={false} />
+                </div>
+                <div className="outcome-details">
+                  <div className="outcome-verdict">
+                    {modal.success ? '✓ HAZARD EVADED!' : '✗ HAZARD TRIGGERED!'}
+                    <span className="outcome-roll-val">(Rolled {modal.diceRoll})</span>
+                  </div>
+                  <div className="outcome-msg">
+                    {modal.success ? (modal.successMsg || 'Survival check passed!') : (modal.failMsg || 'Hazard penalty suffered!')}
+                  </div>
+                  {modal.guardianReduction && (
+                    <div className="guardian-relief-tag">
+                      🛡️ GUARDIAN MASTERY: Hazard penalty reduced by 1!
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="modal-actions danger-modal-actions">
+            {modal.needsRoll ? (
+              <button
+                type="button"
+                className="btn btn-primary danger-roll-btn"
+                disabled={isRollingDanger}
+                onClick={handleRollDanger}
+                autoFocus
+              >
+                <span>🎲</span>
+                <span>{isRollingDanger ? 'TUMBLING DIE...' : 'ROLL SURVIVAL DIE'}</span>
+                <kbd className="danger-kbd">[ SPACE ]</kbd>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary danger-continue-btn"
+                onClick={handleDismiss}
+                autoFocus
+              >
+                <span>🛡️</span>
+                <span>CONTINUE</span>
+                <kbd className="danger-kbd">[ SPACE ]</kbd>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isEvent) {
+    return (
+      <div className="modal-overlay event-modal-overlay" id="active-modal">
+        <div className="event-vignette-backdrop" />
+        <div className="event-ripple-ring ring-1" />
+        <div className="event-ripple-ring ring-2" />
+
+        <div className="modal event-card-modal" role="dialog" aria-label="Chronal Timeline Event">
+          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+
+          <div className="event-header">
+            <div className="event-header-badge">
+              <span>⚡</span>
+              <span>CHRONAL TIMELINE EVENT</span>
+              <span>⚡</span>
+            </div>
+            <div className="event-title">
+              <span>📜</span>
+              <span>{modal.title || 'TIMELINE EVENT'}</span>
+              <span>📜</span>
+            </div>
+            {modal.era && (
+              <div className="event-sector-tag">
+                HISTORICAL SECTOR: <span>{ERA_NAMES[modal.era]?.toUpperCase() || modal.era}</span> • CHRONO SHIFT
+              </div>
+            )}
+          </div>
+
+          <div className="modal-body event-modal-body">
+            <div className="event-chamber-stage">
+              <div className="event-card-frame">
+                {modal.image ? (
+                  <img src={modal.image} alt={modal.title} className="event-card-img" />
+                ) : (
+                  <div className="event-fallback-icon">⚡</div>
+                )}
+                <div className="event-tile-token">
+                  <img src="/assets/Tiles/event_tile.png" alt="Event Tile" className="event-mini-tile-img" />
+                </div>
+              </div>
+              <div className="event-interference-tag">
+                <span>🌀</span>
+                <span>TIMELINE INTERFERENCE FLUX APPLIED</span>
+              </div>
+            </div>
+
+            <div className="event-lore-box">
+              <div className="event-lore-title">HISTORICAL DIVERGENCE REPORT</div>
+              <div className="event-lore-desc">{modal.description}</div>
+            </div>
+
+            {modal.resultText && (
+              <div className="event-consequence-plaque">
+                <div className="consequence-label">CHRONO RESOLUTION RESULT</div>
+                <div className="consequence-text">⚡ {modal.resultText}</div>
+              </div>
+            )}
+          </div>
+
+          <div className="modal-actions event-modal-actions">
+            <button
+              type="button"
+              className="btn btn-primary event-confirm-btn"
+              onClick={handleDismiss}
+              autoFocus
+            >
+              <span>⚡</span>
+              <span>ACKNOWLEDGE EVENT</span>
+              <kbd className="event-kbd">[ SPACE ]</kbd>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isClue) {
+    const isDecoy = modal.isDecoy || modal.cardType === 'Decoy Card' || modal.title?.includes('Decoy');
+    const clueCount = modal.clueCount ?? drawingPlayer?.clueCards?.length ?? 1;
+    const maxClues = modal.maxClues ?? 5;
+    const relicName = modal.artifactName || (modal.artifactId && ARTIFACTS[modal.era]?.find(a => a.id === modal.artifactId)?.name) || 'Historical Relic';
+    const progressCount = modal.artifactProgress ?? (modal.artifactId && drawingPlayer?.clueProgress?.[modal.artifactId]) ?? 1;
+
+    return (
+      <div className="modal-overlay clue-modal-overlay" id="active-modal">
+        <div className="clue-vignette-backdrop" />
+        <div className="clue-astrolabe-ring ring-1" />
+        <div className="clue-astrolabe-ring ring-2" />
+
+        <div className="modal clue-card-modal" role="dialog" aria-label="Historical Intel Discovery">
+          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+
+          <div className="clue-header">
+            <div className="clue-header-badge">
+              <span>📜</span>
+              <span>HISTORICAL INTEL DISCOVERY</span>
+              <span>📜</span>
+            </div>
+            <div className="clue-title">
+              <span>🔍</span>
+              <span>{modal.title || (isDecoy ? 'DECOY ANOMALY!' : 'CLUE FOUND!')}</span>
+              <span>🔍</span>
+            </div>
+            {modal.era && (
+              <div className="clue-sector-tag">
+                TIMELINE SECTOR: <span>{ERA_NAMES[modal.era]?.toUpperCase() || modal.era}</span> • ARCHIVAL INTEL
+              </div>
+            )}
+          </div>
+
+          <div className="modal-body clue-modal-body">
+            <div className="clue-chamber-stage">
+              <div className="clue-card-frame">
+                {modal.image ? (
+                  <img src={modal.image} alt={modal.title} className="clue-card-img" />
+                ) : (
+                  <div className="clue-fallback-icon">🔍</div>
+                )}
+                <div className="clue-tile-token">
+                  <img src="/assets/Tiles/clue_tile.png" alt="Clue Tile" className="clue-mini-tile-img" />
+                </div>
+              </div>
+
+              <div className={`clue-seal-badge ${isDecoy ? 'seal-decoy' : 'seal-authentic'}`}>
+                {isDecoy ? (
+                  <span>⚠️ DECOY INTEL — FALSE ANOMALY LEAD</span>
+                ) : (
+                  <span>✓ VERIFIED HISTORICAL ARTIFACT CLUE</span>
+                )}
+              </div>
+            </div>
+
+            <div className="clue-lore-box">
+              <div className="clue-lore-title">DECRYPTED FIELD NOTES</div>
+              <div className="clue-lore-desc">{modal.description}</div>
+              {modal.hint && modal.hint !== modal.description && (
+                <div className="clue-hint-line">
+                  <span>💡</span> <em>Context: {modal.hint}</em>
+                </div>
+              )}
+            </div>
+
+            <div className="clue-specs-grid">
+              <div className="clue-spec-item">
+                <div className="spec-label">ASSOCIATED RELIC</div>
+                <div className="spec-val" style={{ color: isDecoy ? '#FCA5A5' : '#FFD700' }}>
+                  {isDecoy ? 'None (Decoy Trail)' : relicName}
+                </div>
+                {!isDecoy && (
+                  <div className="spec-sub">
+                    Intel: <strong>{progressCount} / 3</strong> Fragments
+                  </div>
+                )}
+              </div>
+
+              <div className="clue-spec-item">
+                <div className="spec-label">CLUE SATCHEL</div>
+                <div className="spec-val" style={{ color: '#FDE047' }}>
+                  {clueCount} / {maxClues} HELD
+                </div>
+                <div className="satchel-pip-row">
+                  {[...Array(maxClues)].map((_, i) => (
+                    <span
+                      key={i}
+                      className={`satchel-pip ${i < clueCount ? 'pip-filled' : 'pip-empty'}`}
+                    >
+                      {i < clueCount ? '📜' : '⬝'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="modal-actions clue-modal-actions">
+            <button
+              type="button"
+              className="btn btn-primary clue-confirm-btn"
+              onClick={handleDismiss}
+              autoFocus
+            >
+              <span>📜</span>
+              <span>SECURE INTEL</span>
+              <kbd className="clue-kbd">[ SPACE ]</kbd>
             </button>
           </div>
         </div>
@@ -750,8 +1962,8 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     <div className={`modal-overlay ${isTemporalOccurrence ? "temporal-rift-modal-overlay" : ""}`} id="active-modal">
       <div className={`modal ${isTemporalOccurrence ? "temporal-occurrence-card-modal" : ""}`}>
         <button className="modal-close" onClick={handleDismiss}>&times;</button>
-        <div className="modal-title" style={{ color: isTemporalOccurrence ? "#FFD700" : (isDanger ? "#EF4444" : (isEvent ? "#F59E0B" : "#C2974D")), letterSpacing: "1.5px" }}>
-          {isTemporalOccurrence ? "⚡ TEMPORAL OCCURRENCE! ⚡" : (modal.cardType || (isDanger ? "HAZARD ANOMALY" : (isEvent ? "TEMPORAL EVENT" : modal.title)))}
+        <div className="modal-title" style={{ color: isTemporalOccurrence ? "#FFD700" : "#C2974D", letterSpacing: "1.5px" }}>
+          {isTemporalOccurrence ? "⚡ TEMPORAL OCCURRENCE! ⚡" : (modal.cardType || modal.title)}
         </div>
         {modal.era && (
           <div style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 800, textAlign: 'center', marginTop: '-8px', marginBottom: '10px' }}>
@@ -765,120 +1977,12 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
             <div className="card-display-title">{modal.title}</div>
             <div className="card-display-desc">{modal.description}</div>
           </div>
-
-          {isParadox && (
-            <div style={{ marginTop: "8px", padding: "6px 8px", background: "rgba(59, 7, 100, 0.35)", border: "1px solid rgba(217, 70, 239, 0.4)", borderRadius: "6px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
-                <span style={{ fontSize: "0.68rem", fontWeight: 800, color: "#F0ABFC", letterSpacing: "0.5px" }}>SUIT PARADOX GAUGE</span>
-                <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#FFD700" }}>
-                  {modal.oldParadox ?? 0} ➔ <strong style={{ color: "#F43F5E" }}>{modal.newParadox ?? 1}</strong> / {modal.maxParadox ?? 5}
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: "4px" }}>
-                {[1, 2, 3, 4, 5].map(lvl => (
-                  <div
-                    key={lvl}
-                    style={{
-                      flex: 1,
-                      height: "6px",
-                      borderRadius: "2px",
-                      background: (modal.newParadox ?? 1) >= lvl ? "linear-gradient(90deg, #D946EF, #C084FC)" : "rgba(255,255,255,0.1)",
-                      boxShadow: (modal.newParadox ?? 1) >= lvl ? "0 0 6px #D946EF" : "none"
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {isDanger && modal.needsRoll && (
-            <div className="hazard-roll-stage" style={{
-              marginTop: '14px',
-              padding: '14px',
-              background: 'linear-gradient(180deg, rgba(30, 10, 15, 0.7) 0%, rgba(15, 5, 10, 0.9) 100%)',
-              border: '1.5px solid rgba(239, 68, 68, 0.5)',
-              borderRadius: '12px',
-              boxShadow: '0 0 25px rgba(239, 68, 68, 0.25), inset 0 0 15px rgba(239, 68, 68, 0.15)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '10px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '0.76rem', fontWeight: 800, letterSpacing: '1px', color: '#FCA5A5', textTransform: 'uppercase' }}>
-                ⚠️ SURVIVAL HAZARD CHECK REQUIRED
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px' }}>
-                <Dice
-                  value={modal.diceRoll}
-                  isRolling={isRollingDanger}
-                  size="md"
-                  theme="hazard"
-                  onClick={handleRollDanger}
-                  disabled={isRollingDanger}
-                  isInteractive={!isRollingDanger}
-                  showLabel={false}
-                />
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#FDE047' }}>
-                    {isRollingDanger ? 'Tumbling Hazard Die...' : 'Roll the Die to Survive!'}
-                  </div>
-                  <div style={{ fontSize: '0.74rem', color: '#CBD5E1', marginTop: '2px', maxWidth: '240px', lineHeight: 1.35 }}>
-                    {modal.description}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {isDanger && !modal.needsRoll && modal.diceRoll !== null && modal.diceRoll !== undefined && (
-            <div className="modal-dice">
-              <Dice value={modal.diceRoll} size="sm" theme={modal.success ? 'success' : 'hazard'} isInteractive={false} />
-              <div className="modal-dice-result">
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Dice Check Roll</div>
-                <div className={`modal-dice-outcome ${modal.success ? 'success' : 'failure'}`}>
-                  {modal.success ? '✓ HAZARD EVADED' : '✗ HAZARD TRIGGERED'}
-                </div>
-                <div style={{ fontSize: '0.8rem', marginTop: '4px', color: modal.success ? 'var(--text-success)' : 'var(--text-danger)' }}>
-                  {modal.success ? modal.successMsg : modal.failMsg}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="modal-actions">
-          {isDanger && modal.needsRoll ? (
-            <button
-              type="button"
-              className="btn btn-roll-dice"
-              style={{
-                width: '100%',
-                padding: '12px 24px',
-                fontWeight: 800,
-                fontSize: '0.95rem',
-                background: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)',
-                border: '1.5px solid #FCA5A5',
-                boxShadow: '0 0 20px rgba(239, 68, 68, 0.45)',
-                color: '#FFF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                cursor: isRollingDanger ? 'not-allowed' : 'pointer'
-              }}
-              disabled={isRollingDanger}
-              onClick={handleRollDanger}
-            >
-              <span>🎲 {isRollingDanger ? 'TUMBLING DIE...' : 'ROLL SURVIVAL DIE'}</span>
-              <kbd style={{ background: 'rgba(0,0,0,0.4)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem', border: '1px solid rgba(255,255,255,0.4)' }}>SPACE</kbd>
-            </button>
-          ) : (
-            <button className="btn btn-primary" onClick={handleDismiss} style={{ padding: '10px 24px', fontWeight: 800 }}>
-              {engine?.state?.pendingChoice?.type === 'teleportTile' ? 'Choose Destination ➔' : 'Acknowledge Directive ➔'}
-            </button>
-          )}
+          <button className="btn btn-primary" onClick={handleDismiss} style={{ padding: '10px 24px', fontWeight: 800 }} autoFocus>
+            {engine?.state?.pendingChoice?.type === 'teleportTile' ? 'Choose Destination ➔' : 'Acknowledge Directive ➔'}
+          </button>
         </div>
       </div>
     </div>
@@ -1655,6 +2759,97 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
     );
   }
 
+
+  if (choice.type === 'guardianRepair') {
+    return (
+      <div className="modal-overlay guardian-sanctum-overlay" id="active-modal">
+        <div className="guardian-sanctum-backdrop" />
+        <div className="modal guardian-sanctum-modal" role="dialog" aria-label="Temporal Repair">
+          <div className="guardian-sanctum-header">
+            <div className="guardian-header-badge">
+              <span>✨</span>
+              <span>GUARDIAN SACRED SANCTUM</span>
+              <span>✨</span>
+            </div>
+            <div className="guardian-title">✨ TEMPORAL REPAIR ✨</div>
+            <div className="guardian-subtitle">RESTORE TIMELINE STABILITY OR CHRONO-CORE</div>
+          </div>
+
+          <div className="modal-body guardian-sanctum-body">
+            <div className="guardian-sanctum-grid">
+              {choice.options.map((opt, i) => {
+                const isMend = opt.action === 'reduceEnergy';
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`guardian-choice-card ${isMend ? 'card-mend' : 'card-recharge'}`}
+                    disabled={!isMyTurn && network.mode === 'online'}
+                    onClick={() => { sounds.holyRepair?.(); handleSelect(opt.action); }}
+                  >
+                    <div className="choice-card-icon">{isMend ? '⚙️' : '🔋'}</div>
+                    <div className="choice-card-title">{isMend ? 'Mend Paradox Level' : 'Recharge Chrono-Core'}</div>
+                    <div className="choice-card-cost">{isMend ? 'Cost: 2 Energy' : 'Cost: 0 Energy (FREE)'}</div>
+                    <div className="choice-card-desc">
+                      {isMend
+                        ? 'Expends 2 Energy to mend temporal fractures, reducing your Paradox Meter by -1.'
+                        : 'Channels ambient timeline resonance to safely recover +1 Chrono Energy.'}
+                    </div>
+                    <div className="choice-card-btn-tag">
+                      {isMend ? 'MEND -1 PARADOX ➔' : 'RECHARGE +1 ENERGY ➔'}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (choice.type === 'roguePickpocket') {
+    return (
+      <div className="modal-overlay rogue-shadow-overlay" id="active-modal">
+        <div className="rogue-shadow-backdrop" />
+        <div className="modal rogue-shadow-modal" role="dialog" aria-label="Rogue Pickpocket">
+          <div className="rogue-header">
+            <div className="rogue-header-badge">
+              <span>🗡️</span>
+              <span>SHADOW POCKETS</span>
+              <span>🗡️</span>
+            </div>
+            <div className="rogue-title">🗡️ PICKPOCKET 🗡️</div>
+            <div className="rogue-subtitle">TARGET A PLAYER WITHIN 2 TILES</div>
+          </div>
+
+          <div className="modal-body rogue-body">
+            <div className="rogue-target-grid">
+              {choice.options.map((opt, i) => {
+                const isClueSteal = opt.action.startsWith('steal_clue_');
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`rogue-action-card ${isClueSteal ? 'card-clue-steal' : 'card-energy-steal'}`}
+                    disabled={!isMyTurn && network.mode === 'online'}
+                    onClick={() => { sounds.shadowSwipe?.(); handleSelect(opt.action); }}
+                  >
+                    <div className="rogue-card-header">
+                      <span className="rogue-type-glyph">{isClueSteal ? '🔍' : '⚡'}</span>
+                      <span className="rogue-type-name">{isClueSteal ? 'SWIPE CLUE CARD' : 'SIPHON ENERGY'}</span>
+                    </div>
+                    <div className="rogue-card-label">{opt.label}</div>
+                    <div className="rogue-swipe-tag">EXECUTE THEFT ➔</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="modal-overlay" id="active-modal">

@@ -3,6 +3,7 @@ import { getSavedProfile, savePlayerProfile } from '../../sessionManager.js';
 import { getTemporalRecords, getOperativeRank, resetTemporalRecords, logSimulationMission } from '../../temporalRecords.js';
 import sounds from '../../sound.js';
 import { ALL_ARTIFACTS, ERA_NAMES, ERAS, ROLES } from '../../gameData.js';
+import { useGuiScale, resetGuiScale } from '../../guiScale.js';
 
 /* ==========================================================================
    1. QUESTS MODAL
@@ -779,6 +780,7 @@ export function ProfileModal({ onClose }) {
    ========================================================================== */
 export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEditor, onReplayIntro }) {
   const [sfxVolume, setSfxVolume] = useState(() => Math.round((sounds.sfxVolume ?? 0.8) * 100));
+  const [guiScale, setGuiScale] = useGuiScale();
   const [musicVolume, setMusicVolume] = useState(() => Math.round((sounds.musicVolume ?? 0.75) * 100));
 
   const handleSfxChange = (e) => {
@@ -810,7 +812,7 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEdi
 
   return (
     <div className="modal-overlay" style={{ zIndex: 12000 }}>
-      <div className="modal duelyst-modal bug-report-modal" style={{ maxWidth: '520px', width: '92%' }}>
+      <div className="modal duelyst-modal settings-modal hide-scrollbar" style={{ maxWidth: '520px', width: '92%', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {/* Header Bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '2px solid #5A422D' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -847,7 +849,15 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEdi
           </button>
         </div>
 
-        <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
+        <div
+          className="modal-body hide-scrollbar settings-modal-body"
+          style={{
+            maxHeight: '65vh',
+            overflowY: 'auto',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+          }}
+        >
           {/* Audio Controls */}
           <div style={{ marginBottom: '20px' }}>
             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#FFD700', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
@@ -948,6 +958,115 @@ export function SettingsModal({ onClose, soundMuted, onToggleSound, onOpenMapEdi
               >
                 {particlesActive ? 'ENABLED' : 'DISABLED'}
               </button>
+            </div>
+          </div>
+
+          {/* Display & GUI Scaling */}
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#FFD700', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                🖥️ Interface & GUI Scaling
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {Math.abs(guiScale - 1.0) > 0.01 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sounds.btnClick();
+                      resetGuiScale();
+                    }}
+                    style={{
+                      background: '#1A120B',
+                      border: '1px solid #7A5823',
+                      borderRadius: '3px',
+                      color: '#FCD34D',
+                      fontSize: '0.62rem',
+                      fontFamily: 'var(--font-display)',
+                      padding: '2px 6px',
+                      cursor: 'pointer'
+                    }}
+                    title="Reset GUI scale back to 100% default"
+                  >
+                    ↺ 100%
+                  </button>
+                )}
+                <span style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  color: '#FEF3C7',
+                  background: '#140E0A',
+                  border: '1px solid #C2974D',
+                  borderRadius: '3px',
+                  padding: '2px 8px'
+                }}>
+                  {Math.round(guiScale * 100)}%
+                </span>
+              </div>
+            </div>
+
+            <div style={{
+              background: 'rgba(0,0,0,0.35)',
+              border: '1px solid rgba(194, 151, 77, 0.3)',
+              borderRadius: '8px',
+              padding: '12px 14px'
+            }}>
+              <div style={{ fontSize: '0.73rem', color: '#94A3B8', marginBottom: '10px', lineHeight: 1.4 }}>
+                Scale interface elements, fonts, dossiers, and map tiles cleanly without needing browser zoom.
+              </div>
+
+              <input
+                type="range"
+                min="80"
+                max="140"
+                step="5"
+                value={Math.round(guiScale * 100)}
+                onChange={(e) => {
+                  const val = Number(e.target.value) / 100;
+                  setGuiScale(val);
+                }}
+                style={{ width: '100%', accentColor: '#C2974D', cursor: 'pointer', marginBottom: '10px' }}
+              />
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
+                {[
+                  { val: 0.9, label: '90%' },
+                  { val: 1.0, label: '100%' },
+                  { val: 1.1, label: '110%' },
+                  { val: 1.2, label: '120% ⭐' },
+                  { val: 1.3, label: '130%' }
+                ].map((preset) => (
+                  <button
+                    key={preset.val}
+                    type="button"
+                    onClick={() => {
+                      sounds.btnClick();
+                      setGuiScale(preset.val);
+                    }}
+                    style={{
+                      padding: '6px 2px',
+                      fontSize: '0.64rem',
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 800,
+                      background: Math.abs(guiScale - preset.val) < 0.01
+                        ? 'linear-gradient(180deg, #F5C442 0%, #C2974D 100%)'
+                        : 'linear-gradient(180deg, #382A1B 0%, #22180F 100%)',
+                      color: Math.abs(guiScale - preset.val) < 0.01 ? '#140E0A' : '#FEF3C7',
+                      border: Math.abs(guiScale - preset.val) < 0.01 ? '1.5px solid #FFE082' : '1.5px solid #5C3E16',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      boxShadow: Math.abs(guiScale - preset.val) < 0.01 ? '0 0 8px rgba(245, 196, 66, 0.5)' : 'none',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ fontSize: '0.66rem', color: '#C8B293', textAlign: 'center', marginTop: '8px' }}>
+                ⭐ 120% recommended for high-resolution PC monitors and laptops
+              </div>
             </div>
           </div>
 

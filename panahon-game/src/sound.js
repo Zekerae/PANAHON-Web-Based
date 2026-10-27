@@ -208,24 +208,138 @@ class SoundManager {
   }
 
   clue() {
+    this.clueDiscovery();
+  }
+
+  clueDiscovery() {
     if (this.muted || this.sfxVolume <= 0) return;
     this.init();
     const dest = this.getSfxDestination();
     if (!this.ctx || !dest) return;
-    [523.25, 659.25, 783.99].forEach((freq, i) => {
+
+    // 1. Ancient parchment unroll flutter
+    [180, 260, 340].forEach((freq, idx) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const pOsc = this.ctx.createOscillator();
+        const pGain = this.ctx.createGain();
+        pOsc.type = "triangle";
+        pOsc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        pOsc.frequency.linearRampToValueAtTime(freq * 1.5, this.ctx.currentTime + 0.08);
+        pGain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+        pGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+        pOsc.connect(pGain);
+        pGain.connect(dest);
+        pOsc.start();
+        pOsc.stop(this.ctx.currentTime + 0.12);
+      }, idx * 25);
+    });
+
+    // 2. Shimmering antique golden bell arpeggio (C5, E5, G5, C6, E6)
+    [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((freq, i) => {
       setTimeout(() => {
         if (!this.ctx) return;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = "sine";
         osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.22);
+        gain.gain.setValueAtTime(0.13, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.38);
         osc.connect(gain);
         gain.connect(dest);
         osc.start();
-        osc.stop(this.ctx.currentTime + 0.25);
-      }, i * 90);
+        osc.stop(this.ctx.currentTime + 0.4);
+      }, 70 + i * 55);
+    });
+  }
+
+  eventTrigger() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+
+    // 1. Deep low-frequency timeline resonance rumble
+    const subOsc = this.ctx.createOscillator();
+    const subGain = this.ctx.createGain();
+    subOsc.type = "triangle";
+    subOsc.frequency.setValueAtTime(75, this.ctx.currentTime);
+    subOsc.frequency.exponentialRampToValueAtTime(45, this.ctx.currentTime + 0.6);
+    subGain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+    subGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.65);
+    subOsc.connect(subGain);
+    subGain.connect(dest);
+    subOsc.start();
+    subOsc.stop(this.ctx.currentTime + 0.7);
+
+    // 2. Mystical chronal shimmer sweep
+    const sweepOsc = this.ctx.createOscillator();
+    const sweepGain = this.ctx.createGain();
+    sweepOsc.type = "sine";
+    sweepOsc.frequency.setValueAtTime(220, this.ctx.currentTime);
+    sweepOsc.frequency.exponentialRampToValueAtTime(659.25, this.ctx.currentTime + 0.4);
+    sweepGain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+    sweepGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.48);
+    sweepOsc.connect(sweepGain);
+    sweepGain.connect(dest);
+    sweepOsc.start();
+    sweepOsc.stop(this.ctx.currentTime + 0.5);
+
+    // 3. Bright chronal bell triad
+    [659.25, 880, 1318.5].forEach((freq, idx) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.14, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.5);
+      }, 180 + idx * 60);
+    });
+  }
+
+  dangerAlarm() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+
+    // 1. Heavy ominous drum thud
+    const drumOsc = this.ctx.createOscillator();
+    const drumGain = this.ctx.createGain();
+    drumOsc.type = "triangle";
+    drumOsc.frequency.setValueAtTime(95, this.ctx.currentTime);
+    drumOsc.frequency.exponentialRampToValueAtTime(36, this.ctx.currentTime + 0.35);
+    drumGain.gain.setValueAtTime(0.24, this.ctx.currentTime);
+    drumGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+    drumOsc.connect(drumGain);
+    drumGain.connect(dest);
+    drumOsc.start();
+    drumOsc.stop(this.ctx.currentTime + 0.45);
+
+    // 2. Dual urgent hazard warning alert pulses (diminished tension intervals)
+    [0, 160].forEach((delay) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        [185, 233].forEach((f) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(f, this.ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(f * 0.92, this.ctx.currentTime + 0.12);
+          gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.13);
+          osc.connect(gain);
+          gain.connect(dest);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.15);
+        });
+      }, delay);
     });
   }
 
@@ -408,6 +522,41 @@ class SoundManager {
     });
   }
 
+  timeFreeze() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    // Crystalline stasis chime cascade
+    [880, 1174.66, 1396.91, 1760, 2093].reverse().forEach((freq, i) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.14, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.38);
+      }, i * 40);
+    });
+    // Deep temporal sub thud
+    const subOsc = this.ctx.createOscillator();
+    const subGain = this.ctx.createGain();
+    subOsc.type = "triangle";
+    subOsc.frequency.setValueAtTime(110, this.ctx.currentTime);
+    subOsc.frequency.exponentialRampToValueAtTime(35, this.ctx.currentTime + 0.6);
+    subGain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+    subGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.65);
+    subOsc.connect(subGain);
+    subGain.connect(dest);
+    subOsc.start();
+    subOsc.stop(this.ctx.currentTime + 0.7);
+  }
+
   timeRift() {
     if (this.muted || this.sfxVolume <= 0) return;
     this.init();
@@ -442,6 +591,182 @@ class SoundManager {
     gain.connect(dest);
     osc.start();
     osc.stop(this.ctx.currentTime + 0.13);
+  }
+
+  // --- THEMATIC CHARACTER ABILITY IMMERSION AUDIO ---
+  momentumSurge() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    // Rising kinetic sonic sweep
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(160, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1180, this.ctx.currentTime + 0.38);
+    gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.48);
+
+    // Sonic burst sub-thud
+    const subOsc = this.ctx.createOscillator();
+    const subGain = this.ctx.createGain();
+    subOsc.type = "sine";
+    subOsc.frequency.setValueAtTime(85, this.ctx.currentTime);
+    subOsc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.4);
+    subGain.gain.setValueAtTime(0.24, this.ctx.currentTime);
+    subGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+    subOsc.connect(subGain);
+    subGain.connect(dest);
+    subOsc.start();
+    subOsc.stop(this.ctx.currentTime + 0.5);
+  }
+
+  trapPlant() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    // Double metallic ratchet click
+    [0, 60, 140].forEach((delay, i) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = i === 2 ? "triangle" : "square";
+        osc.frequency.setValueAtTime(i === 2 ? 880 : (320 + i * 180), this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.09);
+      }, delay);
+    });
+  }
+
+  trapSnap() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    // Violent mechanical snare clamp
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(620, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(65, this.ctx.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.28);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.3);
+  }
+
+  holyRepair() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    // Radiant celestial triad chord (C5, E5, G5, C6)
+    [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.13, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.65);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.7);
+      }, idx * 45);
+    });
+  }
+
+  shadowSwipe() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    // Dark phantom swoosh
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(280, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(90, this.ctx.currentTime + 0.22);
+    gain.gain.setValueAtTime(0.16, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.28);
+
+    // Stolen loot coin sparkle
+    setTimeout(() => {
+      if (!this.ctx) return;
+      const coin = this.ctx.createOscillator();
+      const coinG = this.ctx.createGain();
+      coin.type = "sine";
+      coin.frequency.setValueAtTime(1760, this.ctx.currentTime);
+      coin.frequency.setValueAtTime(2637, this.ctx.currentTime + 0.05);
+      coinG.gain.setValueAtTime(0.12, this.ctx.currentTime);
+      coinG.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.28);
+      coin.connect(coinG);
+      coinG.connect(dest);
+      coin.start();
+      coin.stop(this.ctx.currentTime + 0.3);
+    }, 90);
+  }
+
+  decipherScroll() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    // Ancient golden parchment shimmer
+    [440, 554.37, 659.25, 880, 1108.73].forEach((f, idx) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(f, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.11, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.38);
+      }, idx * 40);
+    });
+  }
+
+  chronalRewind() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    // Reverse time tape warble
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(540, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.3);
+    osc.frequency.exponentialRampToValueAtTime(680, this.ctx.currentTime + 0.55);
+    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.65);
   }
 }
 

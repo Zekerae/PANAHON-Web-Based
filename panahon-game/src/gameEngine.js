@@ -196,6 +196,7 @@ export class GameEngine {
         // Status
         shielded: false,
         skipNextTurn: false,
+        timeStoppedBy: null,
         bonusMoves: 0,
         stranded: false,
 
@@ -229,6 +230,8 @@ export class GameEngine {
       dangerDecks,
       timelineMeter: 0,
       temporalOccurrence: 0, // turns remaining
+      temporalOccurrenceId: null,
+      temporalOccurrenceAnnounced: false,
       diceResult: null,
       movesRemaining: 0,
       movementDirection: 'forward', // 'forward' | 'backward'
@@ -557,12 +560,28 @@ export class GameEngine {
       return false;
     }
 
+    const oldVal = currentMoves;
     this.state.movesRemaining = newMoves;
     if (this.state.diceResult) {
       this.state.diceResult += delta;
     }
     player.temporalForesightCooldown = 3;
     player.hasUsedForesightThisTurn = true;
+    this.state.pendingModal = {
+      type: 'abilityActivate',
+      abilityKey: 'TEMPORAL_FORESIGHT',
+      playerId: player.id,
+      playerName: player.name,
+      playerRole: 'The Chronomancer',
+      playerAvatar: player.role?.avatar || 'assets/Characters/chronomancer_128x128.png',
+      playerColor: player.color || '#1ABC9C',
+      oldRoll: oldVal,
+      newRoll: newMoves,
+      delta: delta,
+      title: '🔮 TEMPORAL FORESIGHT! 🔮',
+      subtitle: 'CHRONOMANCER PASSIVE: DESTINY ALTERED',
+      description: `${player.name} peered through timeline branches and altered probability (${delta > 0 ? '+1 Space' : '-1 Space'}), shifting trajectory to ${newMoves} spaces!`
+    };
 
     this.addLog('ability', `⏳ Temporal Foresight: ${player.name} altered timeline probability (${delta > 0 ? '+1' : '-1'}), adjusting moves to ${newMoves} spaces!`);
     this.notify();
@@ -711,6 +730,21 @@ export class GameEngine {
       }
       player.usedAbilityThisTurn = true;
       player.activeCooldown = ROLES.GUARDIAN.active.cooldown;
+      this.state.pendingModal = {
+        type: 'abilityActivate',
+        abilityKey: 'TEMPORAL_REPAIR',
+        playerId: player.id,
+        playerName: player.name,
+        playerRole: 'The Guardian',
+        playerAvatar: player.role?.avatar || 'assets/Characters/Copy of guardian.png',
+        playerColor: player.color || '#2ECC71',
+        mode: action,
+        title: '✨ TEMPORAL REPAIR! ✨',
+        subtitle: 'GUARDIAN ACTIVE ABILITY',
+        description: action === 'reduceEnergy'
+          ? `${player.name} focused chronal shields to mend temporal anomalies! Reduced Paradox by -1 in exchange for 2 Energy.`
+          : `${player.name} channeled celestial resonance into their chrono-suit! Restored +1 Energy.`
+      };
       this.state.phase = returnPhase;
     } else if (choiceType === 'historianDecipher') {
       const drawnCards = choice.drawnCards || [];
@@ -728,6 +762,18 @@ export class GameEngine {
         this.addLog('ability', `🛡️ ${player.name} drew a Decoy Card via Clue Decipher, but safely neutralized it with Decoy Discard!`);
         player.passiveCooldown = ROLES.HISTORIAN.passive.cooldown;
         this.returnClueToDeck(chosenCard);
+        this.state.pendingModal = {
+          type: 'abilityActivate',
+          abilityKey: 'DECOY_DISCARD',
+          playerId: player.id,
+          playerName: player.name,
+          playerRole: 'The Historian',
+          playerAvatar: player.role?.avatar || 'assets/Characters/Copy of librarian.png',
+          playerColor: player.color || '#E74C3C',
+          title: '📜 DECOY SAFELY NEUTRALIZED! 📜',
+          subtitle: 'HISTORIAN PASSIVE: DECOY DISCARD',
+          description: `${player.name} drew a deceptive Decoy Card via Clue Decipher, but scholarly mastery safely purged it back into the deck!`
+        };
         this.state.phase = returnPhase;
       } else if (chosenCard) {
         if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 5)) {
@@ -763,6 +809,25 @@ export class GameEngine {
             if (stolenCard.artifactId && !stolenCard.isDecoy) {
               player.clueProgress[stolenCard.artifactId] = (player.clueProgress[stolenCard.artifactId] || 0) + 1;
             }
+            this.state.pendingModal = {
+              type: 'abilityActivate',
+              abilityKey: 'PICKPOCKET',
+              playerId: player.id,
+              playerName: player.name,
+              playerRole: 'The Rogue',
+              playerAvatar: player.role?.avatar || 'assets/Characters/rogue_128x128.png',
+              playerColor: player.color || '#9B59B6',
+              victimId: victim.id,
+              victimName: victim.name,
+              victimAvatar: victim.role?.avatar,
+              victimColor: victim.color,
+              stolenType: 'clue',
+              stolenCardName: stolenCard.hint || stolenCard.description || 'Clue Card',
+              stolenAmount: 1,
+              title: '🗡️ SHADOW PICKPOCKET! 🗡️',
+              subtitle: 'ROGUE ACTIVE ABILITY',
+              description: `${player.name} emerged from the shadows and swiped a secret Clue Card (${stolenCard.hint || stolenCard.description}) from ${victim.name}!`
+            };
             this.addLog('ability', `🗡️ Pickpocket Success: ${player.name} swiped a Clue Card (${stolenCard.hint || stolenCard.description}) from ${victim.name}!`);
           }
         }
@@ -773,6 +838,24 @@ export class GameEngine {
           const amount = Math.min(2, victim.energy);
           this.modifyEnergy(victim, -amount);
           this.modifyEnergy(player, amount);
+          this.state.pendingModal = {
+            type: 'abilityActivate',
+            abilityKey: 'PICKPOCKET',
+            playerId: player.id,
+            playerName: player.name,
+            playerRole: 'The Rogue',
+            playerAvatar: player.role?.avatar || 'assets/Characters/rogue_128x128.png',
+            playerColor: player.color || '#9B59B6',
+            victimId: victim.id,
+            victimName: victim.name,
+            victimAvatar: victim.role?.avatar,
+            victimColor: victim.color,
+            stolenType: 'energy',
+            stolenAmount: amount,
+            title: '🗡️ SHADOW PICKPOCKET! 🗡️',
+            subtitle: 'ROGUE ACTIVE ABILITY',
+            description: `${player.name} struck from the shadows, siphoning ${amount} Chrono Energy from ${victim.name}!`
+          };
           this.addLog('ability', `🗡️ Pickpocket Success: ${player.name} siphoned ${amount} Chrono Energy from ${victim.name}!`);
         }
       }
@@ -783,6 +866,30 @@ export class GameEngine {
         const victim = this.state.players.find(p => p.id === victimId);
         if (victim) {
           victim.skipNextTurn = true;
+          victim.timeStoppedBy = {
+            id: player.id,
+            name: player.name,
+            roleKey: player.roleKey,
+            roleName: player.role?.name || 'Chronomancer',
+            avatar: player.role?.avatar || 'assets/Characters/chronomancer_128x128.png',
+            color: player.color || '#22D3EE'
+          };
+          this.state.pendingModal = {
+            type: 'timeStop',
+            playerId: victim.id,
+            victimId: victim.id,
+            victimName: victim.name,
+            victimAvatar: victim.role?.avatar || 'assets/Characters/adventurer_128x128.png',
+            victimRole: victim.role?.name || victim.roleKey || 'Operative',
+            victimColor: victim.color || '#FDA4AF',
+            casterId: player.id,
+            casterName: player.name,
+            casterRole: player.role?.name || 'Chronomancer',
+            casterAvatar: player.role?.avatar || 'assets/Characters/chronomancer_128x128.png',
+            casterColor: player.color || '#22D3EE',
+            title: '⌛ TEMPORAL STASIS (TIME STOP)!',
+            description: `${victim.name} was caught in Chronomancer ${player.name}'s Temporal Stasis field! Time has completely frozen around them—their upcoming turn will be skipped!`
+          };
           this.addLog('ability', `⌛ TIME STOP! ${player.name} trapped ${victim.name} in temporal stasis! Their next turn will be skipped!`);
         }
       }
@@ -971,6 +1078,18 @@ export class GameEngine {
       this.addLog('ability', `${player.name} used Decoy Discard! Discarded a decoy card.`);
       player.passiveCooldown = ROLES.HISTORIAN.passive.cooldown;
       this.returnClueToDeck(card);
+      this.state.pendingModal = {
+        type: 'abilityActivate',
+        abilityKey: 'DECOY_DISCARD',
+        playerId: player.id,
+        playerName: player.name,
+        playerRole: 'The Historian',
+        playerAvatar: player.role?.avatar || 'assets/Characters/Copy of librarian.png',
+        playerColor: player.color || '#E74C3C',
+        title: '📜 DECOY SAFELY NEUTRALIZED! 📜',
+        subtitle: 'HISTORIAN PASSIVE: DECOY DISCARD',
+        description: `${player.name} excavated a deceptive Decoy Card (${card.hint || card.description}), but ancient scholarly mastery safely purged it back into the ${ERA_NAMES[card.era] || 'timeline'} deck!`
+      };
       this.state.phase = 'action';
       this.notify();
       return;
@@ -996,11 +1115,18 @@ export class GameEngine {
       playerId: player.id,
       playerName: player.name,
       isClue: true,
-      cardType: card.isDecoy ? 'Decoy Card' : 'Clue Card',
-      title: card.isDecoy ? 'Decoy!' : 'Clue Found!',
+      cardType: card.isDecoy ? 'Decoy Anomaly' : 'Clue Card',
+      title: card.isDecoy ? 'Decoy Anomaly!' : 'Historical Clue Found!',
       description: card.description,
+      hint: card.hint,
       image: card.image,
-      era: era
+      era: era,
+      isDecoy: card.isDecoy,
+      artifactId: card.artifactId,
+      artifactName: card.artifactName,
+      clueCount: player.clueCards.length,
+      maxClues: GAME_CONSTANTS.MAX_CLUE_CARDS || 5,
+      artifactProgress: card.artifactId ? (player.clueProgress?.[card.artifactId] || 1) : 0
     };
 
     this.addLog('card', `${player.name} drew a Clue Card from ${ERA_NAMES[era]}. (${player.clueCards.length}/5 Clues held)`);
@@ -1029,16 +1155,20 @@ export class GameEngine {
       return;
     }
 
+    const result = card.effect(player, this);
+
     this.state.pendingModal = {
       type: 'event',
-      cardType: 'Event Card',
+      cardType: 'Chronal Timeline Event',
+      cardId: card.id,
       title: card.name,
       description: card.description,
+      resultText: result,
       image: card.image,
-      era: era
+      era: era,
+      playerId: player.id,
+      playerName: player.name
     };
-
-    const result = card.effect(player, this);
     this.addLog('event', `${player.name}: ${card.name} — ${result}`);
     if (!this.state.pendingChoice) {
       this.state.phase = 'action';
@@ -1079,6 +1209,8 @@ export class GameEngine {
       cardType: 'Hazard Anomaly',
       cardId: card.id,
       title: `${card.name} (${card.nickname})`,
+      cardName: card.name,
+      cardNickname: card.nickname,
       description: card.description,
       image: card.image,
       era: era,
@@ -1265,15 +1397,15 @@ export class GameEngine {
     const outcome = this.modifyParadox(player, 1, true);
     const { oldParadox, newParadox, triggeredDanger, criticalOverload } = outcome;
 
-    let consequenceDesc = 'A localized temporal fracture distorts causality, placing intense friction on your chrono-suit (+1 Paradox).';
+    let consequenceDesc = 'A localized temporal fracture distorts causality! The timeline strain increases (+1 Paradox).';
     if (criticalOverload) {
-      consequenceDesc = 'CRITICAL TEMPORAL OVERLOAD! Paradox threshold breached (5/5). Spacetime collapsed: Global Timeline +2, -3 Points, Suit reset to Level 2.';
+      consequenceDesc = 'CRITICAL TEMPORAL BREACH! Spacetime stability shattered (5/5): Global Timeline +2, -3 Points, Paradox reset to Level 2.';
     } else if (triggeredDanger) {
-      consequenceDesc = 'SEVERE INSTABILITY! Paradox reached Level 4 — Chrono-suit destabilized! A Hazard Anomaly will strike upon stabilization!';
+      consequenceDesc = 'TIMELINE DESTABILIZATION! Paradox reached Level 4—causality is unraveling! A Hazard Anomaly strikes!';
     } else if (newParadox >= 3 && oldParadox < 3) {
-      consequenceDesc = 'TEMPORAL FRICTION! Paradox reached Level 3 — Chronometric feedback drained -1 Energy!';
+      consequenceDesc = 'TEMPORAL DRAIN! Paradox reached Level 3—chronal friction drained -1 Energy!';
     } else if (newParadox >= 2 && oldParadox < 2) {
-      consequenceDesc = 'CAUSAL DISSONANCE! Paradox reached Level 2 — Timeline discord cost -1 Victory Point!';
+      consequenceDesc = 'CAUSAL DISCORD! Paradox reached Level 2—timeline instability cost -1 Victory Point!';
     }
 
     this.state.pendingModal = {
@@ -1291,7 +1423,7 @@ export class GameEngine {
       criticalOverload: criticalOverload,
       era: player.currentEra,
       tileIndex: player.tileIndex,
-      image: null
+      image: '/assets/Tiles/paradox_tile.png'
     };
 
     this.addLog('paradox', `🌀 ${player.name} entered a Paradox Zone in ${ERA_NAMES[player.currentEra]}! Paradox: ${oldParadox} ➔ ${newParadox}.`);
@@ -1405,8 +1537,21 @@ export class GameEngine {
 
   // --- Temporal Occurrence ---
   activateTemporalOccurrence(turns) {
+    const occurrenceId = `occ_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
     this.state.temporalOccurrence = turns * this.state.players.length; // rounds = turns * players
+    this.state.temporalOccurrenceId = occurrenceId;
+    this.state.temporalOccurrenceAnnounced = false;
+    this.state.temporalOccurrenceRounds = turns;
+    this.state.temporalOccurrenceInitialTurns = turns * this.state.players.length;
     this.addLog('temporal', `Temporal Occurrence activated for ${turns} rounds!`);
+  }
+
+  markTemporalOccurrenceAnnounced(id) {
+    if (this.state) {
+      if (!id || this.state.temporalOccurrenceId === id) {
+        this.state.temporalOccurrenceAnnounced = true;
+      }
+    }
   }
 
   // --- Abilities ---
@@ -1471,6 +1616,19 @@ export class GameEngine {
         this.state.hasMovedThisTurn = false;
         this.state.phase = 'moving';
         this.state.movementDirection = 'forward';
+        this.state.pendingModal = {
+          type: 'abilityActivate',
+          abilityKey: 'MOMENTUM',
+          playerId: player.id,
+          playerName: player.name,
+          playerRole: 'The Explorer',
+          playerAvatar: player.role?.avatar || 'assets/Characters/Copy of adventurer.png',
+          playerColor: player.color || '#3498DB',
+          title: '⚡ MOMENTUM SURGE! ⚡',
+          subtitle: 'EXPLORER ACTIVE ABILITY',
+          description: `${player.name} ignited kinetic chronal thrusters! Gained +2 Bonus Movement steps along the timeline!`,
+          bonusMoves: 2
+        };
         this.addLog('ability', `${player.name} activated Momentum! Surges forward with +2 Bonus Movement steps!`);
         break;
 
@@ -1507,6 +1665,20 @@ export class GameEngine {
         };
         player.usedAbilityThisTurn = true;
         player.activeCooldown = ROLES.STRATEGIST.active.cooldown;
+        this.state.pendingModal = {
+          type: 'abilityActivate',
+          abilityKey: 'TEMPORAL_TRAP',
+          playerId: player.id,
+          playerName: player.name,
+          playerRole: 'The Strategist',
+          playerAvatar: player.role?.avatar || 'assets/Characters/Copy of strategist.png',
+          playerColor: player.color || '#F39C12',
+          tileIndex: player.tileIndex,
+          era: player.currentEra,
+          title: '🕸️ TEMPORAL TRAP ARMED! 🕸️',
+          subtitle: 'STRATEGIST ACTIVE ABILITY',
+          description: `${player.name} armed a lethal Temporal Trap on Space #${player.tileIndex + 1}! Any rival operative landing here will trigger a Hazard penalty and grant +1 Energy to ${player.name}!`
+        };
         this.addLog('ability', `🕸️ ${player.name} planted a Temporal Trap on Space #${player.tileIndex + 1}!`);
         break;
 
@@ -1659,6 +1831,19 @@ export class GameEngine {
     this.modifyEnergy(player, -GAME_CONSTANTS.REVERSE_TIME_COST);
     player.reverseTimeCooldown = GAME_CONSTANTS.REVERSE_TIME_COOLDOWN;
     this.state.movementDirection = 'backward';
+    this.state.pendingModal = {
+      type: 'abilityActivate',
+      abilityKey: 'REVERSE_TIME',
+      playerId: player.id,
+      playerName: player.name,
+      playerRole: player.role?.name || player.roleKey,
+      playerAvatar: player.role?.avatar || 'assets/Characters/Copy of adventurer.png',
+      playerColor: player.color || '#EC4899',
+      movesRemaining: this.state.movesRemaining,
+      title: '⏪ REVERSE TIME ACTIVATED! ⏪',
+      subtitle: 'CHRONAL REVERSAL • BACKWARD TRAJECTORY',
+      description: `${player.name} spent 3 Energy to invert their timeline trajectory! Moving backwards for ${this.state.movesRemaining} spaces towards historical origins!`
+    };
 
     this.addLog('action', `${player.name} activated Reverse Time! (-${GAME_CONSTANTS.REVERSE_TIME_COST} Energy, reversing direction to move ${this.state.movesRemaining} spaces backwards)`);
     this.notify();
@@ -1670,8 +1855,14 @@ export class GameEngine {
     const player = this.state.players[idx];
     if (!player) return false;
 
+    const stoppedBy = player.timeStoppedBy;
     player.skipNextTurn = false;
-    this.addLog('danger', `⛔ ${player.name}'s turn was skipped (Hazard Penalty)!`);
+    player.timeStoppedBy = null;
+    if (stoppedBy) {
+      this.addLog('ability', `⌛ ${player.name} broke free from Temporal Stasis (cast by ${stoppedBy.name})! Turn thawed and passed.`);
+    } else {
+      this.addLog('danger', `⛔ ${player.name}'s turn was skipped (Hazard Penalty)!`);
+    }
     this.endTurn();
     return true;
   }
@@ -1893,6 +2084,9 @@ export class GameEngine {
       this.state.temporalOccurrence--;
       if (this.state.temporalOccurrence <= 0) {
         this.addLog('temporal', 'Temporal Occurrence has ended.');
+        this.state.temporalOccurrence = 0;
+        this.state.temporalOccurrenceId = null;
+        this.state.temporalOccurrenceAnnounced = true;
       }
     }
 

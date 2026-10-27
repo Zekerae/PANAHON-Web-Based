@@ -29,6 +29,8 @@ function GameBoard({
   movesRemaining,
   movementDirection,
   temporalOccurrence,
+  temporalOccurrenceId,
+  hasPendingModal = false,
   pendingChoice,
   onMoveToTile
 }) {
@@ -36,22 +38,69 @@ function GameBoard({
   const prevTurnKeyRef = useRef(null);
 
   // Temporal Occurrence Shockwave Announcement & Sound Trigger
+  // Guarantees:
+  // 1. Shows ONLY ONCE per activation, immediately AFTER the card is drawn/resolved.
+  // 2. NEVER shows on subsequent player turns while temporal occurrence is active.
+  // 3. Allows the top floating plaque (.temporal-occurrence-plaque) to remain visible at the top.
   const [showRiftAnnouncement, setShowRiftAnnouncement] = useState(false);
-  const prevTemporalRef = useRef(temporalOccurrence || 0);
+  const pendingAnnouncementIdRef = useRef(null);
+  const initialMountRef = useRef(true);
+
+  // Initialize global window deduplication set so remounts or state updates cannot re-trigger it
+  if (typeof window !== 'undefined' && !window.__panahonSeenOccurrences) {
+    window.__panahonSeenOccurrences = new Set();
+  }
+
+  // On initial mount: if temporalOccurrence is ALREADY active (e.g. 5 turns remaining on page reload or spectator join),
+  // mark it as already seen so the intrusive modal doesn't pop up retroactively on existing turns!
+  useEffect(() => {
+    if (initialMountRef.current) {
+      initialMountRef.current = false;
+      if (temporalOccurrence > 0) {
+        const id = temporalOccurrenceId || `initial_occ_${temporalOccurrence}`;
+        if (typeof window !== 'undefined') {
+          window.__panahonSeenOccurrences.add(id);
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const curr = temporalOccurrence || 0;
-    const prev = prevTemporalRef.current || 0;
-    if (curr > 0 && prev === 0) {
+    if (curr <= 0) {
+      pendingAnnouncementIdRef.current = null;
+      setShowRiftAnnouncement(false);
+      return;
+    }
+
+    const id = temporalOccurrenceId || `occ_len_${curr}`;
+    const alreadySeen = typeof window !== 'undefined' && window.__panahonSeenOccurrences?.has(id);
+
+    if (alreadySeen) {
+      return;
+    }
+
+    // If card modal is currently open on screen, hold the announcement until after the card is dismissed
+    if (hasPendingModal) {
+      pendingAnnouncementIdRef.current = id;
+      return;
+    }
+
+    // "After the card drawn": Show the announcement ONCE, play sound, and immediately mark as seen
+    if (id && !alreadySeen) {
+      if (typeof window !== 'undefined') {
+        window.__panahonSeenOccurrences?.add(id);
+      }
+      pendingAnnouncementIdRef.current = null;
       setShowRiftAnnouncement(true);
       sounds.timeRift?.();
+
       const t = setTimeout(() => {
         setShowRiftAnnouncement(false);
       }, 4500);
       return () => clearTimeout(t);
     }
-    prevTemporalRef.current = curr;
-  }, [temporalOccurrence]);
+  }, [temporalOccurrence, temporalOccurrenceId, hasPendingModal]);
 
   useEffect(() => {
     if (!currentPlayer) return;
@@ -614,7 +663,10 @@ function GameBoard({
             </div>
             <button
               className="btn btn-primary temporal-rift-dismiss-btn"
-              onClick={() => setShowRiftAnnouncement(false)}
+              onClick={() => {
+                sounds.btnClick?.();
+                setShowRiftAnnouncement(false);
+              }}
             >
               BRACE FOR CHRONO FLUX
             </button>
@@ -859,18 +911,35 @@ function GameBoard({
                       <div className="tile-players">
                         {playersOnTile.map(p => {
                           const isPawnTurn = p.id === currentPlayer.id;
+                          const isFrozenInTime = Boolean(p.timeStoppedBy);
                           return (
                             <div
                               key={p.id}
-                              className={`mario-pawn ${isPawnTurn ? "active-turn" : ""}`}
-                              title={`${p.name} (${p.role?.name || ""})`}
+                              className={`mario-pawn ${isPawnTurn ? "active-turn" : ""} ${isFrozenInTime ? "pawn-frozen" : ""}`}
+                              title={`${p.name} (${p.role?.name || ""})${isFrozenInTime ? ` • ⌛ Frozen in Time by ${p.timeStoppedBy.name}` : ""}`}
                             >
                               {isPawnTurn && <div className="pawn-turn-arrow">▼ YOU</div>}
-                              {p.skipNextTurn && <div className="pawn-skip-indicator" title="Turn Skipped">⛔</div>}
-                              <div className="pawn-badge" style={{ background: p.color }}>P{(p.id ?? 0) + 1}</div>
-                              {p.role?.avatar && <img src={p.role.avatar} className="pawn-sprite" alt={p.name} draggable={false} />}
-                              <div className="pawn-pedestal" style={{ background: p.color, boxShadow: `0 0 10px ${p.color}, 0 0 4px #fff` }}>
-                                {isPawnTurn && <div className="pawn-pedestal-ring" style={{ borderColor: p.color }} />}
+                              {isFrozenInTime ? (
+                                <>
+                                  <div className="pawn-stasis-indicator" title={`Frozen in Time by ${p.timeStoppedBy.name}`}>⌛</div>
+                                  <div className="pawn-stasis-bubble" />
+                                </>
+                              ) : p.skipNextTurn ? (
+                                <div className="pawn-skip-indicator" title="Turn Skipped">⛔</div>
+                              ) : null}
+                              <div className="pawn-badge" style={{ background: isFrozenInTime ? "#06B6D4" : p.color }}>
+                                {isFrozenInTime ? "❄️" : `P${(p.id ?? 0) + 1}`}
+                              </div>
+                              {p.role?.avatar && (
+                                <img
+                                  src={p.role.avatar}
+                                  className={`pawn-sprite ${isFrozenInTime ? "pawn-sprite-frozen" : ""}`}
+                                  alt={p.name}
+                                  draggable={false}
+                                />
+                              )}
+                              <div className="pawn-pedestal" style={{ background: isFrozenInTime ? "#0891B2" : p.color, boxShadow: isFrozenInTime ? "0 0 14px #22D3EE, 0 0 4px #fff" : `0 0 10px ${p.color}, 0 0 4px #fff` }}>
+                                {isPawnTurn && <div className="pawn-pedestal-ring" style={{ borderColor: isFrozenInTime ? "#22D3EE" : p.color }} />}
                               </div>
                             </div>
                           );

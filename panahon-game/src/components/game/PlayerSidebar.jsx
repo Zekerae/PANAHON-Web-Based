@@ -59,7 +59,8 @@ function PlayerSidebar({
           const isActive = idx === currentPlayerIndex;
           const isMe = isOnline && p.id === myPlayerId;
           const isInspected = viewedPlayerId === p.id;
-          const paradoxPercent = Math.min(100, (p.paradox / 5) * 100);
+          const energyPercent = Math.max(0, Math.min(100, ((p.energy ?? 0) / 10) * 100));
+          const paradoxPercent = Math.max(0, Math.min(100, ((p.paradox ?? 0) / 5) * 100));
           let paradoxClass = "paradox-fill-low";
           if (p.paradox >= 4) paradoxClass = "paradox-fill-high";
           else if (p.paradox >= 2) paradoxClass = "paradox-fill-mid";
@@ -108,7 +109,7 @@ function PlayerSidebar({
                 >
                   <span className="compact-bar-label">EN</span>
                   <div className="stat-bar compact-stat-bar">
-                    <div className="stat-bar-fill energy-fill" style={{ width: `${(p.energy / 10) * 100}%` }}></div>
+                    <div className="stat-bar-fill energy-fill" style={{ width: `${energyPercent}%`, height: '100%' }}></div>
                   </div>
                   <span
                     className="compact-bar-val energy-val"
@@ -121,7 +122,7 @@ function PlayerSidebar({
                 <div className="compact-bar-group" title={`Paradox: ${p.paradox}/5`}>
                   <span className="compact-bar-label">PD</span>
                   <div className="stat-bar compact-stat-bar">
-                    <div className={`stat-bar-fill ${paradoxClass}`} style={{ width: `${paradoxPercent}%` }}></div>
+                    <div className={`stat-bar-fill ${paradoxClass}`} style={{ width: `${paradoxPercent}%`, height: '100%' }}></div>
                   </div>
                   <span
                     className="compact-bar-val paradox-val"

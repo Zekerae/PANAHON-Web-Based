@@ -57,7 +57,7 @@ export default function App() {
   const [isBooted, setIsBooted] = useState(() => {
     try {
       const p = new URLSearchParams(window.location.search);
-      return p.get('skipBoot') === 'true' || p.has('modal') || p.has('drawer');
+      return p.get('skipBoot') === 'true' || p.has('modal') || p.has('drawer') || p.has('room') || p.has('join');
     } catch {
       return false;
     }
@@ -75,6 +75,15 @@ export default function App() {
     showToast,
     onGameStartSuccess: (opts) => dispatch({ type: 'START_GAME', isSpectator: Boolean(opts?.isSpectator) })
   });
+
+  // Listen for emergency GUI Scale reset shortcut (Alt+0 / Ctrl+0)
+  useEffect(() => {
+    const handleReset = (e) => {
+      showToast('🖥️ GUI Scale Reset', e.detail?.message || 'GUI Scaling reverted to 100% (Default).', 'info');
+    };
+    window.addEventListener('panahon_gui_scale_reset', handleReset);
+    return () => window.removeEventListener('panahon_gui_scale_reset', handleReset);
+  }, [showToast]);
 
   // Auto-save active session during gameplay
   useEffect(() => {
@@ -245,12 +254,14 @@ export default function App() {
     );
   }, [appState.localPlayers, sounds, network, initGame, showToast]);
 
-  const handleStartSpectatorSimulation = useCallback(() => {
-    const botConfigs = [
+  const handleStartSpectatorSimulation = useCallback((customConfigs) => {
+    const botConfigs = (customConfigs && customConfigs.length >= 2) ? customConfigs : [
       { name: 'Bot Historian', roleKey: 'HISTORIAN', type: 'ai', difficulty: 'normal' },
       { name: 'Bot Explorer', roleKey: 'EXPLORER', type: 'ai', difficulty: 'normal' },
       { name: 'Bot Guardian', roleKey: 'GUARDIAN', type: 'ai', difficulty: 'normal' },
-      { name: 'Bot Strategist', roleKey: 'STRATEGIST', type: 'ai', difficulty: 'normal' }
+      { name: 'Bot Strategist', roleKey: 'STRATEGIST', type: 'ai', difficulty: 'normal' },
+      { name: 'Bot Rogue', roleKey: 'ROGUE', type: 'ai', difficulty: 'normal' },
+      { name: 'Bot Chronomancer', roleKey: 'CHRONOMANCER', type: 'ai', difficulty: 'normal' }
     ];
     dispatch({ type: 'SET_LOCAL_PLAYERS', payload: botConfigs });
     handleStartLocalGame(botConfigs, true);

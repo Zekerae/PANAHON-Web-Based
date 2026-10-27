@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import sounds from '../../sound.js';
 import { ROLES } from '../../gameData.js';
 
@@ -11,6 +11,7 @@ export default function SpectatorHubModal({ onClose, onStartSpectatorSimulation,
       return 'online';
     }
   }); // 'online' | 'ai'
+
   const [roomCode, setRoomCode] = useState('');
   const [observerName, setObserverName] = useState(() => {
     return localStorage.getItem('panahon_player_name')
@@ -19,11 +20,65 @@ export default function SpectatorHubModal({ onClose, onStartSpectatorSimulation,
   });
   const [errorMsg, setErrorMsg] = useState('');
 
+  // All 6 Roles included
+  const roleHighlights = [
+    { key: 'HISTORIAN', name: 'The Historian', role: ROLES.HISTORIAN, color: '#E74C3C', perk: 'Clue Decipher & Decoy Discard' },
+    { key: 'EXPLORER', name: 'The Explorer', role: ROLES.EXPLORER, color: '#3498DB', perk: 'Momentum & Chrono-Stride' },
+    { key: 'GUARDIAN', name: 'The Guardian', role: ROLES.GUARDIAN, color: '#2ECC71', perk: 'Temporal Repair & Aegis Shield' },
+    { key: 'STRATEGIST', name: 'The Strategist', role: ROLES.STRATEGIST, color: '#F39C12', perk: 'Temporal Trap & Space Lock' },
+    { key: 'ROGUE', name: 'The Rogue', role: ROLES.ROGUE, color: '#9B59B6', perk: 'Shadow Pockets & Swipe' },
+    { key: 'CHRONOMANCER', name: 'The Chronomancer', role: ROLES.CHRONOMANCER, color: '#1ABC9C', perk: 'Temporal Foresight & Time Stop' }
+  ];
+
+  // Active combatants in simulation (default to all 6)
+  const [selectedRoleKeys, setSelectedRoleKeys] = useState([
+    'HISTORIAN', 'EXPLORER', 'GUARDIAN', 'STRATEGIST', 'ROGUE', 'CHRONOMANCER'
+  ]);
+
+  // Esc shortcut to close modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        sounds.btnClick();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const toggleRole = (key) => {
+    sounds.btnClick();
+    setSelectedRoleKeys((prev) => {
+      if (prev.includes(key)) {
+        if (prev.length <= 2) return prev; // Keep at least 2 combatants
+        return prev.filter(k => k !== key);
+      } else {
+        return [...prev, key];
+      }
+    });
+  };
+
+  const selectAll = () => {
+    sounds.btnClick();
+    setSelectedRoleKeys(['HISTORIAN', 'EXPLORER', 'GUARDIAN', 'STRATEGIST', 'ROGUE', 'CHRONOMANCER']);
+  };
+
+  const selectClassic4 = () => {
+    sounds.btnClick();
+    setSelectedRoleKeys(['HISTORIAN', 'EXPLORER', 'GUARDIAN', 'STRATEGIST']);
+  };
+
+  const selectWithNewTwo = () => {
+    sounds.btnClick();
+    setSelectedRoleKeys(['ROGUE', 'CHRONOMANCER', 'HISTORIAN', 'EXPLORER']);
+  };
+
   const handleSpectateOnlineSubmit = (e) => {
     if (e) e.preventDefault();
     const cleanCode = roomCode.trim().toUpperCase();
     if (!cleanCode || cleanCode.length < 3) {
-      sounds.hazard();
+      sounds.danger?.();
       setErrorMsg('Please enter a valid 5-letter Room Code.');
       return;
     }
@@ -37,34 +92,34 @@ export default function SpectatorHubModal({ onClose, onStartSpectatorSimulation,
   const handleStartAiSim = () => {
     sounds.portal();
     onClose();
+    const activeRoles = roleHighlights.filter(r => selectedRoleKeys.includes(r.key));
+    const configs = (activeRoles.length >= 2 ? activeRoles : roleHighlights).map(r => ({
+      name: `Bot ${r.role?.name?.replace('The ', '') || r.name}`,
+      roleKey: r.key,
+      type: 'ai',
+      difficulty: 'normal'
+    }));
     if (onStartSpectatorSimulation) {
-      onStartSpectatorSimulation();
+      onStartSpectatorSimulation(configs);
     }
   };
 
-  const roleHighlights = [
-    { key: 'HISTORIAN', name: 'The Historian', role: ROLES.HISTORIAN, color: '#E74C3C', perk: 'Clue Decipher & Decoy Discard' },
-    { key: 'EXPLORER', name: 'The Explorer', role: ROLES.EXPLORER, color: '#3498DB', perk: 'Momentum & Chrono-Stride' },
-    { key: 'GUARDIAN', name: 'The Guardian', role: ROLES.GUARDIAN, color: '#2ECC71', perk: 'Temporal Repair & Aegis Shield' },
-    { key: 'STRATEGIST', name: 'The Strategist', role: ROLES.STRATEGIST, color: '#F39C12', perk: 'Temporal Trap & Space Lock' },
-  ];
-
   return (
     <div className="modal-overlay spectator-hub-overlay" style={{ zIndex: 12000 }}>
-      <div className="modal duelyst-modal spectator-hub-modal">
+      <div className="modal spectator-hub-modal" role="dialog" aria-label="Chrono Observatory Spectator Hub">
         {/* TOP HEADER */}
         <div className="spectator-hub-header">
           <div className="spectator-hub-title-group">
             <div className="spectator-hub-icon-badge">
-              <span className="spectator-badge-emoji">🔭</span>
+              <span>🔭</span>
             </div>
             <div>
               <div className="spectator-hub-title-row">
                 <h2 className="spectator-hub-title">CHRONO OBSERVATORY</h2>
-                <span className="spectator-hub-pill">SPECTATOR HUB</span>
+                <span className="spectator-hub-pill">[ SPECTATOR HUB ]</span>
               </div>
               <p className="spectator-hub-subtitle">
-                Passive tactical surveillance, omniscient intelligence, and live timeline chronicle monitoring
+                Tactical surveillance & omniscient timeline monitoring across all historical eras.
               </p>
             </div>
           </div>
@@ -73,7 +128,7 @@ export default function SpectatorHubModal({ onClose, onStartSpectatorSimulation,
             type="button"
             className="spectator-hub-close-btn"
             onClick={() => { sounds.btnClick(); onClose(); }}
-            title="Close Observatory Hub"
+            title="Close Observatory Hub [ESC]"
           >
             ✕
           </button>
@@ -87,9 +142,8 @@ export default function SpectatorHubModal({ onClose, onStartSpectatorSimulation,
               className={`spectator-tab-btn ${activeTab === 'online' ? 'active' : ''}`}
               onClick={() => { sounds.btnClick(); setActiveTab('online'); setErrorMsg(''); }}
             >
-              <span className="spectator-tab-icon">🌐</span>
-              <span className="spectator-tab-text">ONLINE MATCH</span>
-              {activeTab === 'online' && <span className="spectator-tab-indicator" />}
+              <span>🌐</span>
+              <span>ONLINE MATCH SPECTATE</span>
             </button>
 
             <button
@@ -97,9 +151,8 @@ export default function SpectatorHubModal({ onClose, onStartSpectatorSimulation,
               className={`spectator-tab-btn ${activeTab === 'ai' ? 'active' : ''}`}
               onClick={() => { sounds.btnClick(); setActiveTab('ai'); setErrorMsg(''); }}
             >
-              <span className="spectator-tab-icon">🤖</span>
-              <span className="spectator-tab-text">BOT AI SIMULATION</span>
-              {activeTab === 'ai' && <span className="spectator-tab-indicator" />}
+              <span>🤖</span>
+              <span>BOT AI SIMULATION</span>
             </button>
           </div>
         </div>
@@ -109,7 +162,6 @@ export default function SpectatorHubModal({ onClose, onStartSpectatorSimulation,
           {/* TAB 1: ONLINE MATCH */}
           {activeTab === 'online' && (
             <div className="spectator-tab-content animate-fade-in">
-              {/* Intel Feature Highlights */}
               <div className="spectator-intel-grid">
                 <div className="spectator-intel-chip">
                   <span className="intel-chip-icon">👁️</span>
@@ -134,11 +186,10 @@ export default function SpectatorHubModal({ onClose, onStartSpectatorSimulation,
                 </div>
               </div>
 
-              {/* Online Form Card */}
               <div className="spectator-form-card">
                 <div className="spectator-form-header">
-                  <span className="spectator-form-icon">🛰️</span>
-                  <span className="spectator-form-heading">Connect to Live Online Room</span>
+                  <span>🛰️</span>
+                  <span>Connect to Live Online Expedition</span>
                 </div>
 
                 <div className="spectator-form-row">
@@ -146,7 +197,7 @@ export default function SpectatorHubModal({ onClose, onStartSpectatorSimulation,
                     Observer Callsign
                   </label>
                   <div className="spectator-input-wrapper">
-                    <span className="spectator-input-prefix">👤</span>
+                    <span>👤</span>
                     <input
                       id="spectator-callsign-input"
                       type="text"
@@ -163,8 +214,8 @@ export default function SpectatorHubModal({ onClose, onStartSpectatorSimulation,
                   <label className="spectator-label" htmlFor="spectator-room-input">
                     Target Room Code
                   </label>
-                  <div className="spectator-input-wrapper code-wrapper">
-                    <span className="spectator-input-prefix">🔑</span>
+                  <div className="spectator-input-wrapper">
+                    <span>🔑</span>
                     <input
                       id="spectator-room-input"
                       type="text"
@@ -200,33 +251,61 @@ export default function SpectatorHubModal({ onClose, onStartSpectatorSimulation,
               <div className="spectator-sim-overview">
                 <div className="spectator-sim-tagline">
                   <span>⚡</span>
-                  <span>Autonomous 4-Way Chronological Clash</span>
+                  <span>Autonomous Chronological Clash ({selectedRoleKeys.length} Combatants)</span>
                 </div>
                 <p className="spectator-sim-desc">
-                  Simulate an entire match between four specialized AI operatives. Control timeline pacing, toggle omniscient reveals, and auto-track operative turns across all eras.
+                  Simulate an entire match between AI operatives across all eras. Choose which of the <strong>6 unique historical classes</strong> enter the arena. Click any card below to toggle their participation.
                 </p>
+
+                {/* Preset Filters */}
+                <div className="spectator-preset-filters">
+                  <button type="button" className="spectator-filter-btn" onClick={selectAll}>
+                    ⚔️ All 6 Operatives
+                  </button>
+                  <button type="button" className="spectator-filter-btn" onClick={selectWithNewTwo}>
+                    🗡️ With Rogue & Chronomancer
+                  </button>
+                  <button type="button" className="spectator-filter-btn" onClick={selectClassic4}>
+                    📜 Classic 4
+                  </button>
+                </div>
               </div>
 
-              {/* 4 Operatives Showcase */}
+              {/* All 6 Operatives Grid */}
               <div className="spectator-roles-grid">
-                {roleHighlights.map((r) => (
-                  <div key={r.key} className="spectator-role-card" style={{ borderColor: `${r.color}55` }}>
-                    <div className="spectator-role-avatar-wrap" style={{ background: `${r.color}22`, borderColor: r.color }}>
-                      {r.role?.avatar ? (
-                        <img src={r.role.avatar} alt={r.name} className="spectator-role-img" />
-                      ) : (
-                        <span>🤖</span>
-                      )}
+                {roleHighlights.map((r) => {
+                  const isSelected = selectedRoleKeys.includes(r.key);
+                  return (
+                    <div
+                      key={r.key}
+                      className={`spectator-role-card ${isSelected ? 'selected' : 'deselected'}`}
+                      onClick={() => toggleRole(r.key)}
+                      title={`Click to ${isSelected ? 'remove' : 'add'} ${r.name}`}
+                    >
+                      <div className="spectator-role-avatar-wrap" style={{ borderColor: r.color }}>
+                        {r.role?.avatar ? (
+                          <img src={r.role.avatar} alt={r.name} className="spectator-role-img" />
+                        ) : (
+                          <span>🤖</span>
+                        )}
+                      </div>
+                      <div className="spectator-role-info">
+                        <div className="spectator-role-topline">
+                          <span className="spectator-role-name" style={{ color: r.color }}>
+                            {r.name}
+                          </span>
+                          <span className="spectator-role-status-glyph">
+                            {isSelected ? '✓ ACTIVE' : '—'}
+                          </span>
+                        </div>
+                        <span className="spectator-role-perk">{r.perk}</span>
+                      </div>
                     </div>
-                    <div className="spectator-role-info">
-                      <span className="spectator-role-name" style={{ color: r.color }}>{r.name}</span>
-                      <span className="spectator-role-perk">{r.perk}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              {/* Simulation Perks Row */}
+              {/* Simulation Features */}
               <div className="spectator-sim-perks">
                 <span className="sim-perk-badge">⏩ 1x / 1.5x / Turbo Pacing</span>
                 <span className="sim-perk-badge">🎥 Dynamic Camera Tracking</span>
@@ -243,28 +322,26 @@ export default function SpectatorHubModal({ onClose, onStartSpectatorSimulation,
             className="spectator-btn-cancel"
             onClick={() => { sounds.btnClick(); onClose(); }}
           >
-            Cancel
+            Cancel [ ESC ]
           </button>
 
           {activeTab === 'online' ? (
             <button
               type="button"
-              className="spectator-btn-primary online-submit"
+              className="spectator-btn-primary"
               onClick={handleSpectateOnlineSubmit}
             >
-              <span className="btn-icon">👁️</span>
-              <span>Watch Live Match</span>
-              <span className="btn-arrow">➔</span>
+              <span>👁️</span>
+              <span>Watch Live Match ➔</span>
             </button>
           ) : (
             <button
               type="button"
-              className="spectator-btn-primary ai-submit"
+              className="spectator-btn-primary"
               onClick={handleStartAiSim}
             >
-              <span className="btn-icon">🚀</span>
-              <span>Launch AI Simulation</span>
-              <span className="btn-arrow">➔</span>
+              <span>🚀</span>
+              <span>Launch AI Simulation ({selectedRoleKeys.length} Bots) ➔</span>
             </button>
           )}
         </div>

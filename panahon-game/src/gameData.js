@@ -34,8 +34,8 @@ export const TILE_IMAGES = {
   [TILE_TYPES.DANGER]: '/assets/Tiles/danger_tile.png',
   [TILE_TYPES.ARTIFACT]: '/assets/Tiles/artifact_tile.png',
   [TILE_TYPES.TIMEGATE]: '/assets/Tiles/portal_tile.png',
+  [TILE_TYPES.PARADOX]: '/assets/Tiles/paradox_tile.png',
   [TILE_TYPES.EMPTY]: '/assets/Tiles/empty_tile.png'
-  // Note: paradox tile is WIP, falls back to paradox space disc
 };
 
 // Tile layout for each era matching Full Map with Tiles.png

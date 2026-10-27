@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import sounds from '../sound.js';
+import { useGuiScale, resetGuiScale } from '../guiScale.js';
 import { ROLES, ERA_NAMES } from '../gameData.js';
 
 export default function PauseModal({
@@ -15,6 +16,7 @@ export default function PauseModal({
 }) {
   const [copied, setCopied] = useState(false);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
+  const [guiScale, setGuiScale] = useGuiScale();
 
   useEffect(() => {
     if (!isOpen) {
@@ -59,7 +61,7 @@ export default function PauseModal({
   return (
     <div className="modal-overlay pause-modal-overlay" onClick={onResume} style={{ zIndex: 12000 }}>
       <div
-        className="modal pause-modal animate-scale-up mobile-compact-pause"
+        className="modal pause-modal animate-scale-up mobile-compact-pause hide-scrollbar"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -69,6 +71,8 @@ export default function PauseModal({
           width: '92%',
           maxHeight: '90vh',
           overflowY: 'auto',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
           padding: '18px 20px',
           boxSizing: 'border-box'
         }}
@@ -208,6 +212,128 @@ export default function PauseModal({
           >
             {soundMuted ? '🔇 AUDIO: MUTED (CLICK TO UNMUTE)' : '🔊 AUDIO: ON (CLICK TO MUTE)'}
           </button>
+
+          {/* GUI Scaling Adjustment Control */}
+          <div className="pause-scale-box" style={{
+            background: 'linear-gradient(180deg, #2D2016 0%, #1A120B 100%)',
+            border: '2px solid #C2974D',
+            boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 3px 6px rgba(0,0,0,0.6)',
+            borderRadius: '4px',
+            padding: '10px 14px',
+            boxSizing: 'border-box',
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '0.95rem' }}>🖥️</span>
+                <span style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  color: '#FFD700',
+                  letterSpacing: '0.8px'
+                }}>
+                  GUI SCALING
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {Math.abs(guiScale - 1.0) > 0.01 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sounds.btnClick();
+                      resetGuiScale();
+                    }}
+                    style={{
+                      background: '#1A120B',
+                      border: '1px solid #7A5823',
+                      borderRadius: '3px',
+                      color: '#FCD34D',
+                      fontSize: '0.62rem',
+                      fontFamily: 'var(--font-display)',
+                      padding: '2px 6px',
+                      cursor: 'pointer'
+                    }}
+                    title="Reset GUI scale back to 100% default"
+                  >
+                    ↺ 100%
+                  </button>
+                )}
+                <span style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  color: '#FEF3C7',
+                  background: '#140E0A',
+                  border: '1px solid #C2974D',
+                  borderRadius: '3px',
+                  padding: '2px 8px'
+                }}>
+                  {Math.round(guiScale * 100)}%
+                </span>
+              </div>
+            </div>
+
+            <input
+              type="range"
+              min="80"
+              max="140"
+              step="5"
+              value={Math.round(guiScale * 100)}
+              onChange={(e) => {
+                const val = Number(e.target.value) / 100;
+                setGuiScale(val);
+              }}
+              style={{
+                width: '100%',
+                accentColor: '#C2974D',
+                cursor: 'pointer',
+                margin: '2px 0'
+              }}
+            />
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
+              {[
+                { val: 0.9, label: '90%' },
+                { val: 1.0, label: '100%' },
+                { val: 1.1, label: '110%' },
+                { val: 1.2, label: '120% ⭐' },
+                { val: 1.3, label: '130%' }
+              ].map((preset) => (
+                <button
+                  key={preset.val}
+                  type="button"
+                  onClick={() => {
+                    sounds.btnClick();
+                    setGuiScale(preset.val);
+                  }}
+                  style={{
+                    padding: '5px 2px',
+                    fontSize: '0.62rem',
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 800,
+                    background: Math.abs(guiScale - preset.val) < 0.01
+                      ? 'linear-gradient(180deg, #F5C442 0%, #C2974D 100%)'
+                      : 'linear-gradient(180deg, #382A1B 0%, #22180F 100%)',
+                    color: Math.abs(guiScale - preset.val) < 0.01 ? '#140E0A' : '#FEF3C7',
+                    border: Math.abs(guiScale - preset.val) < 0.01 ? '1.5px solid #FFE082' : '1.5px solid #5C3E16',
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                    boxShadow: Math.abs(guiScale - preset.val) < 0.01 ? '0 0 8px rgba(245, 196, 66, 0.5)' : 'none',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: '0.62rem', color: '#C8B293', textAlign: 'center', marginTop: '1px', lineHeight: 1.45 }}>
+              ⭐ 120% recommended for PC &bull; Press <kbd style={{ padding: '1px 5px', fontSize: '0.60rem', background: '#140E0A', border: '1px solid #5A422D', color: '#F5C442' }}>Alt + 0</kbd> anytime to reset
+            </div>
+          </div>
 
           <button
             className="btn btn-secondary pause-btn"

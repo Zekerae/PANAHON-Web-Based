@@ -1034,7 +1034,7 @@ export class NetworkManager {
 
       case 'GAME_ACTION':
         this.executeRemoteAction(msg.action);
-        if (this.isHost && msg.action?.type === 'END_TURN') {
+        if (this.isHost) {
           this.broadcastState(this.engine.getState());
         }
         break;
@@ -1074,10 +1074,16 @@ export class NetworkManager {
           this.engine.setPlayerTurnOrder(action.orderedPlayers);
         }
         break;
-      case 'SKIP_TURN':
-        sounds.danger();
+      case 'SKIP_TURN': {
+        const p = this.engine.state.players[action.playerIdx];
+        if (p?.timeStoppedBy) {
+          sounds.timeFreeze?.() || sounds.timeRift?.();
+        } else {
+          sounds.danger();
+        }
         this.engine.skipPlayerTurn(action.playerIdx);
         break;
+      }
       case 'ROLL_DICE':
         sounds.diceRoll();
         if (action.result) {

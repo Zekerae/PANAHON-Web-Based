@@ -37,6 +37,7 @@ function GameActions({
   const isMovingBackward = state.movementDirection === 'backward';
   const isExhausted = Boolean(currentPlayer && currentPlayer.energy <= 0);
   const isSkipped = Boolean(currentPlayer && currentPlayer.skipNextTurn);
+  const isTimeStopped = Boolean(currentPlayer && currentPlayer.timeStoppedBy);
   const canReverseTime = isMyTurn && isStartOfMovement && !isMovingBackward && currentPlayer.reverseTimeCooldown === 0 && currentPlayer.energy >= GAME_CONSTANTS.REVERSE_TIME_COST;
   const isChronomancer = currentPlayer.roleKey === 'CHRONOMANCER';
   const canUseForesight = isMyTurn && isStartOfMovement && isChronomancer && (!currentPlayer.temporalForesightCooldown || currentPlayer.temporalForesightCooldown <= 0) && !currentPlayer.hasUsedForesightThisTurn;
@@ -619,45 +620,77 @@ function GameActions({
               showLabel={false}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: "0.82rem", fontWeight: 800, color: isSkipped ? "#FDA4AF" : (isExhausted ? "#FF7675" : "#FFD700"), letterSpacing: "0.3px" }}>
-                {isSkipped ? "Die Locked (Turn Skipped)" : (isExhausted ? "Die Locked (0 Energy)" : (isRolling ? "Tumbling Die..." : (state.diceResult ? `Rolled: ${state.diceResult}` : "Chrono Movement Die")))}
+              <div style={{ fontSize: "0.82rem", fontWeight: 800, color: isTimeStopped ? "#67E8F9" : (isSkipped ? "#FDA4AF" : (isExhausted ? "#FF7675" : "#FFD700")), letterSpacing: "0.3px" }}>
+                {isTimeStopped ? "⌛ Temporal Stasis (Turn Frozen)" : (isSkipped ? "Die Locked (Turn Skipped)" : (isExhausted ? "Die Locked (0 Energy)" : (isRolling ? "Tumbling Die..." : (state.diceResult ? `Rolled: ${state.diceResult}` : "Chrono Movement Die"))))}
               </div>
-              <div style={{ fontSize: "0.68rem", color: isSkipped ? "#FECDD3" : (isExhausted ? "#FFAAAA" : "#C8B293"), marginTop: "3px", lineHeight: 1.3 }}>
-                {isSkipped ? "Detained/cursed by hazard penalty. Cannot roll the die this turn." : (isExhausted ? "Cannot roll while exhausted. You must rest to recover energy." : (isRolling ? "Determining your timeline trajectory..." : "Roll 1–6 movement spaces along the path."))}
+              <div style={{ fontSize: "0.68rem", color: isTimeStopped ? "#A5F3FC" : (isSkipped ? "#FECDD3" : (isExhausted ? "#FFAAAA" : "#C8B293")), marginTop: "3px", lineHeight: 1.3 }}>
+                {isTimeStopped ? `Trapped in a stasis field by Chronomancer ${currentPlayer.timeStoppedBy.name}. Break stasis to thaw.` : (isSkipped ? "Detained/cursed by hazard penalty. Cannot roll the die this turn." : (isExhausted ? "Cannot roll while exhausted. You must rest to recover energy." : (isRolling ? "Determining your timeline trajectory..." : "Roll 1–6 movement spaces along the path.")))}
               </div>
             </div>
           </div>
 
           {/* ACTION BUTTONS: ACKNOWLEDGE SKIP IF SKIPPED, REST IF EXHAUSTED, ROLL/REST OTHERWISE */}
           {isSkipped ? (
-            <button
-              className="btn btn-primary animate-glow"
-              style={{
-                width: "100%",
-                minWidth: 0,
-                padding: "12px 14px",
-                fontSize: "0.82rem",
-                fontWeight: 800,
-                letterSpacing: "1px",
-                borderRadius: "4px",
-                border: "2px solid #F43F5E",
-                background: "linear-gradient(180deg, #BE123C 0%, #881337 100%)",
-                color: "#FFF",
-                boxShadow: "0 0 16px rgba(244, 63, 94, 0.4)",
-                marginBottom: "10px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                cursor: isMyTurn ? "pointer" : "not-allowed"
-              }}
-              disabled={!isMyTurn || isRolling}
-              onClick={() => { sounds.btnClick?.(); onAcknowledgeSkip?.(); }}
-              title="Acknowledge skipped turn and pass to next player"
-            >
-              <span>⏭️ ACKNOWLEDGE SKIPPED TURN</span>
-              <kbd style={{ background: "#4C0519", border: "1px solid #F43F5E", padding: "1px 5px", borderRadius: "3px", fontSize: "0.62rem" }}>SPACE</kbd>
-            </button>
+            isTimeStopped ? (
+              <button
+                className="btn btn-primary animate-glow"
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  padding: "12px 14px",
+                  fontSize: "0.82rem",
+                  fontWeight: 800,
+                  letterSpacing: "1px",
+                  borderRadius: "4px",
+                  border: "2px solid #22D3EE",
+                  background: "linear-gradient(180deg, #0891B2 0%, #0E7490 100%)",
+                  color: "#FFF",
+                  boxShadow: "0 0 20px rgba(34, 211, 238, 0.55), inset 0 0 10px rgba(6, 182, 212, 0.4)",
+                  marginBottom: "10px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  cursor: isMyTurn ? "pointer" : "not-allowed"
+                }}
+                disabled={!isMyTurn || isRolling}
+                onClick={() => { sounds.timeFreeze?.() || sounds.btnClick?.(); onAcknowledgeSkip?.(); }}
+                title={`Break out of Temporal Stasis cast by ${currentPlayer.timeStoppedBy.name} and pass turn`}
+              >
+                <span>❄️</span>
+                <span>BREAK TEMPORAL STASIS & THAW</span>
+                <kbd style={{ background: "#164E63", border: "1px solid #22D3EE", padding: "1px 5px", borderRadius: "3px", fontSize: "0.62rem" }}>SPACE</kbd>
+              </button>
+            ) : (
+              <button
+                className="btn btn-primary animate-glow"
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  padding: "12px 14px",
+                  fontSize: "0.82rem",
+                  fontWeight: 800,
+                  letterSpacing: "1px",
+                  borderRadius: "4px",
+                  border: "2px solid #F43F5E",
+                  background: "linear-gradient(180deg, #BE123C 0%, #881337 100%)",
+                  color: "#FFF",
+                  boxShadow: "0 0 16px rgba(244, 63, 94, 0.4)",
+                  marginBottom: "10px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  cursor: isMyTurn ? "pointer" : "not-allowed"
+                }}
+                disabled={!isMyTurn || isRolling}
+                onClick={() => { sounds.btnClick?.(); onAcknowledgeSkip?.(); }}
+                title="Acknowledge skipped turn and pass to next player"
+              >
+                <span>⏭️ ACKNOWLEDGE SKIPPED TURN</span>
+                <kbd style={{ background: "#4C0519", border: "1px solid #F43F5E", padding: "1px 5px", borderRadius: "3px", fontSize: "0.62rem" }}>SPACE</kbd>
+              </button>
+            )
           ) : isExhausted ? (
             <button
               className="btn btn-primary animate-glow"

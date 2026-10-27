@@ -441,6 +441,8 @@ function GameScreen({
         movesRemaining={state.movesRemaining}
         movementDirection={state.movementDirection}
         temporalOccurrence={state.temporalOccurrence}
+        temporalOccurrenceId={state.temporalOccurrenceId}
+        hasPendingModal={Boolean(state.pendingModal)}
         pendingChoice={state.pendingChoice}
         onMoveToTile={handleMoveToTile}
       />
@@ -489,10 +491,14 @@ function GameScreen({
                   <button
                     type="button"
                     className="btn btn-primary mobile-dock-roll-btn"
-                    style={{ background: "#BE123C", borderColor: "#F43F5E" }}
+                    style={{
+                      background: currentPlayer?.timeStoppedBy ? "linear-gradient(180deg, #0891B2 0%, #0E7490 100%)" : "#BE123C",
+                      borderColor: currentPlayer?.timeStoppedBy ? "#22D3EE" : "#F43F5E",
+                      boxShadow: currentPlayer?.timeStoppedBy ? "0 0 12px rgba(34, 211, 238, 0.5)" : undefined
+                    }}
                     onClick={handleAcknowledgeSkip}
                   >
-                    <span>⏭️ SKIP TURN (HAZARD)</span>
+                    <span>{currentPlayer?.timeStoppedBy ? "⌛ THAW (TIME STOPPED)" : "⏭️ SKIP TURN (HAZARD)"}</span>
                   </button>
                 ) : currentPlayer?.energy <= 0 ? (
                   <button

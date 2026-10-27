@@ -54,25 +54,29 @@ export function MaximizedCardPreview({ data, onClose }) {
         <div className="ability-vignette-backdrop" />
         <div className="modal ability-immersion-modal card-preview-modal" style={{ maxWidth: "520px", width: "92%", animation: "modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
           <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
-          <div className="ability-modal-header">
-            <div className="ability-header-badge">
+          <div className="ability-modal-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <div className="ability-header-badge" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '0 auto 8px auto' }}>
               <span>{icon}</span>
-              <span>{data.subtitle || 'ABILITY INSPECTION'}</span>
+              <span>{(data.subtitle || 'ABILITY INSPECTION').replace(/^[^\w\s\d!:]+|[^\w\s\d!:]+$/gu, '').trim()}</span>
               <span>{icon}</span>
             </div>
-            <div className="ability-modal-title">{data.title}</div>
+            <div className="ability-modal-title" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', whiteSpace: 'nowrap', margin: '0 auto 6px auto' }}>
+              <span>{icon}</span>
+              <span>{(data.title || '').replace(/^[^\w\s\d!]+|[^\w\s\d!]+$/gu, '').trim() || data.title}</span>
+              <span>{icon}</span>
+            </div>
           </div>
 
           <div className="modal-body ability-modal-body">
-            <div className="ability-showcase-stage">
-              <div className="ability-single-operative">
-                <div className="ability-avatar-large-wrap" style={{ borderColor: pColor, boxShadow: `0 0 24px ${pColor}, inset 0 0 14px ${pColor}` }}>
+            <div className="ability-showcase-stage" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+              <div className="ability-single-operative" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '0 auto', textAlign: 'center' }}>
+                <div className="ability-avatar-large-wrap" style={{ margin: '0 auto 6px auto', borderColor: pColor, boxShadow: `0 0 24px ${pColor}, inset 0 0 14px ${pColor}` }}>
                   <img src={pAvatar} alt={pName} className="operative-large-img" />
                   <div className="ability-floating-icon">{icon}</div>
                 </div>
-                <div className="ability-hero-caption">
-                  <div className="hero-name" style={{ color: pColor }}>{pName}</div>
-                  <div className="hero-class">{pRole}</div>
+                <div className="ability-hero-caption" style={{ width: '100%', textAlign: 'center', marginTop: '4px' }}>
+                  <div className="hero-name" style={{ color: pColor, textAlign: 'center' }}>{pName}</div>
+                  <div className="hero-class" style={{ textAlign: 'center' }}>{pRole}</div>
                 </div>
               </div>
             </div>
@@ -1316,17 +1320,21 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         <div className="modal ability-immersion-modal" role="dialog" aria-label={modal.title}>
           <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
 
-          <div className="ability-modal-header">
-            <div className="ability-header-badge">
+          <div className="ability-modal-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <div className="ability-header-badge" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', margin: '0 auto 8px auto' }}>
               <span>{icon}</span>
-              <span>{modal.subtitle || 'OPERATIVE ABILITY ACTIVATED'}</span>
+              <span>{(modal.subtitle || 'OPERATIVE ABILITY ACTIVATED').replace(/^[^\w\s\d!:]+|[^\w\s\d!:]+$/gu, '').trim()}</span>
               <span>{icon}</span>
             </div>
-            <div className="ability-modal-title">{modal.title}</div>
+            <div className="ability-modal-title" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', whiteSpace: 'nowrap', margin: '0 auto 6px auto' }}>
+              <span>{icon}</span>
+              <span>{(modal.title || '').replace(/^[^\w\s\d!]+|[^\w\s\d!]+$/gu, '').trim() || modal.title}</span>
+              <span>{icon}</span>
+            </div>
           </div>
 
           <div className="modal-body ability-modal-body">
-            <div className="ability-showcase-stage">
+            <div className="ability-showcase-stage" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
               {isPickpocket && modal.victimName ? (
                 <div className="ability-dual-showdown">
                   <div className="ability-operative-card operative-rogue">
@@ -1357,15 +1365,15 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                   </div>
                 </div>
               ) : (
-                <div className="ability-single-operative">
-                  <div className="ability-avatar-large-wrap" style={{ borderColor: pColor, boxShadow: `0 0 24px ${pColor}, inset 0 0 14px ${pColor}` }}>
+                <div className="ability-single-operative" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '0 auto', textAlign: 'center' }}>
+                  <div className="ability-avatar-large-wrap" style={{ margin: '0 auto 6px auto', borderColor: pColor, boxShadow: `0 0 24px ${pColor}, inset 0 0 14px ${pColor}` }}>
                     <img src={pAvatar} alt={pName} className="operative-large-img" />
                     <div className="ability-avatar-orbit-ring" />
                     <div className="ability-floating-icon">{icon}</div>
                   </div>
-                  <div className="ability-hero-caption">
-                    <div className="hero-name" style={{ color: pColor }}>{pName}</div>
-                    <div className="hero-class">{pRole}</div>
+                  <div className="ability-hero-caption" style={{ width: '100%', textAlign: 'center', marginTop: '4px' }}>
+                    <div className="hero-name" style={{ color: pColor, textAlign: 'center' }}>{pName}</div>
+                    <div className="hero-class" style={{ textAlign: 'center' }}>{pRole}</div>
                   </div>
                 </div>
               )}

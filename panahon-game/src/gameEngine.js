@@ -615,7 +615,7 @@ export class GameEngine {
       oldRoll: oldVal,
       newRoll: newMoves,
       delta: delta,
-      title: '🔮 TEMPORAL FORESIGHT! 🔮',
+      title: 'TEMPORAL FORESIGHT!',
       subtitle: 'CHRONOMANCER PASSIVE: DESTINY ALTERED',
       description: `${player.name} peered through timeline branches and altered probability (${delta > 0 ? '+1 Space' : '-1 Space'}), shifting trajectory to ${newMoves} spaces!`
     };
@@ -776,7 +776,7 @@ export class GameEngine {
         playerAvatar: player.role?.avatar || 'assets/Characters/Copy of guardian.png',
         playerColor: player.color || '#2ECC71',
         mode: action,
-        title: '✨ TEMPORAL REPAIR! ✨',
+        title: 'TEMPORAL REPAIR!',
         subtitle: 'GUARDIAN ACTIVE ABILITY',
         description: action === 'reduceEnergy'
           ? `${player.name} focused chronal shields to mend temporal anomalies! Reduced Paradox by -1 in exchange for 2 Energy.`
@@ -807,7 +807,7 @@ export class GameEngine {
           playerRole: 'The Historian',
           playerAvatar: player.role?.avatar || 'assets/Characters/Copy of librarian.png',
           playerColor: player.color || '#E74C3C',
-          title: '📜 DECOY SAFELY NEUTRALIZED! 📜',
+          title: 'DECOY SAFELY NEUTRALIZED!',
           subtitle: 'HISTORIAN PASSIVE: DECOY DISCARD',
           description: `${player.name} drew a deceptive Decoy Card via Clue Decipher, but scholarly mastery safely purged it back into the deck!`
         };
@@ -861,7 +861,7 @@ export class GameEngine {
               stolenType: 'clue',
               stolenCardName: stolenCard.hint || stolenCard.description || 'Clue Card',
               stolenAmount: 1,
-              title: '🗡️ SHADOW PICKPOCKET! 🗡️',
+              title: 'SHADOW PICKPOCKET!',
               subtitle: 'ROGUE ACTIVE ABILITY',
               description: `${player.name} emerged from the shadows and swiped a secret Clue Card (${stolenCard.hint || stolenCard.description}) from ${victim.name}!`
             };
@@ -889,7 +889,7 @@ export class GameEngine {
             victimColor: victim.color,
             stolenType: 'energy',
             stolenAmount: amount,
-            title: '🗡️ SHADOW PICKPOCKET! 🗡️',
+            title: 'SHADOW PICKPOCKET!',
             subtitle: 'ROGUE ACTIVE ABILITY',
             description: `${player.name} struck from the shadows, siphoning ${amount} Chrono Energy from ${victim.name}!`
           };
@@ -1131,7 +1131,7 @@ export class GameEngine {
         playerRole: 'The Historian',
         playerAvatar: player.role?.avatar || 'assets/Characters/Copy of librarian.png',
         playerColor: player.color || '#E74C3C',
-        title: '📜 DECOY SAFELY NEUTRALIZED! 📜',
+        title: 'DECOY SAFELY NEUTRALIZED!',
         subtitle: 'HISTORIAN PASSIVE: DECOY DISCARD',
         description: `${player.name} excavated a deceptive Decoy Card (${card.hint || card.description}), but ancient scholarly mastery safely purged it back into the ${ERA_NAMES[card.era] || 'timeline'} deck!`
       };
@@ -1710,7 +1710,7 @@ export class GameEngine {
           playerRole: 'The Explorer',
           playerAvatar: player.role?.avatar || 'assets/Characters/Copy of adventurer.png',
           playerColor: player.color || '#3498DB',
-          title: '🏃 MOMENTUM ACTIVATED! 🏃',
+          title: 'MOMENTUM ACTIVATED!',
           subtitle: 'EXPLORER ACTIVE ABILITY (2 Turn CD, 3 Energy Cost)',
           description: `${player.name} activated Momentum! During movement this turn, pause to interact with the tile you are standing on, and then continue moving your remaining rolled spaces!`
         };
@@ -1761,7 +1761,7 @@ export class GameEngine {
           playerColor: player.color || '#F39C12',
           tileIndex: player.tileIndex,
           era: player.currentEra,
-          title: '🕸️ TEMPORAL TRAP ARMED! 🕸️',
+          title: 'TEMPORAL TRAP ARMED!',
           subtitle: 'STRATEGIST ACTIVE ABILITY',
           description: `${player.name} armed a lethal Temporal Trap on Space #${player.tileIndex + 1}! Any rival operative landing here will trigger a Hazard penalty and grant +1 Energy to ${player.name}!`
         };
@@ -1926,7 +1926,7 @@ export class GameEngine {
       playerAvatar: player.role?.avatar || 'assets/Characters/Copy of adventurer.png',
       playerColor: player.color || '#EC4899',
       movesRemaining: this.state.movesRemaining,
-      title: '⏪ REVERSE TIME ACTIVATED! ⏪',
+      title: 'REVERSE TIME ACTIVATED!',
       subtitle: 'CHRONAL REVERSAL • BACKWARD TRAJECTORY',
       description: `${player.name} spent 3 Energy to invert their timeline trajectory! Moving backwards for ${this.state.movesRemaining} spaces towards historical origins!`
     };

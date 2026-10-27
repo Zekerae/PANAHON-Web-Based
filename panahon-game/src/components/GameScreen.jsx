@@ -35,7 +35,13 @@ function GameScreen({
   const [isPaused, setIsPaused] = useState(false);
   const [autoFollow, setAutoFollow] = useState(true);
   const [omniscientIntel, setOmniscientIntel] = useState(false);
-  const [showIntro, setShowIntro] = useState(() => !state.hasCompletedIntro);
+  const [showIntro, setShowIntro] = useState(() => !state?.hasCompletedIntro);
+
+  const effectiveIsSpectator = Boolean(
+    isSpectator ||
+    network?.isSpectator ||
+    (state?.players?.length > 0 && state.players.every(p => p.isAi))
+  );
 
   const handleIntroComplete = useCallback((orderedPlayers) => {
     setShowIntro(false);
@@ -122,26 +128,18 @@ function GameScreen({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showIntro, isPaused, handleResume, handleOpenPause]);
 
-  if (!state || !engine) return null;
-
-  const effectiveIsSpectator = Boolean(
-    isSpectator ||
-    network.isSpectator ||
-    (state.players?.length > 0 && state.players.every(p => p.isAi))
-  );
-
   // Auto-follow current turn operative in spectator mode
   React.useEffect(() => {
-    if (effectiveIsSpectator && autoFollow && state.currentPlayerIndex !== undefined && state.players?.[state.currentPlayerIndex]) {
+    if (effectiveIsSpectator && autoFollow && state?.currentPlayerIndex !== undefined && state?.players?.[state.currentPlayerIndex]) {
       setInspectedPlayerId(state.players[state.currentPlayerIndex].id);
     }
-  }, [effectiveIsSpectator, autoFollow, state.currentPlayerIndex, state.players]);
+  }, [effectiveIsSpectator, autoFollow, state?.currentPlayerIndex, state?.players]);
 
-  const currentPlayer = engine.getCurrentPlayer();
-  const timelineLevel = state.timelineMeter;
-  const isOnline = network.mode === 'online';
+  const currentPlayer = engine?.getCurrentPlayer ? engine.getCurrentPlayer() : null;
+  const timelineLevel = state?.timelineMeter || 0;
+  const isOnline = network?.mode === 'online';
   const isAiCurrent = currentPlayer?.isAi === true;
-  const isMyTurn = !effectiveIsSpectator && !isAiCurrent && (!isOnline || currentPlayer.id === network.playerId);
+  const isMyTurn = !effectiveIsSpectator && !isAiCurrent && (!isOnline || currentPlayer?.id === network?.playerId);
 
   const myPlayer = useMemo(() => {
     if (isOnline) {
@@ -390,11 +388,13 @@ function GameScreen({
   const isMomentumPrimed = isExplorer && Boolean(state.momentumActive || (currentPlayer?.bonusMoves && currentPlayer?.bonusMoves > 0));
   const canUseAbilityNow = isMyTurn && isAbilityPhase && !hasUsedAbilityThisTurn && !isAbilityOnCooldown && hasEnoughEnergy && !isMomentumPrimed;
 
-  const currentTile = state.board?.[currentPlayer?.currentEra]?.[currentPlayer?.tileIndex];
+  const currentTile = state?.board?.[currentPlayer?.currentEra]?.[currentPlayer?.tileIndex];
   const isOnTimeGate = currentTile?.type === 'timeGate';
   const timeGateCost = currentPlayer?.roleKey === 'EXPLORER' ? 1 : 2;
   const canTimeWarp = isMyTurn && isOnTimeGate && (currentPlayer?.energy || 0) >= timeGateCost;
   const matchingArtifact = currentPlayer?.artifactCards?.find(a => a.era === currentPlayer?.currentEra);
+
+  if (!state || !engine) return null;
 
   return (
     <div className={`game-screen mobile-tab-${mobileGameTab}`}>

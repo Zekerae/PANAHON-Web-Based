@@ -118,35 +118,6 @@ function GameHeader({
         </div>
 
         <button
-          id="btn-debug-console"
-          className="btn btn-debug-toggle"
-          onClick={() => {
-            sounds.btnClick();
-            if (onOpenDebug) onOpenDebug();
-          }}
-          title="Live Debug Telemetry & Diagnostics Console (Shortcut: `)"
-          aria-label="Debug Console"
-          style={{
-            background: 'linear-gradient(180deg, #2D1F15 0%, #1A120C 100%)',
-            border: '1.5px solid #C2974D',
-            color: '#FFD700',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            fontSize: '0.70rem',
-            fontFamily: 'var(--font-display)',
-            fontWeight: 800,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.5)'
-          }}
-        >
-          <span>🐛</span>
-          <span style={{ fontSize: '0.62rem' }}>LOGS</span>
-        </button>
-
-        <button
           id="btn-pause-game"
           className="btn btn-pause"
           onClick={() => {

@@ -85,6 +85,18 @@ export default function App() {
     return () => window.removeEventListener('panahon_gui_scale_reset', handleReset);
   }, [showToast]);
 
+  // When game ends (gameOver), immediately clear active session so finished matches never linger
+  useEffect(() => {
+    if (gameState?.gameOver) {
+      clearActiveSession();
+      setSavedSession(null);
+      if (network.mode === 'online') {
+        networkRoom.leaveRoom();
+        network.setMode('local');
+      }
+    }
+  }, [gameState?.gameOver, network, networkRoom]);
+
   // Auto-save active session during gameplay
   useEffect(() => {
     if (appState.currentScreen === 'game' && gameState && !gameState.gameOver) {
@@ -195,6 +207,7 @@ export default function App() {
     networkRoom.setOnlinePlayerName(prof.name);
     networkRoom.setOnlineSelectedRole(prof.roleKey);
     if (mode === 'solo') {
+      network.setMode('local');
       dispatch({
         type: 'SET_LOCAL_PLAYERS',
         payload: [
@@ -206,10 +219,12 @@ export default function App() {
       });
       dispatch({ type: 'OPEN_LOBBY', mode: 'local' });
     } else {
+      networkRoom.leaveRoom();
+      network.setMode('online');
       dispatch({ type: 'SYNC_PROFILE_NAME', payload: prof });
       dispatch({ type: 'OPEN_LOBBY', mode });
     }
-  }, [networkRoom]);
+  }, [networkRoom, network]);
 
   useEffect(() => {
     const onProfileUpdate = (e) => {
@@ -314,21 +329,40 @@ export default function App() {
   const handleDiscardSession = useCallback(() => {
     clearActiveSession();
     setSavedSession(null);
+    if (network.mode === 'online') {
+      networkRoom.leaveRoom();
+      network.setMode('local');
+    }
     showToast('Session Cleared', 'Saved mission discarded.', 'info');
-  }, [showToast]);
+  }, [network, networkRoom, showToast]);
 
   const handleSaveAndExit = useCallback(() => {
     sounds.btnClick();
     engine.stopTimer();
     aiController.stop();
+    if (network.mode === 'online') {
+      networkRoom.leaveRoom();
+      network.setMode('local');
+      clearActiveSession();
+      setSavedSession(null);
+      engine.resetGame();
+      showToast('Disconnected', 'Left online room and returned to main menu.', 'info');
+      dispatch({ type: 'RETURN_TO_TITLE' });
+      return;
+    }
     if (engine.state) {
       engine.state.isPaused = true;
-      saveActiveSession(engine.state);
+      saveActiveSession({
+        mode: 'local',
+        screen: 'game',
+        playerConfigs: appState.localPlayers,
+        gameState: engine.state
+      }, true);
     }
     showToast('Mission Saved', 'Progress safely recorded. You can resume anytime!', 'success');
     dispatch({ type: 'RETURN_TO_TITLE' });
     setSavedSession(getActiveSession());
-  }, [engine, sounds, showToast]);
+  }, [engine, sounds, network, networkRoom, appState.localPlayers, showToast]);
 
   const handleAbandonGame = useCallback(() => {
     sounds.btnClick();
@@ -337,12 +371,11 @@ export default function App() {
     engine.resetGame();
     clearActiveSession();
     setSavedSession(null);
-    if (network.mode === 'online') {
-      network.leaveRoom();
-    }
+    networkRoom.leaveRoom();
+    network.setMode('local');
     showToast('Mission Abandoned', 'Returned to main menu.', 'info');
     dispatch({ type: 'RETURN_TO_TITLE' });
-  }, [engine, sounds, network, showToast]);
+  }, [engine, sounds, network, networkRoom, showToast]);
 
   const isCurrentSpectator = Boolean(
     appState.isSpectator ||
@@ -424,6 +457,10 @@ export default function App() {
       engine.stopTimer();
       aiController.stop();
       engine.resetGame();
+      clearActiveSession();
+      setSavedSession(null);
+      networkRoom.leaveRoom();
+      network.setMode('local');
       dispatch({ type: 'RETURN_TO_TITLE' });
     }
   };

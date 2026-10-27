@@ -948,7 +948,7 @@ export default function LobbyScreen({
                         {roleKeys.map(rk => {
                           const role = ROLES[rk];
                           const isSel = onlineSelectedRole === rk;
-                          const takenBy = validRoomPlayers?.find(p => p.roleKey === rk && p.name !== onlinePlayerName);
+                          const takenBy = isRoomActive ? validRoomPlayers?.find(p => p.roleKey === rk && p.name !== onlinePlayerName) : null;
                           const isTaken = Boolean(takenBy);
 
                           return (

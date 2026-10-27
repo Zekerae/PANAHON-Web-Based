@@ -25,7 +25,7 @@ export default function GameIntroModal({
   // Initiative State
   // groups: Array of player arrays, preserving rank order from 1st place to last.
   // When a group has length > 1, those players are tied and must re-roll within their bracket.
-  const [groups, setGroups] = useState(() => (players.length > 0 ? [[...players]] : []));
+  const [groups, setGroups] = useState(() => (Array.isArray(players) && players.length > 0 ? [[...players]] : []));
   const [round, setRound] = useState(1);
   const [currentRolls, setCurrentRolls] = useState({});
   const [rollingPlayerId, setRollingPlayerId] = useState(null);
@@ -47,15 +47,16 @@ export default function GameIntroModal({
 
   // Sync initial groups when modal opens or players change
   useEffect(() => {
-    if (players && players.length > 0 && groups.length === 0) {
+    if (Array.isArray(players) && players.length > 0 && (!groups || groups.length === 0)) {
       setGroups([[...players]]);
     }
-  }, [players, groups.length]);
+  }, [players, groups?.length]);
 
   // Which players must roll in the current round?
   // Only players in tied groups (groups with length > 1) need to roll!
   const activeTiedPlayers = useMemo(() => {
-    return groups.filter((g) => g.length > 1).flat();
+    if (!Array.isArray(groups)) return [];
+    return groups.filter((g) => Array.isArray(g) && g.length > 1).flat();
   }, [groups]);
 
   // The local player on THIS machine (in online mode, match network.myPlayerName, playerId, or isLocal)
@@ -87,12 +88,15 @@ export default function GameIntroModal({
   useEffect(() => {
     const newLocked = {};
     let currentRank = 1;
-    groups.forEach((g) => {
-      if (g.length === 1) {
-        newLocked[g[0].id] = currentRank;
-      }
-      currentRank += g.length;
-    });
+    if (Array.isArray(groups)) {
+      groups.forEach((g) => {
+        if (!Array.isArray(g) || g.length === 0) return;
+        if (g.length === 1 && g[0]) {
+          newLocked[g[0].id] = currentRank;
+        }
+        currentRank += g.length;
+      });
+    }
     setLockedRanks(newLocked);
   }, [groups]);
 
@@ -100,36 +104,43 @@ export default function GameIntroModal({
   const evaluateRoundResults = useCallback(
     (rolls) => {
       if (isOnline && !isHost) return;
+      if (!rolls || typeof rolls !== 'object') return;
 
       setIsEvaluating(true);
       const newGroups = [];
       let foundTieInThisRound = false;
       const tiedDetails = [];
 
-      groups.forEach((g) => {
+      (groups || []).forEach((g) => {
+        if (!Array.isArray(g) || g.length === 0) return;
         if (g.length === 1) {
           newGroups.push(g);
         } else {
           // Group by score descending
           const byScore = {};
           g.forEach((p) => {
-            const score = rolls[p.id];
+            if (!p) return;
+            const rawScore = rolls[p.id];
+            const score = (typeof rawScore === 'number' && !isNaN(rawScore)) ? rawScore : 1;
             if (!byScore[score]) byScore[score] = [];
             byScore[score].push(p);
           });
           const sortedScores = Object.keys(byScore)
             .map(Number)
+            .filter((n) => !isNaN(n))
             .sort((a, b) => b - a);
 
           sortedScores.forEach((s) => {
             const subgroup = byScore[s];
-            newGroups.push(subgroup);
-            if (subgroup.length > 1) {
-              foundTieInThisRound = true;
-              tiedDetails.push({
-                names: subgroup.map((p) => p.name).join(" & "),
-                score: s
-              });
+            if (Array.isArray(subgroup) && subgroup.length > 0) {
+              newGroups.push(subgroup);
+              if (subgroup.length > 1) {
+                foundTieInThisRound = true;
+                tiedDetails.push({
+                  names: subgroup.map((p) => p.name || 'Operative').join(" & "),
+                  score: s
+                });
+              }
             }
           });
         }
@@ -331,7 +342,9 @@ export default function GameIntroModal({
         setTieNotice(msg || "⚔️ TIE DETECTED! Re-rolling for position...");
 
         const t = setTimeout(() => {
-          if (newGroups) setGroups(newGroups);
+          if (Array.isArray(newGroups)) {
+            setGroups(newGroups.filter((g) => Array.isArray(g) && g.length > 0));
+          }
           if (nextRound) setRound(nextRound);
           setCurrentRolls({});
           setTieNotice(null);
@@ -400,17 +413,21 @@ export default function GameIntroModal({
     clearAllTimeouts();
     setRollingPlayerId(null);
 
-    let tempGroups = groups.map((g) => [...g]);
+    let tempGroups = (groups || [])
+      .filter((g) => Array.isArray(g) && g.length > 0)
+      .map((g) => [...g]);
     let currentRoundRolls = { ...currentRolls };
 
-    while (tempGroups.some((g) => g.length > 1)) {
+    while (tempGroups.some((g) => Array.isArray(g) && g.length > 1)) {
       const newGroups = [];
       tempGroups.forEach((g) => {
+        if (!Array.isArray(g) || g.length === 0) return;
         if (g.length === 1) {
           newGroups.push(g);
         } else {
           const byScore = {};
           g.forEach((p) => {
+            if (!p) return;
             const score = Math.floor(Math.random() * 6) + 1;
             currentRoundRolls[p.id] = score;
             if (!byScore[score]) byScore[score] = [];
@@ -418,8 +435,14 @@ export default function GameIntroModal({
           });
           const sortedScores = Object.keys(byScore)
             .map(Number)
+            .filter((n) => !isNaN(n))
             .sort((a, b) => b - a);
-          sortedScores.forEach((s) => newGroups.push(byScore[s]));
+          sortedScores.forEach((s) => {
+            const subgroup = byScore[s];
+            if (Array.isArray(subgroup) && subgroup.length > 0) {
+              newGroups.push(subgroup);
+            }
+          });
         }
       });
       tempGroups = newGroups;
@@ -457,7 +480,7 @@ export default function GameIntroModal({
   // Handle final expedition commencement
   const handleCommence = useCallback(() => {
     sounds.turnStart();
-    const orderToCommence = finalTurnOrder.length > 0 ? finalTurnOrder : players;
+    const orderToCommence = (Array.isArray(finalTurnOrder) && finalTurnOrder.length > 0) ? finalTurnOrder : (players || []);
     if (onComplete) {
       onComplete(orderToCommence);
     }
@@ -561,7 +584,7 @@ export default function GameIntroModal({
                   setBriefingTab("roster");
                 }}
               >
-                👥 Deployed Operative Squad ({players.length})
+                👥 Deployed Operative Squad ({(players || []).length})
               </button>
             </div>
 
@@ -832,7 +855,7 @@ export default function GameIntroModal({
         {stage === STAGE_CEREMONY && (
           <div className="intro-stage-content intro-ceremony-stage">
             {/* FIRST PLACE CELEBRATION */}
-            {finalTurnOrder.length > 0 && (
+            {(finalTurnOrder || []).length > 0 && (
               <div className="ceremony-winner-card">
                 <div className="ceremony-crown">👑</div>
                 <div className="ceremony-winner-badge">FIRST TURN INITIATIVE WINNER</div>
@@ -862,7 +885,7 @@ export default function GameIntroModal({
                 {finalTurnOrder.map((p, idx) => {
                   const role = ROLES[p.roleKey] || {};
                   const isFirst = idx === 0;
-                  const isLast = idx === finalTurnOrder.length - 1;
+                  const isLast = idx === (finalTurnOrder?.length || 1) - 1;
 
                   return (
                     <div key={p.id ?? idx} className={`ceremony-standing-row ${isFirst ? "standing-first" : ""}`}>

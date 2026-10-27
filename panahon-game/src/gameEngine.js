@@ -1548,11 +1548,12 @@ export class GameEngine {
   // --- Temporal Occurrence ---
   activateTemporalOccurrence(turns) {
     const occurrenceId = `occ_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
-    this.state.temporalOccurrence = turns * this.state.players.length; // rounds = turns * players
+    const playerCount = this.state.players?.length || 4;
+    this.state.temporalOccurrence = turns * playerCount; // rounds = turns * players
     this.state.temporalOccurrenceId = occurrenceId;
     this.state.temporalOccurrenceAnnounced = false;
     this.state.temporalOccurrenceRounds = turns;
-    this.state.temporalOccurrenceInitialTurns = turns * this.state.players.length;
+    this.state.temporalOccurrenceInitialTurns = turns * playerCount;
     this.addLog('temporal', `Temporal Occurrence activated for ${turns} rounds!`);
   }
 
@@ -2120,7 +2121,8 @@ export class GameEngine {
     }
 
     // Next player
-    this.state.currentPlayerIndex = (this.state.currentPlayerIndex + 1) % this.state.players.length;
+    const playerCount = this.state.players?.length || 1;
+    this.state.currentPlayerIndex = (this.state.currentPlayerIndex + 1) % playerCount;
     if (this.state.currentPlayerIndex === 0) {
       this.state.turnNumber++;
     }

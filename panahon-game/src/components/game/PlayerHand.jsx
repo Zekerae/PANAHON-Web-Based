@@ -16,6 +16,8 @@ function PlayerHand({
   if (!viewedPlayer) return null;
 
   const canReveal = isViewingSelf || (isSpectator && omniscientIntel);
+  const clueCards = Array.isArray(viewedPlayer.clueCards) ? viewedPlayer.clueCards : [];
+  const artifactCards = Array.isArray(viewedPlayer.artifactCards) ? viewedPlayer.artifactCards : [];
 
   return (
     <section className="bottom-panel">
@@ -31,13 +33,13 @@ function PlayerHand({
             className={`tab-btn ${activeHandTab === 'clues' ? 'active' : ''}`}
             onClick={() => { sounds.btnClick(); onChangeTab('clues'); }}
           >
-            🔍 Clues ({viewedPlayer.clueCards.length}/5)
+            🔍 Clues ({clueCards.length}/5)
           </button>
           <button
             className={`tab-btn ${activeHandTab === 'artifacts' ? 'active' : ''}`}
             onClick={() => { sounds.btnClick(); onChangeTab('artifacts'); }}
           >
-            🏆 Relics ({viewedPlayer.artifactCards.length})
+            🏆 Relics ({artifactCards.length})
           </button>
         </div>
 
@@ -91,7 +93,7 @@ function PlayerHand({
                   Relic safely returned to {ERA_NAMES[viewedPlayer.mission.targetEra]}
                 </span>
               </div>
-            ) : viewedPlayer.artifactCards.some(a => a.id === viewedPlayer.mission.artifactId) ? (
+            ) : artifactCards.some(a => a.id === viewedPlayer.mission.artifactId) ? (
               <div style={{ marginTop: '12px', padding: '10px 14px', background: 'linear-gradient(180deg, #352518 0%, #1A120B 100%)', border: '2px solid #C2974D', borderRadius: '4px', boxShadow: 'inset 1px 1px 0 #EBD07D, 0 4px 10px rgba(0,0,0,0.5)' }}>
                 <div style={{ color: '#FFD700', fontWeight: 800, fontSize: '0.82rem', marginBottom: '4px' }}>
                   📦 RELIC IN POSSESSION!
@@ -107,13 +109,13 @@ function PlayerHand({
                   <span style={{ fontSize: "0.74rem", fontWeight: 800, color: (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) >= 3 ? "#4ADE80" : "#FACC15" }}>
                     {isViewingSelf
                       ? `${viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0}/3 Decoded`
-                      : `${viewedPlayer.clueCards.length} Clues`}
+                      : `${clueCards.length} Clues`}
                   </span>
                 </div>
 
                 <div style={{ display: "flex", gap: "8px", margin: "2px 0 6px", alignItems: "center" }}>
                   {[0, 1, 2].map((gemIdx) => {
-                    const isCollected = gemIdx < (isViewingSelf ? (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) : viewedPlayer.clueCards.length);
+                    const isCollected = gemIdx < (isViewingSelf ? (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) : clueCards.length);
                     return (
                       <div
                         key={gemIdx}
@@ -146,7 +148,7 @@ function PlayerHand({
                   <div
                     className="mission-progress-fill"
                     style={{
-                      width: `${(Math.min(3, isViewingSelf ? (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) : viewedPlayer.clueCards.length) / 3) * 100}%`
+                      width: `${(Math.min(3, isViewingSelf ? (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) : clueCards.length) / 3) * 100}%`
                     }}
                   ></div>
                 </div>
@@ -157,12 +159,12 @@ function PlayerHand({
 
         {activeHandTab === 'clues' && (
           <div className="hand-cards">
-            {viewedPlayer.clueCards.length === 0 ? (
+            {clueCards.length === 0 ? (
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '10px' }}>
                 No clues collected yet. Land on Clue Tiles (🔍) in different eras to discover hints.
               </div>
             ) : (
-              viewedPlayer.clueCards.map(c => {
+              clueCards.map(c => {
                 if (canReveal) {
                   const cardImg = c.cardImage || c.image || '';
                   const cardDesc = c.description || c.hint || (c.isDecoy ? 'Decoy Hint' : 'Clue Card');
@@ -212,12 +214,12 @@ function PlayerHand({
 
         {activeHandTab === 'artifacts' && (
           <div className="hand-cards">
-            {viewedPlayer.artifactCards.length === 0 ? (
+            {artifactCards.length === 0 ? (
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '10px' }}>
                 No historical artifacts acquired yet. Reach an Artifact Tile with 3 clues to retrieve one!
               </div>
             ) : (
-              viewedPlayer.artifactCards.map(a => (
+              artifactCards.map(a => (
                 <div
                   key={a.id}
                   className="hand-card artifact-card"

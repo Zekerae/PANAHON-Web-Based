@@ -761,12 +761,12 @@ function GameScreen({
       {/* 6. GAME INTRODUCTION & INITIATIVE ROLL-OFF */}
       <GameIntroModal
         isOpen={showIntro}
-        players={state.players || []}
+        players={state?.players || []}
         engine={engine}
         network={network}
         isSpectator={effectiveIsSpectator}
         onComplete={handleIntroComplete}
-        onSkip={() => handleIntroComplete(state.players)}
+        onSkip={() => handleIntroComplete(state?.players || [])}
       />
 
       {/* 7. PAUSE MENU MODAL */}

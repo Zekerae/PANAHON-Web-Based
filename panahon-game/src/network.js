@@ -1246,6 +1246,15 @@ export class NetworkManager {
     this.isSpectator = false;
     this.chatMessages = [];
     this.isConnecting = false;
+    this.isHost = false;
+    this.initialPlayerId = null;
+    this.mode = 'local';
+    if (typeof this.onRosterUpdate === 'function') {
+      try { this.onRosterUpdate([]); } catch (_) {}
+    }
+    if (typeof this.onSpectatorCountUpdate === 'function') {
+      try { this.onSpectatorCountUpdate([], null, null); } catch (_) {}
+    }
   }
 
   disconnect() {

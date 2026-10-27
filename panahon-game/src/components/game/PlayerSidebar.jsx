@@ -51,11 +51,11 @@ function PlayerSidebar({
     <aside className="left-panel">
       <div className="sidebar-players-header">
         <span className="sidebar-players-title">Castaways</span>
-        <span className="sidebar-players-count">({players.length})</span>
+        <span className="sidebar-players-count">({(players || []).length})</span>
       </div>
 
       <div className="player-sidebar-list">
-        {players.map((p, idx) => {
+        {(players || []).map((p, idx) => {
           const isActive = idx === currentPlayerIndex;
           const isMe = isOnline && p.id === myPlayerId;
           const isInspected = viewedPlayerId === p.id;
@@ -145,7 +145,7 @@ function PlayerSidebar({
                   <span className="footer-mission-done">🏆 Done</span>
                 ) : p.artifactCards?.length > 0 ? (
                   <span className="footer-relic-tag" title={`Carrying: ${p.artifactCards.map(a => a.nickname).join(', ')}`}>
-                    📦 {p.artifactCards.length}
+                    📦 {p.artifactCards?.length || 0}
                   </span>
                 ) : null}
                 {p.skipNextTurn && (
@@ -175,18 +175,18 @@ function PlayerSidebar({
       <div className="sidebar-embedded-chat">
         <div className="sidebar-chat-header">
           <span className="sidebar-chat-title">Timeline Comms</span>
-          <span className="sidebar-chat-count">{chatMessages.length} msgs</span>
+          <span className="sidebar-chat-count">{(chatMessages || []).length} msgs</span>
         </div>
 
         <div className="sidebar-chat-feed" ref={chatFeedRef}>
-          {chatMessages.length === 0 ? (
+          {(chatMessages || []).length === 0 ? (
             <div className="sidebar-chat-empty">
               No transmissions yet.
             </div>
           ) : (
             chatMessages.map((m, idx) => {
               const isSpec = Boolean(m.isSpectator || m.roleKey === 'SPECTATOR');
-              const senderPlayer = players.find(p => p.id === m.senderId || p.name === m.senderName);
+              const senderPlayer = (players || []).find(p => p.id === m.senderId || p.name === m.senderName);
               const playerColor = isSpec ? '#E5C58A' : (senderPlayer?.color || PLAYER_COLORS[(m.senderId ?? 0) % PLAYER_COLORS.length] || "var(--accent-gold)");
               const timeStr = formatChatTime(m.timestamp);
 

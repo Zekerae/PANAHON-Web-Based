@@ -335,30 +335,32 @@ export default function PauseModal({
             </div>
           </div>
 
-          <button
-            className="btn btn-secondary pause-btn"
-            style={{
-              padding: '10px 14px',
-              fontSize: '0.80rem',
-              minWidth: 0,
-              width: '100%',
-              background: 'linear-gradient(180deg, #382A1B 0%, #22180F 100%)',
-              border: '2px solid #C2974D',
-              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A',
-              color: '#FEF3C7',
-              fontWeight: 800,
-              fontFamily: 'var(--font-display)',
-              letterSpacing: '0.8px',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-            onClick={() => {
-              sounds.btnClick();
-              onSaveAndExit();
-            }}
-          >
-            💾 SAVE & QUIT TO MENU
-          </button>
+          {!isOnline && (
+            <button
+              className="btn btn-secondary pause-btn"
+              style={{
+                padding: '10px 14px',
+                fontSize: '0.80rem',
+                minWidth: 0,
+                width: '100%',
+                background: 'linear-gradient(180deg, #382A1B 0%, #22180F 100%)',
+                border: '2px solid #C2974D',
+                boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A',
+                color: '#FEF3C7',
+                fontWeight: 800,
+                fontFamily: 'var(--font-display)',
+                letterSpacing: '0.8px',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+              onClick={() => {
+                sounds.btnClick();
+                onSaveAndExit();
+              }}
+            >
+              💾 SAVE & QUIT TO MENU
+            </button>
+          )}
 
           {!confirmAbandon ? (
             <button

@@ -521,7 +521,8 @@ function GameBoard({
       const cIdx = currentPlayer.tileIndex;
       const dir = movementDirection === "backward" ? -1 : 1;
       const tiles = board?.[era] || [];
-      const target = getNextTileIndex(currentPlayer, era, cIdx, dir, tiles.length);
+      const totalTiles = Array.isArray(tiles) ? tiles.length : 25;
+      const target = getNextTileIndex(currentPlayer, era, cIdx, dir, totalTiles);
       if (target !== null && target !== undefined) {
         return `${era}_${target}`;
       }

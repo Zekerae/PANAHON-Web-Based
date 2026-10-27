@@ -37,8 +37,8 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
 
   // If current room has other players and our selected role is already taken, switch to first available role
   useEffect(() => {
-    if (currentRoomPlayers && currentRoomPlayers.length > 0) {
-      const otherPlayers = currentRoomPlayers.filter((p) => p.name !== onlinePlayerName);
+    if (network?.roomCode && Array.isArray(currentRoomPlayers) && currentRoomPlayers.length > 0) {
+      const otherPlayers = currentRoomPlayers.filter((p) => p && p.name !== onlinePlayerName && !p.isSpectator && p.roleKey !== 'SPECTATOR');
       const otherRoles = new Set(otherPlayers.map((p) => p.roleKey));
       if (otherRoles.has(onlineSelectedRole)) {
         const available = ROLE_ORDER.find((rk) => !otherRoles.has(rk));
@@ -47,7 +47,7 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
         }
       }
     }
-  }, [currentRoomPlayers, onlinePlayerName, onlineSelectedRole]);
+  }, [network?.roomCode, currentRoomPlayers, onlinePlayerName, onlineSelectedRole]);
 
   useEffect(() => {
     if (!network) return;
@@ -125,6 +125,9 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
     network.onRoomClosed = (msg) => {
       setIsConnectingOnline(false);
       setCurrentRoomPlayers([]);
+      setSpectators([]);
+      setIsSpectator(false);
+      setCanSpectatePrompt(null);
       showToast('Anomaly Closed', msg || 'Room closed by host.', 'danger');
     };
 

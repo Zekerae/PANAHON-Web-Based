@@ -308,6 +308,11 @@ wss.on('connection', (ws) => {
             room.players = room.players.filter(p => p.connected && p.ws && p.ws.readyState === 1);
           }
 
+          // Ensure socket is not lingering in spectators list
+          if (Array.isArray(room.spectators)) {
+            room.spectators = room.spectators.filter(s => s.ws !== ws && s.id !== currentSpectatorId);
+          }
+
           if (room.players.length >= 4) {
             ws.send(JSON.stringify({
               type: 'CAN_SPECTATE',
@@ -417,6 +422,21 @@ wss.on('connection', (ws) => {
             return;
           }
 
+          // Ensure this spectator socket does NOT consume an operative player slot!
+          if (Array.isArray(room.players)) {
+            const existingIdx = room.players.findIndex(p => p.ws === ws || (currentPlayerId !== null && p.id === currentPlayerId));
+            if (existingIdx !== -1) {
+              const leaving = room.players[existingIdx];
+              room.players.splice(existingIdx, 1);
+              room.players.forEach((p, idx) => { p.id = idx; });
+              broadcast(room, {
+                type: 'ROSTER_UPDATE',
+                players: getPublicPlayers(room),
+                playerLeft: { id: leaving.id, name: leaving.name }
+              }, ws);
+            }
+          }
+
           if (!room.spectators) room.spectators = [];
           const spectatorId = `spec_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
           const specName = (msg.spectatorName || 'Chronos Observer').trim();
@@ -499,8 +519,8 @@ wss.on('connection', (ws) => {
             return;
           }
 
-          // Only include connected active players
-          const activePlayers = currentRoom.players.filter(p => p && p.connected && p.ws && p.ws.readyState === 1);
+          // Only include connected active players (strictly exclude spectators)
+          const activePlayers = currentRoom.players.filter(p => p && p.connected && p.ws && p.ws.readyState === 1 && !p.isSpectator && p.roleKey !== 'SPECTATOR');
           if (activePlayers.length < 1) return;
 
           currentRoom.gameStarted = true;

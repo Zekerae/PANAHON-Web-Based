@@ -44,14 +44,15 @@ export function appReducer(state, action) {
         ...state,
         currentScreen: 'lobby',
         lobbyMode: action.mode || state.lobbyMode,
-        localPlayers: state.localPlayers.map((p, idx) => {
+        localPlayers: (state.localPlayers && state.localPlayers.length > 0 ? state.localPlayers : initialAppState.localPlayers).map((p, idx) => {
           if (idx === 0) {
             const currentName = (p.name || '').trim();
-            const useName = (!currentName || currentName === 'Player 1') ? prof.name : currentName;
+            const useName = (!currentName || currentName === 'Player 1' || currentName.startsWith('Bot ')) ? prof.name : currentName;
             return {
               ...p,
               name: useName,
-              roleKey: p.roleKey || prof.roleKey
+              roleKey: (p.roleKey && !currentName.startsWith('Bot ')) ? p.roleKey : prof.roleKey,
+              type: 'human'
             };
           }
           return p;

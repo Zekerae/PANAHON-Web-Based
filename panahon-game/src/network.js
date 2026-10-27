@@ -193,7 +193,10 @@ export class NetworkManager {
               return;
             }
 
-            if (activeEntries.length >= 4) {
+            // Spectators must NEVER consume active player slots!
+            const activePlayers = activeEntries.filter(e => !e.isSpectator && e.roleKey !== 'SPECTATOR');
+
+            if (activePlayers.length >= 4) {
               this.cleanup();
               const errorMsg = 'Room is full! (Max 4 players)';
               if (this.onError) this.onError(errorMsg);
@@ -201,7 +204,7 @@ export class NetworkManager {
               return;
             }
 
-            const roleTaken = activeEntries.some(e => e.roleKey === roleKey && e.name !== playerName);
+            const roleTaken = activePlayers.some(e => e.roleKey === roleKey && e.name !== playerName);
             if (roleTaken) {
               this.cleanup();
               const errorMsg = `Role ${roleKey} is already taken! Choose another role.`;
@@ -210,8 +213,8 @@ export class NetworkManager {
               return;
             }
 
-            // Assign next available ID
-            const usedIds = new Set(activeEntries.map(e => e.id));
+            // Assign next available ID among actual players
+            const usedIds = new Set(activePlayers.map(e => e.id));
             let assignedId = 1;
             while (usedIds.has(assignedId) && assignedId < 4) {
               assignedId++;
@@ -254,7 +257,8 @@ export class NetworkManager {
     Object.values(presenceState).forEach(entries => {
       if (Array.isArray(entries)) {
         entries.forEach(e => {
-          if (typeof e.id === 'number' && !seen.has(e.id)) {
+          // Strictly exclude observers / spectators from player roster
+          if (!e.isSpectator && e.roleKey !== 'SPECTATOR' && typeof e.id === 'number' && !seen.has(e.id)) {
             seen.add(e.id);
             list.push({
               id: e.id,
@@ -268,7 +272,7 @@ export class NetworkManager {
       }
     });
 
-    if (ensureSelf && !seen.has(ensureSelf.id)) {
+    if (ensureSelf && !ensureSelf.isSpectator && ensureSelf.roleKey !== 'SPECTATOR' && !seen.has(ensureSelf.id)) {
       list.push(ensureSelf);
     }
 
@@ -348,7 +352,7 @@ export class NetworkManager {
       if (Array.isArray(newPresences)) {
         newPresences.forEach(p => {
           if (p.id !== this.playerId) {
-            if (p.isSpectator) {
+            if (p.isSpectator || p.roleKey === 'SPECTATOR') {
               this.spectators = this.buildSpectatorsFromPresence(channel.presenceState());
               if (this.onSpectatorCountUpdate) this.onSpectatorCountUpdate(this.spectators, p);
               if (this.isHost && this.engine?.state) {
@@ -369,7 +373,7 @@ export class NetworkManager {
             this.cleanup();
             if (this.onRoomClosed) this.onRoomClosed('Host has disconnected. Room disbanded.');
           } else if (p.id !== this.playerId) {
-            if (p.isSpectator) {
+            if (p.isSpectator || p.roleKey === 'SPECTATOR') {
               this.spectators = this.buildSpectatorsFromPresence(channel.presenceState());
               if (this.onSpectatorCountUpdate) this.onSpectatorCountUpdate(this.spectators, null, p);
             } else {
@@ -727,7 +731,7 @@ export class NetworkManager {
     if (!this.isHost || !this.roomCode) return;
 
     if (this.relayType === 'supabase' && this.channel) {
-      const activePlayers = this.players.filter(p => p && p.connected);
+      const activePlayers = this.players.filter(p => p && p.connected && !p.isSpectator && p.roleKey !== 'SPECTATOR');
       if (activePlayers.length < 1) return;
 
       const payload = {

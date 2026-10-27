@@ -263,7 +263,7 @@ export default function App() {
       { name: 'Bot Rogue', roleKey: 'ROGUE', type: 'ai', difficulty: 'normal' },
       { name: 'Bot Chronomancer', roleKey: 'CHRONOMANCER', type: 'ai', difficulty: 'normal' }
     ];
-    dispatch({ type: 'SET_LOCAL_PLAYERS', payload: botConfigs });
+    // Launch directly with bot configs without overwriting or displacing the human player's slot in the local lobby
     handleStartLocalGame(botConfigs, true);
   }, [handleStartLocalGame]);
 

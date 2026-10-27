@@ -116,6 +116,7 @@ export default function LobbyScreen({
     }
   };
   const roleKeys = ROLE_ORDER;
+  const validRoomPlayers = (currentRoomPlayers || []).filter(p => p && !p.isSpectator && p.roleKey !== 'SPECTATOR');
   const isRoomActive = network.roomCode !== null;
   const hasSupabase = isSupabaseAvailable();
 
@@ -947,7 +948,7 @@ export default function LobbyScreen({
                         {roleKeys.map(rk => {
                           const role = ROLES[rk];
                           const isSel = onlineSelectedRole === rk;
-                          const takenBy = currentRoomPlayers?.find(p => p.roleKey === rk && p.name !== onlinePlayerName);
+                          const takenBy = validRoomPlayers?.find(p => p.roleKey === rk && p.name !== onlinePlayerName);
                           const isTaken = Boolean(takenBy);
 
                           return (
@@ -1239,10 +1240,10 @@ export default function LobbyScreen({
                       {/* Connected Operatives List */}
                       <div>
                         <div style={{ fontSize: "0.76rem", color: "#F59E0B", fontWeight: 800, marginBottom: "8px" }}>
-                          SYNCHRONIZED OPERATIVES ({currentRoomPlayers.length} / 4)
+                          SYNCHRONIZED OPERATIVES ({validRoomPlayers.length} / 4)
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                          {currentRoomPlayers.map((p, idx) => (
+                          {validRoomPlayers.map((p, idx) => (
                             <div
                               key={p.id ?? idx}
                               style={{
@@ -1319,11 +1320,11 @@ export default function LobbyScreen({
                     {network.isHost ? (
                       <button
                         className="btn btn-primary"
-                        disabled={currentRoomPlayers.length < 1}
+                        disabled={validRoomPlayers.length < 1}
                         onClick={onStartOnline}
                         style={{ padding: "10px 24px", fontSize: "0.88rem", fontWeight: 800 }}
                       >
-                        🚀 INITIATE CHRONO SHIFT ({currentRoomPlayers.length}) ➔
+                        🚀 INITIATE CHRONO SHIFT ({validRoomPlayers.length}) ➔
                       </button>
                     ) : (
                       <div style={{ fontSize: "0.78rem", color: isSpectator ? "#C084FC" : "#94A3B8", fontStyle: "italic" }}>

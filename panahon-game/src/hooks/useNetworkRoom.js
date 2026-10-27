@@ -104,6 +104,8 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
     };
 
     network.onPlayerJoin = (player) => {
+      // Spectators must NEVER consume active player slots!
+      if (!player || player.isSpectator || player.roleKey === 'SPECTATOR') return;
       setCurrentRoomPlayers((prev) => {
         if (!prev.some((p) => p.id === player.id || (p.name === player.name && p.roleKey === player.roleKey))) {
           return [...prev, player];
@@ -128,16 +130,18 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
 
     network.onGameStart = (players) => {
       sounds.portal();
-      const configs = players.map((p) => ({
+      // Filter out any spectators so only actual players receive board characters
+      const nonSpectatorPlayers = (players || []).filter(p => p && !p.isSpectator && p.roleKey !== 'SPECTATOR');
+      const configs = nonSpectatorPlayers.map((p) => ({
         name: p.name,
         roleKey: p.roleKey,
-        isLocal: network.isHost ? p.id === 0 : p.id === network.playerId,
+        isLocal: !network.isSpectator && (network.isHost ? p.id === 0 : p.id === network.playerId),
         connectionId: p.id
       }));
       engine.initGame(configs);
       sounds.startBgMusic();
       if (onGameStartSuccess) {
-        onGameStartSuccess();
+        onGameStartSuccess({ isSpectator: Boolean(network.isSpectator) });
       }
       showToast('Chrono Shift Engaged', 'All timelines active. Protect the flow of history!', 'success');
     };

@@ -65,9 +65,10 @@ export default function GameIntroModal({
       return (
         players.find(
           (p) =>
-            (network?.myPlayerName && p.name === network.myPlayerName) ||
+            p.roleKey !== 'SPECTATOR' &&
+            ((network?.myPlayerName && p.name === network.myPlayerName) ||
             p.id === network?.playerId ||
-            p.isLocal
+            p.isLocal)
         ) || null
       );
     }
@@ -76,7 +77,7 @@ export default function GameIntroModal({
   }, [players, isSpectator, isOnline, network?.myPlayerName, network?.playerId]);
 
   const canMyPlayerRoll = useMemo(() => {
-    if (!myLocalPlayer) return false;
+    if (isSpectator || !myLocalPlayer) return false;
     const isTied = activeTiedPlayers.some((p) => p.id === myLocalPlayer.id);
     const hasRolled = currentRolls[myLocalPlayer.id] !== undefined;
     return isTied && !hasRolled && !rollingPlayerId && !isEvaluating;

@@ -44,7 +44,7 @@ function PlayerHand({
         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span>
             Viewing: <strong style={{ color: viewedPlayer.color }}>{viewedPlayer.name}{isViewingSelf ? ' (You)' : ''}</strong>'s Hand
-            {isSpectator && <span style={{ color: '#C084FC', fontWeight: 700, marginLeft: '4px' }}>[OBSERVER]</span>}
+            {isSpectator && <span style={{ color: '#E5C58A', fontWeight: 700, marginLeft: '4px' }}>[OBSERVER]</span>}
           </span>
           {!isViewingSelf && !isSpectator && (
             <button
@@ -76,24 +76,24 @@ function PlayerHand({
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '0.7rem', background: 'var(--bg-glass)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-glass)' }}>
+                <span style={{ fontSize: '0.7rem', background: '#140E0A', padding: '2px 6px', borderRadius: '3px', border: '1px solid #5A422D', color: '#E5C58A' }}>
                   Target Era: <strong>{ERA_NAMES[viewedPlayer.mission.targetEra]}</strong>
                 </span>
               </div>
             </div>
 
             {viewedPlayer.missionComplete ? (
-              <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10B981', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ color: '#34D399', fontWeight: 800, fontSize: '0.85rem' }}>
+              <div style={{ marginTop: '12px', padding: '10px 14px', background: 'linear-gradient(180deg, #3A2E1E 0%, #20170E 100%)', border: '2px solid #C2974D', borderRadius: '4px', boxShadow: 'inset 1px 1px 0 #EBD07D, 0 4px 12px rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ color: '#FFD700', fontWeight: 800, fontSize: '0.85rem' }}>
                   🏆 MISSION ACCOMPLISHED (+10 PTS)
                 </span>
-                <span style={{ fontSize: '0.72rem', color: '#A7F3D0' }}>
+                <span style={{ fontSize: '0.72rem', color: '#FDE047' }}>
                   Relic safely returned to {ERA_NAMES[viewedPlayer.mission.targetEra]}
                 </span>
               </div>
             ) : viewedPlayer.artifactCards.some(a => a.id === viewedPlayer.mission.artifactId) ? (
-              <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid #F59E0B', borderRadius: '8px' }}>
-                <div style={{ color: '#FBBF24', fontWeight: 800, fontSize: '0.82rem', marginBottom: '4px' }}>
+              <div style={{ marginTop: '12px', padding: '10px 14px', background: 'linear-gradient(180deg, #352518 0%, #1A120B 100%)', border: '2px solid #C2974D', borderRadius: '4px', boxShadow: 'inset 1px 1px 0 #EBD07D, 0 4px 10px rgba(0,0,0,0.5)' }}>
+                <div style={{ color: '#FFD700', fontWeight: 800, fontSize: '0.82rem', marginBottom: '4px' }}>
                   📦 RELIC IN POSSESSION!
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#FDE68A' }}>
@@ -103,7 +103,7 @@ function PlayerHand({
             ) : (
               <div className="mission-progress" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span className="mission-progress-text" style={{ fontWeight: 700, color: "#BAE6FD" }}>Ancient Intel Acquisition:</span>
+                  <span className="mission-progress-text" style={{ fontWeight: 700, color: "#E5C58A" }}>Ancient Intel Acquisition:</span>
                   <span style={{ fontSize: "0.74rem", fontWeight: 800, color: (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) >= 3 ? "#4ADE80" : "#FACC15" }}>
                     {isViewingSelf
                       ? `${viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0}/3 Decoded`
@@ -125,12 +125,12 @@ function PlayerHand({
                           alignItems: "center",
                           justifyContent: "center",
                           gap: "4px",
-                          background: isCollected ? "linear-gradient(135deg, rgba(56, 189, 248, 0.35) 0%, rgba(2, 132, 199, 0.45) 100%)" : "rgba(255,255,255,0.06)",
-                          border: isCollected ? "1px solid #38BDF8" : "1px dashed rgba(255,255,255,0.2)",
-                          boxShadow: isCollected ? "0 0 12px rgba(56, 189, 248, 0.4)" : "none",
+                          background: isCollected ? "linear-gradient(180deg, #4D3826 0%, #352518 100%)" : "#140E0A",
+                          border: isCollected ? "1.5px solid #F5C442" : "1px dashed #5A422D",
+                          boxShadow: isCollected ? "inset 1px 1px 0 #EBD07D, 0 2px 6px rgba(0,0,0,0.6)" : "none",
                           fontSize: "0.72rem",
                           fontWeight: 700,
-                          color: isCollected ? "#E0F2FE" : "#64748B",
+                          color: isCollected ? "#FFD700" : "#735E4E" ,
                           transition: "all 0.3s ease"
                         }}
                         title={isCollected ? `Clue #${gemIdx + 1} Acquired!` : `Clue #${gemIdx + 1} Needed`}

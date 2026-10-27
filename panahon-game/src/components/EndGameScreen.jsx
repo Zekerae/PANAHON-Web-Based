@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { recordMatchCompletion } from '../temporalRecords.js';
+import { getSavedProfile } from '../sessionManager.js';
 import sounds from '../sound.js';
 
 export default function EndGameScreen({ state, onPlayAgain, onBackMenu, isSpectator = false }) {
@@ -7,6 +9,17 @@ export default function EndGameScreen({ state, onPlayAgain, onBackMenu, isSpecta
   const isCollapse = state.endReason === 'collapse' || state.timelineMeter > 5;
   const sortedPlayers = [...state.players].sort((a, b) => b.points - a.points);
   const winner = isCollapse ? null : sortedPlayers[0];
+
+  useEffect(() => {
+    if (!isSpectator && state) {
+      try {
+        const prof = getSavedProfile();
+        recordMatchCompletion(state, prof?.name);
+      } catch (err) {
+        console.warn('Failed to record match completion:', err);
+      }
+    }
+  }, [state, isSpectator]);
 
   return (
     <div
@@ -29,14 +42,14 @@ export default function EndGameScreen({ state, onPlayAgain, onBackMenu, isSpecta
           display: 'inline-flex',
           alignItems: 'center',
           gap: '8px',
-          background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(56, 189, 248, 0.2))',
-          border: '1px solid #C084FC',
-          boxShadow: '0 0 20px rgba(168, 85, 247, 0.35)',
+          background: 'linear-gradient(180deg, #2D2016 0%, #1A120B 100%)',
+          border: '1.5px solid #C2974D',
+          boxShadow: 'inset 1px 1px 0 rgba(235, 198, 105, 0.2), 0 3px 6px rgba(0,0,0,0.6)',
           padding: '6px 16px',
-          borderRadius: '24px',
-          fontSize: '0.78rem',
+          borderRadius: '4px',
+          fontSize: '0.75rem',
           fontWeight: 800,
-          color: '#F5D0FE',
+          color: '#FFD700',
           letterSpacing: '1px',
           marginBottom: '16px'
         }}>

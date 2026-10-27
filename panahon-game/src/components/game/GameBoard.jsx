@@ -35,6 +35,24 @@ function GameBoard({
   const [turnToast, setTurnToast] = useState(null);
   const prevTurnKeyRef = useRef(null);
 
+  // Temporal Occurrence Shockwave Announcement & Sound Trigger
+  const [showRiftAnnouncement, setShowRiftAnnouncement] = useState(false);
+  const prevTemporalRef = useRef(temporalOccurrence || 0);
+
+  useEffect(() => {
+    const curr = temporalOccurrence || 0;
+    const prev = prevTemporalRef.current || 0;
+    if (curr > 0 && prev === 0) {
+      setShowRiftAnnouncement(true);
+      sounds.timeRift?.();
+      const t = setTimeout(() => {
+        setShowRiftAnnouncement(false);
+      }, 4500);
+      return () => clearTimeout(t);
+    }
+    prevTemporalRef.current = curr;
+  }, [temporalOccurrence]);
+
   useEffect(() => {
     if (!currentPlayer) return;
     if (phase === "rolling" && prevTurnKeyRef.current !== `${currentPlayer.id}_${currentPlayer.currentEra}`) {
@@ -568,10 +586,71 @@ function GameBoard({
         )}
       </div>
 
-      {temporalOccurrence > 0 && (
-        <div className="temporal-badge">
-          ⚡ Temporal Occurrence Active ({temporalOccurrence} turns left)!
+      {/* CINEMATIC TEMPORAL RIFT SHOCKWAVE ANNOUNCEMENT */}
+      {showRiftAnnouncement && (
+        <div
+          className="temporal-rift-announcement"
+          onClick={() => setShowRiftAnnouncement(false)}
+          role="dialog"
+          aria-label="Temporal Occurrence Event"
+        >
+          <div className="temporal-rift-backdrop" />
+          <div className="temporal-shockwave-ring ring-1" />
+          <div className="temporal-shockwave-ring ring-2" />
+          <div className="temporal-rift-card" onClick={(e) => e.stopPropagation()}>
+            <div className="temporal-rift-header">
+              <span className="temporal-rift-bolt">⚡</span>
+              <span className="temporal-rift-tag">DIMENSIONAL DISTURBANCE</span>
+              <span className="temporal-rift-bolt">⚡</span>
+            </div>
+            <div className="temporal-rift-title">TEMPORAL OCCURRENCE!</div>
+            <div className="temporal-rift-rule" />
+            <div className="temporal-rift-desc">
+              The fabric of time has fractured across the timeline!
+              For the next <strong>{Math.ceil(temporalOccurrence / (players?.length || 4))} rounds</strong>, landing on Clue, Event, or Hazard tiles will draw cards across <strong>RANDOM ERAS</strong>!
+            </div>
+            <div className="temporal-rift-badge">
+              <span>⌛ {temporalOccurrence} TURNS REMAINING</span>
+            </div>
+            <button
+              className="btn btn-primary temporal-rift-dismiss-btn"
+              onClick={() => setShowRiftAnnouncement(false)}
+            >
+              BRACE FOR CHRONO FLUX
+            </button>
+          </div>
         </div>
+      )}
+
+      {/* ACTIVE TEMPORAL OCCURRENCE ATMOSPHERIC OVERLAY & RETRO BRASS PLAQUE */}
+      {temporalOccurrence > 0 && (
+        <>
+          <div className="temporal-occurrence-board-overlay" aria-hidden="true">
+            <div className="temporal-vignette-pulse" />
+            <div className="temporal-corner-glyph glyph-tl">⏳</div>
+            <div className="temporal-corner-glyph glyph-tr">⌛</div>
+            <div className="temporal-corner-glyph glyph-bl">⌛</div>
+            <div className="temporal-corner-glyph glyph-br">⏳</div>
+          </div>
+
+          <div
+            className="temporal-occurrence-plaque"
+            title="Temporal flux active: Clue, Event, and Hazard cards are drawn from random eras!"
+          >
+            <div className="temporal-plaque-gear">🌀</div>
+            <div className="temporal-plaque-body">
+              <div className="temporal-plaque-title-row">
+                <span className="temporal-plaque-title">TEMPORAL OCCURRENCE</span>
+                <span className="temporal-plaque-rounds">
+                  {Math.ceil(temporalOccurrence / (players?.length || 4))} {Math.ceil(temporalOccurrence / (players?.length || 4)) === 1 ? 'ROUND' : 'ROUNDS'} LEFT
+                </span>
+              </div>
+              <div className="temporal-plaque-sub">
+                ⚡ Dimensional flux active &bull; Cards drawn across random eras ({temporalOccurrence} turns left)
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Interactive Clash-of-Clans Pan & Zoom Viewport */}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getSavedProfile, savePlayerProfile } from '../../sessionManager.js';
+import { getTemporalRecords, getOperativeRank, resetTemporalRecords, logSimulationMission } from '../../temporalRecords.js';
 import sounds from '../../sound.js';
 import { ALL_ARTIFACTS, ERA_NAMES, ERAS, ROLES } from '../../gameData.js';
 
@@ -199,6 +200,9 @@ export function ProfileModal({ onClose }) {
   const [playerName, setPlayerName] = useState(profile.name);
   const [selectedRoleKey, setSelectedRoleKey] = useState(profile.roleKey);
   const [isSaved, setIsSaved] = useState(false);
+  const [records, setRecords] = useState(() => getTemporalRecords());
+  const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'history'
+  const [resetConfirm, setResetConfirm] = useState(false);
 
   useEffect(() => {
     const handleProfileUpdate = (e) => {
@@ -206,8 +210,15 @@ export function ProfileModal({ onClose }) {
       if (name) setPlayerName(name);
       if (roleKey) setSelectedRoleKey(roleKey);
     };
+    const handleRecordsUpdate = (e) => {
+      if (e.detail) setRecords(e.detail);
+    };
     window.addEventListener('panahon_profile_updated', handleProfileUpdate);
-    return () => window.removeEventListener('panahon_profile_updated', handleProfileUpdate);
+    window.addEventListener('panahon_records_updated', handleRecordsUpdate);
+    return () => {
+      window.removeEventListener('panahon_profile_updated', handleProfileUpdate);
+      window.removeEventListener('panahon_records_updated', handleRecordsUpdate);
+    };
   }, []);
 
   const handleSave = (e) => {
@@ -234,6 +245,10 @@ export function ProfileModal({ onClose }) {
   };
 
   const currentRole = ROLES[selectedRoleKey] || ROLES.HISTORIAN;
+  const rankInfo = getOperativeRank(records);
+  const successRate = records.missionsLogged > 0
+    ? Math.round((records.missionsWon / records.missionsLogged) * 100)
+    : 0;
 
   return (
     <div
@@ -338,8 +353,8 @@ export function ProfileModal({ onClose }) {
               <div style={{ fontSize: "0.75rem", color: "#FCD34D", fontWeight: 700, marginTop: "2px" }}>
                 {currentRole.name} &bull; Specialization
               </div>
-              <div style={{ fontSize: "0.68rem", color: "#B89B72", marginTop: "2px" }}>
-                Temporal Registry: Operative Rank IV
+              <div style={{ fontSize: "0.68rem", color: rankInfo.color, marginTop: "2px", fontWeight: 700 }}>
+                Temporal Registry: {rankInfo.rank} &bull; {rankInfo.title} {rankInfo.insignia}
               </div>
             </div>
           </div>
@@ -454,63 +469,280 @@ export function ProfileModal({ onClose }) {
             </div>
           </div>
 
-          {/* Operative Statistics */}
+          {/* Operative Statistics & Deployment History */}
           <div style={{ marginBottom: "18px" }}>
             <div
               style={{
-                fontSize: "0.7rem",
-                fontWeight: 800,
-                color: "#D4A559",
-                fontFamily: "var(--font-display)",
-                letterSpacing: "0.5px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
                 marginBottom: "8px"
               }}
             >
-              TEMPORAL SERVICE RECORD:
+              <div
+                style={{
+                  fontSize: "0.7rem",
+                  fontWeight: 800,
+                  color: "#D4A559",
+                  fontFamily: "var(--font-display)",
+                  letterSpacing: "0.5px"
+                }}
+              >
+                TEMPORAL SERVICE RECORD:
+              </div>
+              <div style={{ display: "flex", gap: "4px" }}>
+                <button
+                  type="button"
+                  onClick={() => { sounds.btnClick?.(); setActiveTab('summary'); }}
+                  style={{
+                    background: activeTab === 'summary' ? "#3D2B16" : "#1A130E",
+                    border: activeTab === 'summary' ? "1.5px solid #FFD700" : "1px solid #4A382C",
+                    color: activeTab === 'summary' ? "#FFD700" : "#A69279",
+                    padding: "3px 8px",
+                    borderRadius: "4px",
+                    fontSize: "0.62rem",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontFamily: "var(--font-display)"
+                  }}
+                >
+                  📊 STATS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { sounds.btnClick?.(); setActiveTab('history'); }}
+                  style={{
+                    background: activeTab === 'history' ? "#3D2B16" : "#1A130E",
+                    border: activeTab === 'history' ? "1.5px solid #FFD700" : "1px solid #4A382C",
+                    color: activeTab === 'history' ? "#FFD700" : "#A69279",
+                    padding: "3px 8px",
+                    borderRadius: "4px",
+                    fontSize: "0.62rem",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontFamily: "var(--font-display)"
+                  }}
+                >
+                  📜 DOSSIER ({records.missionHistory?.length || 0})
+                </button>
+              </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
-              <div
-                style={{
-                  background: "#221912",
-                  border: "1.5px solid #5A422D",
-                  padding: "10px",
-                  borderRadius: "6px",
-                  textAlign: "center"
-                }}
-              >
-                <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "#FCD34D", fontFamily: "var(--font-display)" }}>
-                  14
+
+            {activeTab === 'summary' ? (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "8px" }}>
+                  <div
+                    style={{
+                      background: "#221912",
+                      border: "1.5px solid #5A422D",
+                      padding: "10px",
+                      borderRadius: "6px",
+                      textAlign: "center"
+                    }}
+                    title="Total deployments logged across all timelines"
+                  >
+                    <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "#FCD34D", fontFamily: "var(--font-display)" }}>
+                      {records.missionsLogged}
+                    </div>
+                    <div style={{ fontSize: "0.64rem", color: "#C9B69C" }}>Missions Logged</div>
+                  </div>
+                  <div
+                    style={{
+                      background: "#221912",
+                      border: "1.5px solid #5A422D",
+                      padding: "10px",
+                      borderRadius: "6px",
+                      textAlign: "center"
+                    }}
+                    title={`${records.missionsWon} Victories out of ${records.missionsLogged} Missions`}
+                  >
+                    <div style={{ fontSize: "1.2rem", fontWeight: 800, color: successRate >= 50 ? "#86EFAC" : (records.missionsLogged > 0 ? "#FDE047" : "#A69279"), fontFamily: "var(--font-display)" }}>
+                      {successRate}%
+                    </div>
+                    <div style={{ fontSize: "0.64rem", color: "#C9B69C" }}>Success Rate</div>
+                  </div>
+                  <div
+                    style={{
+                      background: "#221912",
+                      border: "1.5px solid #5A422D",
+                      padding: "10px",
+                      borderRadius: "6px",
+                      textAlign: "center"
+                    }}
+                    title="Total historical artifacts safely recovered"
+                  >
+                    <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "#FBBF24", fontFamily: "var(--font-display)" }}>
+                      {records.relicsRecovered}
+                    </div>
+                    <div style={{ fontSize: "0.64rem", color: "#C9B69C" }}>Relics Recovered</div>
+                  </div>
                 </div>
-                <div style={{ fontSize: "0.64rem", color: "#C9B69C" }}>Missions Logged</div>
-              </div>
-              <div
-                style={{
-                  background: "#221912",
-                  border: "1.5px solid #5A422D",
-                  padding: "10px",
-                  borderRadius: "6px",
-                  textAlign: "center"
-                }}
-              >
-                <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "#86EFAC", fontFamily: "var(--font-display)" }}>
-                  71%
+
+                {/* Additional Telemetry Ribbon */}
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "6px 10px",
+                  background: "#18120D",
+                  border: "1px solid #4A382C",
+                  borderRadius: "4px",
+                  fontSize: "0.64rem",
+                  color: "#C8B293"
+                }}>
+                  <span>🔍 <strong>{records.cluesDecoded}</strong> Clues Decoded</span>
+                  <span>🏆 <strong>{records.missionsWon}W</strong> - <strong>{Math.max(0, records.missionsLogged - records.missionsWon)}L</strong></span>
+                  <span>🎖️ Standing: <strong style={{ color: rankInfo.color }}>{rankInfo.title}</strong></span>
                 </div>
-                <div style={{ fontSize: "0.64rem", color: "#C9B69C" }}>Success Rate</div>
+              </>
+            ) : (
+              /* Mission Dossier List */
+              <div style={{
+                background: "#140E0A",
+                border: "1.5px solid #5A422D",
+                borderRadius: "6px",
+                padding: "8px",
+                maxHeight: "180px",
+                overflowY: "auto"
+              }}>
+                {records.missionHistory && records.missionHistory.length > 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {records.missionHistory.map((m) => {
+                      const isWin = m.outcome === 'VICTORY';
+                      const isCollapse = m.outcome === 'COLLAPSE';
+                      const badgeColor = isWin ? '#F5C442' : (isCollapse ? '#EF4444' : '#94A3B8');
+                      const badgeBg = isWin ? '#2D2016' : (isCollapse ? '#2D1414' : '#1F1A17');
+                      return (
+                        <div
+                          key={m.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "6px 8px",
+                            background: "#1C140E",
+                            border: "1px solid #3E2B1D",
+                            borderRadius: "4px",
+                            fontSize: "0.66rem"
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{
+                              padding: "2px 5px",
+                              borderRadius: "3px",
+                              background: badgeBg,
+                              border: `1px solid ${badgeColor}`,
+                              color: badgeColor,
+                              fontWeight: 800,
+                              fontFamily: "var(--font-display)",
+                              fontSize: "0.56rem"
+                            }}>
+                              {m.outcome}
+                            </span>
+                            <span style={{ color: "#FEF3C7", fontWeight: 700 }}>{m.roleName}</span>
+                            <span style={{ color: "#8C7764" }}>&bull;</span>
+                            <span style={{ color: "#D4A559", textTransform: "capitalize" }}>{m.era} Era</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#C8B293" }}>
+                            <span><strong>{m.points}</strong> pts</span>
+                            <span>📦 <strong>{m.relics}</strong></span>
+                            <span style={{ fontSize: "0.60rem", color: "#796654" }}>{m.date}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: "center", padding: "14px 10px", color: "#8C7764" }}>
+                    <div style={{ fontSize: "1.2rem", marginBottom: "4px" }}>📜</div>
+                    <div style={{ fontSize: "0.72rem", color: "#E5C58A", fontWeight: 700, fontFamily: "var(--font-display)" }}>
+                      NO FIELD DEPLOYMENTS RECORDED
+                    </div>
+                    <div style={{ fontSize: "0.64rem", marginTop: "2px", lineHeight: 1.3 }}>
+                      Complete solo or multiplayer games to record your operational timeline service.
+                    </div>
+                  </div>
+                )}
               </div>
-              <div
-                style={{
-                  background: "#221912",
-                  border: "1.5px solid #5A422D",
-                  padding: "10px",
-                  borderRadius: "6px",
-                  textAlign: "center"
+            )}
+
+            {/* Quick Testing & Management Controls */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "8px" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.abilityActivate?.();
+                  logSimulationMission('VICTORY');
                 }}
+                style={{
+                  background: "transparent",
+                  border: "1px dashed #5A422D",
+                  borderRadius: "3px",
+                  color: "#C2974D",
+                  fontSize: "0.60rem",
+                  padding: "3px 6px",
+                  cursor: "pointer"
+                }}
+                title="Log a field training drill to calibrate records immediately"
               >
-                <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "#FBBF24", fontFamily: "var(--font-display)" }}>
-                  19
+                + Log Field Drill (Calibrate)
+              </button>
+
+              {resetConfirm ? (
+                <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.60rem", color: "#EF4444" }}>Confirm Reset?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sounds.btnClick?.();
+                      resetTemporalRecords();
+                      setResetConfirm(false);
+                    }}
+                    style={{
+                      background: "#450A0A",
+                      border: "1px solid #EF4444",
+                      color: "#FCA5A5",
+                      fontSize: "0.58rem",
+                      padding: "2px 5px",
+                      borderRadius: "3px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResetConfirm(false)}
+                    style={{
+                      background: "#221912",
+                      border: "1px solid #5A422D",
+                      color: "#C9B69C",
+                      fontSize: "0.58rem",
+                      padding: "2px 5px",
+                      borderRadius: "3px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Cancel
+                  </button>
                 </div>
-                <div style={{ fontSize: "0.64rem", color: "#C9B69C" }}>Relics Recovered</div>
-              </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setResetConfirm(true)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#796654",
+                    fontSize: "0.58rem",
+                    cursor: "pointer",
+                    textDecoration: "underline"
+                  }}
+                  title="Clear saved service statistics"
+                >
+                  Reset Records
+                </button>
+              )}
             </div>
           </div>
         </div>

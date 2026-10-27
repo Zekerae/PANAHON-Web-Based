@@ -5,6 +5,7 @@ import { NetworkManager } from './network.js';
 import { saveCustomMap } from './gameData.js';
 import { loadMapFromSupabase } from './supabaseClient.js';
 import { getActiveSession, saveActiveSession, clearActiveSession, getSavedProfile } from './sessionManager.js';
+import { recordMatchCompletion } from './temporalRecords.js';
 import { appReducer, initialAppState } from './state/appReducer.js';
 import { useGameEngine } from './hooks/useGameEngine.js';
 import { useAudio } from './hooks/useAudio.js';
@@ -163,9 +164,15 @@ export default function App() {
     state: isGameActive ? gameState : null,
     isGameActive,
     simulationSpeed: appState.simulationSpeed,
-    onGameOver: () => {
+    onGameOver: (finalState) => {
       clearActiveSession();
       setSavedSession(null);
+      try {
+        const prof = getSavedProfile();
+        recordMatchCompletion(finalState || engine?.state, prof?.name);
+      } catch (err) {
+        console.warn('Failed to record match on game over:', err);
+      }
       dispatch({ type: 'GAME_OVER' });
     }
   });

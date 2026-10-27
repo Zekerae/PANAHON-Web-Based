@@ -84,7 +84,7 @@ export default function PauseModal({
           <h2 id="pause-title" className="pause-title" style={{ fontSize: '1.3rem', letterSpacing: '2.5px' }}>
             MISSION PAUSED
           </h2>
-          <div className="pause-subtitle" style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '2px' }}>
+          <div className="pause-subtitle" style={{ fontSize: '0.74rem', color: '#C8B293', marginTop: '2px' }}>
             Temporal anomaly suspended
           </div>
         </div>
@@ -128,13 +128,31 @@ export default function PauseModal({
         <div className="pause-actions" style={{ gap: '8px' }}>
           <button
             className="btn btn-primary pause-btn-resume"
-            style={{ padding: '10px', fontSize: '0.88rem', minWidth: 0, width: '100%' }}
+            style={{
+              padding: '11px 14px',
+              fontSize: '0.84rem',
+              minWidth: 0,
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              background: 'linear-gradient(180deg, #4D3826 0%, #352518 100%)',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 3px 0 #120E0A',
+              color: '#FFD700',
+              fontWeight: 800,
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '1px',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
             onClick={() => {
               sounds.btnClick();
               onResume();
             }}
           >
-            ▶ RESUME MISSION <span className="key-hint">ESC</span>
+            ▶ RESUME MISSION <span className="key-hint" style={{ background: '#140E0A', border: '1px solid #5A422D', color: '#F5C442' }}>ESC</span>
           </button>
 
           <button
@@ -142,39 +160,72 @@ export default function PauseModal({
             className="btn btn-secondary pause-btn pause-btn-manual"
             style={{
               padding: '10px 14px',
-              fontSize: '0.82rem',
+              fontSize: '0.80rem',
               minWidth: 0,
               width: '100%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              background: 'rgba(56, 189, 248, 0.12)',
-              border: '1.5px solid rgba(56, 189, 248, 0.45)',
-              color: '#38BDF8',
-              fontWeight: 700
+              background: 'linear-gradient(180deg, #382A1B 0%, #22180F 100%)',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A',
+              color: '#FEF3C7',
+              fontWeight: 800,
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '0.8px',
+              borderRadius: '4px',
+              cursor: 'pointer'
             }}
             onClick={() => {
               sounds.btnClick();
               if (onOpenGuide) onOpenGuide();
             }}
           >
-            <span style={{ fontSize: '1rem' }}>📖</span> RULES & FIELD MANUAL
+            <span style={{ fontSize: '0.95rem' }}>📖</span> RULES & FIELD MANUAL
           </button>
 
           <button
             className="btn btn-secondary pause-btn"
-            style={{ padding: '9px 12px', fontSize: '0.8rem', minWidth: 0, width: '100%' }}
+            style={{
+              padding: '10px 14px',
+              fontSize: '0.80rem',
+              minWidth: 0,
+              width: '100%',
+              background: 'linear-gradient(180deg, #382A1B 0%, #22180F 100%)',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A',
+              color: '#FEF3C7',
+              fontWeight: 800,
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '0.8px',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
             onClick={() => {
               onToggleSound();
             }}
           >
-            {soundMuted ? '🔇 AUDIO: MUTED (Click to Unmute)' : '🔊 AUDIO: ON (Click to Mute)'}
+            {soundMuted ? '🔇 AUDIO: MUTED (CLICK TO UNMUTE)' : '🔊 AUDIO: ON (CLICK TO MUTE)'}
           </button>
 
           <button
             className="btn btn-secondary pause-btn"
-            style={{ borderColor: 'rgba(52, 152, 219, 0.45)', color: '#70b9eb', padding: '9px 12px', fontSize: '0.8rem', minWidth: 0, width: '100%' }}
+            style={{
+              padding: '10px 14px',
+              fontSize: '0.80rem',
+              minWidth: 0,
+              width: '100%',
+              background: 'linear-gradient(180deg, #382A1B 0%, #22180F 100%)',
+              border: '2px solid #C2974D',
+              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A',
+              color: '#FEF3C7',
+              fontWeight: 800,
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '0.8px',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
             onClick={() => {
               sounds.btnClick();
               onSaveAndExit();
@@ -186,7 +237,22 @@ export default function PauseModal({
           {!confirmAbandon ? (
             <button
               className="btn pause-btn-abandon"
-              style={{ padding: '9px 12px', fontSize: '0.8rem', minWidth: 0, width: '100%', marginTop: '2px' }}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                fontSize: '0.80rem',
+                minWidth: 0,
+                marginTop: '4px',
+                borderRadius: '4px',
+                fontFamily: 'var(--font-display)',
+                fontWeight: 800,
+                letterSpacing: '0.8px',
+                background: 'linear-gradient(180deg, #301916 0%, #1F0E0C 100%)',
+                border: '2px solid #8C3A3A',
+                boxShadow: 'inset 1px 1px 0 rgba(235, 120, 120, 0.2), inset -1px -1px 0 #120705, 0 2px 0 #0E0504',
+                color: '#FCA5A5',
+                cursor: 'pointer'
+              }}
               onClick={() => {
                 sounds.btnClick();
                 setConfirmAbandon(true);
@@ -198,11 +264,12 @@ export default function PauseModal({
             <div
               className="pause-confirm-box"
               style={{
-                background: 'rgba(239, 68, 68, 0.12)',
-                border: '1.5px solid rgba(239, 68, 68, 0.45)',
-                borderRadius: '8px',
+                background: 'linear-gradient(180deg, #2D1A16 0%, #1A0E0C 100%)',
+                border: '2px solid #8C3A3A',
+                boxShadow: 'inset 1px 1px 0 rgba(235, 120, 120, 0.2), inset -1px -1px 0 #120705, 0 4px 12px rgba(0, 0, 0, 0.7)',
+                borderRadius: '4px',
                 padding: '12px 14px',
-                marginTop: '4px',
+                marginTop: '6px',
                 boxSizing: 'border-box',
                 width: '100%'
               }}
@@ -210,14 +277,15 @@ export default function PauseModal({
               <p
                 className="pause-confirm-text"
                 style={{
-                  fontSize: '0.78rem',
+                  fontSize: '0.74rem',
                   color: '#FECACA',
                   margin: '0 0 10px 0',
-                  lineHeight: 1.4,
-                  textAlign: 'center'
+                  lineHeight: 1.45,
+                  textAlign: 'center',
+                  letterSpacing: '0.3px'
                 }}
               >
-                {isOnline
+                ⚠️ {isOnline
                   ? 'Disconnect from current room? Other castaways will continue.'
                   : 'Abandon mission? All unsaved expedition progress will be lost.'}
               </p>
@@ -231,23 +299,26 @@ export default function PauseModal({
                   style={{
                     flex: 1,
                     minWidth: 0,
-                    height: '36px',
-                    padding: '0 8px',
-                    background: 'linear-gradient(135deg, #DC2626, #EF4444)',
-                    border: '1px solid #F87171',
-                    borderRadius: '6px',
-                    color: '#FFF',
-                    fontSize: '0.78rem',
+                    height: '38px',
+                    padding: '0 10px',
+                    background: 'linear-gradient(180deg, #8B2525 0%, #5C1818 100%)',
+                    border: '2px solid #DC2626',
+                    boxShadow: 'inset 1px 1px 0 #F87171, inset -1px -1px 0 #3A0C0C, 0 2px 0 #120505',
+                    borderRadius: '4px',
+                    color: '#FEE2E2',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: '0.70rem',
                     fontWeight: 800,
+                    letterSpacing: '0.8px',
+                    textTransform: 'uppercase',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    whiteSpace: 'nowrap',
-                    boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
+                    whiteSpace: 'nowrap'
                   }}
                 >
-                  Yes, Abandon
+                  ⚠️ Yes, Abandon
                 </button>
                 <button
                   type="button"
@@ -258,14 +329,18 @@ export default function PauseModal({
                   style={{
                     flex: 1,
                     minWidth: 0,
-                    height: '36px',
-                    padding: '0 8px',
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '6px',
-                    color: '#CBD5E1',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
+                    height: '38px',
+                    padding: '0 10px',
+                    background: 'linear-gradient(180deg, #3D2D1E 0%, #251B12 100%)',
+                    border: '2px solid #C2974D',
+                    boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A',
+                    borderRadius: '4px',
+                    color: '#FFD700',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: '0.70rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.8px',
+                    textTransform: 'uppercase',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -273,15 +348,15 @@ export default function PauseModal({
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  Cancel
+                  ← Cancel
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        <div className="pause-footer-hint" style={{ marginTop: '12px', fontSize: '0.7rem', color: '#64748B' }}>
-          Tip: Press <kbd style={{ padding: '1px 5px', fontSize: '0.68rem' }}>ESC</kbd> anytime during gameplay to pause or resume.
+        <div className="pause-footer-hint" style={{ marginTop: '12px', fontSize: '0.7rem', color: '#8C7764' }}>
+          Tip: Press <kbd style={{ padding: '1px 5px', fontSize: '0.68rem', background: '#140E0A', border: '1px solid #5A422D', color: '#F5C442' }}>ESC</kbd> anytime during gameplay to pause or resume.
         </div>
       </div>
     </div>

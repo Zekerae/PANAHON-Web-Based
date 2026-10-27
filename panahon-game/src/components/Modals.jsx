@@ -87,6 +87,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   const isEvent = modal.type === 'event';
   const isArtifact = modal.type === 'artifact';
   const isClue = modal.isClue || modal.cardType === 'Clue Card' || modal.cardType === 'Decoy Card';
+  const isTemporalOccurrence = modal.title === 'Temporal Occurrence!' || (modal.description && modal.description.includes('Temporal Occurrence'));
 
   // Hide other players' and bots' clue cards (unless observing as spectator)
   const isSecretToMe = isClue && !isMyCard && !isSpectator;
@@ -137,6 +138,12 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   useEffect(() => {
     onDismissRef.current = onDismiss;
   }, [onDismiss]);
+
+  useEffect(() => {
+    if (isTemporalOccurrence) {
+      sounds.timeRift?.();
+    }
+  }, [isTemporalOccurrence]);
 
   useEffect(() => {
     startTimeRef.current = Date.now();
@@ -196,13 +203,15 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   };
 
   if (isOtherPlayer) {
-    const cardClass = isDanger
-      ? 'side-card-danger danger-card'
-      : (isEvent
-        ? 'side-card-event event-card'
-        : (isArtifact
-          ? 'side-card-artifact artifact-card'
-          : 'side-card-clue clue-card'));
+    const cardClass = isTemporalOccurrence
+      ? 'side-card-temporal event-card'
+      : (isDanger
+        ? 'side-card-danger danger-card'
+        : (isEvent
+          ? 'side-card-event event-card'
+          : (isArtifact
+            ? 'side-card-artifact artifact-card'
+            : 'side-card-clue clue-card')));
     const timerFillGradient = isDanger
       ? 'linear-gradient(90deg, #EF4444, #F97316)'
       : (isEvent ? 'linear-gradient(90deg, #F59E0B, #FCD34D)' : (isArtifact ? 'linear-gradient(90deg, #10B981, #34D399)' : 'linear-gradient(90deg, #3B82F6, #60A5FA)'));
@@ -452,11 +461,11 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   }
 
   return (
-    <div className="modal-overlay" id="active-modal">
-      <div className="modal">
+    <div className={`modal-overlay ${isTemporalOccurrence ? "temporal-rift-modal-overlay" : ""}`} id="active-modal">
+      <div className={`modal ${isTemporalOccurrence ? "temporal-occurrence-card-modal" : ""}`}>
         <button className="modal-close" onClick={handleDismiss}>&times;</button>
-        <div className="modal-title" style={{ color: isDanger ? '#EF4444' : (isEvent ? '#F59E0B' : '#38BDF8'), letterSpacing: '1.5px' }}>
-          {modal.cardType || (isDanger ? 'HAZARD ANOMALY' : (isEvent ? 'TEMPORAL EVENT' : modal.title))}
+        <div className="modal-title" style={{ color: isTemporalOccurrence ? "#FFD700" : (isDanger ? "#EF4444" : (isEvent ? "#F59E0B" : "#C2974D")), letterSpacing: "1.5px" }}>
+          {isTemporalOccurrence ? "⚡ TEMPORAL OCCURRENCE! ⚡" : (modal.cardType || (isDanger ? "HAZARD ANOMALY" : (isEvent ? "TEMPORAL EVENT" : modal.title)))}
         </div>
         {modal.era && (
           <div style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 800, textAlign: 'center', marginTop: '-8px', marginBottom: '10px' }}>

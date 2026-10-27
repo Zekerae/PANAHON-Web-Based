@@ -80,15 +80,15 @@ function GameHeader({
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(56, 189, 248, 0.2))',
-            border: '1px solid #C084FC',
-            boxShadow: '0 0 15px rgba(168, 85, 247, 0.35)',
+            background: 'linear-gradient(180deg, #2D2016 0%, #1A120B 100%)',
+            border: '1.5px solid #C2974D',
+            boxShadow: 'inset 1px 1px 0 rgba(235, 198, 105, 0.2), 0 3px 6px rgba(0,0,0,0.6)',
             padding: '4px 10px',
-            borderRadius: '20px',
-            fontSize: '0.72rem',
+            borderRadius: '4px',
+            fontSize: '0.70rem',
             fontWeight: 800,
-            color: '#F5D0FE',
-            letterSpacing: '1px'
+            color: '#FFD700',
+            letterSpacing: '0.8px'
           }}>
             <span className="spectator-pulse-dot" style={{
               width: '7px',

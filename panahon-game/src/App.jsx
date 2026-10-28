@@ -54,6 +54,7 @@ export default function App() {
   // App Routing & High-level State
   const [appState, dispatch] = useReducer(appReducer, initialAppState);
   const [savedSession, setSavedSession] = useState(() => getActiveSession());
+  const [forceIntroVideo, setForceIntroVideo] = useState(false);
   const [isBooted, setIsBooted] = useState(() => {
     try {
       const p = new URLSearchParams(window.location.search);
@@ -393,7 +394,14 @@ export default function App() {
     activeSession: savedSession,
     onReconnect: handleReconnect,
     onDiscardSession: handleDiscardSession,
-    onReplayIntro: () => setIsBooted(false),
+    onReplayIntro: () => {
+      try {
+        if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('panahon_intro_seen');
+        if (typeof localStorage !== 'undefined') localStorage.removeItem('panahon_intro_seen');
+      } catch (_) {}
+      setForceIntroVideo(true);
+      setIsBooted(false);
+    },
     onStartSpectatorSimulation: handleStartSpectatorSimulation,
     onSpectateOnline: networkRoom.spectateOnline
   };
@@ -467,7 +475,15 @@ export default function App() {
   };
 
   if (!isBooted) {
-    return <BootSequence onComplete={() => setIsBooted(true)} />;
+    return (
+      <BootSequence
+        forceVideo={forceIntroVideo}
+        onComplete={() => {
+          setForceIntroVideo(false);
+          setIsBooted(true);
+        }}
+      />
+    );
   }
 
   return (

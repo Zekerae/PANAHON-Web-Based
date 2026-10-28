@@ -2,13 +2,45 @@ import React, { useState, useEffect, useRef } from "react";
 import sounds from "../../sound.js";
 import AnimatedLogo from "../common/AnimatedLogo.jsx";
 
-export default function BootSequence({ onComplete }) {
-  const [stage, setStage] = useState("video"); // "video" | "loading"
+export default function BootSequence({ onComplete, forceVideo = false }) {
+  const [stage, setStage] = useState(() => {
+    if (forceVideo) return "video";
+    try {
+      // 1. Navigation Timing API: check if this load was triggered by browser refresh/reload
+      const navEntry = typeof performance !== "undefined" && performance.getEntriesByType
+        ? performance.getEntriesByType("navigation")?.[0]
+        : null;
+      const isReload = navEntry
+        ? navEntry.type === "reload"
+        : (typeof performance !== "undefined" && performance.navigation?.type === 1);
+
+      // 2. Storage checks: has the intro video already been seen in this session or browser?
+      const seenInSession = typeof sessionStorage !== "undefined" && sessionStorage.getItem("panahon_intro_seen") === "true";
+      const seenGlobal = typeof localStorage !== "undefined" && localStorage.getItem("panahon_intro_seen") === "true";
+
+      if (isReload || seenInSession || seenGlobal) {
+        return "loading";
+      }
+    } catch (_) {}
+    return "video";
+  });
   const [progress, setProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState("Initializing Chrono Core...");
   const [isMuted, setIsMuted] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const videoRef = useRef(null);
+
+  // Mark intro as seen so subsequent browser refreshes skip directly to loading screen
+  useEffect(() => {
+    try {
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem("panahon_intro_seen", "true");
+      }
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem("panahon_intro_seen", "true");
+      }
+    } catch (_) {}
+  }, []);
 
   // 1. INTRO VIDEO LOGIC: Prioritize unmuted sound at page visit
   useEffect(() => {
@@ -75,6 +107,10 @@ export default function BootSequence({ onComplete }) {
   }, [stage]);
 
   const handleSkipVideo = () => {
+    try {
+      if (typeof sessionStorage !== "undefined") sessionStorage.setItem("panahon_intro_seen", "true");
+      if (typeof localStorage !== "undefined") localStorage.setItem("panahon_intro_seen", "true");
+    } catch (_) {}
     if (videoRef.current) {
       videoRef.current.pause();
     }

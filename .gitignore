@@ -16,3 +16,7 @@ dist-ssr/
 
 # Raw oversized map source assets (>50MB-300MB+; the web game only uses Full Map.png)
 Panahon_ Game Assets/Map/*_Quadrant_Map/
+
+# Tests & test scripts
+test/
+panahon-game/test/

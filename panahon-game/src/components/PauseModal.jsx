@@ -214,35 +214,6 @@ export default function PauseModal({
             {soundMuted ? '🔇 AUDIO: MUTED (CLICK TO UNMUTE)' : '🔊 AUDIO: ON (CLICK TO MUTE)'}
           </button>
 
-          <button
-            id="pause-btn-debug-logs"
-            className="btn btn-secondary pause-btn"
-            style={{
-              padding: '10px 14px',
-              fontSize: '0.80rem',
-              minWidth: 0,
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              background: 'linear-gradient(180deg, #2D1F15 0%, #1A120C 100%)',
-              border: '2px solid #C2974D',
-              boxShadow: 'inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16, 0 2px 0 #120E0A',
-              color: '#FFD700',
-              fontWeight: 800,
-              fontFamily: 'var(--font-display)',
-              letterSpacing: '0.8px',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-            onClick={() => {
-              sounds.btnClick();
-              if (onOpenDebug) onOpenDebug();
-            }}
-          >
-            <span style={{ fontSize: '0.95rem' }}>📋</span> GAME LOGS & DIAGNOSTICS <span className="key-hint" style={{ background: '#140E0A', border: '1px solid #5A422D', color: '#F5C442' }}>`</span>
-          </button>
 
           {/* GUI Scaling Adjustment Control */}
           <div className="pause-scale-box" style={{

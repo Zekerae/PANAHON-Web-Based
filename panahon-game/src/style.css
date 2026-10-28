@@ -11730,6 +11730,40 @@ html, body, #app, .app-root {
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
 }
 
+.event-status-alert {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1.5px solid #F59E0B;
+  color: #FDE047;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);
+}
+
+.event-status-alert .text-success {
+  color: #34D399;
+}
+
+.event-status-alert .text-danger {
+  color: #F87171;
+}
+
+.event-roll-stage {
+  background: #19120D;
+  border: 2px solid #F59E0B;
+  border-radius: 6px;
+  box-shadow: inset 2px 2px 0 #0F0A07, 0 0 16px rgba(245, 158, 11, 0.25);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
 .danger-status-alert {
   background: rgba(239, 68, 68, 0.18);
   border: 1.5px solid #EF4444;

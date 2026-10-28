@@ -29,6 +29,7 @@ try {
     engine.movePlayerStep();
   }
   assert.strictEqual(engine.state.movesRemaining, 0, "Moves remaining depleted");
+  if (engine.state.pendingModal) { engine.dismissModal(); }
   assert.strictEqual(engine.state.phase, "action", "Phase transitions to action once movement complete");
   console.log("✓ Movement step completes and transitions to action phase");
 

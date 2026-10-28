@@ -413,10 +413,20 @@ export function MaximizedCardPreview({ data, onClose }) {
                   <img src="/assets/Tiles/event_tile.png" alt="Event Tile" className="event-mini-tile-img" />
                 </div>
               </div>
-              <div className="event-interference-tag">
-                <span>🌀</span>
-                <span>TIMELINE INTERFERENCE FLUX APPLIED</span>
-              </div>
+              {data.diceRoll !== null && data.diceRoll !== undefined ? (
+                <div className="event-status-alert">
+                  {data.success ? (
+                    <span className="text-success" style={{ color: '#34D399' }}>✓ RUNE RESONATED! (ROLLED {data.diceRoll})</span>
+                  ) : (
+                    <span className="text-danger" style={{ color: '#F87171' }}>✗ THE RUNES REMAINED SILENT (ROLLED {data.diceRoll})</span>
+                  )}
+                </div>
+              ) : (
+                <div className="event-interference-tag">
+                  <span>🌀</span>
+                  <span>TIMELINE INTERFERENCE FLUX APPLIED</span>
+                </div>
+              )}
             </div>
 
             <div className="event-lore-box">
@@ -424,7 +434,26 @@ export function MaximizedCardPreview({ data, onClose }) {
               <div className="event-lore-desc">{data.description}</div>
             </div>
 
-            {data.resultText && (
+            {data.diceRoll !== null && data.diceRoll !== undefined && (
+              <div className={`danger-outcome-plaque ${data.success ? 'outcome-evaded' : 'outcome-failed'}`}>
+                <div className="outcome-dice-wrap">
+                  <Dice value={data.diceRoll} size="sm" theme={data.success ? 'success' : 'hazard'} isInteractive={false} />
+                </div>
+                <div className="outcome-details">
+                  <div className="outcome-verdict">
+                    {data.success ? '✓ CELESTIAL RESONANCE!' : '✗ THE RUNES REMAINED SILENT'}
+                    <span className="outcome-roll-val">(Rolled {data.diceRoll})</span>
+                  </div>
+                  <div className="outcome-msg">
+                    {data.success
+                      ? (data.successMsg || 'Rune resonance achieved! Select an Era deck upon continuing.')
+                      : (data.failMsg || 'Rolled 1-3. The heavens were silent. Nothing happened.')}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {data.resultText && !data.diceRoll && (
               <div className="event-consequence-plaque">
                 <div className="consequence-label">CHRONO RESOLUTION RESULT</div>
                 <div className="consequence-text">⚡ {data.resultText}</div>
@@ -812,6 +841,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
 
   const [isHovered, setIsHovered] = useState(false);
   const [isRollingDanger, setIsRollingDanger] = useState(false);
+  const [isRollingEvent, setIsRollingEvent] = useState(false);
   const startTimeRef = useRef(Date.now());
   const elapsedRef = useRef(0);
   const timerRef = useRef(null);
@@ -834,18 +864,47 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     }, 700);
   }, [isRollingDanger, modal?.needsRoll, isOtherPlayer, engine, network, activePlayer?.id]);
 
-  // Spacebar and Enter shortcut to roll survival die
-  useEffect(() => {
-    if (!isDanger || !modal?.needsRoll || isOtherPlayer || isRollingDanger) return;
-    const handleKeyDown = (e) => {
-      if (e.key === ' ' || e.key === 'Enter') {
-        e.preventDefault();
-        handleRollDanger();
+  const handleRollEvent = useCallback(() => {
+    if (isRollingEvent || !modal?.needsRoll || isOtherPlayer) return;
+    setIsRollingEvent(true);
+    sounds.diceRoll?.();
+
+    setTimeout(() => {
+      const res = engine?.rollEventDie?.(activePlayer?.id);
+      network?.sendAction?.({ type: 'ROLL_EVENT_DIE', playerIdx: activePlayer?.id });
+      setIsRollingEvent(false);
+      if (res?.success) {
+        sounds.runeBeam?.() || sounds.artifact?.();
+      } else {
+        sounds.btnClick?.();
       }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDanger, modal?.needsRoll, isOtherPlayer, isRollingDanger, handleRollDanger]);
+    }, 700);
+  }, [isRollingEvent, modal?.needsRoll, isOtherPlayer, engine, network, activePlayer?.id]);
+
+  // Spacebar and Enter shortcut to roll survival or event die
+  useEffect(() => {
+    if (isOtherPlayer) return;
+    if (isDanger && modal?.needsRoll && !isRollingDanger) {
+      const handleKeyDown = (e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          handleRollDanger();
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+    if (isEvent && modal?.needsRoll && !isRollingEvent) {
+      const handleKeyDown = (e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          handleRollEvent();
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isDanger, isEvent, modal?.needsRoll, isOtherPlayer, isRollingDanger, isRollingEvent, handleRollDanger, handleRollEvent]);
 
   useEffect(() => {
     onDismissRef.current = onDismiss;
@@ -1077,7 +1136,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
 
   // Spacebar and Enter shortcut for active player / victim to acknowledge modals when not waiting for a die roll
   useEffect(() => {
-    if (isDanger && modal?.needsRoll && !isOtherPlayer) return; // Handled by handleRollDanger
+    if ((isDanger || isEvent) && modal?.needsRoll && !isOtherPlayer) return; // Handled by handleRollDanger / handleRollEvent
     if (isOtherPlayer && (!isTimeStop || !isTimeStopForMe)) return;
     const handleKeyDown = (e) => {
       if (e.key === ' ' || e.key === 'Enter') {
@@ -1087,7 +1146,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDanger, modal?.needsRoll, isOtherPlayer, isTimeStop, isTimeStopForMe, handleDismiss]);
+  }, [isDanger, isEvent, modal?.needsRoll, isOtherPlayer, isTimeStop, isTimeStopForMe, handleDismiss]);
 
   if (isOtherPlayer && (!isTimeStop || !isTimeStopForMe)) {
     const cardClass = isTimeStop
@@ -1282,35 +1341,35 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
             </div>
           )}
 
-          {isDanger && modal.needsRoll && (
+          {(isDanger || isEvent) && modal.needsRoll && (
             <div style={{
               marginTop: '8px',
               padding: '8px 10px',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
+              background: isEvent ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+              border: `1px solid ${isEvent ? 'rgba(245, 158, 11, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
               borderRadius: '8px',
               fontSize: '0.75rem',
-              color: '#FCA5A5',
+              color: isEvent ? '#FDE047' : '#FCA5A5',
               display: 'flex',
               alignItems: 'center',
               gap: '10px'
             }}>
-              <Dice size="sm" isRolling={true} theme="hazard" />
+              <Dice size="sm" isRolling={true} theme={isEvent ? 'chrono' : 'hazard'} />
               <div>
-                <strong style={{ color: '#FFF' }}>Survival Hazard Check</strong>
+                <strong style={{ color: '#FFF' }}>{isEvent ? 'Celestial Rune Check' : 'Survival Hazard Check'}</strong>
                 <div style={{ fontSize: '0.7rem', color: '#CBD5E1', marginTop: '1px' }}>
-                  Rolling survival die to determine fate...
+                  {isEvent ? 'Rolling D6 for rune resonance (4-6)...' : 'Rolling survival die to determine fate...'}
                 </div>
               </div>
             </div>
           )}
 
-          {isDanger && !modal.needsRoll && modal.diceRoll !== null && modal.diceRoll !== undefined && (
+          {(isDanger || isEvent) && !modal.needsRoll && modal.diceRoll !== null && modal.diceRoll !== undefined && (
             <div style={{
               marginTop: '8px',
               padding: '8px 10px',
-              background: modal.success ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
-              border: `1.5px solid ${modal.success ? '#10B981' : '#EF4444'}`,
+              background: modal.success ? 'rgba(16, 185, 129, 0.14)' : (isEvent ? 'rgba(239, 68, 68, 0.14)' : 'rgba(239, 68, 68, 0.14)'),
+              border: `1.5px solid ${modal.success ? '#10B981' : (isEvent ? '#EF4444' : '#EF4444')}`,
               borderRadius: '6px',
               display: 'flex',
               alignItems: 'center',
@@ -1335,13 +1394,13 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                   alignItems: 'center',
                   gap: '6px'
                 }}>
-                  <span>{modal.success ? '✓ HAZARD EVADED' : '✗ HAZARD TRIGGERED'}</span>
+                  <span>{modal.success ? (isEvent ? '✓ RUNE RESONATED' : '✓ HAZARD EVADED') : (isEvent ? '✗ RUNES SILENT' : '✗ HAZARD TRIGGERED')}</span>
                   <span style={{ fontSize: '0.72rem', color: '#CBD5E1', fontWeight: 600 }}>
                     (Rolled {modal.diceRoll})
                   </span>
                 </div>
                 <div style={{ fontSize: '0.72rem', color: '#E2E8F0', marginTop: '2px', lineHeight: 1.35 }}>
-                  {modal.success ? (modal.successMsg || 'Survival check passed!') : (modal.failMsg || 'Hazard triggered!')}
+                  {modal.success ? (modal.successMsg || (isEvent ? 'Rune resonance achieved!' : 'Survival check passed!')) : (modal.failMsg || (isEvent ? 'The runes remained silent.' : 'Hazard triggered!'))}
                 </div>
               </div>
             </div>
@@ -2059,6 +2118,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   }
 
   if (isEvent) {
+    const hasRoll = modal.needsRoll || (modal.diceRoll !== null && modal.diceRoll !== undefined);
     return (
       <div className={`modal-overlay event-modal-overlay ${modal.vfxTag ? `vfx-active-${modal.vfxTag}` : ''}`} id="active-modal">
         <div className="event-vignette-backdrop" />
@@ -2099,10 +2159,23 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                   <img src="/assets/Tiles/event_tile.png" alt="Event Tile" className="event-mini-tile-img" />
                 </div>
               </div>
-              <div className="event-interference-tag">
-                <span>🌀</span>
-                <span>TIMELINE INTERFERENCE FLUX APPLIED</span>
-              </div>
+
+              {hasRoll ? (
+                <div className="event-status-alert">
+                  {modal.needsRoll ? (
+                    <span>🎲 CELESTIAL RUNE CHECK: ROLL REQUIRED (4–6 TO SUCCEED)</span>
+                  ) : modal.success ? (
+                    <span className="text-success">✓ RUNE RESONATED! (ROLLED {modal.diceRoll})</span>
+                  ) : (
+                    <span className="text-danger">✗ THE RUNES REMAINED SILENT (ROLLED {modal.diceRoll})</span>
+                  )}
+                </div>
+              ) : (
+                <div className="event-interference-tag">
+                  <span>🌀</span>
+                  <span>TIMELINE INTERFERENCE FLUX APPLIED</span>
+                </div>
+              )}
             </div>
 
             <div className="event-lore-box">
@@ -2110,25 +2183,93 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               <div className="event-lore-desc">{modal.description}</div>
             </div>
 
-            {modal.resultText && (
-              <div className="event-consequence-plaque">
-                <div className="consequence-label">CHRONO RESOLUTION RESULT</div>
-                <div className="consequence-text">⚡ {modal.resultText}</div>
+            {modal.needsRoll ? (
+              <div className="event-roll-stage">
+                <div className="survival-rule-banner" style={{ color: '#FDE047' }}>
+                  <span className="rule-icon">🎲</span>
+                  <span className="rule-text">TUMBLE THE RUNE DIE TO CAST TOWARDS THE HEAVENS</span>
+                </div>
+                <div className="danger-dice-roll-area">
+                  <Dice
+                    value={modal.diceRoll}
+                    isRolling={isRollingEvent}
+                    size="md"
+                    theme="chrono"
+                    onClick={handleRollEvent}
+                    disabled={isRollingEvent}
+                    isInteractive={!isRollingEvent}
+                    showLabel={false}
+                  />
+                  <div className="dice-action-caption">
+                    <div className="caption-bold" style={{ color: '#FFD700' }}>
+                      {isRollingEvent ? 'Casting Celestial Die...' : 'Roll the Die!'}
+                    </div>
+                    <div className="caption-sub">Press Space or click the die (Need 4, 5, or 6)</div>
+                  </div>
+                </div>
               </div>
+            ) : modal.diceRoll !== null && modal.diceRoll !== undefined ? (
+              <div className={`danger-outcome-plaque ${modal.success ? 'outcome-evaded' : 'outcome-failed'}`}>
+                <div className="outcome-dice-wrap">
+                  <Dice value={modal.diceRoll} size="sm" theme={modal.success ? 'success' : 'hazard'} isInteractive={false} />
+                </div>
+                <div className="outcome-details">
+                  <div className="outcome-verdict">
+                    {modal.success ? '✓ CELESTIAL RESONANCE!' : '✗ THE RUNES REMAINED SILENT'}
+                    <span className="outcome-roll-val">(Rolled {modal.diceRoll})</span>
+                  </div>
+                  <div className="outcome-msg">
+                    {modal.success
+                      ? (modal.successMsg || 'Rune resonance achieved! Select an Era deck upon continuing.')
+                      : (modal.failMsg || 'Rolled 1-3. The heavens were silent. Nothing happened.')}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              modal.resultText && (
+                <div className="event-consequence-plaque">
+                  <div className="consequence-label">CHRONO RESOLUTION RESULT</div>
+                  <div className="consequence-text">⚡ {modal.resultText}</div>
+                </div>
+              )
             )}
           </div>
 
           <div className="modal-actions event-modal-actions">
-            <button
-              type="button"
-              className="btn btn-primary event-confirm-btn"
-              onClick={handleDismiss}
-              autoFocus
-            >
-              <span>⚡</span>
-              <span>ACKNOWLEDGE EVENT</span>
-              <kbd className="event-kbd">[ SPACE ]</kbd>
-            </button>
+            {modal.needsRoll ? (
+              <button
+                type="button"
+                className="btn btn-primary event-roll-btn"
+                disabled={isRollingEvent}
+                onClick={handleRollEvent}
+                autoFocus
+                style={{
+                  background: 'linear-gradient(180deg, #F59E0B 0%, #B45309 100%)',
+                  border: '2px solid #FDE047',
+                  boxShadow: '0 0 12px rgba(245, 158, 11, 0.4)',
+                  color: '#FFF',
+                  fontWeight: 800,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span>🎲</span>
+                <span>{isRollingEvent ? 'CASTING DIE...' : 'ROLL EVENT DIE'}</span>
+                <kbd className="event-kbd" style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.72rem' }}>[ SPACE ]</kbd>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary event-confirm-btn"
+                onClick={handleDismiss}
+                autoFocus
+              >
+                <span>⚡</span>
+                <span>{modal.success && modal.cardId === 'evt_my_4' ? 'CHOOSE ERA DECK ➔' : 'ACKNOWLEDGE EVENT'}</span>
+                <kbd className="event-kbd">[ SPACE ]</kbd>
+              </button>
+            )}
           </div>
         </div>
       </div>

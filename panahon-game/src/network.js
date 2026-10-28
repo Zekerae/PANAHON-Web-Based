@@ -1158,6 +1158,10 @@ export class NetworkManager {
         sounds.diceRoll();
         this.engine.rollDangerDie(action.playerIdx);
         break;
+      case 'ROLL_EVENT_DIE':
+        sounds.diceRoll();
+        this.engine.rollEventDie(action.playerIdx);
+        break;
       case 'MOVE_STEP':
         sounds.moveStep();
         this.engine.movePlayerStep();

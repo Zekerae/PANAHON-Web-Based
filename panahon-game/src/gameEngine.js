@@ -277,6 +277,7 @@ export class GameEngine {
       winner: null,
       pendingModal: null,
       pendingChoice: null,
+      queuedTileResolution: null,
       hasCompletedIntro: false
     };
 
@@ -1279,6 +1280,39 @@ export class GameEngine {
       return;
     }
 
+    const canonical = (EVENT_CARDS[era] || []).find(c => c.id === card.id || c.name === card.name) ||
+      Object.values(EVENT_CARDS).flat().find(c => c.id === card.id || c.name === card.name);
+
+    const needsRoll = !!(card.needsRoll || canonical?.needsRoll || card.id === 'evt_my_4');
+
+    if (needsRoll) {
+      this.state.pendingModal = {
+        type: 'event',
+        cardType: 'Chronal Timeline Event',
+        cardId: card.id,
+        title: card.name || canonical?.name,
+        cardName: card.name || canonical?.name,
+        description: card.description || canonical?.description,
+        resultText: null,
+        image: card.image || canonical?.image,
+        era: era,
+        playerId: player.id,
+        playerName: player.name,
+        needsRoll: true,
+        diceRoll: null,
+        success: null,
+        successMsg: card.successMsg || canonical?.successMsg || 'Rune resonance achieved! Select an Era deck.',
+        failMsg: card.failMsg || canonical?.failMsg || 'The rune stones remained silent. Nothing happened.',
+        vfxTag: card.vfxTag || canonical?.vfxTag,
+        sfxTag: card.sfxTag || canonical?.sfxTag,
+        _shownAt: Date.now()
+      };
+      this.addLog('event', `${player.name} drew ${card.name}! Celestial Rune check: ${card.description}`);
+      this.state.phase = 'action';
+      this.notify();
+      return;
+    }
+
     // Resolve effect function (either on card or looked up from canonical EVENT_CARDS)
     let effectFn = typeof card.effect === 'function' ? card.effect : null;
     if (!effectFn) {
@@ -1492,6 +1526,42 @@ export class GameEngine {
       this.addLog('danger', `${player.name}: ${card.name} — Rolled ${diceRoll}! ${card.failMsg}`);
     }
 
+    this.notify();
+    return { diceRoll, success };
+  }
+
+  // --- Interactive Event Die Roll ---
+  rollEventDie(playerIdx) {
+    const modal = this.state.pendingModal;
+    if (!modal || modal.type !== 'event' || !modal.needsRoll) {
+      return null;
+    }
+
+    const targetIdx = playerIdx !== undefined ? playerIdx : (modal.playerId !== undefined ? modal.playerId : this.state.currentPlayerIndex);
+    const player = this.state.players[targetIdx];
+    if (!player) return null;
+
+    const card = (EVENT_CARDS[modal.era] || []).find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName) ||
+                 (EVENT_CARDS[player.currentEra] || []).find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName) ||
+                 Object.values(EVENT_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName);
+
+    const diceRoll = rollDie();
+    const success = (card && typeof card.check === 'function')
+      ? card.check(diceRoll)
+      : (diceRoll >= 4);
+
+    const updatedModal = {
+      ...modal,
+      needsRoll: false,
+      diceRoll: diceRoll,
+      success: success,
+      resultText: success
+        ? (card?.successMsg || `Rune stones resonated with a roll of ${diceRoll}! Select an Era deck upon continuing.`)
+        : (card?.failMsg || `Rune stones remained silent with a roll of ${diceRoll}. Nothing happened.`)
+    };
+
+    this.state.pendingModal = updatedModal;
+    this.addLog('event', `${player.name}: ${modal.title} — Rolled ${diceRoll}! ${success ? (card?.successMsg || 'Rune resonance achieved!') : (card?.failMsg || 'The runes remained silent.')}`);
     this.notify();
     return { diceRoll, success };
   }
@@ -1760,9 +1830,22 @@ export class GameEngine {
       this.addLog('ability', `⚡ ${trapOwner.name} gained +1 Energy from Trap Mastery! (Now: ${trapOwner.energy}/${GAME_CONSTANTS.MAX_ENERGY})`);
     }
 
+    // Clear any passing choices since player is ensnared on this tile
+    this.state.pendingChoice = null;
+
     // Set phase to cardResolution and log trap trigger
     this.state.phase = 'cardResolution';
     gameLogger.action(`Temporal Trap triggered by ${player.name} on ${tile.id}! Trap owner: ${ownerName}`);
+
+    // Queue the tile's main function (Event, Danger, Clue, Time Gate, Paradox, Artifact)
+    // so it resolves right after the trap's Danger Card penalty is acknowledged and dismissed
+    this.state.queuedTileResolution = {
+      playerId: player.id,
+      era: player.currentEra,
+      tileIndex: player.tileIndex,
+      tileId: tile.id
+    };
+
     // Draw a danger card as penalty
     this.drawDangerCard(player);
     this.notify();
@@ -2041,8 +2124,8 @@ export class GameEngine {
   }
 
   // --- Myth Event 4: Bato-bato sa langit ---
-  offerBatoBato(player) {
-    const roll = rollDie();
+  offerBatoBato(player, providedRoll) {
+    const roll = providedRoll !== undefined ? providedRoll : (this.state.pendingModal?.diceRoll || rollDie());
     if (roll >= 4) {
       if (player.isAi) {
         const targetEra = player.mission?.displacedEra || player.currentEra;
@@ -2827,11 +2910,19 @@ export class GameEngine {
   }
 
   dismissModal() {
-    if (this.state.pendingModal?.type === 'danger' && this.state.pendingModal?.needsRoll) {
-      this.rollDangerDie(this.state.pendingModal.playerId);
+    const activeModal = this.state.pendingModal;
+    if (activeModal?.type === 'danger' && activeModal?.needsRoll) {
+      this.rollDangerDie(activeModal.playerId);
     }
-    const wasParadoxModal = this.state.pendingModal?.type === 'paradox';
-    const queuedDangerPlayerId = this.state.pendingModal?.triggerDangerPlayerId;
+    if (activeModal?.type === 'event' && activeModal?.needsRoll) {
+      this.rollEventDie(activeModal.playerId);
+    }
+
+    const wasBatoBato = (activeModal?.type === 'event' && activeModal?.cardId === 'evt_my_4');
+    const batoBatoSuccess = wasBatoBato && (activeModal.success || (activeModal.diceRoll >= 4));
+    const modalPlayerId = activeModal?.playerId;
+    const wasParadoxModal = activeModal?.type === 'paradox';
+    const queuedDangerPlayerId = activeModal?.triggerDangerPlayerId;
 
     this.state.pendingModal = null;
 
@@ -2841,6 +2932,49 @@ export class GameEngine {
         this.drawDangerCard(targetPlayer);
         this.notify();
         return;
+      }
+    }
+
+    if (batoBatoSuccess) {
+      const targetPlayer = this.state.players.find(p => p.id === modalPlayerId) || this.state.players[this.state.currentPlayerIndex];
+      if (targetPlayer) {
+        if (targetPlayer.isAi) {
+          const targetEra = targetPlayer.mission?.displacedEra || targetPlayer.currentEra;
+          this.drawClueCardFromEra(targetPlayer, targetEra);
+        } else {
+          this.state.pendingChoice = {
+            type: 'batoBatoEra',
+            title: `Bato-bato sa langit: Rolled ${activeModal.diceRoll}! Choose Era Deck`,
+            playerId: targetPlayer.id,
+            vfxTag: 'floating_rune_stones',
+            sfxTag: 'runeBeam',
+            options: ERA_ORDER.map(era => ({
+              label: `${ERA_NAMES[era]} Timeline`,
+              action: `bato_era_${era}`
+            }))
+          };
+        }
+        this.notify();
+        return;
+      }
+    }
+
+    // If an armed trap ensnared the player on a functional tile (Clue, Event, Danger, Artifact, Time Gate, Paradox),
+    // trigger the tile's main function now that the trap hazard has been acknowledged and dismissed.
+    if (this.state.queuedTileResolution) {
+      const { playerId, era, tileIndex } = this.state.queuedTileResolution;
+      this.state.queuedTileResolution = null;
+      if (!this.state.gameOver) {
+        const targetPlayer = this.state.players.find(p => p.id === playerId);
+        if (targetPlayer) {
+          const eraTiles = this.state.board[targetPlayer.currentEra || era];
+          const tile = eraTiles?.[tileIndex !== undefined ? tileIndex : targetPlayer.tileIndex];
+          if (tile) {
+            this.resolveTile(targetPlayer, tile);
+            this.notify();
+            return;
+          }
+        }
       }
     }
 

@@ -1055,6 +1055,10 @@ export const EVENT_CARDS = {
       image: 'assets/Cards/Event Cards/20.png',
       vfxTag: 'floating_rune_stones',
       sfxTag: 'runeBeam',
+      needsRoll: true,
+      check: (roll) => roll >= 4,
+      successMsg: 'Rune stones resonated! You may choose an Era Clue deck to draw from.',
+      failMsg: 'The rune stones remained silent. Nothing happened.',
       effect: (player, game) => {
         if (typeof game.offerBatoBato === 'function') {
           return game.offerBatoBato(player);

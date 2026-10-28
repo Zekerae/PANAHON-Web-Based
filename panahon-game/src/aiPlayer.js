@@ -95,6 +95,24 @@ class AiController {
           return;
         }
 
+        // If event card requires die roll (e.g. Bato-bato sa langit), let bot roll interactively
+        if (state.pendingModal.type === 'event' && state.pendingModal.needsRoll) {
+          const elapsed = Date.now() - state.pendingModal._shownAt;
+          if (elapsed < 850) {
+            this.scheduleAiStep(engine, network, 850 - elapsed);
+            return;
+          }
+          sounds.diceRoll?.();
+          const res = engine.rollEventDie(player.id);
+          network?.sendAction({ type: 'ROLL_EVENT_DIE', playerIdx: player.id });
+          if (res?.success) {
+            sounds.runeBeam?.() || sounds.artifact?.();
+          }
+          state.pendingModal._shownAt = Date.now();
+          this.scheduleAiStep(engine, network, 1200);
+          return;
+        }
+
         const isEventOrDanger = state.pendingModal.type === 'event' || state.pendingModal.type === 'danger' || state.pendingModal.type === 'paradox';
         const speed = engine.simulationSpeed || 1;
         // Give 6.0 seconds for Event / Danger cards and 4.2s for Clues so human players and observers can comfortably read

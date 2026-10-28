@@ -47,6 +47,10 @@ export function useGameEngine(engine) {
     return engine?.rollDangerDie(playerIdx);
   }, [engine]);
 
+  const rollEventDie = useCallback((playerIdx) => {
+    return engine?.rollEventDie(playerIdx);
+  }, [engine]);
+
   const movePlayerStep = useCallback(() => {
     return engine?.movePlayerStep();
   }, [engine]);
@@ -110,6 +114,7 @@ export function useGameEngine(engine) {
     initGame,
     rollDice,
     rollDangerDie,
+    rollEventDie,
     movePlayerStep,
     moveToTile,
     useActiveAbility,

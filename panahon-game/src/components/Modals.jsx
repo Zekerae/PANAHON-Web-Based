@@ -603,6 +603,168 @@ export function MaximizedCardPreview({ data, onClose }) {
   );
 }
 
+
+// ===== Card VFX Overlay Renderer =====
+export function CardVFXOverlay({ vfxTag, isFailure }) {
+  if (!vfxTag) return null;
+
+  return (
+    <div className={`card-vfx-container vfx-${vfxTag} ${isFailure ? 'is-failure' : ''}`}>
+      {vfxTag === 'gold_coins' && (
+        <div className="vfx-gold-shower">
+          {[...Array(16)].map((_, i) => (
+            <span key={i} className="vfx-coin-particle" style={{ left: `${(i * 6.25) % 100}%`, animationDelay: `${(i * 0.12).toFixed(2)}s` }}>🪙</span>
+          ))}
+        </div>
+      )}
+      {vfxTag === 'fiesta_confetti_paradox' && (
+        <>
+          <div className="vfx-confetti-burst">
+            {[...Array(20)].map((_, i) => (
+              <span key={i} className={`confetti-piece color-${i % 5}`} style={{ left: `${(i * 5)}%`, animationDelay: `${(i * 0.08).toFixed(2)}s` }} />
+            ))}
+          </div>
+          <div className="vfx-paradox-static-flicker" />
+        </>
+      )}
+      {vfxTag === 'whispering_shadow' && <div className="vfx-shadow-vignette-pulse" />}
+      {vfxTag === 'sanctuary_shield' && (
+        <div className="vfx-bastion-shield-wrap">
+          <div className="vfx-bastion-shield-icon">🛡️</div>
+          <div className="vfx-bastion-aura" />
+        </div>
+      )}
+      {vfxTag === 'rgb_chromatic_split' && (
+        <>
+          <div className="vfx-rgb-split-overlay" />
+          <div className="vfx-crt-scanlines" />
+        </>
+      )}
+      {vfxTag === 'sepia_ticker_tape' && (
+        <div className="vfx-ticker-tape-wrap">
+          <div className="vfx-sepia-overlay" />
+          <div className="vfx-ticker-tape-strip">
+            <span>*** TOP CLUE INTELLIGENCE REPORT *** TELEGRAPH DISPATCH *** ARCHIVE RECORD ***</span>
+          </div>
+        </div>
+      )}
+      {vfxTag === 'train_smoke' && (
+        <div className="vfx-steam-puff-wrap">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="vfx-steam-cloud" style={{ animationDelay: `${i * 0.25}s`, left: `${30 + i * 8}%` }} />
+          ))}
+        </div>
+      )}
+      {vfxTag === 'detention_badge' && (
+        <div className="vfx-detention-stamp-wrap">
+          <div className="vfx-detention-stamp">DETENTION</div>
+        </div>
+      )}
+      {vfxTag === 'cyan_energy_ripple' && (
+        <div className="vfx-cyan-ripples">
+          <div className="vfx-cyan-ring ring-1" />
+          <div className="vfx-cyan-ring ring-2" />
+          <div className="vfx-cyan-ring ring-3" />
+        </div>
+      )}
+      {vfxTag === 'classified_folder' && (
+        <div className="vfx-classified-stamp-wrap">
+          <div className="vfx-classified-stamp">CLASSIFIED</div>
+        </div>
+      )}
+      {vfxTag === 'timeline_cooling_waves' && (
+        <div className="vfx-cooling-waves">
+          <div className="vfx-wave wave-1" />
+          <div className="vfx-wave wave-2" />
+        </div>
+      )}
+      {vfxTag === 'golden_crate_burst' && (
+        <div className="vfx-crate-burst-wrap">
+          <div className="vfx-golden-rays" />
+        </div>
+      )}
+      {vfxTag === 'dimmed_spotlight' && <div className="vfx-dimmed-spotlight-vignette" />}
+      {vfxTag === 'forest_fireflies' && (
+        <div className="vfx-fireflies-wrap">
+          {[...Array(12)].map((_, i) => (
+            <span key={i} className="vfx-firefly" style={{ left: `${(i * 8.3) % 100}%`, animationDelay: `${(i * 0.2).toFixed(2)}s` }}>✨</span>
+          ))}
+        </div>
+      )}
+      {vfxTag === 'cyan_spirit_wisps' && (
+        <div className="vfx-spirit-wisps-wrap">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="vfx-spirit-wisp" style={{ left: `${20 + i * 8}%`, animationDelay: `${i * 0.18}s` }} />
+          ))}
+        </div>
+      )}
+      {vfxTag === 'water_ripple' && (
+        <div className="vfx-water-ripples">
+          <div className="vfx-water-ring ring-1" />
+          <div className="vfx-water-ring ring-2" />
+        </div>
+      )}
+      {vfxTag === 'floating_rune_stones' && (
+        <div className="vfx-runes-wrap">
+          {['᚛', 'ᚱ', 'ᚦ', 'ᛗ'].map((rune, i) => (
+            <span key={i} className="vfx-floating-rune" style={{ animationDelay: `${i * 0.3}s` }}>{rune}</span>
+          ))}
+        </div>
+      )}
+
+      {/* Danger VFX */}
+      {vfxTag === 'falling_ash' && (
+        <div className="vfx-ash-overlay">
+          {[...Array(24)].map((_, i) => (
+            <span key={i} className="vfx-ash-particle" style={{ left: `${(i * 4.2) % 100}%`, animationDelay: `${(i * 0.1).toFixed(2)}s` }} />
+          ))}
+        </div>
+      )}
+      {vfxTag === 'cutlass_slash' && <div className="vfx-cutlass-slash-line" />}
+      {vfxTag === 'amber_torchlight' && (
+        <div className="vfx-torchlight-beams">
+          <div className="vfx-torch-beam beam-left" />
+          <div className="vfx-torch-beam beam-right" />
+        </div>
+      )}
+      {vfxTag === 'whipping_rain' && (
+        <div className="vfx-rain-wrap">
+          <div className="vfx-rain-streaks" />
+          <div className="vfx-lightning-flash" />
+        </div>
+      )}
+      {vfxTag === 'floodwater_wave' && <div className="vfx-floodwater-surge" />}
+      {vfxTag === 'orange_shockwave' && <div className="vfx-orange-shockwave-ring" />}
+      {vfxTag === 'cracking_pavement' && <div className="vfx-cracking-pavement-lines" />}
+      {vfxTag === 'police_flashing' && <div className="vfx-police-siren-border" />}
+      {vfxTag === 'sweeping_searchlight' && <div className="vfx-searchlight-cone" />}
+      {vfxTag === 'bayonet_glint' && <div className="vfx-bayonet-glint-flash" />}
+      {vfxTag === 'red_ink_stamp' && (
+        <div className="vfx-red-stamp-wrap">
+          <div className="vfx-rejected-stamp">CONFISCATED</div>
+        </div>
+      )}
+      {vfxTag === 'falling_rocks' && (
+        <div className="vfx-falling-rocks-wrap">
+          {[...Array(10)].map((_, i) => (
+            <span key={i} className="vfx-rock-particle" style={{ left: `${(i * 10)}%`, animationDelay: `${i * 0.15}s` }}>🪨</span>
+          ))}
+        </div>
+      )}
+      {vfxTag === 'bat_shadow' && <div className="vfx-bat-shadow-silhouette" />}
+      {vfxTag === 'cigar_smoke' && <div className="vfx-cigar-smoke-blanket" />}
+      {vfxTag === 'trickster_mirage' && <div className="vfx-trickster-mirage-distortion" />}
+      {vfxTag === 'red_claw_scratch' && (
+        <div className="vfx-claw-scratch-wrap">
+          <div className="vfx-claw-scratch scratch-1" />
+          <div className="vfx-claw-scratch scratch-2" />
+          <div className="vfx-claw-scratch scratch-3" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   if (!modal) return null;
 
@@ -636,8 +798,11 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   // In local mode or when user is victim/caster, treat as time stop for me
   const isTimeStopForMe = isTimeStop && (!isOnline || network?.playerId === modal.victimId || network?.playerId === modal.playerId);
 
-  // Hide other players' and bots' clue cards (unless observing as spectator)
-  const isSecretToMe = isClue && !isMyCard && !isSpectator;
+  const isDangerNegated = modal.type === 'danger_negated';
+  const isPeekClues = modal.type === 'peek_clues';
+  // Hide other players' clue cards (unless observing as spectator OR if their hand was revealed by inspection checkpoint)
+  const isHandRevealed = !!(drawingPlayer?.handRevealedUntil && drawingPlayer.handRevealedUntil > Date.now());
+  const isSecretToMe = isClue && !isMyCard && !isSpectator && !isHandRevealed;
 
   // Duration: 6.0 seconds for Event / Danger / TimeStop cards, 5.5s for Artifacts, 4.5s for Clues/Info
   const speed = engine?.simulationSpeed || 1;
@@ -688,6 +853,12 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
 
   // Immersion sound effects on tile landing
   useEffect(() => {
+    if (modal?.sfxTag && typeof sounds[modal.sfxTag] === 'function') {
+      sounds[modal.sfxTag]();
+    }
+  }, [modal?.sfxTag, modal?._timestamp, modal?.title]);
+
+  useEffect(() => {
     if (isClue && !isTemporalOccurrence && !isParadox && !isTimeStop && !isAbilityActivate) {
       sounds.clueDiscovery?.() || sounds.clue?.();
     }
@@ -712,7 +883,98 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   }, [isTemporalOccurrence]);
 
   useEffect(() => {
-    if (isTimeStop) {
+    if (isPeekClues) {
+    return (
+      <div className="modal-overlay event-modal-overlay" id="active-modal">
+        <div className="event-vignette-backdrop" />
+        <CardVFXOverlay vfxTag="sepia_ticker_tape" />
+        <div className="modal event-card-modal" style={{ maxWidth: '780px', width: '95%' }}>
+          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+          <div className="event-header">
+            <div className="event-header-badge">
+              <span>📜</span>
+              <span>INTELLIGENCE RECONNAISSANCE</span>
+              <span>📜</span>
+            </div>
+            <div className="event-title">
+              <span>⚡</span>
+              <span>UPDATED KA DAPAT DITO AH!</span>
+              <span>⚡</span>
+            </div>
+            <div className="event-sector-tag">
+              TOP 3 CLUE CARDS • {ERA_NAMES[modal.era]?.toUpperCase()} CLUE DECK
+            </div>
+          </div>
+          <div className="modal-body" style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '0.82rem', color: '#CBD5E1', marginBottom: '14px' }}>
+              These are the top 3 Clue Cards in the <strong>{ERA_NAMES[modal.era]}</strong> deck. They remain in the deck in the exact same order:
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+              {(modal.cards || []).map((card, idx) => (
+                <div key={idx} style={{ background: '#1E293B', border: '1.5px solid #F59E0B', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#FCD34D', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px' }}>
+                    #{idx + 1} In Deck {card.isDecoy ? '• [DECOY]' : '• [AUTHENTIC]'}
+                  </div>
+                  {card.image && (
+                    <img src={card.image} alt={card.title || 'Clue'} style={{ width: '100%', maxHeight: '160px', objectFit: 'contain', borderRadius: '4px', marginBottom: '8px' }} />
+                  )}
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFF' }}>{card.title || card.hint}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '4px' }}>{card.description || card.hint}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="modal-actions" style={{ marginTop: '16px' }}>
+            <button className="btn btn-primary" onClick={handleDismiss} autoFocus>
+              <span>✓</span> Close Inspection
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isDangerNegated) {
+    return (
+      <div className="modal-overlay event-modal-overlay" id="active-modal">
+        <div className="event-vignette-backdrop" />
+        <CardVFXOverlay vfxTag="sanctuary_shield" />
+        <div className="modal event-card-modal" style={{ maxWidth: '540px', width: '92%' }}>
+          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+          <div className="event-header">
+            <div className="event-header-badge" style={{ background: '#F59E0B', color: '#000' }}>
+              <span>🛡️</span>
+              <span>SANCTUARY SHIELD BLESSING</span>
+              <span>🛡️</span>
+            </div>
+            <div className="event-title" style={{ color: '#FFD700' }}>
+              <span>✨</span>
+              <span>HAZARD COMPLETELY NEGATED!</span>
+              <span>✨</span>
+            </div>
+          </div>
+          <div className="modal-body" style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '4.5rem', margin: '14px 0', filter: 'drop-shadow(0 0 20px #FFD700)' }}>
+              🛡️✨
+            </div>
+            <div style={{ fontSize: '1rem', color: '#FFF', fontWeight: 700, marginBottom: '8px' }}>
+              Protected by Intramuros Sanctuary!
+            </div>
+            <div style={{ fontSize: '0.85rem', color: '#CBD5E1', maxWidth: '420px', margin: '0 auto' }}>
+              {modal.description || 'Your Sanctuary Shield absorbed the hazard strike, negating all penalties and discarding the danger card!'}
+            </div>
+          </div>
+          <div className="modal-actions" style={{ marginTop: '16px' }}>
+            <button className="btn btn-primary" onClick={handleDismiss} autoFocus>
+              <span>🛡️</span> Continue Journey
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isTimeStop) {
       sounds.timeFreeze?.() || sounds.timeRift?.();
     }
   }, [isTimeStop]);
@@ -1643,10 +1905,11 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
 
   if (isDanger) {
     return (
-      <div className="modal-overlay danger-modal-overlay" id="active-modal">
+      <div className={`modal-overlay danger-modal-overlay ${modal.vfxTag ? `vfx-active-${modal.vfxTag}` : ''}`} id="active-modal">
         <div className="danger-vignette-backdrop" />
         <div className="danger-shockwave-ring ring-1" />
         <div className="danger-shockwave-ring ring-2" />
+        {modal.vfxTag && <CardVFXOverlay vfxTag={modal.vfxTag} isFailure={!modal.success && modal.needsRoll === false} />}
 
         <div className="modal danger-card-modal" role="dialog" aria-label="Hazard Anomaly Strike">
           <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
@@ -1722,6 +1985,25 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                 </div>
               </div>
             ) : (
+              <>
+                {modal.isGroupHazard && modal.groupResults && (
+              <div className="group-hazard-results-box" style={{ margin: '12px 0', background: 'rgba(0,0,0,0.6)', padding: '12px', borderRadius: '8px', border: '1.5px solid #F59E0B' }}>
+                <div style={{ fontSize: '0.78rem', color: '#FCD34D', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase' }}>
+                  🌋 Group Hazard: Volcanic Survival Rolls
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+                  {modal.groupResults.map(r => (
+                    <div key={r.playerId} style={{ background: r.safe ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)', border: `1px solid ${r.safe ? '#10B981' : '#EF4444'}`, padding: '8px 6px', borderRadius: '4px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#FFF' }}>{r.playerName}</div>
+                      <div style={{ fontSize: '0.72rem', color: r.safe ? '#34D399' : '#FDA4AF', marginTop: '2px' }}>
+                        Roll: <strong>{r.roll}</strong> {r.safe ? '✓ SAFE' : `-${r.energyLoss}⚡`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
               <div className={`danger-outcome-plaque ${modal.success ? 'outcome-evaded' : 'outcome-failed'}`}>
                 <div className="outcome-dice-wrap">
                   <Dice value={modal.diceRoll} size="sm" theme={modal.success ? 'success' : 'hazard'} isInteractive={false} />
@@ -1741,6 +2023,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                   )}
                 </div>
               </div>
+            </>
             )}
           </div>
 
@@ -1777,10 +2060,11 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
 
   if (isEvent) {
     return (
-      <div className="modal-overlay event-modal-overlay" id="active-modal">
+      <div className={`modal-overlay event-modal-overlay ${modal.vfxTag ? `vfx-active-${modal.vfxTag}` : ''}`} id="active-modal">
         <div className="event-vignette-backdrop" />
         <div className="event-ripple-ring ring-1" />
         <div className="event-ripple-ring ring-2" />
+        {modal.vfxTag && <CardVFXOverlay vfxTag={modal.vfxTag} />}
 
         <div className="modal event-card-modal" role="dialog" aria-label="Chronal Timeline Event">
           <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
@@ -2767,6 +3051,330 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
     );
   }
 
+
+
+  // ===== 1. Japanese Event 4: HIDEous plan =====
+  if (choice.type === 'hideousPlan') {
+    return (
+      <div className="modal-overlay event-modal-overlay" id="active-modal">
+        <div className="vfx-dimmed-spotlight-vignette" />
+        <CardVFXOverlay vfxTag="dimmed_spotlight" />
+        <div className="modal event-card-modal" style={{ maxWidth: '640px', width: '92%' }}>
+          <div className="event-header">
+            <div className="event-header-badge">
+              <span>🥷</span>
+              <span>JAPANESE ERA • STEALTH SANCTUARY</span>
+              <span>🥷</span>
+            </div>
+            <div className="event-title">
+              <span>🚪</span>
+              <span>HIDEOUS PLAN</span>
+              <span>🚪</span>
+            </div>
+          </div>
+
+          <div className="modal-body" style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '0.86rem', color: '#CBD5E1', marginBottom: '18px' }}>
+              Retreat into the secret subterranean hideout. Skip your next <strong>2 turns</strong> in exchange for a massive restorative surge:
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{
+                  background: 'linear-gradient(145deg, rgba(16, 185, 129, 0.18) 0%, rgba(15, 23, 42, 0.9) 100%)',
+                  border: '2px solid #10B981',
+                  borderRadius: '10px',
+                  padding: '16px 12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  cursor: (isMyTurn || network.mode !== 'online') ? 'pointer' : 'not-allowed',
+                  boxShadow: '0 0 16px rgba(16, 185, 129, 0.25)'
+                }}
+                disabled={!isMyTurn && network.mode === 'online'}
+                onClick={() => { sounds.trapdoorLatch?.(); handleSelect('hideous_restore_energy'); }}
+              >
+                <div style={{ fontSize: '2.4rem', marginBottom: '8px' }}>⚡🔋</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#34D399', marginBottom: '6px' }}>
+                  OPTION A
+                </div>
+                <div style={{ fontSize: '0.82rem', color: '#FFF', fontWeight: 700, marginBottom: '4px' }}>
+                  Restore 10/10 Energy
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
+                  Skip 2 turns to fully recharge your Chrono-Core to maximum!
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{
+                  background: 'linear-gradient(145deg, rgba(168, 85, 247, 0.18) 0%, rgba(15, 23, 42, 0.9) 100%)',
+                  border: '2px solid #A855F7',
+                  borderRadius: '10px',
+                  padding: '16px 12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  cursor: (isMyTurn || network.mode !== 'online') ? 'pointer' : 'not-allowed',
+                  boxShadow: '0 0 16px rgba(168, 85, 247, 0.25)'
+                }}
+                disabled={!isMyTurn && network.mode === 'online'}
+                onClick={() => { sounds.trapdoorLatch?.(); handleSelect('hideous_reset_paradox'); }}
+              >
+                <div style={{ fontSize: '2.4rem', marginBottom: '8px' }}>🌀✨</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#C084FC', marginBottom: '6px' }}>
+                  OPTION B
+                </div>
+                <div style={{ fontSize: '0.82rem', color: '#FFF', fontWeight: 700, marginBottom: '4px' }}>
+                  Reset Paradox to 0
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
+                  Skip 2 turns to purge all accumulated Paradox contamination!
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== 2. Myth Event 2: Anito Grab =====
+  if (choice.type === 'anitoGrab') {
+    const canAfford = (activePlayer?.energy || 0) >= 2;
+    return (
+      <div className="modal-overlay event-modal-overlay" id="active-modal">
+        <div className="event-vignette-backdrop" />
+        <CardVFXOverlay vfxTag="cyan_spirit_wisps" />
+        <div className="modal event-card-modal" style={{ maxWidth: '520px', width: '92%' }}>
+          <div className="event-header">
+            <div className="event-header-badge">
+              <span>✨</span>
+              <span>MYTH ERA • ANCIENT EXCHANGE</span>
+              <span>✨</span>
+            </div>
+            <div className="event-title">
+              <span>🌀</span>
+              <span>ANITO GRAB</span>
+              <span>🌀</span>
+            </div>
+          </div>
+
+          <div className="modal-body" style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '3.5rem', margin: '10px 0', filter: 'drop-shadow(0 0 16px #06B6D4)' }}>
+              👻📜
+            </div>
+            <p style={{ fontSize: '0.88rem', color: '#E2E8F0', marginBottom: '14px' }}>
+              The ancestral Anito spirits offer an ancient bargain:
+            </p>
+            <div style={{ background: 'rgba(6, 182, 212, 0.12)', border: '1px solid #06B6D4', borderRadius: '8px', padding: '12px', marginBottom: '18px' }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#38BDF8', marginBottom: '4px' }}>
+                Spend 2 Energy ➔ Draw 1 Clue Card
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#CBD5E1' }}>
+                Current Energy: <strong style={{ color: canAfford ? '#34D399' : '#EF4444' }}>{activePlayer?.energy || 0} / 10</strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ flex: 1, padding: '12px', fontSize: '0.9rem', fontWeight: 800 }}
+                disabled={!canAfford || (!isMyTurn && network.mode === 'online')}
+                onClick={() => { sounds.spiritWisp?.(); handleSelect('anito_accept'); }}
+              >
+                {canAfford ? '✨ Accept (Spend 2 Energy)' : '⛔ Need at least 2 Energy'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ flex: 1, padding: '12px', fontSize: '0.9rem' }}
+                disabled={!isMyTurn && network.mode === 'online'}
+                onClick={() => handleSelect('anito_decline')}
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== 3. Myth Event 4: Bato-bato sa langit =====
+  if (choice.type === 'batoBatoEra') {
+    return (
+      <div className="modal-overlay event-modal-overlay" id="active-modal">
+        <div className="event-vignette-backdrop" />
+        <CardVFXOverlay vfxTag="floating_rune_stones" />
+        <div className="modal event-card-modal" style={{ maxWidth: '650px', width: '92%' }}>
+          <div className="event-header">
+            <div className="event-header-badge">
+              <span>᚛</span>
+              <span>CELESTIAL RUNE RESONANCE</span>
+              <span>ᛗ</span>
+            </div>
+            <div className="event-title">
+              <span>✨</span>
+              <span>BATO-BATO SA LANGIT</span>
+              <span>✨</span>
+            </div>
+          </div>
+
+          <div className="modal-body" style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '0.86rem', color: '#CBD5E1', marginBottom: '16px' }}>
+              The rune stones cast into the heavens resonated! Choose which Timeline quadrant to draw your Clue Card from:
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+              {choice.options.map((opt, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{
+                    background: 'linear-gradient(145deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                    border: '1.5px solid #F59E0B',
+                    borderRadius: '8px',
+                    padding: '14px',
+                    fontSize: '0.9rem',
+                    fontWeight: 800,
+                    color: '#FCD34D',
+                    cursor: (isMyTurn || network.mode !== 'online') ? 'pointer' : 'not-allowed',
+                    boxShadow: '0 0 12px rgba(245, 158, 11, 0.2)'
+                  }}
+                  disabled={!isMyTurn && network.mode === 'online'}
+                  onClick={() => { sounds.runeBeam?.(); handleSelect(opt.action); }}
+                >
+                  📜 {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== 4. Japanese Event 1: Secret Chismis =====
+  if (choice.type === 'secretChismis') {
+    const cards = choice.cards || [];
+    return (
+      <div className="modal-overlay event-modal-overlay" id="active-modal">
+        <div className="event-vignette-backdrop" />
+        <CardVFXOverlay vfxTag="classified_folder" />
+        <div className="modal event-card-modal" style={{ maxWidth: '820px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="event-header">
+            <div className="event-header-badge">
+              <span>📻</span>
+              <span>CLASSIFIED INTELLIGENCE DOSSIER</span>
+              <span>📻</span>
+            </div>
+            <div className="event-title">
+              <span>🗂️</span>
+              <span>SECRET CHISMIS: SELECT 1 CLUE CARD</span>
+              <span>🗂️</span>
+            </div>
+          </div>
+
+          <div className="modal-body" style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '0.84rem', color: '#CBD5E1', marginBottom: '14px' }}>
+              Select <strong>1 specific Clue Card</strong> from the remaining {ERA_NAMES[choice.era]} deck to add directly to your hand, then shuffle the deck:
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+              {cards.map((c, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{
+                    background: '#1E293B',
+                    border: '1.5px solid #38BDF8',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                    cursor: (isMyTurn || network.mode !== 'online') ? 'pointer' : 'not-allowed'
+                  }}
+                  disabled={!isMyTurn && network.mode === 'online'}
+                  onClick={() => { sounds.radioDialStatic?.(); handleSelect(`secret_clue_${idx}`); }}
+                >
+                  {c.image && (
+                    <img src={c.image} alt={c.title || 'Clue'} style={{ width: '100%', maxHeight: '130px', objectFit: 'contain', borderRadius: '4px', marginBottom: '6px' }} />
+                  )}
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#38BDF8' }}>
+                    {c.title || c.hint || `Clue #${idx + 1}`}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '4px' }}>
+                    {c.description || c.hint}
+                  </div>
+                  <div style={{ marginTop: '8px', fontSize: '0.68rem', fontWeight: 700, padding: '2px 8px', borderRadius: '3px', background: c.isDecoy ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)', color: c.isDecoy ? '#FDA4AF' : '#6EE7B7' }}>
+                    {c.isDecoy ? '⚠️ Decoy Card' : '⭐ Authentic Clue'}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== 5. Spanish Event 3: Marites Network =====
+  if (choice.type === 'maritesTrade') {
+    return (
+      <div className="modal-overlay event-modal-overlay" id="active-modal">
+        <div className="vfx-shadow-vignette-pulse" />
+        <CardVFXOverlay vfxTag="whispering_shadow" />
+        <div className="modal event-card-modal" style={{ maxWidth: '580px', width: '92%' }}>
+          <div className="event-header">
+            <div className="event-header-badge">
+              <span>🗣️</span>
+              <span>SPANISH ERA • RUMOR MILL</span>
+              <span>🗣️</span>
+            </div>
+            <div className="event-title">
+              <span>🪭</span>
+              <span>MARITES NETWORK</span>
+              <span>🪭</span>
+            </div>
+          </div>
+
+          <div className="modal-body" style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '0.86rem', color: '#CBD5E1', marginBottom: '16px' }}>
+              Request a <strong>1-for-1 Clue Card trade</strong> with another operative. If accepted, cards are swapped. If denied, gain <strong>+2 Energy</strong>:
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {choice.options.map((opt, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ padding: '12px', fontSize: '0.9rem', fontWeight: 700, textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                  disabled={!isMyTurn && network.mode === 'online'}
+                  onClick={() => { sounds.fanSnap?.(); handleSelect(opt.action); }}
+                >
+                  <span>🤝 {opt.label}</span>
+                  <span>➔</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (choice.type === 'guardianRepair') {
     return (

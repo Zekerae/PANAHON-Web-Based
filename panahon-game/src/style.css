@@ -12761,3 +12761,693 @@ html, body, #app, .app-root {
   color: #A7F3D0;
   box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
 }
+
+/* =====================================================================
+   UPDATED EVENT & DANGER CARDS IMMERSIVE VFX STYLES
+   ===================================================================== */
+
+.card-vfx-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* 1. Gold coins shower (Paldoooo) */
+.vfx-gold-shower {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.vfx-coin-particle {
+  position: absolute;
+  top: -30px;
+  font-size: 1.6rem;
+  animation: vfxCoinFall 1.8s infinite linear;
+  filter: drop-shadow(0 0 6px #FFD700);
+}
+@keyframes vfxCoinFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  15% { opacity: 1; }
+  90% { opacity: 0.9; }
+  100% { transform: translateY(520px) rotate(360deg); opacity: 0; }
+}
+
+/* 2. Fiesta confetti + Paradox static (Fiesta now, problem later) */
+.vfx-confetti-burst {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 14px;
+  opacity: 0.9;
+  animation: vfxConfettiFall 2s infinite ease-out;
+}
+.confetti-piece.color-0 { background: #EF4444; }
+.confetti-piece.color-1 { background: #3B82F6; }
+.confetti-piece.color-2 { background: #10B981; }
+.confetti-piece.color-3 { background: #F59E0B; }
+.confetti-piece.color-4 { background: #8B5CF6; }
+@keyframes vfxConfettiFall {
+  0% { transform: translateY(0) rotate(0deg) scale(0.6); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(480px) rotate(720deg) scale(1); opacity: 0; }
+}
+.vfx-paradox-static-flicker {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, transparent 40%, rgba(168, 85, 247, 0.35) 100%);
+  animation: vfxParadoxFlicker 0.4s infinite alternate;
+  mix-blend-mode: screen;
+}
+@keyframes vfxParadoxFlicker {
+  0% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.4; }
+}
+
+/* 3. Whispering shadow vignette (Marites Network) */
+.vfx-shadow-vignette-pulse {
+  position: fixed;
+  inset: 0;
+  box-shadow: inset 0 0 90px 40px rgba(0, 0, 0, 0.85);
+  animation: vfxShadowPulse 2.5s infinite ease-in-out;
+  pointer-events: none;
+}
+@keyframes vfxShadowPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.95; }
+}
+
+/* 4. Sanctuary Shield Bastion (Safe ka rito sa Intra) */
+.vfx-bastion-shield-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vfx-bastion-shield-icon {
+  font-size: 5rem;
+  filter: drop-shadow(0 0 24px #FFD700) drop-shadow(0 0 40px #F59E0B);
+  animation: vfxShieldPulse 2s infinite ease-in-out;
+}
+.vfx-bastion-aura {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 215, 0, 0.7);
+  box-shadow: 0 0 35px #FFD700, inset 0 0 25px #FFD700;
+  animation: vfxAuraExpand 2.2s infinite ease-out;
+}
+@keyframes vfxShieldPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+@keyframes vfxAuraExpand {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* 5. RGB Chromatic Aberration & CRT (Ay nag-glitch) */
+.vfx-rgb-split-overlay {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  box-shadow: inset 10px 0 0 rgba(255, 0, 0, 0.4), inset -10px 0 0 rgba(0, 255, 255, 0.4);
+  animation: vfxRgbJitter 0.12s infinite;
+  pointer-events: none;
+  z-index: 9999;
+}
+.vfx-crt-scanlines {
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0.45) 3px, rgba(0, 0, 0, 0.45) 4px);
+  pointer-events: none;
+  z-index: 9998;
+}
+@keyframes vfxRgbJitter {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-3px, 2px); }
+  50% { transform: translate(3px, -1px); }
+  75% { transform: translate(-1px, -2px); }
+  100% { transform: translate(2px, 1px); }
+}
+
+/* 6. Sepia ticker tape (Updated ka dapat dito ah!) */
+.vfx-ticker-tape-wrap {
+  position: absolute;
+  inset: 0;
+}
+.vfx-sepia-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(180, 130, 70, 0.22);
+  mix-blend-mode: sepia;
+}
+.vfx-ticker-tape-strip {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  width: 200%;
+  background: #FFFBEB;
+  color: #1E293B;
+  font-family: monospace;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 4px 0;
+  white-space: nowrap;
+  letter-spacing: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  animation: vfxTickerSlide 8s infinite linear;
+}
+@keyframes vfxTickerSlide {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* 7. Steam locomotive smoke (Thomas and Friends) */
+.vfx-steam-puff-wrap {
+  position: absolute;
+  inset: 0;
+}
+.vfx-steam-cloud {
+  position: absolute;
+  bottom: 20px;
+  width: 60px;
+  height: 60px;
+  background: radial-gradient(circle, rgba(240, 240, 240, 0.8) 0%, rgba(200, 200, 200, 0) 70%);
+  border-radius: 50%;
+  animation: vfxSteamRise 2s infinite ease-out;
+}
+@keyframes vfxSteamRise {
+  0% { transform: scale(0.4) translateY(0); opacity: 0.8; }
+  100% { transform: scale(2.2) translateY(-260px); opacity: 0; }
+}
+
+/* 8. Detention Stamp (You're Passed! Passed Away...) */
+.vfx-detention-stamp-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vfx-detention-stamp {
+  font-family: var(--font-display);
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #EF4444;
+  border: 5px solid #EF4444;
+  padding: 6px 20px;
+  transform: rotate(-14deg) scale(2);
+  opacity: 0;
+  border-radius: 8px;
+  text-shadow: 0 0 14px rgba(239, 68, 68, 0.7);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+  animation: vfxStampSlam 0.45s 0.2s forwards cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+@keyframes vfxStampSlam {
+  0% { transform: rotate(-14deg) scale(3.5); opacity: 0; }
+  80% { transform: rotate(-14deg) scale(0.92); opacity: 1; }
+  100% { transform: rotate(-14deg) scale(1); opacity: 0.95; }
+}
+
+/* 9. Cyan energy ripple (Free SHIPping fee) */
+.vfx-cyan-ripples {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vfx-cyan-ring {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 3px solid rgba(6, 182, 212, 0.8);
+  box-shadow: 0 0 20px #06B6D4;
+  animation: vfxCyanExpand 2.4s infinite cubic-bezier(0.1, 0.8, 0.3, 1);
+}
+.vfx-cyan-ring.ring-1 { animation-delay: 0s; }
+.vfx-cyan-ring.ring-2 { animation-delay: 0.7s; }
+.vfx-cyan-ring.ring-3 { animation-delay: 1.4s; }
+@keyframes vfxCyanExpand {
+  0% { transform: scale(0.2); opacity: 1; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
+
+/* 10. Classified folder stamp (Secret Chismis) */
+.vfx-classified-stamp-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vfx-classified-stamp {
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  font-weight: 900;
+  color: #DC2626;
+  border: 4px solid #DC2626;
+  padding: 4px 18px;
+  transform: rotate(10deg);
+  border-radius: 6px;
+  animation: vfxStampSlam 0.4s 0.15s forwards cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+/* 11. Timeline cooling waves (Radyo patrol, iwas gulo) */
+.vfx-cooling-waves {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vfx-cooling-waves .vfx-wave {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 3px solid rgba(56, 189, 248, 0.6);
+  border-radius: 12px;
+  animation: vfxWaveRipple 2.2s infinite ease-out;
+}
+.vfx-cooling-waves .vfx-wave.wave-2 { animation-delay: 1.1s; }
+@keyframes vfxWaveRipple {
+  0% { transform: scale(0.9); opacity: 1; }
+  100% { transform: scale(1.3); opacity: 0; }
+}
+
+/* 12. Golden crate burst (Kayamanan ng Buwaya) */
+.vfx-crate-burst-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vfx-golden-rays {
+  width: 250px;
+  height: 250px;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.8) 0%, rgba(245, 158, 11, 0) 70%);
+  animation: vfxCratePulse 1.6s infinite alternate ease-in-out;
+}
+@keyframes vfxCratePulse {
+  0% { transform: scale(0.7); opacity: 0.5; }
+  100% { transform: scale(1.4); opacity: 1; }
+}
+
+/* 13. Dimmed spotlight vignette (HIDEous plan) */
+.vfx-dimmed-spotlight-vignette {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 20%, rgba(0, 0, 0, 0.9) 70%);
+  pointer-events: none;
+}
+
+/* 14. Forest fireflies (Diwata Pares blessing) */
+.vfx-fireflies-wrap {
+  position: absolute;
+  inset: 0;
+}
+.vfx-firefly {
+  position: absolute;
+  bottom: 0;
+  font-size: 1.3rem;
+  animation: vfxFireflyFloat 2.6s infinite ease-in-out;
+  filter: drop-shadow(0 0 8px #10B981);
+}
+@keyframes vfxFireflyFloat {
+  0% { transform: translateY(0) scale(0.7); opacity: 0; }
+  50% { opacity: 1; transform: translateY(-160px) scale(1.1) translateX(15px); }
+  100% { transform: translateY(-340px) scale(0.8) translateX(-15px); opacity: 0; }
+}
+
+/* 15. Spirit wisps (Anito Grab) */
+.vfx-spirit-wisps-wrap {
+  position: absolute;
+  inset: 0;
+}
+.vfx-spirit-wisp {
+  position: absolute;
+  bottom: 10px;
+  width: 24px;
+  height: 48px;
+  background: radial-gradient(ellipse at bottom, rgba(6, 182, 212, 0.9) 0%, rgba(6, 182, 212, 0) 75%);
+  border-radius: 50%;
+  animation: vfxWispAscend 2.2s infinite ease-out;
+  filter: drop-shadow(0 0 10px #06B6D4);
+}
+@keyframes vfxWispAscend {
+  0% { transform: translateY(0) scale(0.6); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateY(-320px) scale(1.8) rotate(25deg); opacity: 0; }
+}
+
+/* 16. Water ripple (Healing for everything) */
+.vfx-water-ripples {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vfx-water-ring {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 2px solid rgba(59, 130, 246, 0.8);
+  box-shadow: 0 0 25px rgba(59, 130, 246, 0.6);
+  animation: vfxWaterExpand 2.4s infinite cubic-bezier(0.1, 0.8, 0.3, 1);
+}
+.vfx-water-ring.ring-2 { animation-delay: 1.2s; }
+@keyframes vfxWaterExpand {
+  0% { transform: scale(0.3); opacity: 1; }
+  100% { transform: scale(3.5); opacity: 0; }
+}
+
+/* 17. Floating rune stones (Bato-bato sa langit) */
+.vfx-runes-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+.vfx-floating-rune {
+  font-size: 2.2rem;
+  color: #FBBF24;
+  text-shadow: 0 0 12px #F59E0B;
+  animation: vfxRuneFloat 2s infinite ease-in-out;
+}
+@keyframes vfxRuneFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-24px) rotate(15deg); }
+}
+
+/* ---------------- DANGER VFX STYLES ---------------- */
+
+/* 1. Volcanic Ash (Bulkang galit) */
+.vfx-ash-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.vfx-ash-particle {
+  position: absolute;
+  top: -20px;
+  width: 8px;
+  height: 8px;
+  background: rgba(180, 180, 180, 0.7);
+  border-radius: 50%;
+  animation: vfxAshFall 2.4s infinite linear;
+}
+@keyframes vfxAshFall {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  15% { opacity: 0.9; }
+  100% { transform: translateY(520px) translateX(40px); opacity: 0; }
+}
+
+/* 2. Cutlass Slash (Tulisan sa Dagat) */
+.vfx-cutlass-slash-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, #FFFFFF 50%, transparent);
+  box-shadow: 0 0 20px #FFFFFF, 0 0 40px #38BDF8;
+  transform: rotate(-30deg) scaleX(0);
+  animation: vfxSlashStrike 0.6s 0.2s forwards ease-out;
+}
+@keyframes vfxSlashStrike {
+  0% { transform: rotate(-30deg) scaleX(0); opacity: 0; }
+  40% { transform: rotate(-30deg) scaleX(1.3); opacity: 1; }
+  100% { transform: rotate(-30deg) scaleX(1.5); opacity: 0; }
+}
+
+/* 3. Amber torchlight search beams (Huli ka, Indio!) */
+.vfx-torchlight-beams {
+  position: absolute;
+  inset: 0;
+}
+.vfx-torch-beam {
+  position: absolute;
+  bottom: 0;
+  width: 140px;
+  height: 100%;
+  background: linear-gradient(to top, rgba(245, 158, 11, 0.45) 0%, transparent 100%);
+  transform-origin: bottom center;
+}
+.vfx-torch-beam.beam-left {
+  left: 10%;
+  animation: vfxTorchSweepLeft 3s infinite ease-in-out alternate;
+}
+.vfx-torch-beam.beam-right {
+  right: 10%;
+  animation: vfxTorchSweepRight 3s infinite ease-in-out alternate;
+}
+@keyframes vfxTorchSweepLeft {
+  0% { transform: rotate(-25deg); }
+  100% { transform: rotate(20deg); }
+}
+@keyframes vfxTorchSweepRight {
+  0% { transform: rotate(25deg); }
+  100% { transform: rotate(-20deg); }
+}
+
+/* 4. Whipping rain & lightning (Bagyong Espanya) */
+.vfx-rain-wrap {
+  position: absolute;
+  inset: 0;
+}
+.vfx-rain-streaks {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(-25deg, transparent, transparent 15px, rgba(200, 230, 255, 0.35) 16px, transparent 18px);
+  animation: vfxRainFall 0.4s infinite linear;
+}
+.vfx-lightning-flash {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.7);
+  opacity: 0;
+  animation: vfxLightningFlash 4s infinite;
+}
+@keyframes vfxRainFall {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(40px); }
+}
+@keyframes vfxLightningFlash {
+  0%, 94%, 98%, 100% { opacity: 0; }
+  95%, 97% { opacity: 0.85; }
+}
+
+/* 5. Floodwater wave wipe (Basa na ba ang lahat) */
+.vfx-floodwater-surge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 80px;
+  background: linear-gradient(to top, rgba(14, 165, 233, 0.85) 0%, transparent 100%);
+  box-shadow: 0 0 25px rgba(14, 165, 233, 0.7);
+  animation: vfxFloodRise 2s infinite alternate ease-in-out;
+}
+@keyframes vfxFloodRise {
+  0% { height: 40px; }
+  100% { height: 110px; }
+}
+
+/* 6. Orange shockwave (Goodbye, Philippines!) */
+.vfx-orange-shockwave-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  border: 4px solid #F97316;
+  box-shadow: 0 0 35px #EA580C;
+  transform: translate(-50%, -50%);
+  animation: vfxShockwavePulse 1.8s infinite cubic-bezier(0.1, 0.8, 0.3, 1);
+}
+@keyframes vfxShockwavePulse {
+  0% { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(3.5); opacity: 0; }
+}
+
+/* 7. Cracking pavement decal (Lindol-lindulan) */
+.vfx-cracking-pavement-lines {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, transparent 60%, rgba(239, 68, 68, 0.25) 100%);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8);
+}
+
+/* 8. Police flashing siren vignette (Patrol de Albino) */
+.vfx-police-siren-border {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  animation: vfxPoliceSiren 0.8s infinite steps(1);
+  z-index: 9999;
+}
+@keyframes vfxPoliceSiren {
+  0%, 49% { box-shadow: inset 0 0 60px 20px rgba(239, 68, 68, 0.65); }
+  50%, 100% { box-shadow: inset 0 0 60px 20px rgba(59, 130, 246, 0.65); }
+}
+
+/* 9. Sweeping searchlight cone (Tagu-taguan sa Hapon) */
+.vfx-searchlight-cone {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 180px;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.45) 0%, transparent 100%);
+  transform-origin: top center;
+  animation: vfxSearchlightRotate 4s infinite ease-in-out alternate;
+}
+@keyframes vfxSearchlightRotate {
+  0% { transform: rotate(-35deg); }
+  100% { transform: rotate(35deg); }
+}
+
+/* 10. Metallic bayonet glint (Surpresa pero Sundalo) */
+.vfx-bayonet-glint-flash {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85) 50%, transparent);
+  transform: skewX(-25deg);
+  animation: vfxGlintSwipe 2.5s infinite ease-in-out;
+}
+@keyframes vfxGlintSwipe {
+  0%, 60% { left: -100%; }
+  100% { left: 200%; }
+}
+
+/* 11. Red rubber stamp (Inspection Reveal: Kabado) */
+.vfx-red-stamp-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vfx-rejected-stamp {
+  font-family: var(--font-display);
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #DC2626;
+  border: 5px solid #DC2626;
+  padding: 6px 20px;
+  transform: rotate(-12deg);
+  border-radius: 8px;
+  text-shadow: 0 0 12px rgba(220, 38, 38, 0.7);
+  box-shadow: 0 0 25px rgba(220, 38, 38, 0.6);
+  animation: vfxStampSlam 0.4s 0.15s forwards cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+/* 12. Falling rocks (Gumalawgaw si Earth) */
+.vfx-falling-rocks-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.vfx-rock-particle {
+  position: absolute;
+  top: -30px;
+  font-size: 1.5rem;
+  animation: vfxRockTumble 2s infinite linear;
+}
+@keyframes vfxRockTumble {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translateY(520px) rotate(720deg); opacity: 0; }
+}
+
+/* 13. Bat shadow (Gojo na Lumilipad) */
+.vfx-bat-shadow-silhouette {
+  position: absolute;
+  top: 30%;
+  left: -200px;
+  width: 140px;
+  height: 60px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 50%;
+  filter: blur(8px);
+  animation: vfxBatFly 3s infinite linear;
+}
+@keyframes vfxBatFly {
+  0% { transform: translateX(0) scale(0.6); }
+  50% { transform: translateX(450px) scale(1.4); }
+  100% { transform: translateX(900px) scale(0.8); }
+}
+
+/* 14. Cigar smoke blanket (Isoy break na Kapre) */
+.vfx-cigar-smoke-blanket {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(100, 80, 60, 0.75) 0%, rgba(30, 20, 10, 0.9) 100%);
+  animation: vfxCigarSmoke 3s infinite alternate ease-in-out;
+}
+@keyframes vfxCigarSmoke {
+  0% { opacity: 0.6; transform: scale(1); }
+  100% { opacity: 0.95; transform: scale(1.05); }
+}
+
+/* 15. Trickster mirage glitch (Scammer na Engkanto) */
+.vfx-trickster-mirage-distortion {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.3) 0%, rgba(168, 85, 247, 0.4) 100%);
+  animation: vfxMirageDistort 1.6s infinite alternate ease-in-out;
+}
+@keyframes vfxMirageDistort {
+  0% { filter: hue-rotate(0deg) blur(0px); }
+  100% { filter: hue-rotate(90deg) blur(3px); }
+}
+
+/* 16. Red claw scratches (Baby ama) */
+.vfx-claw-scratch-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vfx-claw-scratch {
+  position: absolute;
+  width: 6px;
+  height: 180px;
+  background: #EF4444;
+  box-shadow: 0 0 15px #DC2626, 0 0 30px #EF4444;
+  border-radius: 3px;
+  transform: rotate(25deg);
+}
+.vfx-claw-scratch.scratch-1 { left: 42%; transform: rotate(25deg) translateY(-20px); }
+.vfx-claw-scratch.scratch-2 { left: 50%; transform: rotate(25deg); }
+.vfx-claw-scratch.scratch-3 { left: 58%; transform: rotate(25deg) translateY(20px); }
+
+/* Sanctuary Shield HUD Badge pulse */
+@keyframes sanctuaryPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 8px #FFD700; }
+  50% { transform: scale(1.15); box-shadow: 0 0 16px #FFD700, 0 0 24px #F59E0B; }
+}

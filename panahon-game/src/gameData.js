@@ -1,3 +1,14 @@
+function getLocalStorage() {
+  if (typeof window !== 'undefined' && typeof window['localStorage'] !== 'undefined') {
+    try {
+      return window['localStorage'];
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+}
+
 // ===== PANAHON: CHRONO SHIFT - Game Data =====
 
 export const ERAS = {
@@ -194,7 +205,7 @@ export const DEFAULT_ERA_LOOP_TARGETS = {
 
 export function getActiveLoopTargets() {
   try {
-    const saved = localStorage.getItem('panahon_custom_map_loops');
+    const saved = getLocalStorage()?.getItem('panahon_custom_map_loops');
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && typeof parsed === 'object') return { ...DEFAULT_ERA_LOOP_TARGETS, ...parsed };
@@ -215,7 +226,7 @@ export const DEFAULT_ERA_PATH_MODES = {
 
 export function getActivePathModes() {
   try {
-    const saved = localStorage.getItem('panahon_custom_map_path_modes');
+    const saved = getLocalStorage()?.getItem('panahon_custom_map_path_modes');
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && typeof parsed === 'object') return { ...DEFAULT_ERA_PATH_MODES, ...parsed };
@@ -275,7 +286,7 @@ export const DEFAULT_ERA_JUNCTION_RULES = {
 
 export function getActiveJunctionRules() {
   try {
-    const saved = localStorage.getItem("panahon_custom_map_junction_rules");
+    const saved = getLocalStorage()?.getItem("panahon_custom_map_junction_rules");
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && typeof parsed === "object") {
@@ -294,7 +305,7 @@ export function getActiveJunctionRules() {
 
 export function saveCustomJunctionRules(rules) {
   try {
-    localStorage.setItem("panahon_custom_map_junction_rules", JSON.stringify(rules));
+    getLocalStorage()?.setItem("panahon_custom_map_junction_rules", JSON.stringify(rules));
     return true;
   } catch (_) {
     return false;
@@ -303,7 +314,7 @@ export function saveCustomJunctionRules(rules) {
 
 export function getActivePathConnections() {
   try {
-    const saved = localStorage.getItem('panahon_custom_map_connections');
+    const saved = getLocalStorage()?.getItem('panahon_custom_map_connections');
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && typeof parsed === 'object') return parsed;
@@ -314,7 +325,7 @@ export function getActivePathConnections() {
 
 export function getActiveTileCoordinates() {
   try {
-    const saved = localStorage.getItem('panahon_custom_map_coords');
+    const saved = getLocalStorage()?.getItem('panahon_custom_map_coords');
     if (saved) {
       const parsed = JSON.parse(saved);
       if (
@@ -333,7 +344,7 @@ export function getActiveTileCoordinates() {
 
 export function getActiveTileLayouts() {
   try {
-    const saved = localStorage.getItem('panahon_custom_map_layouts');
+    const saved = getLocalStorage()?.getItem('panahon_custom_map_layouts');
     if (saved) {
       const parsed = JSON.parse(saved);
       if (
@@ -352,27 +363,27 @@ export function getActiveTileLayouts() {
 
 export function saveCustomMap(coords, layouts, loops, pathModes, connections, junctionRules) {
   try {
-    localStorage.setItem('panahon_custom_map_coords', JSON.stringify(coords));
-    localStorage.setItem('panahon_custom_map_layouts', JSON.stringify(layouts));
-    if (loops) localStorage.setItem('panahon_custom_map_loops', JSON.stringify(loops));
-    if (pathModes) localStorage.setItem('panahon_custom_map_path_modes', JSON.stringify(pathModes));
-    if (connections) localStorage.setItem('panahon_custom_map_connections', JSON.stringify(connections));
-    if (junctionRules) localStorage.setItem('panahon_custom_map_junction_rules', JSON.stringify(junctionRules));
+    getLocalStorage()?.setItem('panahon_custom_map_coords', JSON.stringify(coords));
+    getLocalStorage()?.setItem('panahon_custom_map_layouts', JSON.stringify(layouts));
+    if (loops) getLocalStorage()?.setItem('panahon_custom_map_loops', JSON.stringify(loops));
+    if (pathModes) getLocalStorage()?.setItem('panahon_custom_map_path_modes', JSON.stringify(pathModes));
+    if (connections) getLocalStorage()?.setItem('panahon_custom_map_connections', JSON.stringify(connections));
+    if (junctionRules) getLocalStorage()?.setItem('panahon_custom_map_junction_rules', JSON.stringify(junctionRules));
     return true;
   } catch (e) {
-    console.error('Failed to save custom map to localStorage:', e);
+    console.error('Failed to save custom map to getLocalStorage()?:', e);
     return false;
   }
 }
 
 export function resetCustomMap() {
   try {
-    localStorage.removeItem('panahon_custom_map_coords');
-    localStorage.removeItem('panahon_custom_map_layouts');
-    localStorage.removeItem('panahon_custom_map_loops');
-    localStorage.removeItem('panahon_custom_map_path_modes');
-    localStorage.removeItem('panahon_custom_map_connections');
-    localStorage.removeItem('panahon_custom_map_junction_rules');
+    getLocalStorage()?.removeItem('panahon_custom_map_coords');
+    getLocalStorage()?.removeItem('panahon_custom_map_layouts');
+    getLocalStorage()?.removeItem('panahon_custom_map_loops');
+    getLocalStorage()?.removeItem('panahon_custom_map_path_modes');
+    getLocalStorage()?.removeItem('panahon_custom_map_connections');
+    getLocalStorage()?.removeItem('panahon_custom_map_junction_rules');
   } catch (_) {}
 }
 
@@ -383,7 +394,7 @@ const MAP_BACKUPS_STORAGE_KEY = 'panahon_map_layout_backups';
 
 export function getMapBackups() {
   try {
-    const raw = localStorage.getItem(MAP_BACKUPS_STORAGE_KEY);
+    const raw = getLocalStorage()?.getItem(MAP_BACKUPS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) return parsed;
@@ -415,7 +426,7 @@ export function saveMapBackup(coords, layouts, connections, junctionRules, loopT
 
     // Keep up to 25 most recent backups
     const updated = [newBackup, ...backups.slice(0, 24)];
-    localStorage.setItem(MAP_BACKUPS_STORAGE_KEY, JSON.stringify(updated));
+    getLocalStorage()?.setItem(MAP_BACKUPS_STORAGE_KEY, JSON.stringify(updated));
     return newBackup;
   } catch (e) {
     console.error('Failed to create map backup:', e);
@@ -426,7 +437,7 @@ export function saveMapBackup(coords, layouts, connections, junctionRules, loopT
 export function deleteMapBackup(backupId) {
   try {
     const backups = getMapBackups().filter(b => b.id !== backupId);
-    localStorage.setItem(MAP_BACKUPS_STORAGE_KEY, JSON.stringify(backups));
+    getLocalStorage()?.setItem(MAP_BACKUPS_STORAGE_KEY, JSON.stringify(backups));
     return backups;
   } catch (_) {
     return [];
@@ -435,7 +446,7 @@ export function deleteMapBackup(backupId) {
 
 export function clearAllMapBackups() {
   try {
-    localStorage.removeItem(MAP_BACKUPS_STORAGE_KEY);
+    getLocalStorage()?.removeItem(MAP_BACKUPS_STORAGE_KEY);
     return true;
   } catch (_) {
     return false;
@@ -771,474 +782,600 @@ export function generateClueCards() {
 }
 
 // Event Cards
+// Event Cards (20 Total - 5 per Era)
 export const EVENT_CARDS = {
   [ERAS.SPANISH]: [
     {
       id: 'evt_sp_1',
-      name: 'Galleon Trade Arrival',
-      description: 'Gains 2 energy and draws 1 Clue Card.',
+      name: 'Paldoooo',
+      description: 'Player gains +2 Energy (capped at 10) and draws 1 Clue Card from the current era deck.',
       era: ERAS.SPANISH,
-      image: 'assets/Cards/Event Cards/1.png',
+      image: 'assets/Cards/Event Cards/3.png',
+      vfxTag: 'gold_coins',
+      sfxTag: 'galleonBell',
       effect: (player, game) => {
         game.modifyEnergy(player, 2);
         game.drawClueCard(player);
-        return 'Gained 2 Energy and drew 1 Clue Card!';
+        return 'Gained +2 Energy and drew 1 Clue Card!';
       }
     },
     {
       id: 'evt_sp_2',
-      name: 'Fiesta Celebration',
-      description: 'Gains 1 energy and reduces individual paradox meter by 1.',
+      name: 'Fiesta now, problem later',
+      description: 'Player gains +2 Energy and increases their Individual Paradox Meter by +1.',
       era: ERAS.SPANISH,
       image: 'assets/Cards/Event Cards/2.png',
+      vfxTag: 'fiesta_confetti_paradox',
+      sfxTag: 'guitarFlourish',
       effect: (player, game) => {
-        game.modifyEnergy(player, 1);
-        game.modifyParadox(player, -1);
-        return 'Gained 1 Energy and reduced Paradox by 1!';
+        game.modifyEnergy(player, 2);
+        game.modifyParadox(player, 1);
+        return 'Gained +2 Energy, but increased Paradox by +1!';
       }
     },
     {
       id: 'evt_sp_3',
-      name: 'Secret Propaganda Network',
-      description: 'Trade 1 Clue Card with any player or move to any adjacent Time Gate space.',
+      name: 'Marites Network',
+      description: 'Request a 1-for-1 Clue Card trade with any chosen player. If Accepted, swap cards. If Denied, gain +2 Energy.',
       era: ERAS.SPANISH,
-      image: 'assets/Cards/Event Cards/3.png',
+      image: 'assets/Cards/Event Cards/1.png',
+      vfxTag: 'whispering_shadow',
+      sfxTag: 'fanSnap',
       effect: (player, game) => {
-        game.offerChoice(player, 'Secret Propaganda Network', [
-          { label: 'Trade a Clue Card', action: 'tradeClue' },
-          { label: 'Move to Time Gate', action: 'moveToTimeGate' }
-        ]);
-        return 'Choose: Trade a Clue or move to a Time Gate!';
+        if (typeof game.offerMaritesTrade === 'function') {
+          return game.offerMaritesTrade(player);
+        }
+        game.modifyEnergy(player, 2);
+        return 'No trade targets available. Gained +2 Energy!';
       }
     },
     {
       id: 'evt_sp_4',
-      name: 'Sanctuary in Intramuros',
-      description: 'Protected from the next Danger Card drawn.',
+      name: 'Safe ka rito sa Intra',
+      description: 'Grants persistent Sanctuary Shield status buff. Negates and discards the next Danger Card drawn.',
       era: ERAS.SPANISH,
       image: 'assets/Cards/Event Cards/4.png',
+      vfxTag: 'sanctuary_shield',
+      sfxTag: 'cathedralChime',
       effect: (player, game) => {
-        player.shielded = true;
-        return 'You are protected from the next Danger Card!';
+        player.sanctuaryShield = true;
+        return 'Sanctuary Shield active! Next Danger Card will be completely negated.';
       }
     },
     {
       id: 'evt_sp_5',
-      name: 'Temporal Occurrence!',
-      description: 'For the next 2 turns, players draw from any era randomly on Clue, Event, or Danger tiles.',
+      name: 'Ay nag-glitch',
+      description: 'Global Temporal Disturbance! For the next 2 turns, drawing on Clue, Event, or Danger tiles pulls from a random Era deck.',
       era: ERAS.SPANISH,
       image: 'assets/Cards/Event Cards/5.png',
+      vfxTag: 'rgb_chromatic_split',
+      sfxTag: 'crtDistortion',
       effect: (player, game) => {
-        game.activateTemporalOccurrence(2);
-        return 'Temporal Disturbance! Drawing from random eras for 2 rounds!';
+        game.activateTemporalGlitch(2);
+        return 'Global Temporal Disturbance! All card draws randomized across eras for 2 turns.';
       }
     }
   ],
+
   [ERAS.AMERICAN]: [
     {
       id: 'evt_am_1',
-      name: 'Telegraph Message',
-      description: 'Immediately look at the top 3 Clue Cards in the deck.',
+      name: 'Updated ka dapat dito ah!',
+      description: 'Inspect top 3 Clue Cards of current era without drawing them, then return them in the same order.',
       era: ERAS.AMERICAN,
-      image: 'assets/Cards/Event Cards/6.png',
+      image: 'assets/Cards/Event Cards/8.png',
+      vfxTag: 'sepia_ticker_tape',
+      sfxTag: 'morseCode',
       effect: (player, game) => {
-        game.peekClueCards(player, 3);
-        return 'Peeked at top 3 Clue Cards!';
+        if (typeof game.peekTopClues === 'function') {
+          return game.peekTopClues(player, 3);
+        }
+        return 'Inspected top 3 Clue Cards of this era!';
       }
     },
     {
       id: 'evt_am_2',
-      name: 'Railroad Express',
-      description: 'Move up to 4 extra spaces forward without consuming energy.',
+      name: 'Thomas and Friends',
+      description: 'Immediately move 3 spaces forward along the path (costs 0 Energy) and resolve destination tile.',
       era: ERAS.AMERICAN,
       image: 'assets/Cards/Event Cards/7.png',
+      vfxTag: 'train_smoke',
+      sfxTag: 'trainWhistle',
       effect: (player, game) => {
-        player.bonusMoves = 4;
-        return 'You can move 4 extra spaces!';
+        game.movePlayer(player, 3);
+        return 'All aboard! Moved 3 spaces forward at 0 energy cost.';
       }
     },
     {
       id: 'evt_am_3',
-      name: 'Thomasite School Grant',
-      description: 'Gains 2 energy.',
+      name: 'You’re Passed! Passed Away…',
+      description: 'Player gains +2 Energy, and applies turn skipped debuff.',
       era: ERAS.AMERICAN,
-      image: 'assets/Cards/Event Cards/8.png',
+      image: 'assets/Cards/Event Cards/10.png',
+      vfxTag: 'detention_badge',
+      sfxTag: 'schoolBell',
       effect: (player, game) => {
         game.modifyEnergy(player, 2);
-        return 'Gained 2 Energy!';
+        player.skipNextTurn = true;
+        return 'Gained +2 Energy, but sent to detention—next turn skipped!';
       }
     },
     {
       id: 'evt_am_4',
-      name: 'Manila Port Shipments',
-      description: 'Recover +2 Energy and draw 1 Clue Card.',
+      name: 'Free SHIPping fee',
+      description: 'Player recovers +1 Energy.',
       era: ERAS.AMERICAN,
       image: 'assets/Cards/Event Cards/9.png',
+      vfxTag: 'cyan_energy_ripple',
+      sfxTag: 'foghorn',
       effect: (player, game) => {
-        game.modifyEnergy(player, 2);
-        game.drawClueCard(player);
-        return 'Recovered +2 Energy and drew 1 Clue Card!';
+        game.modifyEnergy(player, 1);
+        return 'Special delivery! Recovered +1 Energy.';
       }
     },
     {
       id: 'evt_am_5',
-      name: 'Temporal Occurrence!',
-      description: 'For the next 2 turns, players draw from any era randomly on Clue, Event, or Danger tiles.',
+      name: 'Ay nag-glitch',
+      description: 'Global Temporal Disturbance! For the next 2 turns, drawing on Clue, Event, or Danger tiles pulls from a random Era deck.',
       era: ERAS.AMERICAN,
-      image: 'assets/Cards/Event Cards/5.png',
+      image: 'assets/Cards/Event Cards/6.png',
+      vfxTag: 'rgb_chromatic_split',
+      sfxTag: 'crtDistortion',
       effect: (player, game) => {
-        game.activateTemporalOccurrence(2);
-        return 'Temporal Disturbance! Drawing from random eras for 2 rounds!';
+        game.activateTemporalGlitch(2);
+        return 'Global Temporal Disturbance! All card draws randomized across eras for 2 turns.';
       }
     }
   ],
+
   [ERAS.JAPANESE]: [
     {
       id: 'evt_jp_1',
-      name: 'Guerrilla Intelligence',
-      description: 'Draw 1 Artifact Card or Clue Card of your choice from the current era.',
+      name: 'Secret Chismis',
+      description: 'Choose 1 specific Clue Card from current era remaining deck to add to hand, then shuffle deck.',
       era: ERAS.JAPANESE,
-      image: 'assets/Cards/Event Cards/11.png',
+      image: 'assets/Cards/Event Cards/12.png',
+      vfxTag: 'classified_folder',
+      sfxTag: 'radioDialStatic',
       effect: (player, game) => {
-        game.offerChoice(player, 'Guerrilla Intelligence', [
-          { label: 'Draw Clue Card', action: 'drawClue' },
-          { label: 'View Artifact', action: 'viewArtifact' }
-        ]);
-        return 'Choose: Draw a Clue or view an Artifact!';
+        if (typeof game.offerSecretChismis === 'function') {
+          return game.offerSecretChismis(player);
+        }
+        game.drawClueCard(player);
+        return 'Acquired classified intelligence!';
       }
     },
     {
       id: 'evt_jp_2',
-      name: 'Radio Broadcast',
-      description: 'Decreases the Timeline Meter by 1.',
+      name: 'Radyo patrol, iwas gulo',
+      description: 'Decreases the shared global Timeline Meter by -1 (minimum 0).',
       era: ERAS.JAPANESE,
-      image: 'assets/Cards/Event Cards/12.png',
+      image: 'assets/Cards/Event Cards/14.png',
+      vfxTag: 'timeline_cooling_waves',
+      sfxTag: 'radioBroadcast',
       effect: (player, game) => {
         game.modifyTimelineMeter(-1);
-        return 'Timeline Meter decreased by 1!';
+        return 'Broadcasting calm frequencies! Timeline Meter decreased by 1.';
       }
     },
     {
       id: 'evt_jp_3',
-      name: 'Hidden Cache Supply',
-      description: 'Gains 3 energy.',
+      name: 'Kayamanan ng Buwaya',
+      description: 'Player gains +3 Energy (capped at 10).',
       era: ERAS.JAPANESE,
       image: 'assets/Cards/Event Cards/13.png',
+      vfxTag: 'golden_crate_burst',
+      sfxTag: 'crateCrack',
       effect: (player, game) => {
         game.modifyEnergy(player, 3);
-        return 'Gained 3 Energy!';
+        return 'Cracked open the hidden cache! Gained +3 Energy.';
       }
     },
     {
       id: 'evt_jp_4',
-      name: 'Underground Safehouse',
-      description: 'Skip next turn to fully restore energy to 10.',
+      name: 'HIDEous plan',
+      description: 'Choice: Skip next 2 turns to fully restore Energy to 10/10 OR skip next 2 turns to reset Paradox to 0.',
       era: ERAS.JAPANESE,
-      image: 'assets/Cards/Event Cards/14.png',
+      image: 'assets/Cards/Event Cards/15.png',
+      vfxTag: 'dimmed_spotlight',
+      sfxTag: 'trapdoorLatch',
       effect: (player, game) => {
-        player.skipNextTurn = true;
-        player.energy = 10;
-        return 'Energy fully restored to 10! (Skip next turn)';
+        if (typeof game.offerHideousPlan === 'function') {
+          return game.offerHideousPlan(player);
+        }
+        return 'Offered stealth sanctuary choices.';
       }
     },
     {
       id: 'evt_jp_5',
-      name: 'Temporal Occurrence!',
-      description: 'For the next 2 turns, players draw from any era randomly on Clue, Event, or Danger tiles.',
+      name: 'Ay nag-glitch',
+      description: 'Global Temporal Disturbance! For the next 2 turns, drawing on Clue, Event, or Danger tiles pulls from a random Era deck.',
       era: ERAS.JAPANESE,
-      image: 'assets/Cards/Event Cards/5.png',
+      image: 'assets/Cards/Event Cards/11.png',
+      vfxTag: 'rgb_chromatic_split',
+      sfxTag: 'crtDistortion',
       effect: (player, game) => {
-        game.activateTemporalOccurrence(2);
-        return 'Temporal Disturbance! Drawing from random eras for 2 rounds!';
+        game.activateTemporalGlitch(2);
+        return 'Global Temporal Disturbance! All card draws randomized across eras for 2 turns.';
       }
     }
   ],
+
   [ERAS.MYTH]: [
     {
       id: 'evt_my_1',
-      name: "Diwata's Blessing",
-      description: 'Gains 2 energy and reduces individual paradox meter by 2.',
+      name: 'Diwata Pares blessing',
+      description: 'Player gains +2 Energy and reduces Individual Paradox Meter by -2 (minimum 0).',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Event Cards/16.png',
+      image: 'assets/Cards/Event Cards/17.png',
+      vfxTag: 'forest_fireflies',
+      sfxTag: 'kulintangChord',
       effect: (player, game) => {
         game.modifyEnergy(player, 2);
         game.modifyParadox(player, -2);
-        return 'Gained 2 Energy and reduced Paradox by 2!';
+        return 'Blessed by the Diwata! Gained +2 Energy and cleansed -2 Paradox.';
       }
     },
     {
       id: 'evt_my_2',
-      name: 'Anito Guidance',
-      description: 'Teleport to any tile within the Myth/Legend timeline.',
+      name: 'Anito Grab',
+      description: 'Optional exchange: Spend 2 Energy to immediately draw 1 Clue Card from current era deck.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Event Cards/17.png',
+      image: 'assets/Cards/Event Cards/18.png',
+      vfxTag: 'cyan_spirit_wisps',
+      sfxTag: 'spiritWisp',
       effect: (player, game) => {
-        game.offerTeleport(player, ERAS.MYTH);
-        return 'Teleport to any tile in the Myth/Legend timeline!';
+        if (typeof game.offerAnitoGrab === 'function') {
+          return game.offerAnitoGrab(player);
+        }
+        return 'Anito spirits offer an ancient bargain!';
       }
     },
     {
       id: 'evt_my_3',
-      name: 'Enchanted Healing Spring',
-      description: 'Restores 3 energy to all players in this timeline.',
+      name: 'Healing for everything',
+      description: 'Loop through all 4 players: restore +2 Energy if in Myth quadrant, +1 Energy if in any other quadrant.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Event Cards/18.png',
+      image: 'assets/Cards/Event Cards/19.png',
+      vfxTag: 'water_ripple',
+      sfxTag: 'waterRipple',
       effect: (player, game) => {
-        game.healAllInEra(ERAS.MYTH, 3);
-        return 'All players in Myth era restored 3 Energy!';
+        (game.state?.players || []).forEach(p => {
+          const amt = p.currentEra === ERAS.MYTH ? 2 : 1;
+          game.modifyEnergy(p, amt);
+        });
+        return 'Enchanted waters surge! Restored Energy to all operatives across timelines.';
       }
     },
     {
       id: 'evt_my_4',
-      name: 'Ancient Relic Harmony',
-      description: 'Decreases the Timeline Meter by 1.',
+      name: 'Bato-bato sa langit',
+      description: 'Roll D6: on 4-6, select any Era and draw 1 Clue Card from its deck. On 1-3, nothing happens.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Event Cards/19.png',
+      image: 'assets/Cards/Event Cards/20.png',
+      vfxTag: 'floating_rune_stones',
+      sfxTag: 'runeBeam',
       effect: (player, game) => {
-        game.modifyTimelineMeter(-1);
-        return 'Timeline Meter decreased by 1!';
+        if (typeof game.offerBatoBato === 'function') {
+          return game.offerBatoBato(player);
+        }
+        return 'Rune stones cast towards the heavens!';
       }
     },
     {
       id: 'evt_my_5',
-      name: 'Temporal Occurrence!',
-      description: 'For the next 2 turns, players draw from any era randomly on Clue, Event, or Danger tiles.',
+      name: 'Ay nag-glitch',
+      description: 'Global Temporal Disturbance! For the next 2 turns, drawing on Clue, Event, or Danger tiles pulls from a random Era deck.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Event Cards/5.png',
+      image: 'assets/Cards/Event Cards/16.png',
+      vfxTag: 'rgb_chromatic_split',
+      sfxTag: 'crtDistortion',
       effect: (player, game) => {
-        game.activateTemporalOccurrence(2);
-        return 'Temporal Disturbance! Drawing from random eras for 2 rounds!';
+        game.activateTemporalGlitch(2);
+        return 'Global Temporal Disturbance! All card draws randomized across eras for 2 turns.';
       }
     }
   ]
 };
 
-// Danger Cards
+// Danger Cards (16 Total - 4 per Era, Interactive D6 Roll)
 export const DANGER_CARDS = {
   [ERAS.SPANISH]: [
     {
       id: 'dng_sp_1',
-      name: 'Volcano Eruption',
-      nickname: 'Bulkang Galit',
-      description: 'Roll a die: even number = escape, otherwise move 3 spaces backward.',
+      name: 'Bulkang galit',
+      nickname: 'Group Hazard!',
+      description: 'ALL 4 players must roll a D6. Roll 6 = escapes safely. Roll 1–5 = loses 3 Energy.',
       era: ERAS.SPANISH,
-      image: 'assets/Cards/Danger Cards/1.png',
-      check: (roll) => roll % 2 === 0,
-      successMsg: 'You escaped the eruption safely!',
-      failMsg: 'The eruption forces you back 3 spaces!',
-      failEffect: (player, game) => { game.movePlayer(player, -3); }
+      image: 'assets/Cards/Danger Cards/2.png',
+      isGroupHazard: true,
+      check: (roll) => roll === 6,
+      successMsg: 'You escaped the volcanic eruption safely!',
+      failMsg: 'Hit by volcanic ash! Lost 3 Energy.',
+      failEffect: (player, game, reduction) => {
+        const loss = Math.max(0, 3 - (reduction ? 1 : 0));
+        game.modifyEnergy(player, -loss);
+      },
+      vfxTag: 'falling_ash',
+      sfxTag: 'volcanoRumble'
     },
     {
       id: 'dng_sp_2',
-      name: 'Pirate Raid',
-      nickname: 'Tulisan sa Dagat',
-      description: 'Roll a die: higher than 3 = fend off pirates, otherwise +1 Paradox and discard 1 random Clue Card (or lose 2 Energy if holding 0 Clues).',
+      name: 'Tulisan sa Dagat',
+      nickname: 'Pirate Corsairs',
+      description: 'Roll D6. Roll 4–6 = Fend off pirates safely. Roll 1–3 = Lose 1 Clue Card AND lose 1 Energy.',
       era: ERAS.SPANISH,
-      image: 'assets/Cards/Danger Cards/2.png',
-      check: (roll) => roll > 3,
-      successMsg: 'You fended off the pirates!',
-      failMsg: 'Pirates plundered your supplies! +1 Paradox, discarded 1 Clue Card (or lost 2 Energy).',
-      failEffect: (player, game) => {
-        game.modifyParadox(player, 1);
+      image: 'assets/Cards/Danger Cards/1.png',
+      check: (roll) => roll >= 4,
+      successMsg: 'You fended off the pirates safely!',
+      failMsg: 'Pirates raided your deck! Lost 1 Clue Card and 1 Energy.',
+      failEffect: (player, game, reduction) => {
         if (typeof game.discardRandomClueOrLoseEnergy === 'function') {
-          game.discardRandomClueOrLoseEnergy(player, 2);
-        } else {
-          game.modifyEnergy(player, -2);
+          game.discardRandomClueOrLoseEnergy(player, 0);
         }
-      }
+        const loss = Math.max(0, 1 - (reduction ? 1 : 0));
+        if (loss > 0) game.modifyEnergy(player, -loss);
+      },
+      vfxTag: 'cutlass_slash',
+      sfxTag: 'cannonBlast'
     },
     {
       id: 'dng_sp_3',
-      name: 'Guardia Civil Patrol',
-      nickname: 'Huli ka, indio!',
-      description: 'Roll a die: odd number = blend in, otherwise skip your turn.',
+      name: 'Huli ka, Indio!',
+      nickname: 'Guardia Civil Patrol',
+      description: 'Roll D6. Odd (1, 3, 5) = Blend into the crowd safely. Even (2, 4, 6) = Skip player\'s next turn.',
       era: ERAS.SPANISH,
-      image: 'assets/Cards/Danger Cards/3.png',
+      image: 'assets/Cards/Danger Cards/4.png',
       check: (roll) => roll % 2 !== 0,
-      successMsg: 'You blended into the crowd!',
+      successMsg: 'You blended into the Intramuros crowd safely!',
       failMsg: 'Caught by Guardia Civil! Skip your next turn.',
-      failEffect: (player) => { player.skipNextTurn = true; }
+      failEffect: (player) => {
+        player.skipNextTurn = true;
+      },
+      vfxTag: 'amber_torchlight',
+      sfxTag: 'guardWhistle'
     },
     {
       id: 'dng_sp_4',
-      name: 'Tropical Storm',
-      nickname: 'Bagyong Espanya',
-      description: 'Roll a die: lower than 5 = find shelter, otherwise lose 1 energy and +1 paradox.',
+      name: 'Bagyong Espanya',
+      nickname: 'Tropical Storm',
+      description: 'Roll D6. Roll 1–4 = Find shelter safely. Roll 5–6 = Lose 1 Energy and increase Individual Paradox by +1.',
       era: ERAS.SPANISH,
-      image: 'assets/Cards/Danger Cards/4.png',
-      check: (roll) => roll < 5,
-      successMsg: 'You found shelter from the storm!',
-      failMsg: 'Storm hits! Lost 1 Energy, Paradox +1.',
-      failEffect: (player, game) => { game.modifyEnergy(player, -1); game.modifyParadox(player, 1); }
+      image: 'assets/Cards/Danger Cards/3.png',
+      check: (roll) => roll <= 4,
+      successMsg: 'You found sturdy shelter from the storm!',
+      failMsg: 'Battered by the typhoon! Lost 1 Energy and +1 Paradox.',
+      failEffect: (player, game, reduction) => {
+        const eLoss = Math.max(0, 1 - (reduction ? 1 : 0));
+        if (eLoss > 0) game.modifyEnergy(player, -eLoss);
+        const pGain = (reduction && eLoss === 0) ? 1 : (reduction ? 0 : 1);
+        game.modifyParadox(player, pGain);
+      },
+      vfxTag: 'whipping_rain',
+      sfxTag: 'thunderclap'
     }
   ],
+
   [ERAS.AMERICAN]: [
     {
       id: 'dng_am_1',
-      name: 'Flash Flood',
-      nickname: 'Basa na ba ang lahat',
-      description: 'Roll a die: odd number = find high ground, otherwise move 3 spaces backward.',
+      name: 'Basa na ba ang lahat',
+      nickname: 'Surging Floodwater',
+      description: 'Roll D6. Odd (1, 3, 5) = Reach high ground safely. Even (2, 4, 6) = Move 3 spaces backward.',
       era: ERAS.AMERICAN,
       image: 'assets/Cards/Danger Cards/5.png',
       check: (roll) => roll % 2 !== 0,
-      successMsg: 'You found high ground!',
-      failMsg: 'Swept by the flood! Move 3 spaces backward.',
-      failEffect: (player, game) => { game.movePlayer(player, -3); }
+      successMsg: 'You reached high ground safely!',
+      failMsg: 'Swept back 3 spaces by the floodwaters!',
+      failEffect: (player, game, reduction) => {
+        const back = Math.max(1, 3 - (reduction ? 1 : 0));
+        game.movePlayer(player, -back);
+      },
+      vfxTag: 'floodwater_wave',
+      sfxTag: 'floodSplash'
     },
     {
       id: 'dng_am_2',
-      name: 'Nuclear Bomb',
-      nickname: 'Goodbye, Philippines!',
-      description: 'Roll a die: higher than 5 = escape, otherwise +1 Paradox and discard 1 random Clue Card (or lose 2 Energy if holding 0 Clues).',
+      name: 'Goodbye, Philippines!',
+      nickname: 'Explosive Payload',
+      description: 'Roll D6. Roll 5–6 = Defuse bomb successfully. Roll 1–4 = Increase shared global Timeline Meter by +1.',
       era: ERAS.AMERICAN,
-      image: 'assets/Cards/Danger Cards/6.png',
-      check: (roll) => roll > 5,
-      successMsg: 'You escaped the blast radius!',
-      failMsg: 'Caught in the blast! +1 Paradox, discarded 1 Clue Card (or lost 2 Energy).',
+      image: 'assets/Cards/Danger Cards/8.png',
+      check: (roll) => roll >= 5,
+      successMsg: 'Bomb defused in the nick of time!',
+      failMsg: 'Detonation destabilized the timeline! Timeline Meter +1.',
       failEffect: (player, game) => {
-        game.modifyParadox(player, 1);
-        if (typeof game.discardRandomClueOrLoseEnergy === 'function') {
-          game.discardRandomClueOrLoseEnergy(player, 2);
-        } else {
-          game.modifyEnergy(player, -2);
-        }
-      }
+        game.modifyTimelineMeter(1);
+      },
+      vfxTag: 'orange_shockwave',
+      sfxTag: 'airRaidSiren'
     },
     {
       id: 'dng_am_3',
-      name: 'Earthquake',
-      nickname: 'Lindol-lindulan',
-      description: 'Roll a die: even number = stay balanced, otherwise lose 1 energy and +1 paradox.',
+      name: 'Lindol-lindulan',
+      nickname: 'Seismic Tremor',
+      description: 'Roll D6. Even (2, 4, 6) = Stay balanced. Odd (1, 3, 5) = Lose 1 Energy and increase Individual Paradox by +1.',
       era: ERAS.AMERICAN,
       image: 'assets/Cards/Danger Cards/7.png',
       check: (roll) => roll % 2 === 0,
-      successMsg: 'You stayed balanced!',
-      failMsg: 'Earthquake! Lost 1 Energy, Paradox +1.',
-      failEffect: (player, game) => { game.modifyEnergy(player, -1); game.modifyParadox(player, 1); }
+      successMsg: 'Kept your balance through the tremors!',
+      failMsg: 'Tumbled in the quake! Lost 1 Energy and +1 Paradox.',
+      failEffect: (player, game, reduction) => {
+        const eLoss = Math.max(0, 1 - (reduction ? 1 : 0));
+        if (eLoss > 0) game.modifyEnergy(player, -eLoss);
+        const pGain = (reduction && eLoss === 0) ? 1 : (reduction ? 0 : 1);
+        game.modifyParadox(player, pGain);
+      },
+      vfxTag: 'cracking_pavement',
+      sfxTag: 'earthquakeRumble'
     },
     {
       id: 'dng_am_4',
-      name: 'Constabulary Patrol',
-      nickname: 'Patrol de Albino',
-      description: 'Roll a die: lower than 3 = slip past, otherwise skip turn.',
+      name: 'Patrol de Albino',
+      nickname: 'Curfew Patrol',
+      description: 'Roll D6. Roll 1–2 = Slip past undetected. Roll 3–6 = Skip player\'s next turn.',
       era: ERAS.AMERICAN,
-      image: 'assets/Cards/Danger Cards/8.png',
-      check: (roll) => roll < 3,
-      successMsg: 'You slipped past undetected!',
-      failMsg: 'Caught by patrol! Skip your next turn.',
-      failEffect: (player) => { player.skipNextTurn = true; }
+      image: 'assets/Cards/Danger Cards/6.png',
+      check: (roll) => roll <= 2,
+      successMsg: 'You slipped past the patrol car undetected!',
+      failMsg: 'Caught after curfew! Skip your next turn.',
+      failEffect: (player) => {
+        player.skipNextTurn = true;
+      },
+      vfxTag: 'police_flashing',
+      sfxTag: 'policeSiren'
     }
   ],
+
   [ERAS.JAPANESE]: [
     {
       id: 'dng_jp_1',
-      name: 'Japanese Patrol',
-      nickname: 'Tagu-taguan sa hapon',
-      description: 'Roll a die: higher than 2 = hide, otherwise skip turn.',
+      name: 'Tagu-taguan sa Hapon',
+      nickname: 'Searchlight Evasion',
+      description: 'Roll D6. Roll 3–6 = Hide successfully. Roll 1–2 = Skip player\'s next turn.',
       era: ERAS.JAPANESE,
-      image: 'assets/Cards/Danger Cards/9.png',
-      check: (roll) => roll > 2,
-      successMsg: 'You hid successfully!',
-      failMsg: 'Spotted by patrol! Skip your next turn.',
-      failEffect: (player) => { player.skipNextTurn = true; }
+      image: 'assets/Cards/Danger Cards/10.png',
+      check: (roll) => roll >= 3,
+      successMsg: 'You stayed hidden in the shadows!',
+      failMsg: 'Spotted by the patrol garrison! Skip your next turn.',
+      failEffect: (player) => {
+        player.skipNextTurn = true;
+      },
+      vfxTag: 'sweeping_searchlight',
+      sfxTag: 'marchingBoots'
     },
     {
       id: 'dng_jp_2',
-      name: 'Soldier Encounter',
-      nickname: 'Surpresa pero sundalo',
-      description: 'Roll a die: lower than 4 = evade, otherwise move 3 backward.',
+      name: 'Surpresa pero Sundalo',
+      nickname: 'Garrison Ambush',
+      description: 'Roll D6. Roll 1–3 = Evade safely. Roll 4–6 = Move 3 spaces backward.',
       era: ERAS.JAPANESE,
-      image: 'assets/Cards/Danger Cards/10.png',
-      check: (roll) => roll < 4,
-      successMsg: 'You evaded the soldiers!',
-      failMsg: 'Soldiers push you back! Move 3 spaces backward.',
-      failEffect: (player, game) => { game.movePlayer(player, -3); }
+      image: 'assets/Cards/Danger Cards/12.png',
+      check: (roll) => roll <= 3,
+      successMsg: 'You slipped around the ambush safely!',
+      failMsg: 'Ambushed by sentries! Forced back 3 spaces.',
+      failEffect: (player, game, reduction) => {
+        const back = Math.max(1, 3 - (reduction ? 1 : 0));
+        game.movePlayer(player, -back);
+      },
+      vfxTag: 'bayonet_glint',
+      sfxTag: 'bayonetAlarm'
     },
     {
       id: 'dng_jp_3',
-      name: 'Checkpoint Raid',
-      nickname: 'Inspection Reveal: Kabado',
-      description: 'Roll a die: odd number = clear inspection, otherwise +1 Paradox and discard 1 random Clue Card (or lose 2 Energy if holding 0 Clues).',
+      name: 'Inspection Reveal: Kabado',
+      nickname: 'Kempeitai Checkpoint',
+      description: 'Roll D6. Odd (1, 3, 5) = Pass inspection safely. Even (2, 4, 6) = Reveal all Clue Cards for 5 seconds and discard 1 core Mission Clue Card.',
       era: ERAS.JAPANESE,
-      image: 'assets/Cards/Danger Cards/11.png',
+      image: 'assets/Cards/Danger Cards/9.png',
       check: (roll) => roll % 2 !== 0,
-      successMsg: 'You cleared the inspection!',
-      failMsg: 'Failed inspection! +1 Paradox, discarded 1 Clue Card (or lost 2 Energy).',
+      successMsg: 'Your papers checked out! Passed inspection safely.',
+      failMsg: 'Inspection failed! Hand revealed and 1 Mission Clue confiscated.',
       failEffect: (player, game) => {
-        game.modifyParadox(player, 1);
-        if (typeof game.discardRandomClueOrLoseEnergy === 'function') {
-          game.discardRandomClueOrLoseEnergy(player, 2);
-        } else {
-          game.modifyEnergy(player, -2);
+        if (typeof game.revealAndDiscardMissionClue === 'function') {
+          game.revealAndDiscardMissionClue(player);
         }
-      }
+      },
+      vfxTag: 'red_ink_stamp',
+      sfxTag: 'heartbeatStamp'
     },
     {
       id: 'dng_jp_4',
-      name: 'Earthquake',
-      nickname: 'Gumalawgaw si Earth',
-      description: 'Roll a die: even number = avoid debris, otherwise move 2 backward.',
+      name: 'Gumalawgaw si Earth',
+      nickname: 'Ground Tremor',
+      description: 'Roll D6. Even (2, 4, 6) = Avoid falling debris. Odd (1, 3, 5) = Move 2 spaces backward.',
       era: ERAS.JAPANESE,
-      image: 'assets/Cards/Danger Cards/12.png',
+      image: 'assets/Cards/Danger Cards/11.png',
       check: (roll) => roll % 2 === 0,
-      successMsg: 'You avoided the falling debris!',
-      failMsg: 'Debris! Move 2 spaces backward.',
-      failEffect: (player, game) => { game.movePlayer(player, -2); }
+      successMsg: 'You dodged the falling debris cleanly!',
+      failMsg: 'Falling debris knocked you back 2 spaces!',
+      failEffect: (player, game, reduction) => {
+        const back = Math.max(1, 2 - (reduction ? 1 : 0));
+        game.movePlayer(player, -back);
+      },
+      vfxTag: 'falling_rocks',
+      sfxTag: 'rockCrumble'
     }
   ],
+
   [ERAS.MYTH]: [
     {
       id: 'dng_my_1',
-      name: 'Manananggal Encounter',
-      nickname: 'Hating Katawan',
-      description: 'Roll a die: even number = survive, otherwise lose 2 energy.',
+      name: 'Gojo na Lumilipad',
+      nickname: 'Manananggal Swoop',
+      description: 'Roll D6. Even (2, 4, 6) = Survive without loss. Odd (1, 3, 5) = Lose 2 Energy.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Danger Cards/13.png',
+      image: 'assets/Cards/Danger Cards/16.png',
       check: (roll) => roll % 2 === 0,
-      successMsg: 'You survived the Manananggal!',
-      failMsg: 'The Manananggal drains you! Lost 2 Energy.',
-      failEffect: (player, game) => { game.modifyEnergy(player, -2); }
+      successMsg: 'You ducked beneath the bat-like wings safely!',
+      failMsg: 'Clawed from the skies! Lost 2 Energy.',
+      failEffect: (player, game, reduction) => {
+        const loss = Math.max(0, 2 - (reduction ? 1 : 0));
+        game.modifyEnergy(player, -loss);
+      },
+      vfxTag: 'bat_shadow',
+      sfxTag: 'nightHowl'
     },
     {
       id: 'dng_my_2',
-      name: "Kapre's Curse",
-      nickname: 'Isoy break na kapre',
-      description: 'Roll a die: higher than 4 = break spell, otherwise skip turn.',
+      name: 'Isoy break na Kapre',
+      nickname: 'Enchanted Balete Tree',
+      description: 'Roll D6. Roll 4–6 = Escape enchanted tree. Roll 1–3 = Lose 2 Energy AND move 2 spaces backward.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Danger Cards/14.png',
-      check: (roll) => roll > 4,
-      successMsg: 'You broke the spell!',
-      failMsg: "Kapre's curse! Skip your next turn.",
-      failEffect: (player) => { player.skipNextTurn = true; }
+      image: 'assets/Cards/Danger Cards/15.png',
+      check: (roll) => roll >= 4,
+      successMsg: 'You escaped the Kapre\'s enchanted Balete tree!',
+      failMsg: 'Choked by cigar smoke and kicked back 2 spaces! Lost 2 Energy.',
+      failEffect: (player, game, reduction) => {
+        const loss = Math.max(0, 2 - (reduction ? 1 : 0));
+        const back = Math.max(1, 2 - (reduction ? 1 : 0));
+        game.modifyEnergy(player, -loss);
+        game.movePlayer(player, -back);
+      },
+      vfxTag: 'cigar_smoke',
+      sfxTag: 'kapreLaughter'
     },
     {
       id: 'dng_my_3',
-      name: 'Engkanto Illusion',
-      nickname: 'Scammer na Engkanto',
-      description: 'Roll a die: lower than 3 = see through illusion, otherwise move 3 backward.',
+      name: 'Scammer na Engkanto',
+      nickname: 'Trickster Illusion',
+      description: 'Roll D6. Roll 1–2 = See through illusion safely. Roll 3–6 = Convert 1 valid Clue Card into a Decoy Card.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Danger Cards/15.png',
-      check: (roll) => roll < 3,
-      successMsg: 'You saw through the illusion!',
-      failMsg: 'Fooled by Engkanto! Move 3 spaces backward.',
-      failEffect: (player, game) => { game.movePlayer(player, -3); }
+      image: 'assets/Cards/Danger Cards/14.png',
+      check: (roll) => roll <= 2,
+      successMsg: 'You pierced through the Engkanto\'s glamorous illusion!',
+      failMsg: 'Tricked! 1 valid Clue Card dissolved into an illusionary Decoy.',
+      failEffect: (player, game) => {
+        if (typeof game.convertClueToDecoy === 'function') {
+          game.convertClueToDecoy(player);
+        }
+      },
+      vfxTag: 'trickster_mirage',
+      sfxTag: 'tricksterGlitch'
     },
     {
       id: 'dng_my_4',
-      name: 'Tiyanak Trap',
-      nickname: 'Baby with plot twist',
-      description: 'Roll a die: odd number = escape, otherwise lose 1 energy and +1 paradox.',
+      name: 'Baby ama',
+      nickname: 'Tiyanak Wail',
+      description: 'Roll D6. Odd (1, 3, 5) = Escape lure safely. Even (2, 4, 6) = Lose 2 Energy and increase Individual Paradox by +1.',
       era: ERAS.MYTH,
-      image: 'assets/Cards/Danger Cards/16.png',
+      image: 'assets/Cards/Danger Cards/13.png',
       check: (roll) => roll % 2 !== 0,
-      successMsg: 'You escaped the Tiyanak!',
-      failMsg: 'Tiyanak got you! Lost 1 Energy, Paradox +1.',
-      failEffect: (player, game) => { game.modifyEnergy(player, -1); game.modifyParadox(player, 1); }
+      successMsg: 'Ignored the false crying and escaped the lure safely!',
+      failMsg: 'Lured into the demonic nursery! Lost 2 Energy and +1 Paradox.',
+      failEffect: (player, game, reduction) => {
+        const loss = Math.max(0, 2 - (reduction ? 1 : 0));
+        game.modifyEnergy(player, -loss);
+        const pGain = (reduction && loss === 0) ? 1 : (reduction ? 0 : 1);
+        game.modifyParadox(player, pGain);
+      },
+      vfxTag: 'red_claw_scratch',
+      sfxTag: 'babySnarl'
     }
   ]
 };
 
-// Mission Cards (16 missions, one per artifact)
+
 export function generateMissions() {
   const missions = [];
   ALL_ARTIFACTS.forEach((artifact, idx) => {

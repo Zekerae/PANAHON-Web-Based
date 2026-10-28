@@ -12,10 +12,10 @@ class SoundManager {
     let savedSfx = 0.8;
     let savedMusic = 0.75;
     try {
-      if (typeof localStorage !== "undefined") {
-        const s = localStorage.getItem("panahon_sfx_vol");
+      if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") {
+        const s = window.localStorage.getItem("panahon_sfx_vol");
         if (s !== null) savedSfx = Math.max(0, Math.min(100, parseInt(s, 10))) / 100;
-        const m = localStorage.getItem("panahon_music_vol");
+        const m = window.localStorage.getItem("panahon_music_vol");
         if (m !== null) savedMusic = Math.max(0, Math.min(100, parseInt(m, 10))) / 100;
       }
     } catch (_) {}
@@ -96,7 +96,7 @@ class SoundManager {
       this.bgMusic.volume = this.musicVolume * 0.4;
     }
     try {
-      localStorage.setItem("panahon_music_vol", String(Math.round(this.musicVolume * 100)));
+      if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") { window.localStorage.setItem("panahon_music_vol", String(Math.round(this.musicVolume * 100))); }
     } catch (_) {}
   }
 
@@ -106,7 +106,7 @@ class SoundManager {
       this.sfxGain.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
     }
     try {
-      localStorage.setItem("panahon_sfx_vol", String(Math.round(this.sfxVolume * 100)));
+      if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") { window.localStorage.setItem("panahon_sfx_vol", String(Math.round(this.sfxVolume * 100))); }
     } catch (_) {}
   }
 
@@ -747,6 +747,708 @@ class SoundManager {
         osc.stop(this.ctx.currentTime + 0.38);
       }, idx * 40);
     });
+  }
+
+
+  // ===== UPDATED EVENT & DANGER CARDS THEMATIC SFX =====
+
+  // 1. Galleon ship bronze bell chime ("Paldoooo")
+  galleonBell() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    [1180, 1770, 2360].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(idx === 0 ? 0.22 : 0.08, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 1.2);
+      osc.connect(gain);
+      gain.connect(dest);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 1.25);
+    });
+  }
+
+  // 2. Festive acoustic guitar strum flourish ("Fiesta now, problem later")
+  guitarFlourish() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const chords = [196, 246.9, 293.7, 392, 493.9, 587.3];
+    chords.forEach((freq, i) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.5);
+      }, i * 35);
+    });
+  }
+
+  // 3. Paper fan snap SFX ("Marites Network")
+  fanSnap() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(1400, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(220, this.ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.09);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.1);
+  }
+
+  // 4. Cathedral chime ("Safe ka rito sa Intra")
+  cathedralChime() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    [261.63, 329.63, 392.0, 523.25].forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.06);
+      gain.gain.setValueAtTime(0.18 / (i + 1), this.ctx.currentTime + i * 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 1.8);
+      osc.connect(gain);
+      gain.connect(dest);
+      osc.start(this.ctx.currentTime + i * 0.06);
+      osc.stop(this.ctx.currentTime + 1.85);
+    });
+  }
+
+  // 5. CRT distortion sound effect ("Ay nag-glitch")
+  crtDistortion() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+    osc.frequency.setValueAtTime(3200, this.ctx.currentTime + 0.08);
+    osc.frequency.setValueAtTime(60, this.ctx.currentTime + 0.18);
+    osc.frequency.exponentialRampToValueAtTime(900, this.ctx.currentTime + 0.35);
+    gain.gain.setValueAtTime(0.16, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.48);
+  }
+
+  // 6. Morse code telegraph ("Updated ka dapat dito ah!")
+  morseCode() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    [0, 80, 160, 280, 400].forEach((del, idx) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(950, this.ctx.currentTime);
+        const dur = (idx === 2 || idx === 4) ? 0.09 : 0.05;
+        gain.gain.setValueAtTime(0.14, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        osc.stop(this.ctx.currentTime + dur + 0.01);
+      }, del);
+    });
+  }
+
+  // 7. Steam locomotive whistle ("Thomas and Friends")
+  trainWhistle() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    [587.33, 739.99, 880.0].forEach((freq) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(freq * 0.96, this.ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(freq, this.ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.85);
+      osc.connect(gain);
+      gain.connect(dest);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.9);
+    });
+  }
+
+  // 8. School bell ring ("You’re Passed! Passed Away…")
+  schoolBell() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    for (let i = 0; i < 14; i++) {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(1450, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.14, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.07);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }, i * 45);
+    }
+  }
+
+  // 9. Harbor foghorn ("Free SHIPping fee")
+  foghorn() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    [98, 147].forEach((freq) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(0.01, this.ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.22, this.ctx.currentTime + 0.2);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1.4);
+      osc.connect(gain);
+      gain.connect(dest);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 1.45);
+    });
+  }
+
+  // 10. Vintage radio broadcast waves ("Radyo patrol, iwas gulo" / "Secret Chismis")
+  radioBroadcast() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    [440, 554.37, 659.25].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.9);
+      osc.connect(gain);
+      gain.connect(dest);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.95);
+    });
+  }
+
+  radioDialStatic() {
+    this.radioBroadcast();
+  }
+
+  // 11. Wooden supply crate crack ("Kayamanan ng Buwaya")
+  crateCrack() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(260, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(45, this.ctx.currentTime + 0.22);
+    gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.28);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.3);
+  }
+
+  // 12. Wooden trapdoor latch ("HIDEous plan")
+  trapdoorLatch() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.28);
+  }
+
+  // 13. Ethereal kulintang chord ("Diwata Pares blessing")
+  kulintangChord() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    [587.33, 659.25, 783.99, 880.0, 1046.5].forEach((freq, i) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.14, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.7);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.75);
+      }, i * 70);
+    });
+  }
+
+  // 14. Mystical cyan spirit wisps ("Anito Grab")
+  spiritWisp() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(420, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1420, this.ctx.currentTime + 0.45);
+    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.55);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.58);
+  }
+
+  // 15. Enchanted water ripple ("Healing for everything")
+  waterRipple() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    [820, 710, 620, 520].forEach((freq, idx) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.75, this.ctx.currentTime + 0.18);
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.22);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.24);
+      }, idx * 60);
+    });
+  }
+
+  // 16. Floating rune stones beam ("Bato-bato sa langit")
+  runeBeam() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(320, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1850, this.ctx.currentTime + 0.5);
+    gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.65);
+  }
+
+  // 17. Volcano eruption rumble ("Bulkang galit")
+  volcanoRumble() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(65, this.ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(35, this.ctx.currentTime + 0.8);
+    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.95);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 1.0);
+  }
+
+  // 18. Cannon blast ("Tulisan sa Dagat")
+  cannonBlast() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(130, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(28, this.ctx.currentTime + 0.35);
+    gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.48);
+  }
+
+  // 19. Guard whistle ("Huli ka, Indio!")
+  guardWhistle() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    [2400, 2550].forEach((freq) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(dest);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.38);
+    });
+  }
+
+  // 20. Thunderclap flash ("Bagyong Espanya")
+  thunderclap() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(320, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.6);
+    gain.gain.setValueAtTime(0.28, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.85);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.9);
+  }
+
+  // 21. Surging floodwater splash ("Basa na ba ang lahat")
+  floodSplash() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(95, this.ctx.currentTime + 0.4);
+    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.55);
+  }
+
+  // 22. Air raid siren ("Goodbye, Philippines!")
+  airRaidSiren() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(340, this.ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(680, this.ctx.currentTime + 0.35);
+    osc.frequency.linearRampToValueAtTime(340, this.ctx.currentTime + 0.7);
+    gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.85);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.9);
+  }
+
+  // 23. Earthquake rumble ("Lindol-lindulan")
+  earthquakeRumble() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(55, this.ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(42, this.ctx.currentTime + 0.6);
+    gain.gain.setValueAtTime(0.26, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.75);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.8);
+  }
+
+  // 24. Vintage police siren ("Patrol de Albino")
+  policeSiren() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(650, this.ctx.currentTime);
+    osc.frequency.setValueAtTime(880, this.ctx.currentTime + 0.2);
+    osc.frequency.setValueAtTime(650, this.ctx.currentTime + 0.4);
+    osc.frequency.setValueAtTime(880, this.ctx.currentTime + 0.6);
+    gain.gain.setValueAtTime(0.14, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.8);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.85);
+  }
+
+  // 25. Marching boots audio ("Tagu-taguan sa Hapon")
+  marchingBoots() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    [0, 150, 300].forEach((del) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(110, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(45, this.ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.14);
+      }, del);
+    });
+  }
+
+  // 26. Bayonet alarm sting ("Surpresa pero Sundalo")
+  bayonetAlarm() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(1900, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, this.ctx.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.35);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.38);
+  }
+
+  // 27. Heartbeat + stamp slam ("Inspection Reveal: Kabado")
+  heartbeatStamp() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    // Lub
+    const osc1 = this.ctx.createOscillator();
+    const gain1 = this.ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(80, this.ctx.currentTime);
+    osc1.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.15);
+    gain1.gain.setValueAtTime(0.25, this.ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
+    osc1.connect(gain1);
+    gain1.connect(dest);
+    osc1.start();
+    osc1.stop(this.ctx.currentTime + 0.2);
+
+    // Dub
+    setTimeout(() => {
+      if (!this.ctx) return;
+      const osc2 = this.ctx.createOscillator();
+      const gain2 = this.ctx.createGain();
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(70, this.ctx.currentTime);
+      osc2.frequency.exponentialRampToValueAtTime(35, this.ctx.currentTime + 0.15);
+      gain2.gain.setValueAtTime(0.25, this.ctx.currentTime);
+      gain2.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
+      osc2.connect(gain2);
+      gain2.connect(dest);
+      osc2.start();
+      osc2.stop(this.ctx.currentTime + 0.2);
+    }, 220);
+
+    // Stamp slam
+    setTimeout(() => {
+      if (!this.ctx) return;
+      const osc3 = this.ctx.createOscillator();
+      const gain3 = this.ctx.createGain();
+      osc3.type = "square";
+      osc3.frequency.setValueAtTime(140, this.ctx.currentTime);
+      osc3.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.25);
+      gain3.gain.setValueAtTime(0.3, this.ctx.currentTime);
+      gain3.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.3);
+      osc3.connect(gain3);
+      gain3.connect(dest);
+      osc3.start();
+      osc3.stop(this.ctx.currentTime + 0.32);
+    }, 450);
+  }
+
+  // 28. Rock crumble ("Gumalawgaw si Earth")
+  rockCrumble() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    [0, 80, 160, 240].forEach((del) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 0.14);
+        gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.16);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.18);
+      }, del);
+    });
+  }
+
+  // 29. Bat-wing shadow & night wind howl ("Gojo na Lumilipad")
+  nightHowl() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(520, this.ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(220, this.ctx.currentTime + 0.45);
+    osc.frequency.linearRampToValueAtTime(140, this.ctx.currentTime + 0.8);
+    gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.85);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.9);
+  }
+
+  // 30. Kapre deep echoing laughter ("Isoy break na Kapre")
+  kapreLaughter() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    [120, 105, 90, 75].forEach((freq, idx) => {
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.7, this.ctx.currentTime + 0.18);
+        gain.gain.setValueAtTime(0.24, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.22);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.24);
+      }, idx * 120);
+    });
+  }
+
+  // 31. Trickster glitch chord ("Scammer na Engkanto")
+  tricksterGlitch() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+    osc.frequency.setValueAtTime(1046, this.ctx.currentTime + 0.12);
+    osc.frequency.setValueAtTime(260, this.ctx.currentTime + 0.22);
+    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.48);
+  }
+
+  // 32. Demonic baby snarl ("Baby ama")
+  babySnarl() {
+    if (this.muted || this.sfxVolume <= 0) return;
+    this.init();
+    const dest = this.getSfxDestination();
+    if (!this.ctx || !dest) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(740, this.ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(820, this.ctx.currentTime + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(95, this.ctx.currentTime + 0.45);
+    gain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
+    osc.connect(gain);
+    gain.connect(dest);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.65);
   }
 
   chronalRewind() {

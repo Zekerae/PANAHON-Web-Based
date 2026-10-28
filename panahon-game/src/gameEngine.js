@@ -363,12 +363,26 @@ export class GameEngine {
       }
       this.notify('timer');
     }, 1000);
+    this.timerInterval?.unref?.();
   }
 
   stopTimer() {
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
+    }
+  }
+
+  // Clear all engine timers (game clock, AI-turn timeouts, etc.)
+  stop() {
+    this.stopTimer();
+    if (this._aiTimer) {
+      clearTimeout(this._aiTimer);
+      this._aiTimer = null;
+    }
+    if (this._turnTimer) {
+      clearTimeout(this._turnTimer);
+      this._turnTimer = null;
     }
   }
 
@@ -769,6 +783,48 @@ export class GameEngine {
         this.showEraArtifacts(player);
       }
       this.state.phase = 'action';
+    } else if (choiceType === 'maritesTrade') {
+      if (action && action.startsWith('marites_target_')) {
+        const targetId = parseInt(action.replace('marites_target_', ''), 10);
+        const target = this.state.players[targetId];
+        const accept = target?.isAi ? (Math.random() < 0.75) : true;
+        this.executeMaritesTrade(player.id, targetId, accept);
+      }
+      this.state.phase = 'action';
+    } else if (choiceType === 'secretChismis') {
+      if (action && action.startsWith('secret_clue_')) {
+        const cardIdx = parseInt(action.replace('secret_clue_', ''), 10);
+        this.executeSecretChismis(player.id, cardIdx);
+      }
+      this.state.phase = 'action';
+    } else if (choiceType === 'hideousPlan') {
+      if (action === 'hideous_restore_energy') {
+        player.skipNextTurn = 2;
+        player.energy = 10;
+        this.addLog('event', `${player.name} hid in the shadows: Next 2 turns skipped, Energy restored to 10/10!`);
+      } else if (action === 'hideous_reset_paradox') {
+        player.skipNextTurn = 2;
+        player.paradox = 0;
+        this.addLog('event', `${player.name} hid in the shadows: Next 2 turns skipped, Paradox reset to 0!`);
+      }
+      this.state.phase = 'action';
+    } else if (choiceType === 'anitoGrab') {
+      if (action === 'anito_accept') {
+        if (player.energy >= 2) {
+          this.modifyEnergy(player, -2);
+          this.drawClueCard(player);
+          this.addLog('event', `${player.name} exchanged 2 Energy for 1 Clue Card via Anito Grab!`);
+        }
+      } else {
+        this.addLog('event', `${player.name} declined the Anito Grab offer.`);
+      }
+      this.state.phase = 'action';
+    } else if (choiceType === 'batoBatoEra') {
+      if (action && action.startsWith('bato_era_')) {
+        const chosenEra = action.replace('bato_era_', '');
+        this.drawClueCardFromEra(player, chosenEra);
+      }
+      this.state.phase = 'action';
     } else if (choiceType === 'guardianRepair') {
       if (action === 'reduceEnergy') {
         this.modifyParadox(player, -1);
@@ -1119,9 +1175,9 @@ export class GameEngine {
     let era = player.currentEra;
 
     // Temporal Occurrence: draw from random era
-    if (this.state.temporalOccurrence > 0) {
+    if (this.state.temporalGlitchTurns > 0 || this.state.temporalOccurrence > 0) {
       era = ERA_ORDER[Math.floor(Math.random() * ERA_ORDER.length)];
-      this.addLog('temporal', `Temporal Occurrence! Drawing from ${ERA_NAMES[era]} instead!`);
+      this.addLog('temporal', `Temporal Disturbance! Drawing Event from ${ERA_NAMES[era]} instead!`);
     }
 
     const deck = this.state.clueDecks[era];
@@ -1263,7 +1319,9 @@ export class GameEngine {
       image: card.image,
       era: era,
       playerId: player.id,
-      playerName: player.name
+      playerName: player.name,
+      vfxTag: card.vfxTag,
+      sfxTag: card.sfxTag
     };
     this.addLog('event', `${player.name}: ${card.name} — ${result}`);
     if (!this.state.pendingChoice) {
@@ -1273,19 +1331,33 @@ export class GameEngine {
   }
 
   drawDangerCard(player) {
-    // Check shield
-    if (player.shielded) {
+    let era = player.currentEra;
+
+    // Check Sanctuary Shield or standard shield buff
+    if (player.sanctuaryShield || player.shielded) {
+      const wasSanctuary = !!player.sanctuaryShield;
+      player.sanctuaryShield = false;
       player.shielded = false;
-      this.addLog('shield', `${player.name}'s shield blocked the danger!`);
+      this.addLog('shield', `🛡️ ${player.name}'s ${wasSanctuary ? 'Sanctuary Shield' : 'Shield'} safely negated and discarded the Hazard!`);
+      this.state.pendingModal = {
+        type: 'danger_negated',
+        cardType: 'Sanctuary Protection',
+        title: 'Danger Card Negated!',
+        description: `${player.name}'s Sanctuary Shield absorbed and completely negated the Hazard from ${ERA_NAMES[era]}!`,
+        era: era,
+        playerId: player.id,
+        playerName: player.name,
+        vfxTag: 'sanctuary_shield',
+        sfxTag: 'cathedralChime'
+      };
       this.state.phase = 'action';
       this.notify();
       return;
     }
 
-    let era = player.currentEra;
-    if (this.state.temporalOccurrence > 0) {
+    if (this.state.temporalGlitchTurns > 0 || this.state.temporalOccurrence > 0) {
       era = ERA_ORDER[Math.floor(Math.random() * ERA_ORDER.length)];
-      this.addLog('temporal', `Temporal Occurrence! Drawing from ${ERA_NAMES[era]} instead!`);
+      this.addLog('temporal', `Temporal Glitch! Hazard emerges from ${ERA_NAMES[era]}!`);
     }
 
     const deck = this.state.dangerDecks[era];
@@ -1316,7 +1388,10 @@ export class GameEngine {
       diceRoll: null,
       success: null,
       successMsg: card.successMsg,
-      failMsg: card.failMsg
+      failMsg: card.failMsg,
+      vfxTag: card.vfxTag,
+      sfxTag: card.sfxTag,
+      isGroupHazard: !!card.isGroupHazard
     };
 
     this.addLog('danger', `${player.name} triggered ${card.name}! Survival check: ${card.description}`);
@@ -1336,13 +1411,63 @@ export class GameEngine {
     if (!player) return null;
 
     const card = DANGER_CARDS[modal.era]?.find(c => c.id === modal.cardId) ||
-                 DANGER_CARDS[player.currentEra]?.find(c => c.id === modal.cardId);
+                 DANGER_CARDS[player.currentEra]?.find(c => c.id === modal.cardId) ||
+                 Object.values(DANGER_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.cardName);
     if (!card) return null;
 
     const diceRoll = rollDie();
+
+    // Group Hazard check (Spanish Danger 1: Bulkang galit)
+    if (modal.isGroupHazard || card.isGroupHazard) {
+      const groupResults = [];
+      this.state.players.forEach(p => {
+        const pRoll = (p.id === player.id) ? diceRoll : rollDie();
+        let pSafe = (pRoll === 6);
+        if (p.sanctuaryShield) {
+          pSafe = true;
+          p.sanctuaryShield = false;
+        } else if (p.shielded) {
+          pSafe = true;
+          p.shielded = false;
+        }
+
+        const isGuardian = (p.roleKey === 'GUARDIAN');
+        const loss = pSafe ? 0 : (isGuardian ? 2 : 3);
+        if (!pSafe && loss > 0) {
+          this.modifyEnergy(p, -loss);
+        }
+        groupResults.push({
+          playerId: p.id,
+          playerName: p.name,
+          roll: pRoll,
+          safe: pSafe,
+          energyLoss: loss,
+          roleKey: p.roleKey
+        });
+      });
+
+      const pResult = groupResults.find(r => r.playerId === player.id);
+      const success = pResult ? pResult.safe : (diceRoll === 6);
+
+      const updatedModal = {
+        ...modal,
+        needsRoll: false,
+        diceRoll: diceRoll,
+        success: success,
+        groupResults: groupResults,
+        failMsg: success
+          ? 'You rolled a 6 and escaped the eruption safely!'
+          : `You rolled a ${diceRoll}! Lost ${player.roleKey === 'GUARDIAN' ? '2' : '3'} Energy.`
+      };
+      this.state.pendingModal = updatedModal;
+      this.addLog('danger', `Volcano Eruption resolved! Group rolls: ${groupResults.map(r => `${r.playerName}: [${r.roll}] ${r.safe ? 'Safe' : `-${r.energyLoss}⚡`}`).join(', ')}`);
+      this.notify();
+      return { diceRoll, success, groupResults };
+    }
+
     const success = typeof card.check === 'function' ? card.check(diceRoll) : true;
 
-    // Guardian passive: reduce penalty by 1
+    // Guardian passive: reduce numeric Energy/movement/Paradox penalties by 1
     let guardianReduction = false;
     if (!success && player.roleKey === 'GUARDIAN') {
       guardianReduction = true;
@@ -1354,7 +1479,7 @@ export class GameEngine {
       diceRoll: diceRoll,
       success: success,
       guardianReduction: guardianReduction,
-      failMsg: card.failMsg + (guardianReduction ? ' (Guardian: penalty reduced by 1)' : '')
+      failMsg: card.failMsg + (guardianReduction ? ' (Aegis Shield: penalty reduced by 1)' : '')
     };
     this.state.pendingModal = updatedModal;
 
@@ -1362,7 +1487,7 @@ export class GameEngine {
       this.addLog('danger', `${player.name}: ${card.name} — Rolled ${diceRoll}! ${card.successMsg}`);
     } else {
       if (typeof card.failEffect === 'function') {
-        card.failEffect(player, this);
+        card.failEffect(player, this, guardianReduction);
       }
       this.addLog('danger', `${player.name}: ${card.name} — Rolled ${diceRoll}! ${card.failMsg}`);
     }
@@ -1721,6 +1846,306 @@ export class GameEngine {
   }
 
   // --- Temporal Occurrence ---
+  // --- Global Temporal Disturbance ("Ay nag-glitch") ---
+  activateTemporalGlitch(turns = 2) {
+    this.state.temporalGlitchTurns = turns;
+    this.state.temporalOccurrence = turns;
+    this.state.temporalOccurrenceAnnounced = false;
+    this.state.temporalOccurrenceId = 'glitch_' + Date.now();
+    this.addLog('temporal', `🌀 Global Temporal Disturbance activated! All card draws randomized across eras for ${turns} rounds.`);
+  }
+
+  // --- Spanish Event 3: Marites Network ---
+  offerMaritesTrade(player) {
+    const eligibleTargets = (this.state.players || []).filter(p => p.id !== player.id && Array.isArray(p.clueCards) && p.clueCards.length > 0);
+    if (eligibleTargets.length === 0 || !Array.isArray(player.clueCards) || player.clueCards.length === 0) {
+      this.modifyEnergy(player, 2);
+      return 'No operatives available for a clue trade. Gained +2 Energy instead!';
+    }
+
+    if (player.isAi) {
+      const target = eligibleTargets[0];
+      const accept = Math.random() < 0.75;
+      if (accept) {
+        const myCard = player.clueCards.pop();
+        const theirCard = target.clueCards.pop();
+        if (myCard.artifactId && !myCard.isDecoy) {
+          player.clueProgress[myCard.artifactId] = Math.max(0, (player.clueProgress[myCard.artifactId] || 1) - 1);
+          target.clueProgress[myCard.artifactId] = (target.clueProgress[myCard.artifactId] || 0) + 1;
+        }
+        if (theirCard.artifactId && !theirCard.isDecoy) {
+          target.clueProgress[theirCard.artifactId] = Math.max(0, (target.clueProgress[theirCard.artifactId] || 1) - 1);
+          player.clueProgress[theirCard.artifactId] = (player.clueProgress[theirCard.artifactId] || 0) + 1;
+        }
+        player.clueCards.push(theirCard);
+        target.clueCards.push(myCard);
+        return `${player.name} traded clue cards with ${target.name}!`;
+      } else {
+        this.modifyEnergy(player, 2);
+        return `${target.name} declined trade. Gained +2 Energy!`;
+      }
+    }
+
+    this.state.pendingChoice = {
+      type: 'maritesTrade',
+      title: 'Marites Network: Clue Card Trade Request',
+      playerId: player.id,
+      vfxTag: 'whispering_shadow',
+      sfxTag: 'fanSnap',
+      options: eligibleTargets.map(t => ({
+        label: `Request 1-for-1 Clue Trade with ${t.name} (${t.clueCards.length} Clues)`,
+        action: `marites_target_${t.id}`
+      }))
+    };
+    return 'Marites Network opened: Select an operative to request a Clue trade!';
+  }
+
+  executeMaritesTrade(fromPlayerId, toPlayerId, accept = true) {
+    const fromPlayer = this.state.players[fromPlayerId];
+    const toPlayer = this.state.players[toPlayerId];
+    if (!fromPlayer || !toPlayer) return;
+
+    if (!accept) {
+      this.modifyEnergy(fromPlayer, 2);
+      this.addLog('event', `${toPlayer.name} denied the trade request. ${fromPlayer.name} gained +2 Energy!`);
+      return;
+    }
+
+    if (fromPlayer.clueCards?.length > 0 && toPlayer.clueCards?.length > 0) {
+      const fromCard = fromPlayer.clueCards.pop();
+      const toCard = toPlayer.clueCards.pop();
+      if (fromCard.artifactId && !fromCard.isDecoy) {
+        fromPlayer.clueProgress[fromCard.artifactId] = Math.max(0, (fromPlayer.clueProgress[fromCard.artifactId] || 1) - 1);
+        toPlayer.clueProgress[fromCard.artifactId] = (toPlayer.clueProgress[fromCard.artifactId] || 0) + 1;
+      }
+      if (toCard.artifactId && !toCard.isDecoy) {
+        toPlayer.clueProgress[toCard.artifactId] = Math.max(0, (toPlayer.clueProgress[toCard.artifactId] || 1) - 1);
+        fromPlayer.clueProgress[toCard.artifactId] = (fromPlayer.clueProgress[toCard.artifactId] || 0) + 1;
+      }
+      fromPlayer.clueCards.push(toCard);
+      toPlayer.clueCards.push(fromCard);
+      this.addLog('event', `🤝 Clue Trade Accepted! ${fromPlayer.name} and ${toPlayer.name} swapped Clue Cards.`);
+    } else {
+      this.modifyEnergy(fromPlayer, 2);
+    }
+  }
+
+  // --- American Event 1: Peek Top 3 Clues ("Updated ka dapat dito ah!") ---
+  peekTopClues(player, count = 3) {
+    const era = player.currentEra;
+    const deck = this.state.clueDecks[era] || [];
+    const topCards = deck.slice(0, count);
+    this.state.pendingModal = {
+      type: 'peek_clues',
+      cardType: 'Intelligence Peek',
+      title: 'Updated ka dapat dito ah!',
+      description: `Inspecting top ${topCards.length} Clue Cards of ${ERA_NAMES[era]} without drawing them.`,
+      cards: topCards,
+      era: era,
+      playerId: player.id,
+      playerName: player.name,
+      vfxTag: 'sepia_ticker_tape',
+      sfxTag: 'morseCode'
+    };
+    this.addLog('event', `${player.name} inspected top ${topCards.length} Clue Cards of ${ERA_NAMES[era]}.`);
+    this.state.phase = 'action';
+    this.notify();
+    return `Inspected top ${topCards.length} Clue Cards of ${ERA_NAMES[era]}!`;
+  }
+
+  // --- Japanese Event 1: Secret Chismis ---
+  offerSecretChismis(player) {
+    const era = player.currentEra;
+    const deck = this.state.clueDecks[era] || [];
+    if (deck.length === 0) {
+      this.drawClueCard(player);
+      return 'Acquired classified intelligence!';
+    }
+    if (player.isAi) {
+      const targetCard = deck.find(c => c.artifactId === player.mission?.missionArtifactId) || deck[0];
+      const idx = deck.indexOf(targetCard);
+      deck.splice(idx, 1);
+      player.clueCards.push(targetCard);
+      if (targetCard.artifactId && !targetCard.isDecoy) {
+        player.clueProgress[targetCard.artifactId] = (player.clueProgress[targetCard.artifactId] || 0) + 1;
+      }
+      this.state.clueDecks[era] = shuffle(deck);
+      return `${player.name} retrieved "${targetCard.title || targetCard.hint}" and shuffled the deck!`;
+    }
+    this.state.pendingChoice = {
+      type: 'secretChismis',
+      title: 'Secret Chismis: Select 1 Clue Card',
+      era: era,
+      playerId: player.id,
+      cards: [...deck],
+      vfxTag: 'classified_folder',
+      sfxTag: 'radioDialStatic',
+      options: deck.map((c, i) => ({
+        label: `${c.title || c.hint || ('Clue #' + (i + 1))} (${c.isDecoy ? 'Decoy' : 'Valid'})`,
+        action: `secret_clue_${i}`
+      }))
+    };
+    return 'Choose 1 classified Clue Card from the remaining deck!';
+  }
+
+  executeSecretChismis(playerId, cardIdx) {
+    const player = this.state.players[playerId];
+    if (!player) return;
+    const era = player.currentEra;
+    const deck = this.state.clueDecks[era];
+    if (!deck || cardIdx < 0 || cardIdx >= deck.length) return;
+    const card = deck.splice(cardIdx, 1)[0];
+    if (card) {
+      player.clueCards.push(card);
+      if (card.artifactId && !card.isDecoy) {
+        player.clueProgress[card.artifactId] = (player.clueProgress[card.artifactId] || 0) + 1;
+      }
+      this.state.clueDecks[era] = shuffle(deck);
+      this.addLog('event', `${player.name} chose "${card.title || card.hint}" from the deck and shuffled.`);
+    }
+    this.state.phase = 'action';
+    this.notify();
+  }
+
+  // --- Japanese Event 4: HIDEous plan ---
+  offerHideousPlan(player) {
+    this.state.pendingChoice = {
+      type: 'hideousPlan',
+      title: 'HIDEous plan: Stealth Sanctuary',
+      playerId: player.id,
+      vfxTag: 'dimmed_spotlight',
+      sfxTag: 'trapdoorLatch',
+      options: [
+        { label: 'Option A: Skip Next 2 Turns -> Restore 10/10 Energy', action: 'hideous_restore_energy' },
+        { label: 'Option B: Skip Next 2 Turns -> Reset Paradox to 0', action: 'hideous_reset_paradox' }
+      ]
+    };
+    return 'Offered stealth sanctuary choices: Skip 2 turns to restore Energy or reset Paradox.';
+  }
+
+  // --- Myth Event 2: Anito Grab ---
+  offerAnitoGrab(player) {
+    const canAfford = player.energy >= 2;
+    this.state.pendingChoice = {
+      type: 'anitoGrab',
+      title: 'Anito Grab: Mystical Bargain',
+      playerId: player.id,
+      vfxTag: 'cyan_spirit_wisps',
+      sfxTag: 'spiritWisp',
+      options: [
+        { label: canAfford ? 'Spend 2 Energy -> Draw 1 Clue Card' : 'Spend 2 Energy (Need at least 2 Energy)', action: canAfford ? 'anito_accept' : 'anito_decline', disabled: !canAfford },
+        { label: 'Decline Offer', action: 'anito_decline' }
+      ]
+    };
+    return 'Anito spirits offer an ancient exchange!';
+  }
+
+  // --- Myth Event 4: Bato-bato sa langit ---
+  offerBatoBato(player) {
+    const roll = rollDie();
+    if (roll >= 4) {
+      if (player.isAi) {
+        const targetEra = player.mission?.displacedEra || player.currentEra;
+        this.drawClueCardFromEra(player, targetEra);
+        return `Rune roll was ${roll}! Drew 1 Clue Card from ${ERA_NAMES[targetEra]}.`;
+      }
+      this.state.pendingChoice = {
+        type: 'batoBatoEra',
+        title: `Bato-bato sa langit: Rolled ${roll}! Choose Era Deck`,
+        playerId: player.id,
+        vfxTag: 'floating_rune_stones',
+        sfxTag: 'runeBeam',
+        options: ERA_ORDER.map(era => ({
+          label: `${ERA_NAMES[era]} Timeline`,
+          action: `bato_era_${era}`
+        }))
+      };
+      return `Rune stones resonated with a roll of ${roll}! Select an Era deck.`;
+    } else {
+      return `Rune stones remained silent with a roll of ${roll}. Nothing happened.`;
+    }
+  }
+
+  // Draw 1 clue card from a designated era deck
+  drawClueCardFromEra(player, era) {
+    const deck = this.state.clueDecks[era];
+    if (!deck || deck.length === 0) {
+      this.addLog('system', `No clue cards available in ${ERA_NAMES[era] || era}!`);
+      this.state.phase = 'action';
+      return;
+    }
+    const card = deck.shift();
+    if (card.isDecoy && player.roleKey === 'HISTORIAN' && player.passiveCooldown <= 0) {
+      this.addLog('ability', `${player.name} used Decoy Discard! Discarded a decoy card.`);
+      player.passiveCooldown = ROLES.HISTORIAN.passive.cooldown;
+      this.returnClueToDeck(card);
+      this.state.phase = 'action';
+      this.notify();
+      return;
+    }
+    if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 5)) {
+      this.promptClueHandLimit(player, card, 'action');
+      return;
+    }
+    player.clueCards.push(card);
+    if (!card.isDecoy && card.artifactId) {
+      if (!player.clueProgress[card.artifactId]) {
+        player.clueProgress[card.artifactId] = 0;
+      }
+      player.clueProgress[card.artifactId]++;
+    }
+    this.addLog('event', `${player.name} drew Clue Card "${card.title || card.hint}" from ${ERA_NAMES[era]}!`);
+    this.state.pendingModal = {
+      type: 'clue',
+      cardType: card.isDecoy ? 'Decoy Card' : 'Clue Card',
+      title: card.title || (card.isDecoy ? 'Decoy Card' : 'Clue Card'),
+      description: card.hint || card.description,
+      image: card.image,
+      era: era,
+      playerId: player.id,
+      playerName: player.name
+    };
+    this.state.phase = 'action';
+    this.notify();
+  }
+
+  // --- Japanese Danger 3: Inspection Reveal: Kabado ---
+  revealAndDiscardMissionClue(player) {
+    player.handRevealedUntil = Date.now() + 5000;
+    if (Array.isArray(player.clueCards) && player.clueCards.length > 0) {
+      const missionArtId = player.mission?.missionArtifactId;
+      let targetIdx = player.clueCards.findIndex(c => !c.isDecoy && c.artifactId === missionArtId);
+      if (targetIdx === -1) {
+        targetIdx = player.clueCards.findIndex(c => !c.isDecoy);
+      }
+      if (targetIdx === -1) {
+        targetIdx = 0;
+      }
+      const discarded = player.clueCards.splice(targetIdx, 1)[0];
+      if (discarded && discarded.artifactId && !discarded.isDecoy) {
+        player.clueProgress[discarded.artifactId] = Math.max(0, (player.clueProgress[discarded.artifactId] || 1) - 1);
+      }
+      this.addLog('danger', `${player.name}'s clue "${discarded.title || discarded.hint}" was confiscated! Hand revealed for 5s.`);
+    }
+  }
+
+  // --- Myth Danger 3: Scammer na Engkanto ---
+  convertClueToDecoy(player) {
+    if (Array.isArray(player.clueCards)) {
+      const validClue = player.clueCards.find(c => !c.isDecoy);
+      if (validClue) {
+        validClue.isDecoy = true;
+        validClue.title = 'Decoy Clue (Scammed)';
+        validClue.hint = "The Engkanto illusion turned this clue into fool's gold!";
+        validClue.cardType = 'Decoy Card';
+        if (validClue.artifactId) {
+          player.clueProgress[validClue.artifactId] = Math.max(0, (player.clueProgress[validClue.artifactId] || 1) - 1);
+        }
+        this.addLog('danger', `${player.name}'s valid Clue was turned into a Decoy Card by the Engkanto!`);
+      }
+    }
+  }
+
   activateTemporalOccurrence(turns) {
     const occurrenceId = `occ_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
     const playerCount = this.state.players?.length || 4;
@@ -2051,12 +2476,17 @@ export class GameEngine {
     if (!player) return false;
 
     const stoppedBy = player.timeStoppedBy;
-    player.skipNextTurn = false;
-    player.timeStoppedBy = null;
-    if (stoppedBy) {
-      this.addLog('ability', `⌛ ${player.name} broke free from Temporal Stasis (cast by ${stoppedBy.name})! Turn thawed and passed.`);
+    if (typeof player.skipNextTurn === 'number' && player.skipNextTurn > 1) {
+      player.skipNextTurn--;
+      this.addLog('danger', `⛔ ${player.name}'s turn was skipped (${player.skipNextTurn} remaining turn(s) skipped)!`);
     } else {
-      this.addLog('danger', `⛔ ${player.name}'s turn was skipped (Hazard Penalty)!`);
+      player.skipNextTurn = false;
+      player.timeStoppedBy = null;
+      if (stoppedBy) {
+        this.addLog('ability', `⌛ ${player.name} broke free from Temporal Stasis (cast by ${stoppedBy.name})! Turn thawed and passed.`);
+      } else {
+        this.addLog('danger', `⛔ ${player.name}'s turn was skipped!`);
+      }
     }
     this.endTurn();
     return true;
@@ -2312,6 +2742,14 @@ export class GameEngine {
   endTurn() {
     if (this.state.gameOver) return;
     const player = this.getCurrentPlayer();
+
+    // Decrease temporal glitch countdown on full round completion
+    if (this.state.temporalGlitchTurns > 0 && this.state.currentPlayerIndex === 0) {
+      this.state.temporalGlitchTurns--;
+      if (this.state.temporalGlitchTurns <= 0) {
+        this.addLog('temporal', 'Temporal Disturbance has stabilized. Quadrant era decks restored.');
+      }
+    }
 
     // Decrease temporal occurrence
     if (this.state.temporalOccurrence > 0) {

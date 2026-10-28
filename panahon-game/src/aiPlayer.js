@@ -498,6 +498,49 @@ class AiController {
       return;
     }
 
+    if (choiceType === 'maritesTrade') {
+      const options = choice.options || [];
+      const action = options[0]?.action || 'continue';
+      engine.resolveChoice(action);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
+    if (choiceType === 'secretChismis') {
+      const options = choice.options || [];
+      const action = options[0]?.action || 'secret_clue_0';
+      engine.resolveChoice(action);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
+    if (choiceType === 'hideousPlan') {
+      const action = player.paradox >= 3 ? 'hideous_reset_paradox' : 'hideous_restore_energy';
+      engine.resolveChoice(action);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
+    if (choiceType === 'anitoGrab') {
+      const action = (player.energy >= 4 && (player.clueCards?.length || 0) < 3) ? 'anito_accept' : 'anito_decline';
+      engine.resolveChoice(action);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
+    if (choiceType === 'batoBatoEra') {
+      const targetEra = player.mission?.displacedEra || player.currentEra || 'spanish';
+      const action = 'bato_era_' + targetEra;
+      engine.resolveChoice(action);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
     if (choiceType === 'eventChoice') {
       const options = choice.options || [];
       const best = options[0]?.action || 'drawClue';

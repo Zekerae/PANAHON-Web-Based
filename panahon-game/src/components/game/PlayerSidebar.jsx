@@ -86,7 +86,17 @@ function PlayerSidebar({
 
               {/* Row 1: Avatar, Name + Badge, Role, FIFO Rank or Progress */}
               <div className="player-card-header">
-                <img src={p.role?.avatar || ""} className="player-avatar-small" alt={p.name} />
+                <div className="player-avatar-wrap" style={{ position: 'relative' }}>
+                  <img src={p.role?.avatar || ""} className="player-avatar-small" alt={p.name} />
+                  {p.sanctuaryShield && (
+                    <div
+                      className="sanctuary-shield-hud-badge"
+                      title="Sanctuary Shield: Protected against the next Danger Card!"
+                    >
+                      🛡️
+                    </div>
+                  )}
+                </div>
                 <div className="player-card-info">
                   <div className="player-card-name-row">
                     <span className="player-card-name" style={{ color: p.color }} title={p.name}>
@@ -168,19 +178,22 @@ function PlayerSidebar({
                 ) : null}
                 {p.skipNextTurn && (
                   <span
-                    className="footer-skip-badge"
+                    className="footer-skip-badge detention-badge"
                     style={{
-                      background: "rgba(244, 63, 94, 0.25)",
-                      border: "1px solid #F43F5E",
-                      color: "#FDA4AF",
+                      background: "rgba(100, 116, 139, 0.35)",
+                      border: "1px solid #94A3B8",
+                      color: "#CBD5E1",
                       padding: "2px 6px",
                       borderRadius: "3px",
                       fontSize: "0.65rem",
-                      fontWeight: 800
+                      fontWeight: 800,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "3px"
                     }}
-                    title="Hazard Penalty: Will skip next turn!"
+                    title="Hazard / Detention: Turn Skipped!"
                   >
-                    ⛔ Skip
+                    ⛔ DETENTION
                   </span>
                 )}
               </div>

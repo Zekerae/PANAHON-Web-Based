@@ -10,7 +10,7 @@ const RECORDS_STORAGE_KEY = 'panahon_temporal_records';
  */
 export function getTemporalRecords() {
   try {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(RECORDS_STORAGE_KEY) : null;
+    const raw = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined' ? window.localStorage.getItem(RECORDS_STORAGE_KEY) : null;
     if (!raw) {
       return {
         missionsLogged: 0,

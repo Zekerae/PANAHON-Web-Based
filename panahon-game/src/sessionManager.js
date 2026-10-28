@@ -1,3 +1,14 @@
+function getLocalStorage() {
+  if (typeof window !== 'undefined' && typeof window['localStorage'] !== 'undefined') {
+    try {
+      return window['localStorage'];
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+}
+
 import { EVENT_CARDS, DANGER_CARDS, ROLES } from './gameData.js';
 
 const SESSION_STORAGE_KEY = 'panahon_active_game_session';
@@ -85,7 +96,7 @@ export function rehydrateState(state) {
 }
 
 /**
- * Saves current active session into localStorage with throttling.
+ * Saves current active session into getLocalStorage()? with throttling.
  */
 export function saveActiveSession(sessionData, immediate = false) {
   if (!sessionData || !sessionData.gameState || sessionData.gameState.gameOver) {
@@ -103,10 +114,10 @@ export function saveActiveSession(sessionData, immediate = false) {
         onlineInfo: sessionData.onlineInfo || null,
         gameState: sessionData.gameState
       };
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+      getLocalStorage()?.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
       lastSaveTime = Date.now();
     } catch (err) {
-      console.warn('[SessionManager] Failed to save session to localStorage:', err);
+      console.warn('[SessionManager] Failed to save session to getLocalStorage()?:', err);
     }
   };
 
@@ -132,11 +143,11 @@ export function saveActiveSession(sessionData, immediate = false) {
 }
 
 /**
- * Retrieves the stored session from localStorage if valid.
+ * Retrieves the stored session from getLocalStorage()? if valid.
  */
 export function getActiveSession() {
   try {
-    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    const raw = getLocalStorage()?.getItem(SESSION_STORAGE_KEY);
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
@@ -162,7 +173,7 @@ export function getActiveSession() {
 }
 
 /**
- * Clears the stored session from localStorage.
+ * Clears the stored session from getLocalStorage()?.
  */
 export function clearActiveSession() {
   try {
@@ -170,17 +181,17 @@ export function clearActiveSession() {
       clearTimeout(pendingSaveTimeout);
       pendingSaveTimeout = null;
     }
-    localStorage.removeItem(SESSION_STORAGE_KEY);
+    getLocalStorage()?.removeItem(SESSION_STORAGE_KEY);
   } catch (_) {}
 }
 
 /**
- * Retrieves the stored operative profile name & role from localStorage.
+ * Retrieves the stored operative profile name & role from getLocalStorage()?.
  */
 export function getSavedProfile() {
   try {
-    const name = localStorage.getItem('panahon_player_name') || 'Operative One';
-    const roleKey = localStorage.getItem('panahon_player_role') || 'HISTORIAN';
+    const name = getLocalStorage()?.getItem('panahon_player_name') || 'Operative One';
+    const roleKey = getLocalStorage()?.getItem('panahon_player_role') || 'HISTORIAN';
     return { name: name.trim() || 'Operative One', roleKey };
   } catch {
     return { name: 'Operative One', roleKey: 'HISTORIAN' };
@@ -188,13 +199,13 @@ export function getSavedProfile() {
 }
 
 /**
- * Saves operative profile to localStorage and notifies active listeners.
+ * Saves operative profile to getLocalStorage()? and notifies active listeners.
  */
 export function savePlayerProfile(name, roleKey) {
   try {
     const cleanName = (name || '').trim() || 'Operative One';
-    localStorage.setItem('panahon_player_name', cleanName);
-    if (roleKey) localStorage.setItem('panahon_player_role', roleKey);
+    getLocalStorage()?.setItem('panahon_player_name', cleanName);
+    if (roleKey) getLocalStorage()?.setItem('panahon_player_role', roleKey);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('panahon_profile_updated', {
         detail: { name: cleanName, roleKey }

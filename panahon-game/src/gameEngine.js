@@ -579,7 +579,7 @@ export class GameEngine {
           victim.clueProgress[stolenCard.artifactId]--;
         }
 
-        if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 5)) {
+        if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
           this.returnClueToDeck(stolenCard);
           this.addLog('ability', `🥷 Shadow Pockets: ${player.name} pickpocketed a Clue Card (${stolenCard.hint || stolenCard.description}) from ${victim.name}, but inventory was full so it dissolved back to timeline!`);
         } else {
@@ -883,7 +883,7 @@ export class GameEngine {
         };
         this.state.phase = returnPhase;
       } else if (chosenCard) {
-        if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 5)) {
+        if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
           this.promptClueHandLimit(player, chosenCard, returnPhase);
           return;
         } else {
@@ -895,7 +895,7 @@ export class GameEngine {
             player.clueProgress[chosenCard.artifactId]++;
           }
           const cardDesc = chosenCard.isDecoy ? 'Decoy Card' : (chosenCard.artifactName ? `${chosenCard.artifactName} Clue` : (chosenCard.hint || 'Mystery Clue'));
-          this.addLog('clue', `📜 ${player.name} deciphered and placed into hand: ${cardDesc}! (${player.clueCards.length}/5 Clues held)`);
+          this.addLog('clue', `📜 ${player.name} deciphered and placed into hand: ${cardDesc}! (${player.clueCards.length}/${GAME_CONSTANTS.MAX_CLUE_CARDS || 3} Clues held)`);
           this.state.phase = returnPhase;
         }
       }
@@ -908,7 +908,7 @@ export class GameEngine {
           if (stolenCard.artifactId && victim.clueProgress?.[stolenCard.artifactId] > 0) {
             victim.clueProgress[stolenCard.artifactId]--;
           }
-          if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 5)) {
+          if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
             this.promptClueHandLimit(player, stolenCard, returnPhase);
             return;
           } else {
@@ -1092,10 +1092,11 @@ export class GameEngine {
     this.state.clueDecks[era] = shuffle(this.state.clueDecks[era]);
   }
 
-  // Present Choice Modal when player reaches Clue Hand Limit (Max 5)
+  // Present Choice Modal when player reaches Clue Hand Limit (Max 3)
   promptClueHandLimit(player, card, returnPhase = "action") {
     const eraName = ERA_NAMES[card.era] || card.era;
     const cardName = card.isDecoy ? "Decoy Card" : (card.hint || card.description || "Clue Card");
+    const maxClues = GAME_CONSTANTS.MAX_CLUE_CARDS || 3;
 
     const options = [
       {
@@ -1117,12 +1118,12 @@ export class GameEngine {
       returnPhase: returnPhase,
       drawnCard: card,
       handCards: [...player.clueCards],
-      title: "🎴 Clue Hand Limit Reached (Max 5)!",
-      message: `You already hold 5 Clue Cards! You drew: "${cardName}". Choose whether to discard it or keep it and discard 1 card from your hand.`,
+      title: `🎴 Clue Hand Limit Reached (Max ${maxClues})!`,
+      message: `You already hold ${maxClues} Clue Cards! You drew: "${cardName}". Choose whether to discard it or keep it and discard 1 card from your hand.`,
       options
     };
 
-    this.addLog("card", `${player.name} drew a Clue Card (${cardName}), but hand is full (5/5). Choosing which card to keep...`);
+    this.addLog("card", `${player.name} drew a Clue Card (${cardName}), but hand is full (${player.clueCards.length}/${maxClues}). Choosing which card to keep...`);
     this.notify();
   }
 
@@ -1212,8 +1213,8 @@ export class GameEngine {
       return;
     }
 
-    // Check Hand Limit (Max 5 Clue Cards)
-    if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 5)) {
+    // Check Hand Limit (Max 3 Clue Cards)
+    if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
       this.promptClueHandLimit(player, card, 'action');
       return;
     }
@@ -1250,11 +1251,11 @@ export class GameEngine {
       artifactId: card.artifactId,
       artifactName: card.artifactName,
       clueCount: player.clueCards.length,
-      maxClues: GAME_CONSTANTS.MAX_CLUE_CARDS || 5,
+      maxClues: GAME_CONSTANTS.MAX_CLUE_CARDS || 3,
       artifactProgress: card.artifactId ? (player.clueProgress?.[card.artifactId] || 1) : 0
     };
 
-    this.addLog('card', `${player.name} drew a Clue Card from ${ERA_NAMES[era]}. (${player.clueCards.length}/5 Clues held)`);
+    this.addLog('card', `${player.name} drew a Clue Card from ${ERA_NAMES[era]}. (${player.clueCards.length}/${GAME_CONSTANTS.MAX_CLUE_CARDS || 3} Clues held)`);
     this.state.phase = 'action';
     this.notify();
   }
@@ -2166,7 +2167,7 @@ export class GameEngine {
       this.notify();
       return;
     }
-    if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 5)) {
+    if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
       this.promptClueHandLimit(player, card, 'action');
       return;
     }

@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import sounds from '../../sound.js';
-import { ERA_NAMES } from '../../gameData.js';
+import { ERA_NAMES, GAME_CONSTANTS } from '../../gameData.js';
 
 function PlayerHand({
   viewedPlayer,
@@ -33,7 +33,7 @@ function PlayerHand({
             className={`tab-btn ${activeHandTab === 'clues' ? 'active' : ''}`}
             onClick={() => { sounds.btnClick(); onChangeTab('clues'); }}
           >
-            🔍 Clues ({clueCards.length}/5)
+            🔍 Clues ({clueCards.length}/{GAME_CONSTANTS.MAX_CLUE_CARDS || 3})
           </button>
           <button
             className={`tab-btn ${activeHandTab === 'artifacts' ? 'active' : ''}`}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import sounds from '../sound.js';
-import { ERA_NAMES, ARTIFACTS } from '../gameData.js';
+import { ERA_NAMES, ARTIFACTS, GAME_CONSTANTS } from '../gameData.js';
 import Dice from './game/Dice';
 
 export function MaximizedCardPreview({ data, onClose }) {
@@ -2585,7 +2585,7 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
           {isClueHandLimit && choice.drawnCard && (
             <div style={{ marginTop: "8px", padding: "8px 10px", background: "rgba(239, 68, 68, 0.1)", borderRadius: "6px", border: "1px solid rgba(239, 68, 68, 0.3)" }}>
               <div style={{ fontSize: "0.72rem", color: "#F87171", fontWeight: 700, textTransform: "uppercase" }}>
-                🎴 Hand Limit (5/5) Reached
+                🎴 Hand Limit ({GAME_CONSTANTS.MAX_CLUE_CARDS || 3}/{GAME_CONSTANTS.MAX_CLUE_CARDS || 3}) Reached
               </div>
               <div style={{ fontSize: "0.75rem", color: "#E2E8F0", marginTop: "3px" }}>
                 {isSpectator ? (
@@ -2690,7 +2690,7 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
       <div className="modal-overlay" id="active-modal">
         <div className="modal" style={{ maxWidth: "800px", width: "95%", maxHeight: "90vh", overflowY: "auto", boxSizing: "border-box" }}>
           <div className="modal-title" style={{ color: "#F5C442", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-            <span>🎴</span> Hand Limit Reached (5/5 Clue Cards)
+            <span>🎴</span> Hand Limit Reached ({GAME_CONSTANTS.MAX_CLUE_CARDS || 3}/{GAME_CONSTANTS.MAX_CLUE_CARDS || 3} Clue Cards)
           </div>
 
           <div className="modal-body" style={{ textAlign: "center", marginBottom: "var(--space-md)" }}>
@@ -3745,10 +3745,10 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                       </div>
                     )}
 
-                    {!chosen.isDecoy && (activePlayer?.clueCards?.length || 0) >= 5 && (
+                    {!chosen.isDecoy && (activePlayer?.clueCards?.length || 0) >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3) && (
                       <div style={{ background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: '6px', padding: '8px 10px', fontSize: '0.78rem', color: '#FCD34D', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left' }}>
                         <span>⚠️</span>
-                        <span><strong>Hand Limit Full (5/5 Clues):</strong> Taking this card will trigger the discard selection modal to replace a card.</span>
+                        <span><strong>Hand Limit Full ({GAME_CONSTANTS.MAX_CLUE_CARDS || 3}/{GAME_CONSTANTS.MAX_CLUE_CARDS || 3} Clues):</strong> Taking this card will trigger the discard selection modal to replace a card.</span>
                       </div>
                     )}
 

@@ -265,10 +265,6 @@ export default function GuideModal({ onClose }) {
                     <span style={{ color: '#E2E8F0' }}>Move Step (Manual)</span>
                     <kbd style={{ background: '#140E0A', border: '1px solid #5A422D', color: '#CBD5E1', padding: '2px 7px', borderRadius: '3px', fontFamily: 'var(--font-display)', fontSize: '0.68rem' }}>&larr; / &rarr;</kbd>
                   </div>
-                  <div style={{ padding: '8px 10px', background: '#251B12', border: '1px solid #4A3522', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#E2E8F0' }}>Diagnostics Console</span>
-                    <kbd style={{ background: '#140E0A', border: '1px solid #5A422D', color: '#CBD5E1', padding: '2px 7px', borderRadius: '3px', fontFamily: 'var(--font-display)', fontSize: '0.68rem' }}>` or F2</kbd>
-                  </div>
                 </div>
               </div>
             </div>

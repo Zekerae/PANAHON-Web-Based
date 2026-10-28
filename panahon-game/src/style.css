@@ -1004,7 +1004,7 @@ body {
   width: 100%;
   height: 100%;
   display: grid;
-  grid-template-columns: 250px 1fr 270px;
+  grid-template-columns: 295px 1fr 270px;
   grid-template-rows: 48px 1fr 220px;
   grid-template-areas:
     "header header header"
@@ -1101,49 +1101,89 @@ body {
 }
 
 .timeline-meter-label {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  font-family: var(--font-display) !important;
+  font-size: 0.66rem !important;
+  font-weight: 700 !important;
+  color: #C2974D !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.8px !important;
+  text-shadow: 1px 1px 0 #000;
 }
 
 .timeline-meter-bar {
-  width: 180px;
-  height: 12px;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid var(--border-glass);
-  position: relative;
+  width: 150px !important;
+  height: 11px !important;
+  background: rgba(0, 0, 0, 0.65) !important;
+  border-radius: 3px !important;
+  overflow: hidden !important;
+  border: 1.5px solid #5A422D !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  position: relative !important;
 }
 
 .timeline-meter-fill {
-  height: 100%;
-  border-radius: 6px;
-  transition: width var(--transition-slow), background var(--transition-slow);
-  position: relative;
+  height: 100% !important;
+  border-radius: 2px !important;
+  transition: width var(--transition-slow), background var(--transition-slow) !important;
+  position: relative !important;
 }
 
 .timeline-meter-fill.safe {
-  background: linear-gradient(90deg, var(--timeline-safe), #27AE60);
+  background: linear-gradient(90deg, #10B981, #059669) !important;
 }
 
 .timeline-meter-fill.warn {
-  background: linear-gradient(90deg, var(--timeline-warn), #E67E22);
+  background: linear-gradient(90deg, #F59E0B, #D97706) !important;
 }
 
 .timeline-meter-fill.danger {
-  background: linear-gradient(90deg, var(--timeline-danger), #C0392B);
-  animation: timelineWarning 1s ease-in-out infinite;
+  background: linear-gradient(90deg, #EF4444, #B91C1C) !important;
+  animation: timelineWarning 1s ease-in-out infinite !important;
 }
 
-.timeline-meter-value {
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  min-width: 35px;
-  text-align: center;
+.timeline-meter-value,
+.timeline-meter-val,
+.game-header .timeline-meter-val {
+  font-family: 'Pixelify Sans', var(--font-body), monospace !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.6px !important;
+  color: #F8FAFC !important;
+  white-space: nowrap !important;
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 3px !important;
+  text-shadow: 1px 1px 0 #000, 0 0 6px rgba(0, 0, 0, 0.8) !important;
+}
+
+.timeline-meter-val .timeline-val-current {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  color: #FFFFFF !important;
+  line-height: 1 !important;
+}
+
+.timeline-meter-val .timeline-val-sep {
+  font-size: 1.05rem !important;
+  font-weight: 600 !important;
+  color: #C2974D !important;
+  margin: 0 2px !important;
+}
+
+.timeline-meter-val .timeline-val-max {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  color: #FDE047 !important;
+  line-height: 1 !important;
+}
+
+.timeline-meter-val .timeline-val-unit {
+  font-family: var(--font-display) !important;
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.8px !important;
+  color: #CBD5E1 !important;
+  margin-left: 4px !important;
 }
 
 .game-timer {
@@ -1167,11 +1207,11 @@ body {
   outline: 2px solid #140e0a !important;
   box-shadow: inset 2px 2px 0 #ebc669, inset -2px -2px 0 #7a5823, 0 10px 30px rgba(0, 0, 0, 0.85) !important;
   border-radius: 6px !important;
-  padding: 8px 10px !important;
+  padding: 10px 12px !important;
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 4px !important;
+  gap: 5px !important;
   z-index: var(--z-ui);
   height: 100% !important;
   min-height: 0 !important;
@@ -1182,23 +1222,24 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 2px;
-  padding: 0 2px;
+  margin-bottom: 4px;
+  padding: 0 4px;
   flex-shrink: 0;
 }
 
 .sidebar-players-title {
   font-family: var(--font-display);
-  font-size: 0.65rem;
-  letter-spacing: 0.8px;
+  font-size: 0.76rem;
+  letter-spacing: 1px;
   color: #ffd700;
   text-transform: uppercase;
   text-shadow: 1px 1px 0 #000;
 }
 
 .sidebar-players-count {
-  font-family: var(--font-body);
-  font-size: 0.68rem;
+  font-family: 'Pixelify Sans', var(--font-body), monospace;
+  font-size: 0.74rem;
+  font-weight: 700;
   color: #c2974d;
 }
 
@@ -1208,18 +1249,18 @@ body {
   overflow-y: visible !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 4px !important;
+  gap: 6px !important;
   padding-right: 0 !important;
 }
 
-/* Compact Retro Player Card */
+/* Enlarged & Polished Retro Player Card */
 .player-card {
   background: #19120d !important;
   border: 1px solid #3d2f23 !important;
-  border-left-width: 3.5px !important;
-  border-radius: 4px !important;
-  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.05), inset -1px -1px 0 rgba(0, 0, 0, 0.6), 0 2px 5px rgba(0, 0, 0, 0.5) !important;
-  padding: 4px 6px !important;
+  border-left-width: 4px !important;
+  border-radius: 5px !important;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.05), inset -1px -1px 0 rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.5) !important;
+  padding: 7px 9px !important;
   transition: all var(--transition-fast) !important;
   position: relative !important;
   cursor: pointer !important;
@@ -1228,12 +1269,12 @@ body {
 .player-card:hover {
   background: #241a13 !important;
   border-color: #c2974d !important;
-  transform: translateX(1px) !important;
+  transform: translateX(2px) !important;
 }
 
 .player-card.active-turn {
   border-color: #ffd700 !important;
-  box-shadow: 0 0 10px rgba(255, 215, 0, 0.35), inset 1px 1px 0 rgba(255, 215, 0, 0.2) !important;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.4), inset 1px 1px 0 rgba(255, 215, 0, 0.25) !important;
 }
 
 .player-card.inspected-player {
@@ -1244,18 +1285,20 @@ body {
 .player-card-header {
   display: flex;
   align-items: center;
-  gap: 5px;
-  margin-bottom: 2px;
+  gap: 8px;
+  margin-bottom: 3px;
 }
 
 .player-avatar-small {
-  width: 22px;
-  height: 22px;
-  border-radius: 2px;
+  width: 32px;
+  height: 32px;
+  border-radius: 3px;
   image-rendering: pixelated;
   object-fit: contain;
   flex-shrink: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(194, 151, 77, 0.4);
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.8);
 }
 
 .player-card-info {
@@ -1264,37 +1307,38 @@ body {
   justify-content: center;
   min-width: 0;
   flex: 1;
-  gap: 1px;
+  gap: 2px;
 }
 
 .player-card-name-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   overflow: hidden;
   white-space: nowrap;
 }
 
 .player-card-name {
-  font-family: var(--font-display);
-  font-size: 0.65rem;
+  font-family: 'Pixelify Sans', var(--font-display), monospace;
+  font-size: 0.82rem;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.4px;
+  line-height: 1.15;
 }
 
 .bot-badge-mini,
 .human-badge-mini {
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   line-height: 1;
   flex-shrink: 0;
 }
 
 .you-badge-mini {
   font-family: var(--font-body);
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   color: #ffd700;
   font-weight: 600;
   flex-shrink: 0;
@@ -1302,11 +1346,11 @@ body {
 
 .player-card-role {
   font-family: var(--font-body);
-  font-size: 0.62rem;
-  color: #a8947f;
+  font-size: 0.68rem;
+  color: #bfa892;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  line-height: 1;
+  line-height: 1.1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1321,35 +1365,35 @@ body {
 }
 
 .player-points-badge .points-val {
-  font-family: var(--font-display);
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-family: 'Pixelify Sans', var(--font-body), monospace;
+  font-size: 0.82rem;
+  font-weight: 800;
   color: #ffd700;
   text-shadow: 1px 1px 0 #000;
 }
 
 .player-points-badge .points-unit {
   font-family: var(--font-display);
-  font-size: 0.52rem;
+  font-size: 0.54rem;
   color: #c2974d;
   letter-spacing: 0.5px;
 }
 
 .turn-indicator {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 14px;
-  height: 14px;
+  top: -5px;
+  right: -5px;
+  width: 17px;
+  height: 17px;
   background: #ffd700;
   color: #1a0f0d;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.5rem;
+  font-size: 0.62rem;
   font-weight: 900;
-  box-shadow: 0 0 6px rgba(255, 215, 0, 0.85);
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.9);
   z-index: 10;
   animation: turnPulse 1.2s ease-in-out infinite alternate;
 }
@@ -1359,48 +1403,50 @@ body {
   100% { transform: scale(1.15); box-shadow: 0 0 10px rgba(255, 215, 0, 1); }
 }
 
-/* Compact Dual Stat Bars Row (Energy & Paradox on ONE line) */
+/* Dual Stat Bars Row (Energy & Paradox on ONE line) */
 .player-bars-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  margin-top: 2px;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .compact-bar-group {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   flex: 1;
   min-width: 0;
 }
 
 .compact-bar-label {
   font-family: var(--font-display);
-  font-size: 0.52rem;
-  color: #8c7866;
+  font-size: 0.58rem;
+  color: #9f8a77;
   letter-spacing: 0.5px;
   flex-shrink: 0;
+  font-weight: 700;
 }
 
-.compact-stat-bar {
+.compact-stat-bar,
+.stat-bar.compact-stat-bar {
   flex: 1 1 auto;
-  height: 6px !important;
-  min-width: 24px;
+  height: 8px !important;
+  min-width: 28px;
   background: #140e0a !important;
   border: 1px solid #3d2f23 !important;
-  border-radius: 1px !important;
+  border-radius: 2px !important;
   box-shadow: inset 1px 1px 0 #000 !important;
   overflow: hidden !important;
   position: relative;
 }
 
 .compact-bar-val {
-  font-family: var(--font-display) !important;
-  font-size: 0.54rem !important;
-  font-weight: 800 !important;
-  letter-spacing: 0.5px !important;
+  font-family: 'Pixelify Sans', var(--font-body), monospace !important;
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.3px !important;
   color: #e2e8f0;
   flex-shrink: 0;
 }
@@ -1409,31 +1455,49 @@ body {
   color: #38bdf8;
 }
 
-/* Compact Player Card Footer Row (Era, Clues, Relics) */
+/* Player Card Footer Row (Era, Clues, Relics) */
 .player-card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 2px;
+  margin-top: 4px;
   font-family: var(--font-body);
-  font-size: 0.62rem;
-  color: #8c7866;
+  font-size: 0.68rem;
+  color: #9f8a77;
   line-height: 1.2;
+  gap: 6px;
 }
 
-.footer-era-tag strong,
-.footer-clues-tag strong {
+.footer-era-tag {
+  color: #c2974d;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.footer-clues-tag {
   color: #e2e8f0;
+  white-space: nowrap;
+}
+
+.footer-clues-tag strong {
+  color: #38bdf8;
+  font-family: 'Pixelify Sans', var(--font-body), monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .footer-mission-done {
   color: #34d399;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .footer-relic-tag {
   color: #f59e0b;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 /* Embedded Timeline Comms (Chat) in Left Panel */
@@ -3520,7 +3584,7 @@ body {
 /* Responsive Layout: Desktop to Tablet */
 @media (max-width: 1100px) and (min-width: 921px) {
   .game-screen {
-    grid-template-columns: 200px 1fr 240px;
+    grid-template-columns: 260px 1fr 240px;
   }
 }
 
@@ -7312,7 +7376,9 @@ body {
   }
 
   .game-header .timeline-meter-val {
-    font-size: 0.65rem !important;
+    font-family: 'Pixelify Sans', var(--font-body), monospace !important;
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
     white-space: nowrap !important;
   }
 
@@ -8738,11 +8804,13 @@ body {
 }
 
 .timeline-status-badge {
-  font-size: 0.6rem;
-  font-weight: 800;
-  padding: 1px 6px;
-  border-radius: 4px;
-  letter-spacing: 0.4px;
+  font-family: 'Pixelify Sans', var(--font-body), monospace !important;
+  font-size: 0.68rem !important;
+  font-weight: 800 !important;
+  padding: 2px 7px !important;
+  border-radius: 4px !important;
+  letter-spacing: 0.4px !important;
+  text-transform: uppercase !important;
 }
 
 .timeline-status-badge.status-timeline-low {
@@ -9163,7 +9231,7 @@ html, body, #app, .app-root {
 }
 
 .stat-bar.compact-stat-bar {
-  height: 6px !important;
+  height: 8px !important;
   border: 1px solid #3d2f23 !important;
 }
 
@@ -10249,8 +10317,8 @@ html, body, #app, .app-root {
   display: inline-block;
   padding: 6px 14px;
   border-radius: 4px;
-  font-family: var(--font-display) !important;
-  font-size: 0.65rem !important;
+  font-family: 'Pixelify Sans', var(--font-body), monospace !important;
+  font-size: 0.78rem !important;
   font-weight: 800 !important;
   letter-spacing: 0.5px;
   line-height: 1.35;
@@ -10296,38 +10364,50 @@ html, body, #app, .app-root {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
-  font-family: var(--font-display);
+  font-family: 'Pixelify Sans', var(--font-body), monospace !important;
 }
 
 .paradox-meter-title {
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  color: #EBD07D;
+  font-family: var(--font-display) !important;
+  font-size: 0.65rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.8px !important;
+  color: #EBD07D !important;
+  text-transform: uppercase !important;
 }
 
 .paradox-meter-count {
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-family: 'Pixelify Sans', var(--font-body), monospace !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 3px !important;
 }
 
 .paradox-meter-count .old-count {
-  color: #B8A892;
+  color: #B8A892 !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
 }
 
 .paradox-meter-count .arrow-sep {
-  margin: 0 4px;
-  color: #C2974D;
+  margin: 0 4px !important;
+  color: #C2974D !important;
+  font-size: 0.95rem !important;
 }
 
 .paradox-meter-count .new-count {
-  color: #EF4444;
-  font-size: 0.8rem;
-  text-shadow: 1px 1px 0 #120E0A;
+  color: #EF4444 !important;
+  font-size: 1.20rem !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 6px rgba(239, 68, 68, 0.5) !important;
 }
 
 .paradox-meter-count .max-count {
-  color: #B8A892;
+  color: #E2E8F0 !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
 }
 
 .paradox-pip-bar {
@@ -10341,7 +10421,7 @@ html, body, #app, .app-root {
   border: 2px solid #3D2F23;
   border-radius: 4px;
   box-shadow: inset 1px 1px 0 #000;
-  padding: 5px 3px;
+  padding: 6px 3px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -10350,10 +10430,11 @@ html, body, #app, .app-root {
 }
 
 .paradox-pip-slot .pip-level-num {
-  font-family: var(--font-display);
-  font-size: 0.54rem;
-  font-weight: 800;
-  color: #B8A892;
+  font-family: var(--font-display) !important;
+  font-size: 0.54rem !important;
+  font-weight: 800 !important;
+  color: #B8A892 !important;
+  letter-spacing: 0.5px !important;
 }
 
 .paradox-pip-slot .pip-gem {
@@ -10371,11 +10452,11 @@ html, body, #app, .app-root {
 }
 
 .paradox-pip-slot .pip-penalty-tag {
-  font-family: var(--font-display);
-  font-size: 0.52rem;
-  font-weight: 700;
-  color: #8C7A68;
-  white-space: nowrap;
+  font-family: 'Pixelify Sans', var(--font-body), monospace !important;
+  font-size: 0.62rem !important;
+  font-weight: 700 !important;
+  color: #A89582 !important;
+  white-space: nowrap !important;
 }
 
 .paradox-pip-slot.filled {
@@ -12390,4 +12471,293 @@ html, body, #app, .app-root {
     margin-top: 10px !important;
     justify-content: center !important;
   }
+}
+
+/* ===== PANAHON: FIFO ARTIFACT RANKING & PARADOX AURA SYSTEM ===== */
+
+/* Paradox Visual Auras on HUD */
+@keyframes paradoxCalmBreath {
+  0%, 100% {
+    box-shadow: inset 0 0 4px rgba(52, 211, 153, 0.2), 0 0 8px rgba(52, 211, 153, 0.15);
+  }
+  50% {
+    box-shadow: inset 0 0 8px rgba(52, 211, 153, 0.35), 0 0 14px rgba(52, 211, 153, 0.3);
+  }
+}
+
+@keyframes paradoxFrictionJitter {
+  0%, 100% {
+    transform: translate(0, 0);
+    box-shadow: inset 0 0 6px rgba(245, 158, 11, 0.25), 0 0 8px rgba(245, 158, 11, 0.2);
+  }
+  25% {
+    transform: translate(-0.5px, 0.5px);
+    box-shadow: inset 0 0 8px rgba(245, 158, 11, 0.35), 0 0 12px rgba(245, 158, 11, 0.3);
+  }
+  75% {
+    transform: translate(0.5px, -0.5px);
+    box-shadow: inset 0 0 6px rgba(245, 158, 11, 0.3), 0 0 10px rgba(245, 158, 11, 0.25);
+  }
+}
+
+@keyframes paradoxStrainPulse {
+  0%, 100% {
+    box-shadow: inset 0 0 8px rgba(249, 115, 22, 0.35), 0 0 12px rgba(249, 115, 22, 0.3);
+    border-color: rgba(249, 115, 22, 0.6);
+  }
+  50% {
+    box-shadow: inset 0 0 14px rgba(249, 115, 22, 0.55), 0 0 18px rgba(249, 115, 22, 0.5);
+    border-color: #f97316;
+  }
+}
+
+@keyframes paradoxAnomalyRift {
+  0%, 100% {
+    box-shadow: inset 0 0 10px rgba(239, 68, 68, 0.45), 0 0 16px rgba(239, 68, 68, 0.45);
+    border-color: #ef4444;
+  }
+  50% {
+    box-shadow: inset 0 0 18px rgba(239, 68, 68, 0.7), 0 0 24px rgba(239, 68, 68, 0.65);
+    border-color: #f87171;
+  }
+}
+
+@keyframes paradoxCriticalBreach {
+  0%, 100% {
+    box-shadow: inset 0 0 14px rgba(220, 38, 38, 0.6), 0 0 22px rgba(239, 68, 68, 0.6);
+    filter: drop-shadow(0 0 8px rgba(220, 38, 38, 0.6));
+  }
+  50% {
+    box-shadow: inset 0 0 22px rgba(220, 38, 38, 0.85), 0 0 32px rgba(239, 68, 68, 0.85);
+    filter: drop-shadow(0 0 14px rgba(220, 38, 38, 0.85));
+  }
+}
+
+.paradox-aura-stable {
+  animation: paradoxCalmBreath 3.5s ease-in-out infinite;
+}
+
+.paradox-aura-friction {
+  animation: paradoxFrictionJitter 1.2s ease-in-out infinite;
+  border-right: 2px solid rgba(245, 158, 11, 0.6) !important;
+}
+
+.paradox-aura-strain {
+  animation: paradoxStrainPulse 1.8s ease-in-out infinite;
+  border-right: 2px solid #f97316 !important;
+}
+
+.paradox-aura-anomaly {
+  animation: paradoxAnomalyRift 1s ease-in-out infinite;
+  border-right: 2px solid #ef4444 !important;
+}
+
+.paradox-aura-critical {
+  animation: paradoxCriticalBreach 0.7s ease-in-out infinite;
+  border-right: 3px solid #dc2626 !important;
+}
+
+/* FIFO Locked-in Rank Badge */
+.player-rank-badge {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  flex-shrink: 0;
+  margin-left: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.player-rank-badge.rank-1 {
+  background: linear-gradient(180deg, #422006 0%, #1A0D02 100%);
+  border: 1.5px solid #F59E0B;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.35), inset 0 1px 0 rgba(254, 240, 138, 0.3);
+}
+
+.player-rank-badge.rank-1 .rank-val {
+  font-family: 'Pixelify Sans', var(--font-body), monospace;
+  color: #FFD700;
+  font-size: 0.84rem;
+  font-weight: 900;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.player-rank-badge.rank-1 .rank-unit {
+  font-family: var(--font-display);
+  color: #FCD34D;
+  font-size: 0.54rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.player-rank-badge.rank-2 {
+  background: linear-gradient(180deg, #1E293B 0%, #0F172A 100%);
+  border: 1.5px solid #CBD5E1;
+  box-shadow: 0 0 8px rgba(203, 213, 225, 0.3);
+}
+
+.player-rank-badge.rank-2 .rank-val {
+  font-family: 'Pixelify Sans', var(--font-body), monospace;
+  color: #E2E8F0;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.player-rank-badge.rank-2 .rank-unit {
+  font-family: var(--font-display);
+  color: #94A3B8;
+  font-size: 0.54rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.player-rank-badge.rank-3 {
+  background: linear-gradient(180deg, #381E11 0%, #170C06 100%);
+  border: 1.5px solid #FB923C;
+  box-shadow: 0 0 8px rgba(251, 146, 60, 0.3);
+}
+
+.player-rank-badge.rank-3 .rank-val {
+  font-family: 'Pixelify Sans', var(--font-body), monospace;
+  color: #FDBA74;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.player-rank-badge.rank-3 .rank-unit {
+  font-family: var(--font-display);
+  color: #EA580C;
+  font-size: 0.54rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.player-rank-badge.rank-4 {
+  background: linear-gradient(180deg, #1E1B2E 0%, #0D0B14 100%);
+  border: 1.5px solid #818CF8;
+  box-shadow: 0 0 8px rgba(129, 140, 248, 0.25);
+}
+
+.player-rank-badge.rank-4 .rank-val {
+  font-family: 'Pixelify Sans', var(--font-body), monospace;
+  color: #A5B4FC;
+  font-size: 0.80rem;
+  font-weight: 900;
+}
+
+.player-rank-badge.rank-4 .rank-unit {
+  font-family: var(--font-display);
+  color: #6366F1;
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+/* Mission Phase Badge */
+.player-mission-phase-badge {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 4px;
+  background: #140E0A;
+  border: 1px solid #5A422D;
+  padding: 3px 7px;
+  border-radius: 4px;
+}
+
+.player-mission-phase-badge .phase-val {
+  font-family: 'Pixelify Sans', var(--font-body), monospace;
+  font-size: 0.70rem;
+  font-weight: 800;
+  color: #FDE047;
+  letter-spacing: 0.3px;
+}
+
+/* Displaced Artifact & Return Tile Highlights on GameBoard */
+@keyframes displacedBeaconPulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.7), inset 0 0 10px rgba(245, 158, 11, 0.5);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.12);
+    box-shadow: 0 0 24px rgba(245, 158, 11, 0.95), inset 0 0 14px rgba(254, 240, 138, 0.8);
+  }
+}
+
+@keyframes returnBeaconPulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 0 14px rgba(52, 211, 153, 0.7), inset 0 0 10px rgba(52, 211, 153, 0.5);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.12);
+    box-shadow: 0 0 24px rgba(52, 211, 153, 0.95), inset 0 0 14px rgba(167, 243, 208, 0.8);
+  }
+}
+
+.displaced-target-tile {
+  z-index: 12 !important;
+}
+
+.displaced-target-tile::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 140%;
+  height: 140%;
+  border-radius: 50%;
+  border: 2.5px solid #F59E0B;
+  pointer-events: none;
+  animation: displacedBeaconPulse 1.4s ease-in-out infinite;
+}
+
+.return-target-tile {
+  z-index: 12 !important;
+}
+
+.return-target-tile::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 140%;
+  height: 140%;
+  border-radius: 50%;
+  border: 2.5px solid #34D399;
+  pointer-events: none;
+  animation: returnBeaconPulse 1.4s ease-in-out infinite;
+}
+
+/* Floating Banner Beacons on Target Tiles */
+.artifact-target-beacon {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-family: var(--font-display);
+  font-size: 0.58rem;
+  font-weight: 900;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 15;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.artifact-target-beacon.displaced-beacon {
+  background: #451A03;
+  border: 1.5px solid #F59E0B;
+  color: #FEF08A;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+}
+
+.artifact-target-beacon.return-beacon {
+  background: #064E3B;
+  border: 1.5px solid #34D399;
+  color: #A7F3D0;
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
 }

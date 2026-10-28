@@ -359,13 +359,31 @@ function GameScreen({
 
   const handleReturnArtifact = useCallback(() => {
     if (state.phase !== 'action' || !isMyTurn) return;
-    const matchingArt = currentPlayer.artifactCards.find(a => a.era === currentPlayer.currentEra);
+    const matchingArt = currentPlayer.artifactCards.find(a => (a.originEra || a.era) === currentPlayer.currentEra);
     if (matchingArt) {
       sounds.artifact();
       engine.returnArtifact(state.currentPlayerIndex, matchingArt.id);
       network.sendAction({ type: 'RETURN_ARTIFACT', playerIdx: state.currentPlayerIndex, artifactId: matchingArt.id });
     }
   }, [state.phase, isMyTurn, currentPlayer, state.currentPlayerIndex, engine, network]);
+
+  const handleCoopStabilizeTimeline = useCallback(() => {
+    if (!isMyTurn || !currentPlayer?.completed) return;
+    sounds.portal();
+    engine.coopStabilizeTimeline(state.currentPlayerIndex);
+    if (network && network.mode === 'online') {
+      network.sendAction({ type: 'COOP_STABILIZE_TIMELINE', playerIdx: state.currentPlayerIndex });
+    }
+  }, [isMyTurn, currentPlayer, engine, state?.currentPlayerIndex, network]);
+
+  const handleCoopTransferEnergy = useCallback((targetPlayerId, amount = 2) => {
+    if (!isMyTurn || !currentPlayer?.completed) return;
+    sounds.btnClick();
+    engine.coopTransferEnergy(state.currentPlayerIndex, targetPlayerId, amount);
+    if (network && network.mode === 'online') {
+      network.sendAction({ type: 'COOP_TRANSFER_ENERGY', fromIdx: state.currentPlayerIndex, toIdx: targetPlayerId, amount });
+    }
+  }, [isMyTurn, currentPlayer, engine, state?.currentPlayerIndex, network]);
 
   const handleEndTurn = useCallback(() => {
     if (state.phase !== 'action' || !isMyTurn) {
@@ -782,6 +800,8 @@ function GameScreen({
         onAcknowledgeSkip={handleAcknowledgeSkip}
         onUseSkill={handleUseSkill}
         onReturnArtifact={handleReturnArtifact}
+        onCoopStabilizeTimeline={handleCoopStabilizeTimeline}
+        onCoopTransferEnergy={handleCoopTransferEnergy}
         onEndTurn={handleEndTurn}
         onTimeWarp={handleTimeWarp}
         isSpectator={effectiveIsSpectator}

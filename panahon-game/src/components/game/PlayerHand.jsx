@@ -84,28 +84,37 @@ function PlayerHand({
               </div>
             </div>
 
-            {viewedPlayer.missionComplete ? (
+            {viewedPlayer.completed ? (
               <div style={{ marginTop: '12px', padding: '10px 14px', background: 'linear-gradient(180deg, #3A2E1E 0%, #20170E 100%)', border: '2px solid #C2974D', borderRadius: '4px', boxShadow: 'inset 1px 1px 0 #EBD07D, 0 4px 12px rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ color: '#FFD700', fontWeight: 800, fontSize: '0.85rem' }}>
-                  🏆 MISSION ACCOMPLISHED (+10 PTS)
+                  🏆 {viewedPlayer.placementRank === 1 ? '1ST' : viewedPlayer.placementRank === 2 ? '2ND' : viewedPlayer.placementRank === 3 ? '3RD' : `${viewedPlayer.placementRank}TH`} PLACE LOCKED IN!
                 </span>
                 <span style={{ fontSize: '0.72rem', color: '#FDE047' }}>
-                  Relic safely returned to {ERA_NAMES[viewedPlayer.mission.targetEra]}
+                  Relic returned to {ERA_NAMES[viewedPlayer.mission.originEra || viewedPlayer.mission.targetEra]}. Assist allies before Timeline Meter exceeds 5 (reaches 6)!
                 </span>
               </div>
             ) : artifactCards.some(a => a.id === viewedPlayer.mission.artifactId) ? (
-              <div style={{ marginTop: '12px', padding: '10px 14px', background: 'linear-gradient(180deg, #352518 0%, #1A120B 100%)', border: '2px solid #C2974D', borderRadius: '4px', boxShadow: 'inset 1px 1px 0 #EBD07D, 0 4px 10px rgba(0,0,0,0.5)' }}>
-                <div style={{ color: '#FFD700', fontWeight: 800, fontSize: '0.82rem', marginBottom: '4px' }}>
-                  📦 RELIC IN POSSESSION!
+              <div style={{ marginTop: '12px', padding: '10px 14px', background: 'linear-gradient(180deg, #352518 0%, #1A120B 100%)', border: '2px solid #5EEAD4', borderRadius: '4px', boxShadow: '0 0 14px rgba(94, 234, 212, 0.3)' }}>
+                <div style={{ color: '#5EEAD4', fontWeight: 800, fontSize: '0.84rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>📦</span> PHASE 3: RETURN TO ORIGIN ERA ({ERA_NAMES[viewedPlayer.mission.originEra || viewedPlayer.mission.targetEra]})
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#FDE68A' }}>
-                  You hold the <strong>{viewedPlayer.mission.artifactNickname}</strong>! Travel to the <strong>{ERA_NAMES[viewedPlayer.mission.targetEra]}</strong> and click <strong>Return Relic</strong> in your action panel to complete your mission.
+                  You hold the <strong>{viewedPlayer.mission.artifactNickname}</strong>! Travel back to its native <strong>{ERA_NAMES[viewedPlayer.mission.originEra || viewedPlayer.mission.targetEra]}</strong> and land on the Artifact/Return Tile to restore history and lock in your FIFO placement!
+                </div>
+              </div>
+            ) : (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) >= 3 ? (
+              <div style={{ marginTop: '12px', padding: '10px 14px', background: 'linear-gradient(180deg, #422006 0%, #1E120A 100%)', border: '2px solid #F59E0B', borderRadius: '4px', boxShadow: '0 0 14px rgba(245, 158, 11, 0.35)' }}>
+                <div style={{ color: '#FCD34D', fontWeight: 800, fontSize: '0.84rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>📍</span> PHASE 2: RETRIEVAL IN DISPLACED ERA
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#FEF08A' }}>
+                  Research complete (3/3 Clues)! The <strong>{viewedPlayer.mission.artifactNickname}</strong> has materialized in the <strong>{ERA_NAMES[viewedPlayer.mission.displacedEra]}</strong>! Travel there via Time Gate and land on the Artifact Tile to claim it!
                 </div>
               </div>
             ) : (
               <div className="mission-progress" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span className="mission-progress-text" style={{ fontWeight: 700, color: "#E5C58A" }}>Ancient Intel Acquisition:</span>
+                  <span className="mission-progress-text" style={{ fontWeight: 700, color: "#E5C58A" }}>Phase 1 Research: Clues from {ERA_NAMES[viewedPlayer.mission.originEra || viewedPlayer.mission.targetEra]}</span>
                   <span style={{ fontSize: "0.74rem", fontWeight: 800, color: (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) >= 3 ? "#4ADE80" : "#FACC15" }}>
                     {isViewingSelf
                       ? `${viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0}/3 Decoded`

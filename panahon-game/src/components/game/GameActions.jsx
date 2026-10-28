@@ -19,6 +19,8 @@ function GameActions({
   onAcknowledgeSkip,
   onUseSkill,
   onReturnArtifact,
+  onCoopStabilizeTimeline,
+  onCoopTransferEnergy,
   onEndTurn,
   onTimeWarp,
   isSpectator = false,
@@ -293,7 +295,11 @@ function GameActions({
                       </span>
                     </div>
                     <div style={{ fontSize: "0.62rem", color: "#C8B293", marginTop: "1px" }}>
-                      <strong style={{ color: "#FFD700" }}>{p.points}</strong> pts &bull; {p.clueCards?.length || 0}/5 clues
+                      {p.completed ? (
+                        <strong style={{ color: "#FFD700" }}>🏆 {p.placementRank === 1 ? '1st' : p.placementRank === 2 ? '2nd' : p.placementRank === 3 ? '3rd' : `${p.placementRank}th`} Place</strong>
+                      ) : (
+                        <span>🔍 <strong style={{ color: "#FFD700" }}>{(p.mission && p.clueProgress?.[p.mission.artifactId]) || 0}/3</strong> clues</span>
+                      )}
                     </div>
                   </div>
                   {isTurn && (
@@ -639,8 +645,144 @@ function GameActions({
             </div>
           </div>
 
-          {/* ACTION BUTTONS: ACKNOWLEDGE SKIP IF SKIPPED, REST IF EXHAUSTED, ROLL/REST OTHERWISE */}
-          {isSkipped ? (
+          {/* ACTION BUTTONS: COOPERATIVE COMMAND IF COMPLETED, ACKNOWLEDGE SKIP IF SKIPPED, REST IF EXHAUSTED, ROLL/REST OTHERWISE */}
+          {currentPlayer.completed ? (
+            <div className="coop-command-center" style={{
+              background: 'linear-gradient(180deg, #1A120B 0%, #0D0906 100%)',
+              border: '2px solid #C2974D',
+              borderRadius: '6px',
+              padding: '12px',
+              boxShadow: 'inset 1px 1px 0 rgba(235, 198, 105, 0.2), 0 4px 14px rgba(0,0,0,0.6)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              marginBottom: '10px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '1.2rem' }}>🏆</span>
+                  <div>
+                    <div style={{ color: '#FFD700', fontWeight: 900, fontSize: '0.86rem', fontFamily: 'var(--font-display)', letterSpacing: '0.5px' }}>
+                      {currentPlayer.placementRank === 1 ? '1ST' : currentPlayer.placementRank === 2 ? '2ND' : currentPlayer.placementRank === 3 ? '3RD' : `${currentPlayer.placementRank}TH`} PLACE LOCKED IN!
+                    </div>
+                    <div style={{ fontSize: '0.66rem', color: '#C8B293' }}>
+                      Historical Directive Restored &bull; Cooperative Actions
+                    </div>
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: '0.64rem',
+                  background: '#38271A',
+                  border: '1px solid #F5C442',
+                  color: '#FFD700',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  fontWeight: 800
+                }}>
+                  {currentPlayer.energy}⚡ EN
+                </span>
+              </div>
+
+              <div style={{ fontSize: '0.70rem', color: '#E5C58A', lineHeight: 1.4, background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '4px', border: '1px solid rgba(194, 151, 77, 0.25)' }}>
+                Help remaining castaways return their mission relics before the <strong>Shared Timeline Meter exceeds 5 (reaches 6)</strong> (Global Collapse)!
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <button
+                  className="btn"
+                  disabled={!isMyTurn || currentPlayer.energy < 2 || (state.timelineMeter <= 0)}
+                  onClick={() => { sounds.portal?.(); onCoopStabilizeTimeline?.(); }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    fontSize: '0.76rem',
+                    fontWeight: 800,
+                    background: (isMyTurn && currentPlayer.energy >= 2 && state.timelineMeter > 0)
+                      ? 'linear-gradient(180deg, #1E3A8A 0%, #0F172A 100%)'
+                      : '#181E29',
+                    border: (isMyTurn && currentPlayer.energy >= 2 && state.timelineMeter > 0)
+                      ? '1.5px solid #38BDF8'
+                      : '1px solid #334155',
+                    color: (isMyTurn && currentPlayer.energy >= 2 && state.timelineMeter > 0) ? '#38BDF8' : '#64748B',
+                    borderRadius: '4px',
+                    cursor: (isMyTurn && currentPlayer.energy >= 2 && state.timelineMeter > 0) ? 'pointer' : 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                  title="Spend 2 Energy to reduce Shared Timeline Breach by 1"
+                >
+                  <span>🌀 Stabilize Timeline Breach</span>
+                  <span style={{ fontSize: '0.66rem', background: 'rgba(0,0,0,0.4)', padding: '2px 6px', borderRadius: '3px' }}>-2 EN &bull; -1 Breach</span>
+                </button>
+
+                {state.players.filter(p => !p.completed && p.id !== currentPlayer.id).map(teammate => (
+                  <button
+                    key={teammate.id}
+                    className="btn"
+                    disabled={!isMyTurn || currentPlayer.energy < 2}
+                    onClick={() => { sounds.btnClick?.(); onCoopTransferEnergy?.(teammate.id, 2); }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      fontSize: '0.74rem',
+                      fontWeight: 800,
+                      background: (isMyTurn && currentPlayer.energy >= 2)
+                        ? 'linear-gradient(180deg, #352518 0%, #1A120B 100%)'
+                        : '#1A1512',
+                      border: (isMyTurn && currentPlayer.energy >= 2) ? '1.5px solid #F5C442' : '1px solid #4A3423',
+                      color: (isMyTurn && currentPlayer.energy >= 2) ? '#FFD700' : '#6B7280',
+                      borderRadius: '4px',
+                      cursor: (isMyTurn && currentPlayer.energy >= 2) ? 'pointer' : 'not-allowed',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                    title={`Transfer 2 Energy to ${teammate.name}`}
+                  >
+                    <span>⚡ Send 2 Energy to <strong>{teammate.name}</strong> ({teammate.energy}⚡)</span>
+                    <span style={{ fontSize: '0.64rem', background: 'rgba(0,0,0,0.4)', padding: '2px 5px', borderRadius: '3px' }}>-2 EN</span>
+                  </button>
+                ))}
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+                  <button
+                    className="btn"
+                    disabled={!isMyTurn || currentPlayer.energy >= 10}
+                    onClick={() => { sounds.btnClick?.(); onRest?.(); }}
+                    style={{
+                      flex: 1,
+                      padding: '8px',
+                      fontSize: '0.74rem',
+                      fontWeight: 800,
+                      background: 'linear-gradient(180deg, #2A1F16 0%, #17110C 100%)',
+                      border: '1px solid #735E4E',
+                      color: '#E5C58A',
+                      borderRadius: '4px',
+                      cursor: isMyTurn ? 'pointer' : 'not-allowed'
+                    }}
+                  >
+                    ⛺ Rest (+3 EN)
+                  </button>
+
+                  <button
+                    className="btn btn-secondary"
+                    disabled={!isMyTurn}
+                    onClick={() => { sounds.turnChange?.(); onEndTurn?.(); }}
+                    style={{
+                      flex: 1,
+                      padding: '8px',
+                      fontSize: '0.74rem',
+                      fontWeight: 800,
+                      cursor: isMyTurn ? 'pointer' : 'not-allowed'
+                    }}
+                  >
+                    👁️ Pass Turn ➔
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : isSkipped ? (
             isTimeStopped ? (
               <button
                 className="btn btn-primary animate-glow"
@@ -1335,7 +1477,7 @@ function GameActions({
                   <span>Return Matching Relic: <strong>{matchingArtifact.name}</strong></span>
                 </span>
                 <span style={{ fontSize: "0.68rem", background: "#140E0A", border: "1px solid #8C6239", color: "#F5C442", padding: "2px 6px", borderRadius: "3px" }}>
-                  +5 Points
+                  Restore Timeline &bull; Lock FIFO Rank
                 </span>
               </button>
             )}

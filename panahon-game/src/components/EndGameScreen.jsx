@@ -7,8 +7,8 @@ export default function EndGameScreen({ state, onPlayAgain, onBackMenu, isSpecta
   if (!state) return null;
 
   const isCollapse = state.endReason === 'collapse' || state.timelineMeter > 5;
-  const sortedPlayers = [...state.players].sort((a, b) => b.points - a.points);
-  const winner = isCollapse ? null : sortedPlayers[0];
+  const sortedPlayers = [...state.players].sort((a, b) => (a.placementRank || 99) - (b.placementRank || 99));
+  const winner = isCollapse ? null : (sortedPlayers.find(p => p.placementRank === 1) || sortedPlayers[0]);
 
   useEffect(() => {
     if (!isSpectator && state) {
@@ -93,7 +93,7 @@ export default function EndGameScreen({ state, onPlayAgain, onBackMenu, isSpecta
             : '0 0 25px rgba(245, 158, 11, 0.6)'
         }}
       >
-        {isCollapse ? 'TEMPORAL COLLAPSE: TIMELINE BREACH CRITICAL' : 'TIMELINE RESTORATION ACCOMPLISHED'}
+        {isCollapse ? '💀 TIMELINE COLLAPSE: ALL OPERATIVES LOST 💀' : '🏆 TIMELINE RESTORATION ACCOMPLISHED'}
       </h1>
 
       <p
@@ -107,11 +107,11 @@ export default function EndGameScreen({ state, onPlayAgain, onBackMenu, isSpecta
         }}
       >
         {isCollapse
-          ? 'Cumulative paradox turbulence exceeded critical threshold (Breach Level 5). The archipelagic chronological continuum shattered into entropy, and all operative signals were lost in the temporal void.'
-          : `Spacetime equilibrium has been successfully re-anchored. Congratulations to Operative ${winner?.name || 'Unknown'} (${winner?.role?.name || 'Specialist'}) for achieving the highest temporal stability rating.`}
+          ? 'GLOBAL LOSE OVERRIDE: The Shared Timeline Breach surpassed stability limits (exceeded 5)! Spacetime stability shattered into total entropy. ALL operatives lose the expedition regardless of individual FIFO placement rank.'
+          : `Spacetime equilibrium has been successfully re-anchored through the FIFO Artifact Return Protocol! Congratulations to Operative ${winner?.name || 'Unknown'} (${winner?.role?.name || 'Specialist'}) for securing 1st Place!` }
       </p>
 
-      {/* Operative Debrief Scoreboard */}
+      {/* Operative Debrief: FIFO Placement Rankings */}
       <div
         style={{
           width: '100%',
@@ -122,18 +122,27 @@ export default function EndGameScreen({ state, onPlayAgain, onBackMenu, isSpecta
           marginBottom: '32px'
         }}
       >
-        {sortedPlayers.map((p, rank) => {
-          const isWinner = !isCollapse && rank === 0;
+        {sortedPlayers.map((p, idx) => {
+          const placementRank = p.placementRank || (idx + 1);
+          const isWinner = !isCollapse && placementRank === 1;
+          const rankStr = placementRank === 1 ? '1st' : placementRank === 2 ? '2nd' : placementRank === 3 ? '3rd' : `${placementRank}th`;
+
+          const rankColor = placementRank === 1
+            ? '#F59E0B'
+            : (placementRank === 2 ? '#CBD5E1' : (placementRank === 3 ? '#FB923C' : '#94A3B8'));
+
           return (
             <div
-              key={p.id ?? rank}
+              key={p.id ?? idx}
               style={{
-                background: isWinner
-                  ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(15, 23, 42, 0.85))'
-                  : 'rgba(15, 23, 42, 0.75)',
-                border: isWinner
-                  ? '1.5px solid #F59E0B'
-                  : '1px solid rgba(255, 255, 255, 0.1)',
+                background: isCollapse
+                  ? 'rgba(30, 10, 10, 0.75)'
+                  : (isWinner
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(15, 23, 42, 0.88))'
+                    : 'rgba(15, 23, 42, 0.75)'),
+                border: isCollapse
+                  ? '1px solid rgba(239, 68, 68, 0.3)'
+                  : (isWinner ? '1.5px solid #F59E0B' : '1px solid rgba(255, 255, 255, 0.1)'),
                 borderRadius: '10px',
                 padding: '14px 18px',
                 display: 'flex',
@@ -148,25 +157,26 @@ export default function EndGameScreen({ state, onPlayAgain, onBackMenu, isSpecta
               {/* Rank Badge */}
               <div
                 style={{
-                  width: '36px',
-                  height: '36px',
+                  width: '42px',
+                  height: '42px',
                   borderRadius: '8px',
-                  background: isWinner ? '#F59E0B' : 'rgba(255, 255, 255, 0.06)',
-                  color: isWinner ? '#000' : '#94A3B8',
+                  background: isCollapse ? 'rgba(239, 68, 68, 0.15)' : (isWinner ? '#F59E0B' : 'rgba(255, 255, 255, 0.08)'),
+                  border: isCollapse ? '1px solid #EF4444' : `1px solid ${rankColor}`,
+                  color: isCollapse ? '#EF4444' : (isWinner ? '#000' : rankColor),
                   fontWeight: 900,
-                  fontSize: '1rem',
+                  fontSize: '0.95rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontFamily: 'var(--font-display)'
                 }}
               >
-                #{rank + 1}
+                {isCollapse ? '💀' : rankStr}
               </div>
 
               {/* Operative Avatar */}
               <img
-                src={p.role.avatar}
+                src={p.role?.avatar}
                 alt={p.name}
                 style={{
                   width: '48px',
@@ -178,56 +188,61 @@ export default function EndGameScreen({ state, onPlayAgain, onBackMenu, isSpecta
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
 
-              {/* Operative Info & Breakdown */}
+              {/* Operative Info & Mission Metrics */}
               <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '1rem', fontWeight: 800, color: p.color || '#FFF' }}>
                     {p.name}
                   </span>
                   {isWinner && (
                     <span style={{ fontSize: '0.68rem', background: '#F59E0B', color: '#000', fontWeight: 900, padding: '2px 7px', borderRadius: '10px' }}>
-                      👑 SUPREME OPERATIVE
+                      👑 1ST PLACE OPERATIVE
+                    </span>
+                  )}
+                  {p.completed ? (
+                    <span style={{ fontSize: '0.66rem', background: 'rgba(52, 211, 153, 0.18)', border: '1px solid #34D399', color: '#6EE7B7', fontWeight: 700, padding: '2px 6px', borderRadius: '4px' }}>
+                      ✓ RELIC RESTORED
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '0.66rem', background: 'rgba(248, 113, 113, 0.15)', border: '1px solid #F87171', color: '#FCA5A5', fontWeight: 700, padding: '2px 6px', borderRadius: '4px' }}>
+                      ⏳ UNFINISHED
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: '0.74rem', color: '#64748B', marginBottom: '6px' }}>
-                  {p.role.name}
+
+                <div style={{ fontSize: '0.74rem', color: '#94A3B8', margin: '2px 0 6px' }}>
+                  {p.role?.name} &bull; Mission: <strong style={{ color: '#E2E8F0' }}>{p.mission?.artifactNickname || p.mission?.artifactName || 'Relic'}</strong>
                 </div>
 
-                {/* Metric Breakdown Chips */}
+                {/* Progress Breakdown Chips */}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '0.72rem' }}>
-                  <span style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 7px', borderRadius: '4px', color: '#CBD5E1' }}>
-                    Directive: <strong style={{ color: p.missionComplete ? '#34D399' : '#F87171' }}>{p.missionComplete ? '+10' : '-5'}</strong>
+                  <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 7px', borderRadius: '4px', color: '#CBD5E1' }}>
+                    Relic in Hand: <strong style={{ color: p.artifactCards?.length > 0 || p.completed ? '#34D399' : '#94A3B8' }}>{p.completed ? 'Delivered' : (p.artifactCards?.length > 0 ? 'Yes' : 'No')}</strong>
                   </span>
-                  <span style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 7px', borderRadius: '4px', color: '#CBD5E1' }}>
-                    Relics: <strong style={{ color: '#FCD34D' }}>+{p.artifactCards.length * 5}</strong>
+                  <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 7px', borderRadius: '4px', color: '#CBD5E1' }}>
+                    Clues: <strong style={{ color: '#38BDF8' }}>{(p.mission && p.clueProgress?.[p.mission.artifactId]) || 0}/3</strong>
                   </span>
-                  <span style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 7px', borderRadius: '4px', color: '#CBD5E1' }}>
-                    Clues: <strong style={{ color: '#38BDF8' }}>+{p.cluePoints || 0}</strong>
+                  <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 7px', borderRadius: '4px', color: '#CBD5E1' }}>
+                    Paradox: <strong style={{ color: p.paradox <= 1 ? '#34D399' : (p.paradox >= 4 ? '#F87171' : '#F59E0B') }}>Level {p.paradox}/5</strong>
                   </span>
-                  <span style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 7px', borderRadius: '4px', color: '#CBD5E1' }}>
-                    Energy: <strong style={{ color: '#38BDF8' }}>+{p.energy}</strong>
-                  </span>
-                  <span style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 7px', borderRadius: '4px', color: '#CBD5E1' }}>
-                    Paradox: <strong style={{ color: p.paradox <= 1 ? '#34D399' : (p.paradox >= 4 ? '#F87171' : '#CBD5E1') }}>
-                      {p.paradox <= 1 ? '+2' : (p.paradox >= 4 ? '-3' : '0')}
-                    </strong>
+                  <span style={{ background: 'rgba(255,255,255,0.06)', padding: '2px 7px', borderRadius: '4px', color: '#CBD5E1' }}>
+                    Energy: <strong style={{ color: '#38BDF8' }}>{p.energy}⚡</strong>
                   </span>
                 </div>
               </div>
 
-              {/* Total Score */}
-              <div style={{ textAlign: 'right', minWidth: '80px' }}>
+              {/* FIFO Placement Status */}
+              <div style={{ textAlign: 'right', minWidth: '95px' }}>
                 <div style={{
-                  fontSize: '1.4rem',
+                  fontSize: '1.25rem',
                   fontWeight: 900,
                   fontFamily: 'var(--font-display)',
-                  color: isWinner ? '#FCD34D' : '#F8FAFC'
+                  color: isCollapse ? '#EF4444' : rankColor
                 }}>
-                  {p.points}
+                  {isCollapse ? 'LOST' : `${rankStr}`}
                 </div>
-                <div style={{ fontSize: '0.68rem', color: '#64748B', letterSpacing: '1px' }}>
-                  STABILITY
+                <div style={{ fontSize: '0.64rem', color: isCollapse ? '#F87171' : '#94A3B8', letterSpacing: '1px', fontWeight: 800 }}>
+                  {isCollapse ? 'COLLAPSED' : (p.completed ? 'FIFO RESTORED' : 'TIMEOUT')}
                 </div>
               </div>
             </div>

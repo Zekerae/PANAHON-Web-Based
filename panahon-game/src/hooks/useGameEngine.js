@@ -75,6 +75,14 @@ export function useGameEngine(engine) {
     return engine?.returnArtifact(playerIdx, artifactId);
   }, [engine]);
 
+  const coopStabilizeTimeline = useCallback((playerIdx) => {
+    return engine?.coopStabilizeTimeline(playerIdx);
+  }, [engine]);
+
+  const coopTransferEnergy = useCallback((fromIdx, toIdx, amount) => {
+    return engine?.coopTransferEnergy(fromIdx, toIdx, amount);
+  }, [engine]);
+
   const endTurn = useCallback(() => {
     return engine?.endTurn();
   }, [engine]);
@@ -109,6 +117,8 @@ export function useGameEngine(engine) {
     reverseTime,
     rest,
     returnArtifact,
+    coopStabilizeTimeline,
+    coopTransferEnergy,
     endTurn,
     resolveChoice,
     dismissModal,

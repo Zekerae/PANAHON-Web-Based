@@ -139,7 +139,7 @@ export default function GuideModal({ onClose }) {
             { id: 'overview', label: 'Timeline Overview', icon: '🌐' },
             { id: 'roles', label: 'Operative Protocols', icon: '🛡️' },
             { id: 'mechanics', label: 'Temporal Dynamics', icon: '⚡' },
-            { id: 'scoring', label: 'Stability Rating', icon: '🏆' }
+            { id: 'scoring', label: 'FIFO Victory Protocol', icon: '🏆' }
           ].map(tab => {
             const isActive = guideTab === tab.id;
             return (
@@ -305,57 +305,64 @@ export default function GuideModal({ onClose }) {
               <div style={{ background: '#1C1510', boxShadow: 'inset 2px 2px 0 #0F0A07', border: '2px solid #5A422D', borderRadius: '4px', padding: '12px 14px' }}>
                 <h4 style={{ margin: '0 0 6px', color: '#FFD700', fontSize: '0.88rem', fontFamily: 'var(--font-display)' }}>⏳ INDIVIDUAL PARADOX ACCUMULATION (0 - 5)</h4>
                 <div style={{ fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div>&bull; <strong>Level 0-1 (Equilibrium):</strong> Chronological harmony (+2 bonus score at debrief).</div>
-                  <div>&bull; <strong>Level 2 (Minor Friction):</strong> Minor temporal strain (-1 Score penalty).</div>
-                  <div>&bull; <strong>Level 3 (Temporal Drag):</strong> Immediate loss of 1 Chrono Energy.</div>
-                  <div>&bull; <strong>Level 4 (Anomaly Rift):</strong> Immediately draws an unexpected Hazard Anomaly Card.</div>
-                  <div>&bull; <strong>Level 5 (Critical Breach):</strong> Adds +2 to Shared Timeline Breach, inflicts -3 Score penalty, and resets individual meter to Level 2.</div>
+                  <div>&bull; <strong>Level 0-1 (Stable):</strong> Chronological harmony (Visual calm aura on HUD).</div>
+                  <div>&bull; <strong>Level 2 (Minor Friction):</strong> Visual micro-frictions appear on HUD.</div>
+                  <div>&bull; <strong>Level 3 (Temporal Strain):</strong> Chronal friction immediately drains 2 Chrono Energy.</div>
+                  <div>&bull; <strong>Level 4 (Anomaly Trigger):</strong> Immediately draws and resolves a Danger Card from the current era.</div>
+                  <div>&bull; <strong>Level 5 (Critical Breach):</strong> Adds +2 to Shared Timeline Meter, player is Stunned (skips next movement phase), and Paradox resets to Level 2.</div>
                 </div>
               </div>
 
               <div style={{ background: '#2A1412', border: '2px solid #8B251A', boxShadow: 'inset 2px 2px 0 #1A0A09', borderRadius: '4px', padding: '12px 14px' }}>
-                <h4 style={{ margin: '0 0 6px', color: '#EF4444', fontSize: '0.88rem', fontFamily: 'var(--font-display)' }}>💀 CATASTROPHIC BREACH LIMIT (SHARED 0 - 5)</h4>
+                <h4 style={{ margin: '0 0 6px', color: '#EF4444', fontSize: '0.88rem', fontFamily: 'var(--font-display)' }}>💀 GLOBAL TIMELINE COLLAPSE (SHARED 0 - 5)</h4>
                 <p style={{ margin: 0, fontSize: '0.78rem' }}>
-                  <strong>Failure Condition:</strong> When cumulative breaches cause the Shared Timeline Meter to exceed <strong>5 (Breach Level 6)</strong>, chronological stability completely shatters. <strong>Spacetime collapses, and all castaways immediately lose the mission!</strong>
+                  <strong>Global Lose Override:</strong> If the Shared Timeline Meter surpasses <strong>5 (reaches 6 Breach)</strong> at any point, spacetime collapses completely into total entropy. <strong>ALL players immediately lose the game regardless of FIFO placement ranks!</strong>
                 </p>
               </div>
 
               <div style={{ background: '#1C1510', boxShadow: 'inset 2px 2px 0 #0F0A07', border: '2px solid #5A422D', borderRadius: '4px', padding: '12px 14px' }}>
-                <h4 style={{ margin: '0 0 6px', color: '#FFD700', fontSize: '0.88rem', fontFamily: 'var(--font-display)' }}>🔍 ARTIFACT EXCAVATION PROTOCOL</h4>
-                <p style={{ margin: 0, fontSize: '0.78rem' }}>
-                  Operatives must decipher at least <strong>3 Clues</strong> related to a specific historical relic before they can successfully extract it from an Artifact Tile.
-                </p>
+                <h4 style={{ margin: '0 0 6px', color: '#FFD700', fontSize: '0.88rem', fontFamily: 'var(--font-display)' }}>🔍 3-STEP DISPLACED ARTIFACT LOOP</h4>
+                <div style={{ fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <div>&bull; <strong>Phase 1 (Research in Home Era):</strong> Travel to the relic's native Origin Era and gather 3 matching clues from that quadrant's Clue Deck.</div>
+                  <div>&bull; <strong>Phase 2 (Retrieval in Displaced Era):</strong> Relics spawn in a DIFFERENT quadrant than their Origin Era. Once 3 clues are gathered, the Displaced Era is highlighted on your HUD. Travel there via Time Gate and land on the Artifact Tile to claim it!</div>
+                  <div>&bull; <strong>Phase 3 (Return to Origin Era):</strong> Transport the relic back to its native Origin Era and land on the Return/Artifact Tile to restore history and lock in your FIFO placement rank!</div>
+                  <div>&bull; <strong>Contamination Penalties:</strong> Attempting to pick up an artifact before collecting 3 clues, or transporting an artifact into an era that is neither its Displaced Era nor Origin Era, immediately increases Individual Paradox by +1!</div>
+                </div>
               </div>
             </div>
           )}
 
           {guideTab === 'scoring' && (
-            <div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #C2974D', textAlign: 'left' }}>
-                    <th style={{ padding: '8px 6px', color: '#FFD700', fontFamily: 'var(--font-display)' }}>OPERATIONAL MILESTONE</th>
-                    <th style={{ padding: '8px 6px', textAlign: 'right', color: '#FFD700', fontFamily: 'var(--font-display)' }}>STABILITY RATING</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { label: 'Complete Assigned Timeline Mission', pts: '+10', color: '#34D399' },
-                    { label: 'Return Relic to Authentic Timeline', pts: '+5', color: '#34D399' },
-                    { label: 'Complete Secondary Directive', pts: '+2', color: '#34D399' },
-                    { label: 'Authentic Clue Deciphered (per card)', pts: '+1 each', color: '#FFD700' },
-                    { label: 'Chrono Energy Remaining (per unit)', pts: '+1 each', color: '#FFD700' },
-                    { label: 'Paradox Equilibrium Maintained (Level 0-1)', pts: '+2', color: '#34D399' },
-                    { label: 'Paradox Destabilization (Level 4-5)', pts: '-3', color: '#F87171' },
-                    { label: 'Mission Directive Failure', pts: '-5', color: '#EF4444' }
-                  ].map((row, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #3A2C21' }}>
-                      <td style={{ padding: '8px 6px', color: '#F1E3D3' }}>{row.label}</td>
-                      <td style={{ padding: '8px 6px', textAlign: 'right', fontWeight: 800, color: row.color, fontFamily: 'var(--font-display)' }}>{row.pts}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ background: '#1C1510', border: '1.5px solid #C2974D', borderRadius: '4px', padding: '12px 14px' }}>
+                <h4 style={{ margin: '0 0 6px', color: '#FFD700', fontSize: '0.88rem', fontFamily: 'var(--font-display)' }}>🏆 FIFO PLACEMENT RANKING SYSTEM</h4>
+                <p style={{ margin: '0 0 8px', fontSize: '0.78rem', color: '#CBD5E1', lineHeight: 1.4 }}>
+                  Points have been completely replaced with a <strong>First-In, First-Out (FIFO) Placement Queue</strong>:
+                </p>
+                <div style={{ fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div>🥇 <strong>1st Place:</strong> First player to collect 3 clues, claim their target displaced relic, and return it to its native Origin Era.</div>
+                  <div>🥈 <strong>2nd Place:</strong> Second player to successfully restore their mission relic.</div>
+                  <div>🥉 <strong>3rd Place:</strong> Third player to successfully restore their mission relic.</div>
+                  <div>🎖️ <strong>4th Place:</strong> Fourth player to restore relic (or remaining players ranked by: <em>Artifact Acquired &gt; Clues Collected &gt; Lowest Paradox</em> if 40-minute timer expires).</div>
+                </div>
+              </div>
+
+              <div style={{ background: '#1C1510', border: '1.5px solid #38BDF8', borderRadius: '4px', padding: '12px 14px' }}>
+                <h4 style={{ margin: '0 0 6px', color: '#38BDF8', fontSize: '0.88rem', fontFamily: 'var(--font-display)' }}>🤝 COOPERATIVE SPECTATE MODE</h4>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: '#CBD5E1', lineHeight: 1.4 }}>
+                  When you return your relic, your placement rank is locked in! You may then spectate or use cooperative actions on your turn:
+                  <br />&bull; <strong>Stabilize Timeline (-2 Energy):</strong> Reduces Shared Timeline Breach by 1.
+                  <br />&bull; <strong>Energy Transfer (-2 Energy):</strong> Transmit energy to an active operative.
+                  <br />Help your team finish before the Shared Timeline Meter surpasses 5 (reaches 6) to avoid a catastrophic Timeline Collapse!
+                </p>
+              </div>
+
+              <div style={{ background: '#2A1412', border: '1.5px solid #EF4444', borderRadius: '4px', padding: '12px 14px' }}>
+                <h4 style={{ margin: '0 0 6px', color: '#EF4444', fontSize: '0.88rem', fontFamily: 'var(--font-display)' }}>💀 GLOBAL TIMELINE COLLAPSE OVERRIDE</h4>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: '#FCA5A5', lineHeight: 1.4 }}>
+                  If the Shared Timeline Breach surpasses <strong>5 (reaches 6)</strong> at any point in the match, <strong>ALL players immediately lose</strong>, voiding any individual FIFO victory ranks!
+                </p>
+              </div>
             </div>
           )}
         </div>

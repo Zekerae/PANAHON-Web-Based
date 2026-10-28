@@ -645,7 +645,7 @@ export function ProfileModal({ onClose }) {
                             <span style={{ color: "#D4A559", textTransform: "capitalize" }}>{m.era} Era</span>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#C8B293" }}>
-                            <span><strong>{m.points}</strong> pts</span>
+                            <span><strong>{m.rank || (m.outcome === "VICTORY" ? "1st" : "Defeat")}</strong></span>
                             <span>📦 <strong>{m.relics}</strong></span>
                             <span style={{ fontSize: "0.60rem", color: "#796654" }}>{m.date}</span>
                           </div>

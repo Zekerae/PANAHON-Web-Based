@@ -156,6 +156,39 @@ class AiController {
         return;
       }
 
+      // Cooperative Action handling for completed players
+      if (player.completed) {
+        if (state.phase === 'rolling' || state.phase === 'action') {
+          if (state.timelineMeter >= 3 && player.energy >= 2) {
+            sounds.portal?.();
+            engine.coopStabilizeTimeline(player.id);
+            network?.sendAction({ type: 'COOP_STABILIZE_TIMELINE', playerIdx: player.id });
+            this.scheduleAiStep(engine, network, 800);
+            return;
+          }
+          const activeTeammate = state.players.find(p => !p.completed && p.energy < 3);
+          if (activeTeammate && player.energy >= 3) {
+            sounds.btnClick?.();
+            engine.coopTransferEnergy(player.id, activeTeammate.id, 2);
+            network?.sendAction({ type: 'COOP_TRANSFER_ENERGY', fromIdx: player.id, toIdx: activeTeammate.id, amount: 2 });
+            this.scheduleAiStep(engine, network, 800);
+            return;
+          }
+          if (player.energy < 3) {
+            sounds.btnClick?.();
+            engine.rest(player.id);
+            network?.sendAction({ type: 'REST', playerIdx: player.id });
+            this.scheduleAiStep(engine, network, 800);
+            return;
+          }
+          sounds.turnChange?.();
+          engine.endTurn();
+          network?.sendAction({ type: 'END_TURN' });
+          this.scheduleAiStep(engine, network, 600);
+          return;
+        }
+      }
+
       // 4. Rolling Phase (Abilities are strictly used post-movement in Action Phase)
       if (state.phase === 'rolling') {
         // If turn is skipped due to hazard penalty, bot skips turn without rolling!
@@ -267,8 +300,8 @@ class AiController {
 
       // 6. Action Phase
       if (state.phase === 'action') {
-        // A. Check if bot has an artifact matching the current era to return for 5 points!
-        const matchingArtifact = player.artifactCards.find(a => a.era === player.currentEra);
+        // A. Check if bot has an artifact matching the current era to return!
+        const matchingArtifact = player.artifactCards.find(a => (a.originEra || a.era) === player.currentEra);
         if (matchingArtifact) {
           sounds.victory?.();
           engine.returnArtifact(player.id, matchingArtifact.id);
@@ -371,7 +404,9 @@ class AiController {
     }
 
     if (choiceType === 'timeGatePass') {
-      const targetEra = player.mission?.targetEra;
+      const targetEra = player.missionPhase === 2
+        ? player.mission?.displacedEra
+        : (player.mission?.originEra || player.mission?.targetEra);
       const cost = player.roleKey === 'EXPLORER' ? 1 : 2;
 
       // If mission points to another era and we have energy to warp, do it!
@@ -389,7 +424,9 @@ class AiController {
     }
 
     if (choiceType === 'timeGateTravel') {
-      const targetEra = player.mission?.targetEra;
+      const targetEra = player.missionPhase === 2
+        ? player.mission?.displacedEra
+        : (player.mission?.originEra || player.mission?.targetEra);
       const dest = (targetEra && targetEra !== player.currentEra) ? targetEra : 'stay';
       engine.resolveChoice(dest);
       network?.sendAction({ type: 'RESOLVE_CHOICE', action: dest });

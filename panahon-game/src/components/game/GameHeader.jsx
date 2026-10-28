@@ -53,12 +53,12 @@ function GameHeader({
         </div>
       </div>
 
-      {/* CENTER: TIMELINE INTEGRITY METER */}
-      <div className="timeline-meter" title="Timeline Integrity breaches caused by temporal paradoxes">
+      {/* CENTER: TIMELINE INTEGRITY METER (0-5 Scale; Surpassing 5 / reaching 6 = Immediate Collapse) */}
+      <div className="timeline-meter" title="Shared Timeline Integrity: Breach surpassing 5 (reaching 6) causes immediate TIMELINE COLLAPSE where ALL players lose!">
         <div className="timeline-meter-header">
           <span className="timeline-meter-label">TIMELINE INTEGRITY:</span>
           <span className={`timeline-status-badge status-${timelineClass}`}>
-            {timelineLevel >= 4 ? '⚠️ CRITICAL' : timelineLevel >= 2 ? '⚡ DISTURBANCE' : '✓ STABLE'}
+            {timelineLevel >= 5 ? '🚨 CRITICAL (MAX)' : (timelineLevel >= 4 ? '⚠️ HIGH STRAIN' : (timelineLevel >= 2 ? '⚡ DISTURBANCE' : '✓ STABLE'))}
           </span>
         </div>
         <div className="timeline-meter-bar">
@@ -69,8 +69,11 @@ function GameHeader({
             <div className="timeline-meter-plasma" />
           </div>
         </div>
-        <div className="timeline-meter-val" style={{ fontWeight: 800 }}>
-          {Math.min(5, timelineLevel)} / 5 BREACH
+        <div className="timeline-meter-val" title="Current Timeline Breach: 0 to 5 maximum. Reaching 6 causes immediate TIMELINE COLLAPSE!">
+          <span className="timeline-val-current">{Math.min(5, timelineLevel)}</span>
+          <span className="timeline-val-sep">/</span>
+          <span className="timeline-val-max">5</span>
+          <span className="timeline-val-unit">BREACH</span>
         </div>
       </div>
 

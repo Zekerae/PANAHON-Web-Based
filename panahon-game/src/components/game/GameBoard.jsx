@@ -855,10 +855,19 @@ function GameBoard({
                 else if (tileType === "paradox") icon = "🌀";
                 else if (tileType === "start") icon = "🚩";
 
+                const mission = currentPlayer?.mission;
+                const targetArtId = mission?.artifactId;
+                const hasCluesForArt = Boolean(targetArtId && (currentPlayer?.clueProgress?.[targetArtId] || 0) >= 3);
+                const hasArtInHand = Boolean(targetArtId && currentPlayer?.artifactCards?.some(a => a.id === targetArtId));
+                const isCompleted = Boolean(currentPlayer?.completed);
+
+                const isDisplacedTarget = !isCompleted && hasCluesForArt && !hasArtInHand && tileType === "artifact" && era === mission?.displacedEra;
+                const isReturnTarget = !isCompleted && hasArtInHand && tileType === "artifact" && era === (mission?.originEra || mission?.targetEra);
+
                 return (
                   <div
                     key={t.id || tileKey}
-                    className={`mario-party-space space-${tileType} ${isReachable ? "reachable-space" : ""} ${playersOnTile.length > 0 ? "has-players" : ""}`}
+                    className={`mario-party-space space-${tileType} ${isReachable ? "reachable-space" : ""} ${playersOnTile.length > 0 ? "has-players" : ""} ${isDisplacedTarget ? "displaced-target-tile" : ""} ${isReturnTarget ? "return-target-tile" : ""}`}
                     style={{ left: `${coord.x}%`, top: `${coord.y}%` }}
                     title={`${(tileType || "").toUpperCase()} (Space #${idx + 1} - ${ERA_NAMES[era] || era})`}
                     onClick={() => {
@@ -873,6 +882,16 @@ function GameBoard({
                     }}
                   >
                     {isReachable && <div className="reachable-arrow-indicator">▼</div>}
+                    {isDisplacedTarget && (
+                      <div className="artifact-target-beacon displaced-beacon" title="Displaced Mission Relic Location!">
+                        🎯 CLAIM RELIC
+                      </div>
+                    )}
+                    {isReturnTarget && (
+                      <div className="artifact-target-beacon return-beacon" title="Return Relic Here to Restore History!">
+                        🏁 RESTORE RELIC
+                      </div>
+                    )}
                     {TILE_IMAGES?.[tileType] ? (
                       <img
                         src={TILE_IMAGES[tileType]}

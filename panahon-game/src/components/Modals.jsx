@@ -232,9 +232,9 @@ export function MaximizedCardPreview({ data, onClose }) {
                   : isDangerTriggered
                     ? "⚠️ SEVERE INSTABILITY: HAZARD ANOMALY IMMINENT"
                     : newP >= 3
-                      ? "⚡ TEMPORAL DRAIN: -1 ENERGY"
+                      ? "⚡ TEMPORAL STRAIN (-2 ENERGY)"
                       : newP >= 2
-                        ? "📉 CAUSAL DISCORD: -1 POINT"
+                        ? "⚠️ MINOR FRICTION (FRICTION AURA)"
                         : "⚠️ TEMPORAL FRICTION (+1 PARADOX)"}
               </div>
             </div>
@@ -254,7 +254,7 @@ export function MaximizedCardPreview({ data, onClose }) {
                 {[1, 2, 3, 4, 5].map((lvl) => {
                   const wasFilled = oldP >= lvl;
                   const isNewlyFilled = !wasFilled && (newP >= lvl || (isCritical && lvl === 5));
-                  const penaltyLabel = lvl === 2 ? "-1 Point" : lvl === 3 ? "-1 Energy" : lvl === 4 ? "Danger Card" : lvl === 5 ? "+2 Timeline" : "Stable";
+                  const penaltyLabel = lvl === 2 ? "Minor Friction" : lvl === 3 ? "-2 Energy" : lvl === 4 ? "Danger Card" : lvl === 5 ? "+2 Timeline" : "Stable";
 
                   return (
                     <div
@@ -1572,9 +1572,9 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                   : isDangerTriggered
                     ? "⚠️ SEVERE INSTABILITY: HAZARD ANOMALY IMMINENT"
                     : newP >= 3
-                      ? "⚡ TEMPORAL DRAIN: -1 ENERGY"
+                      ? "⚡ TEMPORAL STRAIN (-2 ENERGY)"
                       : newP >= 2
-                        ? "📉 CAUSAL DISCORD: -1 POINT"
+                        ? "⚠️ MINOR FRICTION (FRICTION AURA)"
                         : "⚠️ TEMPORAL FRICTION (+1 PARADOX)"}
               </div>
             </div>
@@ -1596,7 +1596,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                   const wasFilled = oldP >= lvl;
                   const isNewlyFilled = !wasFilled && (newP >= lvl || (isCritical && lvl === 5));
                   const isOverloadReset = isCritical && lvl > 2;
-                  const penaltyLabel = lvl === 2 ? "-1 Point" : lvl === 3 ? "-1 Energy" : lvl === 4 ? "Danger Card" : lvl === 5 ? "+2 Timeline" : "Stable";
+                  const penaltyLabel = lvl === 2 ? "Minor Friction" : lvl === 3 ? "-2 Energy" : lvl === 4 ? "Danger Card" : lvl === 5 ? "+2 Timeline" : "Stable";
 
                   return (
                     <div

@@ -82,7 +82,7 @@ export function recordMatchCompletion(gameState, humanPlayerName) {
 
   if (!humanPlayer) return currentRecords;
 
-  const isCollapse = gameState.endReason === 'collapse' || (gameState.timelineMeter > 5);
+  const isCollapse = gameState.endReason === 'collapse' || (gameState.timelineMeter >= 10);
   const isWinner = !isCollapse && Boolean(gameState.winner) && (
     gameState.winner.id === humanPlayer.id || gameState.winner.name === humanPlayer.name
   );
@@ -109,7 +109,7 @@ export function recordMatchCompletion(gameState, humanPlayerName) {
         roleKey: humanPlayer.roleKey || 'HISTORIAN',
         roleName: humanPlayer.role?.name || humanPlayer.roleKey || 'Historian',
         outcome: isWinner ? 'VICTORY' : (isCollapse ? 'COLLAPSE' : 'DEFEAT'),
-        points: humanPlayer.points || 0,
+        rank: humanPlayer.placementRank ? `#${humanPlayer.placementRank}` : (isWinner ? "1st" : "Unfinished"),
         relics: relicsCount,
         clues: cluesCount,
         era: humanPlayer.currentEra || 'spanish',
@@ -143,7 +143,7 @@ export function logSimulationMission(outcome = 'VICTORY') {
         roleKey: 'HISTORIAN',
         roleName: 'Historian',
         outcome: outcome,
-        points: isWin ? 18 : 6,
+        rank: isWin ? "1st" : "Defeat",
         relics: isWin ? 1 : 0,
         clues: 2,
         era: 'spanish',

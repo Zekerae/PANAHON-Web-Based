@@ -871,13 +871,13 @@ export const EVENT_CARDS = {
     {
       id: 'evt_am_4',
       name: 'Manila Port Shipments',
-      description: 'Gains 1 point and recovers 1 energy.',
+      description: 'Recover +2 Energy and draw 1 Clue Card.',
       era: ERAS.AMERICAN,
       image: 'assets/Cards/Event Cards/9.png',
       effect: (player, game) => {
-        player.points += 1;
-        game.modifyEnergy(player, 1);
-        return 'Gained 1 Point and 1 Energy!';
+        game.modifyEnergy(player, 2);
+        game.drawClueCard(player);
+        return 'Recovered +2 Energy and drew 1 Clue Card!';
       }
     },
     {
@@ -1032,13 +1032,20 @@ export const DANGER_CARDS = {
       id: 'dng_sp_2',
       name: 'Pirate Raid',
       nickname: 'Tulisan sa Dagat',
-      description: 'Roll a die: higher than 3 = fend off pirates, otherwise lose 2 points.',
+      description: 'Roll a die: higher than 3 = fend off pirates, otherwise +1 Paradox and discard 1 random Clue Card (or lose 2 Energy if holding 0 Clues).',
       era: ERAS.SPANISH,
       image: 'assets/Cards/Danger Cards/2.png',
       check: (roll) => roll > 3,
       successMsg: 'You fended off the pirates!',
-      failMsg: 'Pirates plundered your supplies! Lost 2 points.',
-      failEffect: (player) => { player.points -= 2; }
+      failMsg: 'Pirates plundered your supplies! +1 Paradox, discarded 1 Clue Card (or lost 2 Energy).',
+      failEffect: (player, game) => {
+        game.modifyParadox(player, 1);
+        if (typeof game.discardRandomClueOrLoseEnergy === 'function') {
+          game.discardRandomClueOrLoseEnergy(player, 2);
+        } else {
+          game.modifyEnergy(player, -2);
+        }
+      }
     },
     {
       id: 'dng_sp_3',
@@ -1082,13 +1089,20 @@ export const DANGER_CARDS = {
       id: 'dng_am_2',
       name: 'Nuclear Bomb',
       nickname: 'Goodbye, Philippines!',
-      description: 'Roll a die: higher than 5 = escape, otherwise lose 2 points.',
+      description: 'Roll a die: higher than 5 = escape, otherwise +1 Paradox and discard 1 random Clue Card (or lose 2 Energy if holding 0 Clues).',
       era: ERAS.AMERICAN,
       image: 'assets/Cards/Danger Cards/6.png',
       check: (roll) => roll > 5,
       successMsg: 'You escaped the blast radius!',
-      failMsg: 'Caught in the blast! Lost 2 points.',
-      failEffect: (player) => { player.points -= 2; }
+      failMsg: 'Caught in the blast! +1 Paradox, discarded 1 Clue Card (or lost 2 Energy).',
+      failEffect: (player, game) => {
+        game.modifyParadox(player, 1);
+        if (typeof game.discardRandomClueOrLoseEnergy === 'function') {
+          game.discardRandomClueOrLoseEnergy(player, 2);
+        } else {
+          game.modifyEnergy(player, -2);
+        }
+      }
     },
     {
       id: 'dng_am_3',
@@ -1144,13 +1158,20 @@ export const DANGER_CARDS = {
       id: 'dng_jp_3',
       name: 'Checkpoint Raid',
       nickname: 'Inspection Reveal: Kabado',
-      description: 'Roll a die: odd number = clear inspection, otherwise lose 2 points.',
+      description: 'Roll a die: odd number = clear inspection, otherwise +1 Paradox and discard 1 random Clue Card (or lose 2 Energy if holding 0 Clues).',
       era: ERAS.JAPANESE,
       image: 'assets/Cards/Danger Cards/11.png',
       check: (roll) => roll % 2 !== 0,
       successMsg: 'You cleared the inspection!',
-      failMsg: 'Failed inspection! Lost 2 points.',
-      failEffect: (player) => { player.points -= 2; }
+      failMsg: 'Failed inspection! +1 Paradox, discarded 1 Clue Card (or lost 2 Energy).',
+      failEffect: (player, game) => {
+        game.modifyParadox(player, 1);
+        if (typeof game.discardRandomClueOrLoseEnergy === 'function') {
+          game.discardRandomClueOrLoseEnergy(player, 2);
+        } else {
+          game.modifyEnergy(player, -2);
+        }
+      }
     },
     {
       id: 'dng_jp_4',
@@ -1227,11 +1248,11 @@ export function generateMissions() {
       artifactName: artifact.name,
       artifactNickname: artifact.nickname,
       targetEra: artifact.era,
+      originEra: artifact.era,
       title: `Recover: ${artifact.nickname}`,
-      description: `Find and recover the ${artifact.name} (${artifact.nickname}). Collect at least 3 related clues, acquire the artifact, and return it to the ${ERA_NAMES[artifact.era]}.`,
+      description: `Find and recover the ${artifact.name} (${artifact.nickname}). Collect 3 matching clues in the ${ERA_NAMES[artifact.era]}, retrieve it from its displaced era, and return it to restore history!`,
       requiredClues: 3,
-      returnEra: artifact.era,
-      points: 10
+      returnEra: artifact.era
     });
   });
   return missions;

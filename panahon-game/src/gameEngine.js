@@ -185,6 +185,15 @@ export class GameEngine {
       const startTileIdx = board[startEra].findIndex(t => t.type === TILE_TYPES.START);
       const tileIdx = startTileIdx >= 0 ? startTileIdx : 0;
 
+      // Phase 2 Displaced Era: Mission Artifact spawns onto an Artifact Tile in a DIFFERENT quadrant than its Origin Era
+      const originEra = (mission && (mission.originEra || mission.targetEra)) || ERAS.SPANISH;
+      const otherEras = ERA_ORDER.filter(e => e !== originEra);
+      const displacedEra = otherEras[idx % otherEras.length];
+      if (mission) {
+        mission.originEra = originEra;
+        mission.displacedEra = displacedEra;
+      }
+
       const player = {
         id: idx,
         name: config.name || `Player ${idx + 1}`,
@@ -203,11 +212,14 @@ export class GameEngine {
         // Resources
         energy: GAME_CONSTANTS.STARTING_ENERGY,
         paradox: 0,
-        points: 0,
 
-        // Mission
+        // FIFO Placement & Mission Progression
         mission: mission,
         missionComplete: false,
+        completed: false,
+        placementRank: null,
+        missionPhase: 1, // 1: Research in Home Era, 2: Retrieval in Displaced Era, 3: Return to Origin Era, 4: Restored
+        finishedAt: null,
 
         // Cards in hand
         clueCards: [],
@@ -248,6 +260,7 @@ export class GameEngine {
       clueDecks,
       eventDecks,
       dangerDecks,
+      placementQueue: [],
       timelineMeter: 0,
       temporalOccurrence: 0, // turns remaining
       temporalOccurrenceId: null,
@@ -989,6 +1002,8 @@ export class GameEngine {
         targetTile.players.push(player.id);
         this.state.currentEra = targetEra;
 
+        this.checkCarriedArtifactContamination(player, targetEra);
+
         this.addLog('travel', `✨ ${player.name} teleported to Space #${targetTile.index + 1} (${targetTile.type.toUpperCase()}) in ${ERA_NAMES[targetEra]} via Anito Guidance!`);
 
         // Check for enemy trap (planter is immune)
@@ -1153,6 +1168,14 @@ export class GameEngine {
         player.clueProgress[card.artifactId] = 0;
       }
       player.clueProgress[card.artifactId]++;
+
+      // 3-Step Displaced Artifact Loop: Phase 1 complete -> Phase 2 (Retrieval in Displaced Era)
+      if (player.mission && player.mission.artifactId === card.artifactId && player.clueProgress[card.artifactId] >= (GAME_CONSTANTS.REQUIRED_CLUES_FOR_ARTIFACT || 3)) {
+        if (player.missionPhase === 1) {
+          player.missionPhase = 2;
+          this.addLog('mission', `🎯 RESEARCH COMPLETED! ${player.name} deciphered 3 clues for ${player.mission.artifactNickname}! Relic displaced in: ${ERA_NAMES[player.mission.displacedEra]}!`);
+        }
+      }
     }
 
     this.state.pendingModal = {
@@ -1348,61 +1371,91 @@ export class GameEngine {
     return { diceRoll, success };
   }
 
-  // --- Artifact Handling ---
+  // --- Artifact Handling (3-Step Displaced Artifact Loop) ---
   handleArtifactTile(player) {
-    const eraArtifacts = ARTIFACTS[player.currentEra] || [];
-
-    // Filter artifacts player has >= 3 clues for, excluding already held or already completed mission relics
-    const eligibleArtifacts = eraArtifacts.filter(artifact => {
-      // Don't re-acquire an artifact already held in player hand
-      if (player.artifactCards.some(a => a.id === artifact.id)) return false;
-      // Don't re-acquire an artifact if its mission is already finished
-      if (player.missionComplete && player.mission?.artifactId === artifact.id) return false;
-      const clueCount = player.clueProgress[artifact.id] || 0;
-      return clueCount >= GAME_CONSTANTS.REQUIRED_CLUES_FOR_ARTIFACT;
-    });
-
-    if (eligibleArtifacts.length === 0) {
-      // Check if player already holds an artifact from this era
-      const alreadyHeld = player.artifactCards.find(a => a.era === player.currentEra);
-      if (alreadyHeld) {
-        this.state.pendingModal = {
-          type: 'info',
-          title: 'Artifact Tile',
-          description: `You are already carrying the ${alreadyHeld.nickname}! Use the "Return Relic" action in your dashboard to return it to this timeline.`,
-          image: alreadyHeld.cardImage || alreadyHeld.image
-        };
-        this.addLog('artifact', `${player.name} visited the Artifact Tile while already holding ${alreadyHeld.nickname}.`);
-      } else {
-        this.state.pendingModal = {
-          type: 'info',
-          title: 'Artifact Tile',
-          description: `You need at least ${GAME_CONSTANTS.REQUIRED_CLUES_FOR_ARTIFACT} clues related to an artifact before you can acquire it. Keep exploring!`,
-          image: null
-        };
-        this.addLog('artifact', `${player.name} investigated the Artifact Tile but lacks enough clues.`);
-      }
-    } else {
-      // Prioritize player's mission artifact if eligible
-      const missionArtifact = eligibleArtifacts.find(a => player.mission && player.mission.artifactId === a.id);
-      const chosen = missionArtifact || eligibleArtifacts[0];
-      player.artifactCards.push(chosen);
-
+    if (player.completed) {
       this.state.pendingModal = {
-        type: 'artifact',
-        cardType: 'Artifact Acquired! 📦',
-        title: chosen.name,
-        description: `You acquired the ${chosen.nickname}! Return it to the ${ERA_NAMES[chosen.era]} using "Return Relic" to complete your mission.`,
-        image: chosen.cardImage || chosen.image
+        type: 'info',
+        title: 'Directive Restored',
+        description: `You have already secured #${player.placementRank} Place! Assist remaining castaways via Cooperative Actions (Timeline Stabilization & Energy Trading).`,
+        image: null
       };
+      this.state.phase = 'action';
+      this.notify();
+      return;
+    }
 
-      if (player.mission && player.mission.artifactId === chosen.id) {
-        this.addLog('mission', `${player.name} acquired their mission artifact: ${chosen.nickname}!`);
+    const mission = player.mission;
+    const missionArtifact = mission ? ALL_ARTIFACTS.find(a => a.id === mission.artifactId) : null;
+    const clueCount = (mission && mission.artifactId && player.clueProgress?.[mission.artifactId]) || 0;
+    const hasMissionArtifact = player.artifactCards.some(a => a.id === mission?.artifactId);
+    const requiredClues = GAME_CONSTANTS.REQUIRED_CLUES_FOR_ARTIFACT || 3;
+
+    // Case 1: Player is already carrying their mission artifact and reached Origin Era -> Restore history!
+    if (hasMissionArtifact) {
+      if (player.currentEra === mission.originEra) {
+        this.returnArtifact(player.id, mission.artifactId);
+        return;
       } else {
-        this.addLog('artifact', `${player.name} acquired: ${chosen.nickname}`);
+        this.state.pendingModal = {
+          type: 'info',
+          title: 'Transporting Relic',
+          description: `You are carrying ${mission.artifactNickname}! Return it to its native Origin Era (${ERA_NAMES[mission.originEra]}) to restore history.`,
+          image: missionArtifact?.cardImage || missionArtifact?.image
+        };
+        this.state.phase = 'action';
+        this.notify();
+        return;
       }
     }
 
+    // Case 2: Attempting to pick up an Artifact before collecting 3 Clues -> +1 Paradox penalty!
+    if (clueCount < requiredClues) {
+      this.modifyParadox(player, 1);
+      this.addLog('paradox', `⚠️ ${player.name} attempted to access an Artifact without 3 clues! Paradox +1! (${clueCount}/${requiredClues} Clues held)`);
+      this.state.pendingModal = {
+        type: 'danger',
+        cardType: 'Paradox Strain! ⚠️',
+        title: 'INSUFFICIENT HISTORICAL RESEARCH',
+        description: `You attempted to access the Artifact Tile without collecting 3 matching clues from its Origin Era (${ERA_NAMES[mission?.originEra || player.currentEra]})! You only have ${clueCount}/${requiredClues} clues. Spacetime destabilized: Individual Paradox +1!`,
+        image: 'assets/Tiles/artifact_tile.png',
+        era: player.currentEra
+      };
+      this.state.phase = 'action';
+      this.notify();
+      return;
+    }
+
+    // Case 3: Player has 3 clues and is in the Displaced Era -> Phase 2 Retrieval!
+    if (mission && player.currentEra === mission.displacedEra) {
+      if (missionArtifact) {
+        player.artifactCards.push(missionArtifact);
+        player.missionPhase = 3;
+
+        this.state.pendingModal = {
+          type: 'artifact',
+          cardType: 'Displaced Relic Retrieved! 📦',
+          title: missionArtifact.name,
+          subtitle: 'PHASE 2 COMPLETE: RETRIEVAL',
+          description: `You successfully retrieved the ${missionArtifact.nickname} from its displaced location in the ${ERA_NAMES[player.currentEra]}! Now travel via Time Gates to its native Origin Era (${ERA_NAMES[mission.originEra]}) and land on the Artifact/Return Tile to restore history and lock in your FIFO victory rank!`,
+          image: missionArtifact.cardImage || missionArtifact.image,
+          era: player.currentEra
+        };
+        this.addLog('mission', `📦 ${player.name} retrieved displaced relic ${missionArtifact.nickname} in ${ERA_NAMES[player.currentEra]}! Returning to ${ERA_NAMES[mission.originEra]}.`);
+        this.state.phase = 'action';
+        this.notify();
+        return;
+      }
+    }
+
+    // Case 4: Player has 3 clues but is in the wrong era (not displaced era)
+    this.state.pendingModal = {
+      type: 'info',
+      title: 'Displaced Relic Location',
+      description: `Your target relic (${mission?.artifactNickname || 'Relic'}) is displaced in the ${ERA_NAMES[mission?.displacedEra]}! Travel there via Time Gate to retrieve it.`,
+      image: missionArtifact?.cardImage || missionArtifact?.image
+    };
+    this.addLog('artifact', `${player.name} checked the Artifact Tile in ${ERA_NAMES[player.currentEra]}, but their target relic is displaced in ${ERA_NAMES[mission?.displacedEra]}.`);
     this.state.phase = 'action';
     this.notify();
   }
@@ -1441,9 +1494,50 @@ export class GameEngine {
     this.notify();
   }
 
+
+  // Discard a random Clue Card or lose Energy if holding 0 clues (used by Hazard Cards)
+  discardRandomClueOrLoseEnergy(player, energyLoss = 2) {
+    if (player.clueCards && player.clueCards.length > 0) {
+      const randIdx = Math.floor(Math.random() * player.clueCards.length);
+      const [discarded] = player.clueCards.splice(randIdx, 1);
+      if (discarded && discarded.artifactId && player.clueProgress?.[discarded.artifactId] > 0) {
+        player.clueProgress[discarded.artifactId]--;
+      }
+      this.returnClueToDeck(discarded);
+      this.addLog('danger', `⚠️ ${player.name} discarded a Clue Card (${discarded.hint || discarded.description})!`);
+    } else {
+      this.modifyEnergy(player, -energyLoss);
+      this.addLog('danger', `⚠️ ${player.name} held 0 Clue Cards and lost ${energyLoss} Chrono Energy instead!`);
+    }
+  }
+
+  // Check if carrying an artifact into an era that is neither Displaced Era nor Origin Era
+  checkCarriedArtifactContamination(player, targetEra) {
+    if (!player.artifactCards || player.artifactCards.length === 0) return;
+    for (const art of player.artifactCards) {
+      const origin = art.originEra || art.era;
+      const displaced = art.displacedEra || player.mission?.displacedEra;
+      if (targetEra !== origin && targetEra !== displaced) {
+        this.modifyParadox(player, 1);
+        this.addLog('paradox', `⚡ ${player.name} brought ${art.nickname || art.name} into ${ERA_NAMES[targetEra]} (neither Displaced Era nor Origin Era)! Individual Paradox +1!`);
+        this.state.pendingModal = {
+          type: 'danger',
+          cardType: 'Era Contamination! ⚠️',
+          title: 'TEMPORAL CONTAMINATION',
+          description: `You brought ${art.nickname || art.name} into the ${ERA_NAMES[targetEra]}! Since this timeline is neither its Displaced Era (${ERA_NAMES[displaced]}) nor its native Origin Era (${ERA_NAMES[origin]}), spacetime reacted to the contamination: Individual Paradox +1!`,
+          image: art.cardImage || art.image,
+          era: targetEra
+        };
+      }
+    }
+  }
+
   travelToEra(player, targetEra) {
     const cost = player.roleKey === 'EXPLORER' ? GAME_CONSTANTS.TIME_GATE_COST_EXPLORER : GAME_CONSTANTS.TIME_GATE_COST;
     
+    // Check carried artifact contamination before warping
+    this.checkCarriedArtifactContamination(player, targetEra);
+
     // Remove from current tile
     const currentTiles = this.state.board[player.currentEra];
     currentTiles[player.tileIndex].players = currentTiles[player.tileIndex].players.filter(id => id !== player.id);
@@ -1472,13 +1566,13 @@ export class GameEngine {
 
     let consequenceDesc = 'A localized temporal fracture distorts causality! The timeline strain increases (+1 Paradox).';
     if (criticalOverload) {
-      consequenceDesc = 'CRITICAL TEMPORAL BREACH! Spacetime stability shattered (5/5): Global Timeline +2, -3 Points, Paradox reset to Level 2.';
+      consequenceDesc = 'CRITICAL TEMPORAL BREACH! Spacetime stability shattered (5/5): Shared Timeline +2, Player Stunned (skips next movement phase), and Paradox reset to Level 2.';
     } else if (triggeredDanger) {
-      consequenceDesc = 'TIMELINE DESTABILIZATION! Paradox reached Level 4—causality is unraveling! A Hazard Anomaly strikes!';
+      consequenceDesc = 'ANOMALY TRIGGER! Paradox reached Level 4—an unexpected Danger Card is immediately drawn and resolved!';
     } else if (newParadox >= 3 && oldParadox < 3) {
-      consequenceDesc = 'TEMPORAL DRAIN! Paradox reached Level 3—chronal friction drained -1 Energy!';
+      consequenceDesc = 'TEMPORAL STRAIN! Paradox reached Level 3—chronal friction drained 2 Chrono Energy!';
     } else if (newParadox >= 2 && oldParadox < 2) {
-      consequenceDesc = 'CAUSAL DISCORD! Paradox reached Level 2—timeline instability cost -1 Victory Point!';
+      consequenceDesc = 'MINOR FRICTION! Paradox reached Level 2—temporal frictions detected on HUD.';
     }
 
     this.state.pendingModal = {
@@ -1573,28 +1667,42 @@ export class GameEngine {
     let triggeredDanger = false;
     let criticalOverload = false;
 
-    // Check paradox level effects
+    // Level 0-1: Stable (Visual calm aura on HUD)
+    // Level 2: Minor Friction (Visual friction on HUD - no point penalty)
     if (player.paradox >= 2 && oldParadox < 2) {
-      player.points -= 1;
-      this.addLog('paradox', `${player.name}: Paradox Level 2 — Lost 1 Point!`);
+      this.addLog('paradox', `⚡ ${player.name}: Paradox Level 2 (Minor Friction) — Temporal micro-frictions detected!`);
     }
+
+    // Level 3 (Temporal Strain): Lose 2 Energy
     if (player.paradox >= 3 && oldParadox < 3) {
-      this.modifyEnergy(player, -1);
-      this.addLog('paradox', `${player.name}: Paradox Level 3 — Lost 1 Energy!`);
+      this.modifyEnergy(player, -2);
+      this.addLog('paradox', `⚡ ${player.name}: Paradox Level 3 (Temporal Strain) — Lost 2 Energy!`);
     }
+
+    // Level 4 (Anomaly Trigger): Immediately draw and resolve a Danger Card from the current era
     if (player.paradox >= 4 && oldParadox < 4) {
       triggeredDanger = true;
-      this.addLog('paradox', `${player.name}: Paradox Level 4 — Must draw a Danger Card!`);
+      this.addLog('paradox', `⚠️ ${player.name}: Paradox Level 4 (Anomaly Trigger) — Chronal rift triggered a Danger Card!`);
       if (!skipDangerModal) {
         this.drawDangerCard(player);
       }
     }
+
+    // Level 5 (Critical Breach): Shared Timeline Meter +2, player is stunned (skips next movement phase), Paradox resets to Level 2
     if (player.paradox >= 5) {
       criticalOverload = true;
       this.modifyTimelineMeter(2);
-      player.points -= 3;
-      player.paradox = 2;
-      this.addLog('paradox', `${player.name}: CRITICAL BREACH! Timeline +2, -3 Points, Paradox reset to 2!`);
+      player.skipNextTurn = true; // Stunned (skips next movement phase)
+      player.paradox = 2; // Resets to Level 2
+      this.addLog('paradox', `💥 ${player.name}: CRITICAL BREACH! Timeline Meter +2, Stunned (skips next movement phase), Paradox reset to Level 2!`);
+      this.state.pendingModal = {
+        type: 'danger',
+        cardType: 'Critical Breach 💥',
+        title: 'TIMELINE CRITICAL BREACH!',
+        description: `${player.name} caused a Critical Breach (Level 5)! Spacetime fractured: Shared Timeline Meter increased by +2, you are Stunned (skip next movement phase), and Individual Paradox reset to Level 2.`,
+        image: 'assets/Tiles/paradox_tile.png',
+        era: player.currentEra
+      };
     }
 
     return { oldParadox, newParadox: player.paradox, triggeredDanger, criticalOverload };
@@ -1603,10 +1711,11 @@ export class GameEngine {
   modifyTimelineMeter(amount) {
     this.state.timelineMeter = Math.max(0, this.state.timelineMeter + amount);
     
-    // Global timeline meter limit is 5. Once it reaches 6 or goes above 5, game over!
-    if (this.state.timelineMeter > (GAME_CONSTANTS.MAX_TIMELINE || 5)) {
-      this.state.collapseMessage = 'The timelines are completely messed up! The temporal breach exceeded stability limits (above 5), causing catastrophic spacetime collapse.';
-      this.addLog('paradox', `💥 CATASTROPHIC BREACH! The timeline reached ${this.state.timelineMeter} (exceeded 5)! The timelines are completely messed up!`);
+    // Shared Timeline Meter limit is 5. GLOBAL LOSE OVERRIDE: When it surpasses 5 or reaches 6, trigger immediate TIMELINE COLLAPSE!
+    const breachLimit = GAME_CONSTANTS.MAX_TIMELINE || 5;
+    if (this.state.timelineMeter > breachLimit) {
+      this.state.collapseMessage = `TIMELINE COLLAPSE: The shared Timeline Meter surpassed stability limits (reached ${this.state.timelineMeter} > 5)! Spacetime stability shattered completely into total entropy. ALL operatives have lost!`;
+      this.addLog('paradox', `💥 TIMELINE COLLAPSE! The timeline breach reached ${this.state.timelineMeter} (surpassed 5)! Catastrophic spacetime collapse!`);
       this.endGame('collapse');
     }
   }
@@ -1989,67 +2098,106 @@ export class GameEngine {
     return true;
   }
 
-  // Return artifact to correct timeline
+  // Return artifact to correct timeline (FIFO Placement Queue)
   returnArtifact(playerIdx, artifactId) {
     const player = this.state.players[playerIdx];
+    if (!player || player.completed) return false;
+
     const artifact = ALL_ARTIFACTS.find(a => a.id === artifactId);
     if (!artifact) return false;
 
     const artIdx = player.artifactCards.findIndex(a => a.id === artifactId);
     if (artIdx < 0) return false;
 
-    if (player.currentEra === artifact.era) {
-      // Correct timeline
+    const originEra = artifact.originEra || artifact.era;
+
+    if (player.currentEra === originEra) {
+      // Correct Origin Timeline!
       player.artifactCards.splice(artIdx, 1);
-      player.points += SCORING.RETURN_ARTIFACT_CORRECT;
-      this.addLog('mission', `${player.name} returned ${artifact.nickname} to the correct timeline! (+${SCORING.RETURN_ARTIFACT_CORRECT} Points)`);
+      player.missionComplete = true;
+      player.completed = true;
+      player.missionPhase = 4;
+      player.finishedAt = Date.now();
 
-      // Check mission complete
-      const isMission = player.mission && player.mission.artifactId === artifactId;
-      if (isMission) {
-        player.missionComplete = true;
-        player.points += SCORING.COMPLETE_MISSION;
-        this.addLog('mission', `🎉 ${player.name} completed their mission! (+${SCORING.COMPLETE_MISSION} Points)`);
-
-        this.state.pendingModal = {
-          type: 'artifact',
-          cardType: 'Mission Complete! 🏆',
-          title: `Recovered: ${artifact.nickname}`,
-          description: `Outstanding achievement, ${player.name}! You safely returned ${artifact.name} to the ${ERA_NAMES[artifact.era]} and completed your historical directive! (+${SCORING.RETURN_ARTIFACT_CORRECT + SCORING.COMPLETE_MISSION} Total Points)`,
-          image: artifact.cardImage || artifact.image,
-          era: artifact.era
-        };
-      } else {
-        this.state.pendingModal = {
-          type: 'artifact',
-          cardType: 'Relic Restored! 📦',
-          title: `Restored: ${artifact.nickname}`,
-          description: `You returned the ${artifact.name} to the ${ERA_NAMES[artifact.era]} timeline! (+${SCORING.RETURN_ARTIFACT_CORRECT} Points)`,
-          image: artifact.cardImage || artifact.image,
-          era: artifact.era
-        };
+      // FIFO Placement Queue
+      if (!this.state.placementQueue) this.state.placementQueue = [];
+      if (!this.state.placementQueue.includes(player.id)) {
+        this.state.placementQueue.push(player.id);
       }
+      const rank = this.state.placementQueue.length;
+      player.placementRank = rank;
 
-      // Check if all missions complete
-      if (this.state.players.every(p => p.missionComplete)) {
+      const ordinalStr = rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : `${rank}th`;
+      this.addLog('mission', `🏆 ${player.name} returned ${artifact.nickname} to ${ERA_NAMES[originEra]} and secured ${ordinalStr} Place!`);
+
+      this.state.pendingModal = {
+        type: 'artifact',
+        cardType: `FIFO Rank #${rank} Locked In! 🏆`,
+        title: `${ordinalStr.toUpperCase()} PLACE SECURED!`,
+        description: `Magnificent achievement, ${player.name}! You safely recovered and returned ${artifact.name} (${artifact.nickname}) to the ${ERA_NAMES[originEra]} timeline, locking in ${ordinalStr} Place! You can now spectate or use cooperative actions (Timeline Stabilization & Energy Trading) to help remaining castaways finish before the Timeline Meter surpasses 5 (reaches 6).`,
+        image: artifact.cardImage || artifact.image,
+        era: originEra
+      };
+
+      // Check if all players completed
+      if (this.state.players.every(p => p.completed)) {
         this.endGame('allComplete');
       }
     } else {
       // Wrong timeline
       this.modifyParadox(player, 1);
       this.modifyTimelineMeter(1);
-      this.addLog('paradox', `${player.name} placed ${artifact.nickname} in the wrong timeline! Paradox +1, Timeline +1`);
+      this.addLog('paradox', `${player.name} attempted to return ${artifact.nickname} in the wrong timeline (${ERA_NAMES[player.currentEra]})! Paradox +1, Timeline +1`);
 
       this.state.pendingModal = {
         type: 'danger',
         cardType: 'Temporal Anomaly! ⚠️',
         title: 'Wrong Era Paradox',
-        description: `The ${artifact.nickname} does not belong to the ${ERA_NAMES[player.currentEra]}! It belongs to the ${ERA_NAMES[artifact.era]}. Temporal Paradox +1, Timeline Meter +1!`,
+        description: `The ${artifact.nickname} belongs to the ${ERA_NAMES[originEra]}, not the ${ERA_NAMES[player.currentEra]}! Temporal Paradox +1, Shared Timeline Meter +1!`,
         image: artifact.cardImage || artifact.image,
         era: player.currentEra
       };
     }
 
+    this.notify();
+    return true;
+  }
+
+  // --- Cooperative Actions for Completed Players ---
+  coopStabilizeTimeline(playerIdx) {
+    const player = this.state.players[playerIdx];
+    if (!player || !player.completed) return false;
+    if (player.energy < 2) {
+      this.addLog('warning', `${player.name} needs at least 2 Energy to stabilize the timeline (has ${player.energy}).`);
+      return false;
+    }
+
+    this.modifyEnergy(player, -2);
+    this.modifyTimelineMeter(-1);
+    this.addLog('ability', `🌀 ${player.name} (Rank #${player.placementRank}) stabilized the timeline (-1 Timeline Breach)! Shared Timeline: ${this.state.timelineMeter}/5.`);
+    this.notify();
+    return true;
+  }
+
+  coopTransferEnergy(fromIdx, toIdx, amount = 2) {
+    const from = this.state.players[fromIdx];
+    const to = this.state.players[toIdx];
+    if (!from || !to) return false;
+    if (!from.completed) {
+      return this.tradeEnergy(fromIdx, toIdx, amount);
+    }
+    if (to.completed) {
+      this.addLog('warning', `${to.name} has already finished their directive.`);
+      return false;
+    }
+    if (from.energy < amount) {
+      this.addLog('warning', `${from.name} does not have ${amount} Energy to transfer.`);
+      return false;
+    }
+
+    this.modifyEnergy(from, -amount);
+    this.modifyEnergy(to, amount);
+    this.addLog('trade', `⚡ ${from.name} (Rank #${from.placementRank}) transferred ${amount} Chrono Energy to ${to.name}!`);
     this.notify();
     return true;
   }
@@ -2280,45 +2428,69 @@ export class GameEngine {
     this.state.discardPile.push(card);
   }
 
-  // --- End Game ---
+  // --- End Game (FIFO Placement Queue & Global Lose Override) ---
   endGame(reason) {
     this.stopTimer();
     this.state.gameOver = true;
     this.state.phase = 'ended';
 
-    // Calculate final scores
-    this.state.players.forEach(player => {
-      // Unused energy bonus
-      player.points += player.energy * SCORING.PER_UNUSED_ENERGY;
-      
-      // Paradox bonus/penalty
-      if (player.paradox <= 1) {
-        player.points += SCORING.PARADOX_LOW_BONUS;
-      } else if (player.paradox >= 4) {
-        player.points += SCORING.PARADOX_HIGH;
-      }
+    if (!this.state.placementQueue) {
+      this.state.placementQueue = [];
+    }
 
-      // Mission failure penalty
-      if (!player.missionComplete) {
-        player.points += SCORING.MISSION_FAILURE;
-      }
+    // GLOBAL LOSE OVERRIDE: If the shared Timeline Meter surpasses 5 or reaches 6, ALL players lose regardless of rank!
+    const isCollapse = reason === 'collapse' || (this.state.timelineMeter > (GAME_CONSTANTS.MAX_TIMELINE || 5));
 
-      // Count clues
-      const realClues = player.clueCards.filter(c => !c.isDecoy).length;
-      player.cluePoints = realClues;
-    });
-
-    if (reason === 'collapse') {
-      this.state.winner = null; // Everyone loses
-      if (!this.state.collapseMessage) {
-        this.state.collapseMessage = 'The timelines are completely messed up! The temporal breach exceeded stability limits (above 5), causing catastrophic spacetime collapse.';
-      }
-      this.addLog('system', '💀 THE TIMELINES ARE MESSED UP! Spacetime collapsed and all castaways were lost!');
+    if (isCollapse) {
+      this.state.winner = null; // Everyone loses!
+      this.state.collapseMessage = `TIMELINE COLLAPSE: The shared Timeline Meter surpassed stability limits (reached ${this.state.timelineMeter} > 5)! Spacetime stability shattered completely into total entropy. ALL operatives have lost!`;
+      this.addLog('system', '💀 TIMELINE COLLAPSE! Spacetime collapsed and all operatives were lost in the void!');
     } else {
-      // Find winner
-      const sorted = [...this.state.players].sort((a, b) => b.points - a.points);
-      this.state.winner = sorted[0];
-      this.addLog('system', `🏆 ${sorted[0].name} wins with ${sorted[0].points} points!`);
+      // Calculate final FIFO rankings
+      // 1. Players in placementQueue are already placed in FIFO order
+      const placedIds = new Set(this.state.placementQueue);
+
+      // 2. Unfinished players sorted by mission progress:
+      //    a. Artifact Acquired (has retrieved artifact > doesn't have)
+      //    b. Clues Collected for target artifact (descending)
+      //    c. Lowest Paradox (ascending)
+      //    d. Energy remaining (descending)
+      const unfinishedPlayers = this.state.players.filter(p => !placedIds.has(p.id));
+      unfinishedPlayers.sort((a, b) => {
+        // Artifact Acquired
+        const aHasArt = (a.artifactCards && a.artifactCards.length > 0) ? 1 : 0;
+        const bHasArt = (b.artifactCards && b.artifactCards.length > 0) ? 1 : 0;
+        if (bHasArt !== aHasArt) return bHasArt - aHasArt;
+
+        // Clues Collected for target artifact
+        const aClues = (a.mission && a.clueProgress?.[a.mission.artifactId]) || 0;
+        const bClues = (b.mission && b.clueProgress?.[b.mission.artifactId]) || 0;
+        if (bClues !== aClues) return bClues - aClues;
+
+        // Lowest Paradox
+        if (a.paradox !== b.paradox) return a.paradox - b.paradox;
+
+        // Highest Energy
+        return b.energy - a.energy;
+      });
+
+      // Append remaining players to placement queue
+      unfinishedPlayers.forEach(p => {
+        this.state.placementQueue.push(p.id);
+        p.placementRank = this.state.placementQueue.length;
+      });
+
+      // Synchronize placementRank on all players
+      this.state.players.forEach(p => {
+        const queueIdx = this.state.placementQueue.indexOf(p.id);
+        if (queueIdx >= 0) {
+          p.placementRank = queueIdx + 1;
+        }
+      });
+
+      const winnerPlayer = this.state.players.find(p => p.placementRank === 1);
+      this.state.winner = winnerPlayer || this.state.players[0];
+      this.addLog('system', `🏆 Operative ${this.state.winner.name} achieved 1st Place!`);
     }
 
     this.state.endReason = reason;

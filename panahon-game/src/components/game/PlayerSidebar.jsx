@@ -65,12 +65,18 @@ function PlayerSidebar({
           if (p.paradox >= 4) paradoxClass = "paradox-fill-high";
           else if (p.paradox >= 2) paradoxClass = "paradox-fill-mid";
 
+          const paradoxAura = p.paradox <= 1
+            ? "stable"
+            : (p.paradox === 2 ? "friction" : (p.paradox === 3 ? "strain" : (p.paradox === 4 ? "anomaly" : "critical")));
+
+          const rankStr = p.placementRank === 1 ? '1st' : p.placementRank === 2 ? '2nd' : p.placementRank === 3 ? '3rd' : `${p.placementRank}th`;
+
           return (
             <div
               key={p.id ?? idx}
-              className={`player-card compact-player-card ${isActive ? "active-turn" : ""} ${isInspected ? "inspected-player" : ""}`}
+              className={`player-card compact-player-card ${isActive ? "active-turn" : ""} ${isInspected ? "inspected-player" : ""} ${p.completed ? "player-completed" : ""} paradox-aura-${paradoxAura}`}
               style={{ borderLeftColor: p.color, cursor: "pointer" }}
-              title={`Click to view ${p.name}'s inventory & clues`}
+              title={`Click to view ${p.name}'s inventory & mission dossier`}
               onClick={() => {
                 sounds.btnClick();
                 onSelectPlayer(p.id);
@@ -78,12 +84,12 @@ function PlayerSidebar({
             >
               {isActive && <div className="turn-indicator" title="Active Turn">▶</div>}
 
-              {/* Row 1: Avatar, Name + Badge, Role, Points */}
+              {/* Row 1: Avatar, Name + Badge, Role, FIFO Rank or Progress */}
               <div className="player-card-header">
                 <img src={p.role?.avatar || ""} className="player-avatar-small" alt={p.name} />
                 <div className="player-card-info">
                   <div className="player-card-name-row">
-                    <span className="player-card-name" style={{ color: p.color }}>
+                    <span className="player-card-name" style={{ color: p.color }} title={p.name}>
                       {p.name}
                     </span>
                     {p.isAi ? (
@@ -95,10 +101,18 @@ function PlayerSidebar({
                   </div>
                   <div className="player-card-role">{p.role?.name || "Castaway"}</div>
                 </div>
-                <div className="player-points-badge">
-                  <span className="points-val">{p.points}</span>
-                  <span className="points-unit">PTS</span>
-                </div>
+                {p.completed ? (
+                  <div className={`player-rank-badge rank-${p.placementRank || 1}`} title={`FIFO Locked-in: ${rankStr} Place`}>
+                    <span className="rank-val">{rankStr}</span>
+                    <span className="rank-unit">PLACE</span>
+                  </div>
+                ) : (
+                  <div className="player-mission-phase-badge" title={`Mission Phase: ${p.missionPhase === 3 ? 'Return to Origin' : (p.missionPhase === 2 ? 'Displaced Retrieval' : 'Historical Research')}`}>
+                    <span className="phase-val">
+                      {p.missionPhase === 3 ? '📦 RETURN' : (p.missionPhase === 2 ? '📍 DISPLACED' : `🔍 ${(p.mission && p.clueProgress?.[p.mission.artifactId]) || 0}/3`)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Row 2: Compact Dual Stat Bars (Energy & Paradox on ONE row) */}
@@ -139,13 +153,17 @@ function PlayerSidebar({
                   {ERA_NAMES[p.currentEra]?.replace(" Era", "") || p.currentEra}
                 </span>
                 <span className="footer-clues-tag">
-                  Clues: <strong>{p.clueCards?.length || 0}/5</strong>
+                  Clues: <strong>{(p.mission && p.clueProgress?.[p.mission.artifactId]) || 0}/3</strong>
                 </span>
-                {p.missionComplete ? (
-                  <span className="footer-mission-done">🏆 Done</span>
+                {p.completed ? (
+                  <span className="footer-mission-done">🏆 #{p.placementRank} Place</span>
                 ) : p.artifactCards?.length > 0 ? (
                   <span className="footer-relic-tag" title={`Carrying: ${p.artifactCards.map(a => a.nickname).join(', ')}`}>
-                    📦 {p.artifactCards?.length || 0}
+                    📦 Carrying Relic
+                  </span>
+                ) : p.missionPhase === 2 ? (
+                  <span className="footer-displaced-tag" style={{ background: 'rgba(245, 158, 11, 0.25)', border: '1px solid #F5C442', color: '#FFD700', padding: '2px 6px', borderRadius: '3px', fontSize: '0.66rem', fontWeight: 800 }}>
+                    📍 In {ERA_NAMES[p.mission?.displacedEra]?.replace(' Era', '')}
                   </span>
                 ) : null}
                 {p.skipNextTurn && (
@@ -155,9 +173,9 @@ function PlayerSidebar({
                       background: "rgba(244, 63, 94, 0.25)",
                       border: "1px solid #F43F5E",
                       color: "#FDA4AF",
-                      padding: "1px 5px",
+                      padding: "2px 6px",
                       borderRadius: "3px",
-                      fontSize: "0.6rem",
+                      fontSize: "0.65rem",
                       fontWeight: 800
                     }}
                     title="Hazard Penalty: Will skip next turn!"

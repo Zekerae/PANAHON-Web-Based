@@ -1209,6 +1209,14 @@ export class NetworkManager {
         sounds.artifact();
         this.engine.returnArtifact(action.playerIdx, action.artifactId);
         break;
+      case 'COOP_STABILIZE_TIMELINE':
+        sounds.portal();
+        this.engine.coopStabilizeTimeline(action.playerIdx);
+        break;
+      case 'COOP_TRANSFER_ENERGY':
+        sounds.btnClick();
+        this.engine.coopTransferEnergy(action.fromIdx, action.toIdx, action.amount);
+        break;
     }
   }
 

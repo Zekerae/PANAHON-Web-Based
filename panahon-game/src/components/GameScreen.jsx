@@ -256,43 +256,7 @@ function GameScreen({
     }
   }, [state.phase, state.movesRemaining, isMyTurn, engine, network]);
 
-  // Spacebar, Enter, or Arrow key shortcuts to roll dice or step move
-  React.useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (showIntro) return;
-      const tag = e.target?.tagName?.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) {
-        return;
-      }
-      if (e.code === 'Space' || e.key === ' ') {
-        if (state?.phase === 'rolling' && isMyTurn && !isRolling && !isPaused) {
-          e.preventDefault();
-          if (currentPlayer && currentPlayer.skipNextTurn) {
-            handleAcknowledgeSkip();
-          } else if (currentPlayer && currentPlayer.energy <= 0) {
-            handleRest();
-          } else {
-            handleRollDice();
-          }
-          return;
-        }
-        if (state?.phase === 'moving' && isMyTurn && !isPaused && (state?.movesRemaining || 0) > 0) {
-          e.preventDefault();
-          handleStepMove();
-          return;
-        }
-      }
-      if (e.key === 'Enter' || e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-        if (state?.phase === 'moving' && isMyTurn && !isPaused && (state?.movesRemaining || 0) > 0) {
-          e.preventDefault();
-          handleStepMove();
-          return;
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showIntro, state?.phase, state?.movesRemaining, isMyTurn, isRolling, isPaused, currentPlayer, handleRollDice, handleStepMove, handleRest, handleAcknowledgeSkip]);
+  
 
   const handleMoveToTile = useCallback((tileId) => {
     if (state.pendingChoice?.type === 'teleportTile' && isMyTurn) {
@@ -350,9 +314,9 @@ function GameScreen({
 
   const handleUseSkill = useCallback(() => {
     const isExplorer = currentPlayer?.roleKey === 'EXPLORER';
-    const requiredPhase = isExplorer ? 'rolling' : 'action';
-    if (state.phase !== requiredPhase || !isMyTurn) return;
-    sounds.btnClick();
+    const isAbilityPhase = isExplorer ? (state.phase === 'rolling' || state.phase === 'moving') : (state.phase === 'action');
+    if (!isAbilityPhase || !isMyTurn) return;
+    sounds.abilityActivate?.() || sounds.btnClick();
     engine.useActiveAbility(state.currentPlayerIndex);
     network.sendAction({ type: 'USE_ABILITY', playerIdx: state.currentPlayerIndex });
   }, [state.phase, state.currentPlayerIndex, isMyTurn, currentPlayer?.roleKey, engine, network, sounds]);
@@ -444,6 +408,90 @@ function GameScreen({
   const timeGateCost = currentPlayer?.roleKey === 'EXPLORER' ? 1 : 2;
   const canTimeWarp = isMyTurn && isOnTimeGate && (currentPlayer?.energy || 0) >= timeGateCost;
   const matchingArtifact = currentPlayer?.artifactCards?.find(a => a.era === currentPlayer?.currentEra);
+
+  // --- Comprehensive Keyboard Shortcuts (Roll, Step Move, Skill [Q/S], End Turn [E/T/Space/Enter]) ---
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (showIntro || isPaused || showDebugModal || state?.pendingModal || state?.pendingChoice) return;
+      const tag = e.target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) {
+        return;
+      }
+
+      // 1. Skill keybinding: Q or S
+      if (e.key === 'q' || e.key === 'Q' || e.key === 's' || e.key === 'S' || e.code === 'KeyQ') {
+        if (canUseAbilityNow) {
+          e.preventDefault();
+          handleUseSkill();
+          return;
+        }
+      }
+
+      // 2. End Turn keybinding: E or T
+      if (e.key === 'e' || e.key === 'E' || e.key === 't' || e.key === 'T' || e.code === 'KeyE') {
+        if (state?.phase === 'action' && isMyTurn) {
+          e.preventDefault();
+          handleEndTurn();
+          return;
+        }
+      }
+
+      // 3. Spacebar & Enter: Contextual turn flow (Roll -> Step Move -> End Turn)
+      if (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') {
+        if (state?.phase === 'rolling' && isMyTurn && !isRolling) {
+          e.preventDefault();
+          if (currentPlayer && currentPlayer.skipNextTurn) {
+            handleAcknowledgeSkip();
+          } else if (currentPlayer && currentPlayer.energy <= 0) {
+            handleRest();
+          } else {
+            handleRollDice();
+          }
+          return;
+        }
+        if (state?.phase === 'moving' && isMyTurn && (state?.movesRemaining || 0) > 0) {
+          e.preventDefault();
+          handleStepMove();
+          return;
+        }
+        if (state?.phase === 'action' && isMyTurn) {
+          e.preventDefault();
+          handleEndTurn();
+          return;
+        }
+      }
+
+      // 4. Arrow keys for step movement
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        if (state?.phase === 'moving' && isMyTurn && (state?.movesRemaining || 0) > 0) {
+          e.preventDefault();
+          handleStepMove();
+          return;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    showIntro,
+    isPaused,
+    showDebugModal,
+    state?.pendingModal,
+    state?.pendingChoice,
+    state?.phase,
+    state?.movesRemaining,
+    isMyTurn,
+    isRolling,
+    currentPlayer,
+    canUseAbilityNow,
+    handleRollDice,
+    handleStepMove,
+    handleRest,
+    handleAcknowledgeSkip,
+    handleUseSkill,
+    handleEndTurn
+  ]);
 
   if (!state || !engine) return null;
 
@@ -602,7 +650,7 @@ function GameScreen({
                         }}
                         onClick={handleUseSkill}
                       >
-                        <span>🏃 Momentum</span>
+                        <span>🏃 Momentum [Q]</span>
                         <span style={{ fontSize: '0.68rem', opacity: 0.9 }}>-3En</span>
                       </button>
                     )}
@@ -714,7 +762,7 @@ function GameScreen({
                     }}
                     onClick={handleUseSkill}
                   >
-                    <span>✨ {activeSkill?.name}</span>
+                    <span>✨ {activeSkill?.name} [Q]</span>
                     <span style={{ fontSize: '0.68rem', opacity: 0.9 }}>-{activeCost}En</span>
                   </button>
                 )}
@@ -757,7 +805,7 @@ function GameScreen({
                   }}
                   onClick={handleEndTurn}
                 >
-                  🏁 Finish Turn
+                  🏁 Finish Turn [E]
                 </button>
                 <button
                   type="button"

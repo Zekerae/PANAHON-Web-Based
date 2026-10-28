@@ -933,6 +933,7 @@ function GameActions({
                         onClick={() => { sounds.abilityActivate?.(); onUseSkill(); }}
                       >
                         <span>🏃 ACTIVATE MOMENTUM (PAUSE & INTERACT) • -3 EN</span>
+                        <kbd style={{ background: canUseAbilityNow ? "#082F49" : "#120E0A", border: canUseAbilityNow ? "1px solid #38BDF8" : "1px solid #4A3423", padding: "1px 5px", borderRadius: "3px", fontSize: "0.62rem", color: canUseAbilityNow ? "#38BDF8" : "#735E4E" }}>Q</kbd>
                       </button>
                     </>
                   )}
@@ -1261,7 +1262,7 @@ function GameActions({
                       cursor: canUseAbilityNow ? "pointer" : "not-allowed"
                     }}
                   >
-                    🏃 Activate Momentum (-3 En)
+                    🏃 Activate Momentum (-3 En) [Q]
                   </button>
                 </div>
               )}
@@ -1443,6 +1444,7 @@ function GameActions({
                     onClick={() => { sounds.abilityActivate?.(); onUseSkill(); }}
                   >
                     <span>✨ ACTIVATE {activeSkill.name.toUpperCase()} ({abilityBadge})</span>
+                    <kbd style={{ background: canUseAbilityNow ? "#20140A" : "#120E0A", border: canUseAbilityNow ? "1px solid #F5C442" : "1px solid #4A3423", padding: "1px 5px", borderRadius: "3px", fontSize: "0.62rem", color: canUseAbilityNow ? "#FFD700" : "#735E4E" }}>Q</kbd>
                   </button>
                 </>
               )}
@@ -1539,6 +1541,7 @@ function GameActions({
             onClick={onEndTurn}
           >
             <span>🏁 END TURN ⏩</span>
+            <kbd style={{ background: "#20140A", border: "1px solid #C2974D", padding: "1px 6px", borderRadius: "3px", fontSize: "0.64rem", color: "#FFD700" }}>E / SPACE</kbd>
           </button>
         </div>
       )}

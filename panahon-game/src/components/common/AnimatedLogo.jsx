@@ -89,7 +89,7 @@ export default function AnimatedLogo({
       const logoW = 1200;
       const logoH = Math.round(logoW * (1358 / 2128)); // ~765px
       const baseLx = (BASE_W - logoW) / 2;
-      const baseLy = (BASE_H - logoH) / 2 + 10;
+      const baseLy = (BASE_H - logoH) / 2;
 
       // Subtle organic breathing float
       const bobY = Math.sin(elapsed * 1.5) * 5.0;
@@ -240,11 +240,15 @@ export default function AnimatedLogo({
       className={className}
       style={{
         position: "relative",
-        display: "block",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
         lineHeight: 0,
-        overflow: "visible",
+        overflow: "hidden",
         userSelect: "none",
         pointerEvents: "none",
+        maxWidth: "100%",
+        maxHeight: "100%",
         ...style
       }}
       aria-label={alt}
@@ -255,8 +259,12 @@ export default function AnimatedLogo({
           src="/assets/panahon_chrono_shift_logo.png"
           alt={alt}
           style={{
+            maxWidth: "100%",
+            maxHeight: "100%",
             width: "100%",
-            height: "auto",
+            height: "100%",
+            objectFit: "contain",
+            aspectRatio: "1400 / 890",
             display: "block",
             pointerEvents: "none",
             userSelect: "none",
@@ -269,8 +277,12 @@ export default function AnimatedLogo({
       <canvas
         ref={canvasRef}
         style={{
+          maxWidth: "100%",
+          maxHeight: "100%",
           width: "100%",
-          height: "auto",
+          height: "100%",
+          objectFit: "contain",
+          aspectRatio: "1400 / 890",
           display: isLogoLoaded ? "block" : "none",
           imageRendering: "auto"
         }}

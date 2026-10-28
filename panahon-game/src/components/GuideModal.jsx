@@ -238,6 +238,39 @@ export default function GuideModal({ onClose }) {
                   </div>
                 </div>
               </div>
+
+              {/* KEYBOARD SHORTCUTS REFERENCE */}
+              <div style={{ background: '#1C1510', boxShadow: 'inset 2px 2px 0 #0F0A07', border: '2px solid #5A422D', borderRadius: '4px', padding: '12px 14px' }}>
+                <h4 style={{ margin: '0 0 8px', color: '#FFD700', fontFamily: 'var(--font-display)', letterSpacing: '1px', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>⌨️</span> KEYBOARD SHORTCUTS & FIELD CONTROLS
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '8px', fontSize: '0.76rem' }}>
+                  <div style={{ padding: '8px 10px', background: '#251B12', border: '1px solid #4A3522', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#E2E8F0' }}>Roll Die / Step / Advance</span>
+                    <kbd style={{ background: '#140E0A', border: '1px solid #C2974D', color: '#FFD700', padding: '2px 7px', borderRadius: '3px', fontFamily: 'var(--font-display)', fontSize: '0.68rem' }}>SPACE / ENTER</kbd>
+                  </div>
+                  <div style={{ padding: '8px 10px', background: '#251B12', border: '1px solid #4A3522', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#E2E8F0' }}>Activate Operative Skill</span>
+                    <kbd style={{ background: '#140E0A', border: '1px solid #F5C442', color: '#FFD700', padding: '2px 7px', borderRadius: '3px', fontFamily: 'var(--font-display)', fontSize: '0.68rem' }}>Q or S</kbd>
+                  </div>
+                  <div style={{ padding: '8px 10px', background: '#251B12', border: '1px solid #4A3522', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#E2E8F0' }}>End / Pass Turn</span>
+                    <kbd style={{ background: '#140E0A', border: '1px solid #38BDF8', color: '#38BDF8', padding: '2px 7px', borderRadius: '3px', fontFamily: 'var(--font-display)', fontSize: '0.68rem' }}>E or T</kbd>
+                  </div>
+                  <div style={{ padding: '8px 10px', background: '#251B12', border: '1px solid #4A3522', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#E2E8F0' }}>Pause Menu / Dismiss</span>
+                    <kbd style={{ background: '#140E0A', border: '1px solid #5A422D', color: '#F5C442', padding: '2px 7px', borderRadius: '3px', fontFamily: 'var(--font-display)', fontSize: '0.68rem' }}>ESC</kbd>
+                  </div>
+                  <div style={{ padding: '8px 10px', background: '#251B12', border: '1px solid #4A3522', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#E2E8F0' }}>Move Step (Manual)</span>
+                    <kbd style={{ background: '#140E0A', border: '1px solid #5A422D', color: '#CBD5E1', padding: '2px 7px', borderRadius: '3px', fontFamily: 'var(--font-display)', fontSize: '0.68rem' }}>&larr; / &rarr;</kbd>
+                  </div>
+                  <div style={{ padding: '8px 10px', background: '#251B12', border: '1px solid #4A3522', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#E2E8F0' }}>Diagnostics Console</span>
+                    <kbd style={{ background: '#140E0A', border: '1px solid #5A422D', color: '#CBD5E1', padding: '2px 7px', borderRadius: '3px', fontFamily: 'var(--font-display)', fontSize: '0.68rem' }}>` or F2</kbd>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

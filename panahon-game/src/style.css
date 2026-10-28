@@ -6477,19 +6477,35 @@ body {
 }
 
 .duelyst-logo-wrapper {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  flex-shrink: 0;
 }
 
 .main-menu-logo-video {
   max-width: 380px;
+  max-height: 220px;
   width: 100%;
   height: auto;
+  aspect-ratio: 1400 / 890;
   pointer-events: none;
   user-select: none;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+}
+
+.main-menu-logo-video canvas,
+.main-menu-logo-video img {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  display: block !important;
 }
 
 .main-menu-logo {
@@ -12101,8 +12117,8 @@ html, body, #app, .app-root {
    Ensures proportional scaling on mobile landscape (height <= 550px) and portrait
    ========================================================================== */
 
-/* 1. Mobile Landscape (max-height: 550px) - Primary fix for phones rotated horizontally */
-@media (max-height: 550px) {
+/* 1. Mobile Landscape (max-height: 620px or landscape max-width: 950px) - Primary fix for phones rotated horizontally */
+@media (max-height: 620px), (max-width: 950px) and (orientation: landscape) {
   /* Title Screen Header Bar */
   .duelyst-top-bar {
     padding: 6px 14px !important;
@@ -12142,32 +12158,41 @@ html, body, #app, .app-root {
     max-width: 44vw !important;
     justify-content: center !important;
     height: 100% !important;
-    max-height: calc(100vh - 42px) !important;
+    max-height: calc(100vh - 40px) !important;
     display: flex !important;
     flex-direction: column !important;
+    gap: 4px !important;
   }
 
   /* Title Screen Brand Logo */
   .duelyst-logo-wrapper {
-    margin-bottom: 6px !important;
+    margin-bottom: 8px !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    max-height: 76px !important;
   }
 
   .main-menu-logo-video {
-    max-width: 190px !important;
-    max-height: 92px !important;
-    width: 100% !important;
-    height: auto !important;
+    max-width: 145px !important;
+    max-height: 76px !important;
+    width: auto !important;
+    height: 76px !important;
+    aspect-ratio: 1400 / 890 !important;
+    flex-shrink: 0 !important;
   }
 
   .main-menu-logo {
-    max-width: 180px !important;
-    max-height: 85px !important;
+    max-width: 140px !important;
+    max-height: 72px !important;
   }
 
   /* Vertical Navigation Menu & Buttons */
   .duelyst-nav-menu {
     gap: 4px !important;
-    margin-bottom: 6px !important;
+    margin-bottom: 4px !important;
+    flex-shrink: 0 !important;
   }
 
   .duelyst-menu-link {
@@ -12373,17 +12398,28 @@ html, body, #app, .app-root {
 /* 2. Ultra-Compact Mobile Landscape (max-height: 400px) */
 @media (max-height: 400px) {
   .duelyst-main-layout {
-    padding: 30px 14px 6px !important;
+    padding: 26px 14px 4px !important;
     gap: 14px !important;
   }
 
   .duelyst-left-section {
     width: 215px !important;
+    gap: 2px !important;
+  }
+
+  .duelyst-logo-wrapper {
+    margin-bottom: 4px !important;
+    max-height: 58px !important;
+    flex-shrink: 0 !important;
   }
 
   .main-menu-logo-video {
-    max-width: 160px !important;
-    max-height: 75px !important;
+    max-width: 115px !important;
+    max-height: 58px !important;
+    width: auto !important;
+    height: 58px !important;
+    aspect-ratio: 1400 / 890 !important;
+    flex-shrink: 0 !important;
   }
 
   .duelyst-menu-link {
@@ -12450,10 +12486,17 @@ html, body, #app, .app-root {
   .duelyst-logo-wrapper {
     justify-content: center !important;
     margin-bottom: 12px !important;
+    max-height: 130px !important;
+    flex-shrink: 0 !important;
   }
 
   .main-menu-logo-video {
-    max-width: 250px !important;
+    max-width: 210px !important;
+    max-height: 130px !important;
+    width: auto !important;
+    height: auto !important;
+    aspect-ratio: 1400 / 890 !important;
+    flex-shrink: 0 !important;
   }
 
   .duelyst-nav-menu {

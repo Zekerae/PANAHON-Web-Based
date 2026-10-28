@@ -62,23 +62,29 @@ export default function GameIntroModal({
   }, [groups]);
 
   const activeTiedPlayerIds = useMemo(() => {
-    return new Set((activeTiedPlayers || []).map((p) => p.id));
+    const s = new Set();
+    (activeTiedPlayers || []).forEach((p) => {
+      s.add(p.id);
+      s.add(String(p.id));
+      if (typeof p.id === "string" && !isNaN(Number(p.id))) s.add(Number(p.id));
+    });
+    return s;
   }, [activeTiedPlayers]);
 
   // The local player on THIS machine
   const myLocalPlayer = useMemo(() => {
     if (isSpectator) return null;
     if (isOnline) {
-      if (typeof network?.playerId === 'number') {
-        const byId = players.find((p) => p.id === network.playerId && p.roleKey !== 'SPECTATOR');
-        if (byId) return byId;
-      }
       if (network?.myPlayerName) {
         const byName = players.find((p) => p.name === network.myPlayerName && p.roleKey !== 'SPECTATOR');
         if (byName) return byName;
       }
       const byLocal = players.find((p) => p.isLocal && p.roleKey !== 'SPECTATOR');
       if (byLocal) return byLocal;
+      if (network?.playerId !== null && network?.playerId !== undefined) {
+        const byId = players.find((p) => String(p.id) === String(network.playerId) && p.roleKey !== 'SPECTATOR');
+        if (byId) return byId;
+      }
       return null;
     }
 
@@ -323,7 +329,7 @@ export default function GameIntroModal({
       if (currentRolls[rollPlayer.id] !== undefined) return;
 
       // In online mode, you can only roll your own assigned operative
-      if (isOnline && (!myLocalPlayer || rollPlayer.id !== myLocalPlayer.id)) return;
+      if (isOnline && (!myLocalPlayer || String(rollPlayer.id) !== String(myLocalPlayer.id))) return;
 
       setRollingPlayerId(rollPlayer.id);
       sounds.diceRoll();

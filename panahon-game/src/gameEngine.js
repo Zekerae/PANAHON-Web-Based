@@ -326,16 +326,16 @@ export class GameEngine {
 
     this.state.players = newPlayers;
     this.state.currentPlayerIndex = 0;
-    gameLogger.turn(`Turn concluded for ${player.name}. Advancing to ${nextPlayer.name} (Round ${this.state.currentPlayerIndex === 0 ? this.state.turnNumber : this.state.turnNumber})`);
-    gameLogger.phase('Phase reset to rolling for next player');
+    const firstPlayer = newPlayers[0];
+    gameLogger.turn(`🎲 Initiative resolved! First turn awarded to ${firstPlayer?.name || 'Player 1'}. Turn sequence: ${newPlayers.map((p, i) => `#${i + 1} ${p.name}`).join(' → ')}`);
+    gameLogger.phase('Phase reset to rolling for first player');
     this.state.phase = 'rolling';
     this.state.diceResult = null;
     this.state.movesRemaining = 0;
     this.state.hasCompletedIntro = true;
 
-    const firstPlayer = newPlayers[0];
     this.addLog('system', `🎲 Initiative resolved! Turn order: ${newPlayers.map((p, i) => `#${i + 1} ${p.name}`).join(' → ')}.`);
-    this.addLog('system', `🏆 ${firstPlayer.name} takes the first turn!`);
+    this.addLog('system', `🏆 ${firstPlayer?.name || 'Player 1'} takes the first turn!`);
 
     this.notify();
     return true;

@@ -2839,9 +2839,11 @@ export class GameEngine {
     if (artIdx < 0) return false;
 
     const originEra = artifact.originEra || artifact.era;
+    const currentTile = this.state.board[player.currentEra]?.[player.tileIndex];
+    const isOnArtifactTile = currentTile?.type === TILE_TYPES.ARTIFACT;
 
-    if (player.currentEra === originEra) {
-      // Correct Origin Timeline!
+    if (player.currentEra === originEra && isOnArtifactTile) {
+      // Correct Origin Timeline AND landed on the Artifact Tile!
       player.artifactCards.splice(artIdx, 1);
       player.missionComplete = true;
       player.completed = true;
@@ -2857,13 +2859,13 @@ export class GameEngine {
       player.placementRank = rank;
 
       const ordinalStr = rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : `${rank}th`;
-      this.addLog('mission', `🏆 ${player.name} returned ${artifact.nickname} to ${ERA_NAMES[originEra]} and secured ${ordinalStr} Place!`);
+      this.addLog('mission', `🏆 ${player.name} returned ${artifact.nickname} to the Artifact Tile in ${ERA_NAMES[originEra]} and secured ${ordinalStr} Place!`);
 
       this.state.pendingModal = {
         type: 'artifact',
         cardType: `FIFO Rank #${rank} Locked In! 🏆`,
         title: `${ordinalStr.toUpperCase()} PLACE SECURED!`,
-        description: `Magnificent achievement, ${player.name}! You safely recovered and returned ${artifact.name} (${artifact.nickname}) to the ${ERA_NAMES[originEra]} timeline, locking in ${ordinalStr} Place! You can now spectate or use cooperative actions (Timeline Stabilization & Energy Trading) to help remaining castaways finish before the Timeline Meter surpasses 5 (reaches 6).`,
+        description: `Magnificent achievement, ${player.name}! You safely recovered and returned ${artifact.name} (${artifact.nickname}) to the Artifact Tile in the ${ERA_NAMES[originEra]} timeline, locking in ${ordinalStr} Place! You can now spectate or use cooperative actions (Timeline Stabilization & Energy Trading) to help remaining castaways finish before the Timeline Meter surpasses 5 (reaches 6).`,
         image: artifact.cardImage || artifact.image,
         era: originEra
       };
@@ -2872,6 +2874,18 @@ export class GameEngine {
       if (this.state.players.every(p => p.completed)) {
         this.endGame('allComplete');
       }
+    } else if (player.currentEra === originEra && !isOnArtifactTile) {
+      // In correct era, but not on the Artifact Tile!
+      this.state.pendingModal = {
+        type: 'info',
+        title: 'Artifact Return Point Required',
+        description: `You have returned to the ${ERA_NAMES[originEra]} timeline, but you must reach and land on the Artifact Tile to restore the ${artifact.nickname} to history!`,
+        image: artifact.cardImage || artifact.image,
+        era: player.currentEra
+      };
+      this.state.phase = 'action';
+      this.notify();
+      return false;
     } else {
       // Wrong timeline
       this.modifyParadox(player, 1);

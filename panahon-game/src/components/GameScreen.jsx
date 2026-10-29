@@ -323,13 +323,15 @@ function GameScreen({
 
   const handleReturnArtifact = useCallback(() => {
     if (state.phase !== 'action' || !isMyTurn) return;
-    const matchingArt = currentPlayer.artifactCards.find(a => (a.originEra || a.era) === currentPlayer.currentEra);
+    const currentTile = state?.board?.[currentPlayer?.currentEra]?.[currentPlayer?.tileIndex];
+    if (currentTile?.type !== 'artifact') return;
+    const matchingArt = currentPlayer?.artifactCards?.find(a => (a.originEra || a.era) === currentPlayer?.currentEra);
     if (matchingArt) {
       sounds.artifact();
       engine.returnArtifact(state.currentPlayerIndex, matchingArt.id);
       network.sendAction({ type: 'RETURN_ARTIFACT', playerIdx: state.currentPlayerIndex, artifactId: matchingArt.id });
     }
-  }, [state.phase, isMyTurn, currentPlayer, state.currentPlayerIndex, engine, network]);
+  }, [state.phase, isMyTurn, currentPlayer, state?.board, state.currentPlayerIndex, engine, network, sounds]);
 
   const handleCoopStabilizeTimeline = useCallback(() => {
     if (!isMyTurn || !currentPlayer?.completed) return;
@@ -405,9 +407,10 @@ function GameScreen({
 
   const currentTile = state?.board?.[currentPlayer?.currentEra]?.[currentPlayer?.tileIndex];
   const isOnTimeGate = currentTile?.type === 'timeGate';
+  const isOnArtifactTile = currentTile?.type === 'artifact';
   const timeGateCost = currentPlayer?.roleKey === 'EXPLORER' ? 1 : 2;
   const canTimeWarp = isMyTurn && isOnTimeGate && (currentPlayer?.energy || 0) >= timeGateCost;
-  const matchingArtifact = currentPlayer?.artifactCards?.find(a => a.era === currentPlayer?.currentEra);
+  const matchingArtifact = isOnArtifactTile && currentPlayer?.artifactCards?.find(a => (a.originEra || a.era) === currentPlayer?.currentEra);
 
   // --- Comprehensive Keyboard Shortcuts (Roll, Step Move, Skill [Q/S], End Turn [E/T/Space/Enter]) ---
   React.useEffect(() => {

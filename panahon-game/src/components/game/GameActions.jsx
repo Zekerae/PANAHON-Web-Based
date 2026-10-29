@@ -104,10 +104,12 @@ function GameActions({
 
   const currentTile = state.board?.[currentPlayer.currentEra]?.[currentPlayer.tileIndex];
   const isOnTimeGate = currentTile?.type === 'timeGate';
+  const isOnArtifactTile = currentTile?.type === 'artifact';
   const timeGateCost = currentPlayer.roleKey === 'EXPLORER' ? 1 : 2;
   const canTimeWarp = isMyTurn && isOnTimeGate && (currentPlayer.energy || 0) >= timeGateCost;
 
-  const matchingArtifact = currentPlayer.artifactCards?.find(a => a.era === currentPlayer.currentEra);
+  // Matching relic can ONLY be returned when landed on the Artifact Tile in the Origin Era
+  const matchingArtifact = isOnArtifactTile && currentPlayer.artifactCards?.find(a => (a.originEra || a.era) === currentPlayer.currentEra);
 
   if (isSpectator) {
     const players = state.players || [];

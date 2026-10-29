@@ -318,8 +318,10 @@ class AiController {
 
       // 6. Action Phase
       if (state.phase === 'action') {
-        // A. Check if bot has an artifact matching the current era to return!
-        const matchingArtifact = player.artifactCards.find(a => (a.originEra || a.era) === player.currentEra);
+        // A. Check if bot is on the Artifact Tile with a relic matching the current era to return!
+        const curTile = state.board?.[player.currentEra]?.[player.tileIndex];
+        const isOnArtifactTile = curTile?.type === 'artifact';
+        const matchingArtifact = isOnArtifactTile && player.artifactCards.find(a => (a.originEra || a.era) === player.currentEra);
         if (matchingArtifact) {
           sounds.victory?.();
           engine.returnArtifact(player.id, matchingArtifact.id);

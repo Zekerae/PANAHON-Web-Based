@@ -503,17 +503,6 @@ export class GameEngine {
 
     // Check tile interaction
     const tile = eraTiles[targetIdx];
-    
-    // Check for trap: Ensnare enemy player (planter is immune)
-    if (tile.trap && !this.isTrapImmune(player, tile.trap)) {
-      this.triggerTrap(player, tile);
-      this.state.movesRemaining = 0;
-      this.state.movementDirection = 'forward';
-      this.state.momentumActive = false;
-      this.state.momentumUsedMidTile = false;
-      this.notify();
-      return true;
-    }
 
     // Temporal Triangulation: Check Time Gate Chrono-Scan (Step 2)
     if (tile.type === TILE_TYPES.TIMEGATE) {
@@ -702,15 +691,6 @@ export class GameEngine {
     this.state.hasMovedThisTurn = true;
 
     const tile = eraTiles[newIdx];
-
-    // Check trap: Ensnare enemy player (planter is immune)
-    if (tile.trap && !this.isTrapImmune(player, tile.trap)) {
-      this.triggerTrap(player, tile);
-      this.state.movesRemaining = 0;
-      this.state.movementDirection = 'forward';
-      this.notify();
-      return true;
-    }
 
     // Artifact stop option
     if (tile.type === TILE_TYPES.ARTIFACT && this.state.movesRemaining > 0) {

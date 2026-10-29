@@ -3205,7 +3205,6 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
     return (
       <div className="modal-overlay event-modal-overlay" id="active-modal">
         <div className="event-vignette-backdrop" />
-        <CardVFXOverlay vfxTag="classified_folder" />
         <div className="modal event-card-modal" style={{ maxWidth: '840px', width: '95%', maxHeight: '92vh', overflowY: 'auto' }}>
           <div className="event-header">
             <div className="event-header-badge">
@@ -3269,12 +3268,7 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
             </p>
 
             {/* 3 Face-Up Cards Display */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '14px',
-              marginBottom: '18px'
-            }}>
+            <div className="clue-market-grid" style={{ marginBottom: '18px' }}>
               {options.map((opt, idx) => {
                 const isTargetMatch = opt.isMissionCard;
                 const advancesStep = (isStep1 && opt.isMissionCard) || (isStep3 && !opt.isDecoy);
@@ -3282,11 +3276,12 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                 return (
                   <div
                     key={opt.cardId || idx}
+                    className="clue-market-card"
                     style={{
                       background: advancesStep
-                        ? 'linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(20, 83, 45, 0.35) 100%)'
+                        ? 'linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, rgba(20, 83, 45, 0.4) 100%)'
                         : opt.isDecoy
-                        ? 'linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(127, 29, 29, 0.25) 100%)'
+                        ? 'linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, rgba(127, 29, 29, 0.3) 100%)'
                         : '#1E293B',
                       border: advancesStep
                         ? '2px solid #10B981'
@@ -3294,9 +3289,9 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                         ? '2px solid #F59E0B'
                         : opt.isDecoy
                         ? '1.5px solid rgba(239, 68, 68, 0.4)'
-                        : '1.5px solid rgba(56, 189, 248, 0.4)',
+                        : '1.5px solid rgba(56, 189, 248, 0.35)',
                       borderRadius: '10px',
-                      padding: '12px',
+                      padding: '12px 10px',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
@@ -3312,12 +3307,14 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                       <div style={{
                         background: '#10B981',
                         color: '#022C22',
-                        fontSize: '0.68rem',
+                        fontSize: '0.64rem',
                         fontWeight: 900,
-                        padding: '3px 8px',
+                        padding: '3px 6px',
                         borderRadius: '4px',
                         marginBottom: '8px',
-                        letterSpacing: '0.5px'
+                        letterSpacing: '0.5px',
+                        width: '100%',
+                        boxSizing: 'border-box'
                       }}>
                         ⚡ ADVANCES TRIANGULATION!
                       </div>
@@ -3325,11 +3322,13 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                       <div style={{
                         background: 'rgba(239, 68, 68, 0.2)',
                         color: '#FDA4AF',
-                        fontSize: '0.68rem',
+                        fontSize: '0.64rem',
                         fontWeight: 800,
-                        padding: '3px 8px',
+                        padding: '3px 6px',
                         borderRadius: '4px',
-                        marginBottom: '8px'
+                        marginBottom: '8px',
+                        width: '100%',
+                        boxSizing: 'border-box'
                       }}>
                         ⚠️ DECOY ANOMALY
                       </div>
@@ -3337,11 +3336,13 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                       <div style={{
                         background: '#F59E0B',
                         color: '#451A03',
-                        fontSize: '0.68rem',
+                        fontSize: '0.64rem',
                         fontWeight: 900,
-                        padding: '3px 8px',
+                        padding: '3px 6px',
                         borderRadius: '4px',
-                        marginBottom: '8px'
+                        marginBottom: '8px',
+                        width: '100%',
+                        boxSizing: 'border-box'
                       }}>
                         🎯 MISSION TARGET RELIC
                       </div>
@@ -3349,87 +3350,112 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                       <div style={{
                         background: 'rgba(56, 189, 248, 0.15)',
                         color: '#7DD3FC',
-                        fontSize: '0.68rem',
+                        fontSize: '0.64rem',
                         fontWeight: 700,
-                        padding: '3px 8px',
+                        padding: '3px 6px',
                         borderRadius: '4px',
-                        marginBottom: '8px'
+                        marginBottom: '8px',
+                        width: '100%',
+                        boxSizing: 'border-box'
                       }}>
                         🌐 FOREIGN INTEL (TRADE)
                       </div>
                     )}
 
-                    {/* Card Image */}
-                    {opt.image ? (
-                      <img
-                        src={opt.image}
-                        alt={opt.label || 'Clue'}
-                        style={{
-                          width: '100%',
-                          maxHeight: '120px',
-                          objectFit: 'contain',
-                          borderRadius: '6px',
-                          marginBottom: '8px'
-                        }}
-                      />
-                    ) : (
-                      <div style={{
+                    {/* Card Image (Clickable for full inspect) */}
+                    <div
+                      style={{
+                        position: 'relative',
+                        cursor: 'pointer',
                         width: '100%',
-                        height: '90px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '2.5rem',
-                        background: 'rgba(15, 23, 42, 0.6)',
+                        marginBottom: '8px',
                         borderRadius: '6px',
-                        marginBottom: '8px'
+                        overflow: 'hidden',
+                        background: 'rgba(15, 23, 42, 0.6)'
+                      }}
+                      onClick={() => onMaximize && onMaximize({
+                        title: opt.label,
+                        cardType: opt.isDecoy ? 'Decoy Card' : 'Clue Card',
+                        description: opt.card?.description || opt.card?.hint,
+                        image: opt.image,
+                        era: choice.era
+                      })}
+                      title="Click to view full-size card"
+                    >
+                      {opt.image ? (
+                        <img
+                          src={opt.image}
+                          alt={opt.label || 'Clue'}
+                          style={{
+                            width: '100%',
+                            maxHeight: '120px',
+                            objectFit: 'contain',
+                            display: 'block'
+                          }}
+                        />
+                      ) : (
+                        <div style={{ height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' }}>
+                          {opt.isDecoy ? '🎭' : '📜'}
+                        </div>
+                      )}
+                      <span style={{
+                        position: 'absolute',
+                        bottom: '4px',
+                        right: '4px',
+                        background: 'rgba(0, 0, 0, 0.75)',
+                        border: '1px solid rgba(255, 255, 255, 0.25)',
+                        borderRadius: '4px',
+                        padding: '2px 5px',
+                        fontSize: '0.62rem',
+                        color: '#E2E8F0',
+                        fontWeight: 600
                       }}>
-                        {opt.isDecoy ? '🎭' : '📜'}
-                      </div>
-                    )}
+                        🔍 View
+                      </span>
+                    </div>
 
                     {/* Card Title & Info */}
-                    <div style={{ fontSize: '0.88rem', fontWeight: 800, color: opt.isDecoy ? '#FDA4AF' : '#F8FAFC', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 800, color: opt.isDecoy ? '#FDA4AF' : '#F8FAFC', marginBottom: '4px', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {opt.label}
                     </div>
 
-                    <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginBottom: '12px', flex: 1, minHeight: '36px', lineHeight: 1.3 }}>
+                    <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginBottom: '12px', flex: 1, minHeight: '34px', lineHeight: 1.3, width: '100%' }}>
                       {opt.card?.description || opt.card?.hint || (opt.isDecoy ? 'Leads to nowhere! Beware deceptive timelines.' : `Intel on the ${opt.artifactName || 'relic'}.`)}
                     </div>
 
-                    {/* Action Buttons */}
-                    <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
-                      <button
-                        type="button"
-                        className={`btn ${advancesStep ? 'btn-success' : 'btn-primary'}`}
-                        style={{
-                          flex: 1,
-                          padding: '8px 10px',
-                          fontSize: '0.80rem',
-                          fontWeight: 800,
-                          cursor: (isMyTurn || network.mode !== 'online') ? 'pointer' : 'not-allowed'
-                        }}
-                        disabled={!isMyTurn && network.mode === 'online'}
-                        onClick={() => { sounds.clue?.(); handleSelect(opt.action || `faceup_${opt.cardId}`); }}
-                      >
-                        Claim Clue ➔
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        style={{ padding: '8px', fontSize: '0.78rem' }}
-                        title="Inspect Card"
-                        onClick={() => onMaximize && onMaximize({
-                          title: opt.label,
-                          cardType: opt.isDecoy ? 'Decoy Card' : 'Clue Card',
-                          description: opt.card?.description || opt.card?.hint,
-                          image: opt.image,
-                          era: choice.era
-                        })}
-                      >
-                        🔍
-                      </button>
-                    </div>
+                    {/* Action Button */}
+                    <button
+                      type="button"
+                      className="btn clue-market-btn"
+                      style={{
+                        cursor: (isMyTurn || network.mode !== 'online') ? 'pointer' : 'not-allowed',
+                        background: advancesStep
+                          ? 'linear-gradient(180deg, #059669 0%, #065F46 100%) !important'
+                          : opt.isDecoy
+                          ? 'linear-gradient(180deg, #5C2222 0%, #3B1212 100%) !important'
+                          : 'linear-gradient(180deg, #4d3826 0%, #38271a 100%) !important',
+                        borderColor: advancesStep
+                          ? '#34D399 !important'
+                          : opt.isDecoy
+                          ? '#E57373 !important'
+                          : '#f5c442 !important',
+                        color: advancesStep
+                          ? '#ECFDF5 !important'
+                          : opt.isDecoy
+                          ? '#FEE2E2 !important'
+                          : '#FFD700 !important',
+                        boxShadow: advancesStep
+                          ? '0 0 12px rgba(16, 185, 129, 0.4), inset 1px 1px 0 #6EE7B7, inset -1px -1px 0 #047857 !important'
+                          : undefined
+                      }}
+                      disabled={!isMyTurn && network.mode === 'online'}
+                      onClick={() => { sounds.clue?.(); handleSelect(opt.action || `faceup_${opt.cardId}`); }}
+                    >
+                      <span>Claim Clue ➔</span>
+                    </button>
                   </div>
                 );
               })}
@@ -3458,11 +3484,8 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                 </div>
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="btn clue-market-blind-btn"
                   style={{
-                    padding: '8px 16px',
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
                     cursor: (isMyTurn || network.mode !== 'online') ? 'pointer' : 'not-allowed'
                   }}
                   disabled={!isMyTurn && network.mode === 'online'}

@@ -13528,3 +13528,48 @@ html, body, #app, .app-root {
   0%, 100% { transform: scale(1); box-shadow: 0 0 8px #FFD700; }
   50% { transform: scale(1.15); box-shadow: 0 0 16px #FFD700, 0 0 24px #F59E0B; }
 }
+
+/* 17. Temporal Clue Market (Option A Face-Up Display) */
+.clue-market-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .clue-market-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.clue-market-card {
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.clue-market-btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  padding: 10px 8px !important;
+  font-size: 0.68rem !important;
+  letter-spacing: 0.5px !important;
+}
+
+.clue-market-blind-btn {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+  padding: 10px 18px !important;
+  font-size: 0.68rem !important;
+  letter-spacing: 0.5px !important;
+}

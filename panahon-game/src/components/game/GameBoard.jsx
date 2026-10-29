@@ -857,7 +857,7 @@ function GameBoard({
 
                 const mission = currentPlayer?.mission;
                 const targetArtId = mission?.artifactId;
-                const hasCluesForArt = Boolean(targetArtId && (currentPlayer?.clueProgress?.[targetArtId] || 0) >= 3);
+                const hasCluesForArt = Boolean(targetArtId && ((currentPlayer?.clueProgress?.[targetArtId] || 0) >= 3 || currentPlayer?.triangulation?.impactSighting));
                 const hasArtInHand = Boolean(targetArtId && currentPlayer?.artifactCards?.some(a => a.id === targetArtId));
                 const isCompleted = Boolean(currentPlayer?.completed);
 

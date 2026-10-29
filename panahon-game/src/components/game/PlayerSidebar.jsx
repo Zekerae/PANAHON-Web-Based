@@ -117,9 +117,9 @@ function PlayerSidebar({
                     <span className="rank-unit">PLACE</span>
                   </div>
                 ) : (
-                  <div className="player-mission-phase-badge" title={`Mission Phase: ${p.missionPhase === 3 ? 'Return to Origin' : (p.missionPhase === 2 ? 'Displaced Retrieval' : 'Historical Research')}`}>
+                  <div className="player-mission-phase-badge" title={`Mission Phase: ${p.missionPhase === 3 ? 'Return to Origin' : (p.missionPhase === 2 ? 'Displaced Retrieval' : 'Temporal Triangulation')}`}>
                     <span className="phase-val">
-                      {p.missionPhase === 3 ? '📦 RETURN' : (p.missionPhase === 2 ? '📍 DISPLACED' : `🔍 ${(p.mission && p.clueProgress?.[p.mission.artifactId]) || 0}/3`)}
+                      {p.missionPhase === 3 ? '📦 RETURN' : (p.missionPhase === 2 ? '📍 DISPLACED' : `🔍 T: ${(p.triangulation?.originAnchor ? 1 : 0) + (p.triangulation?.riftVector ? 1 : 0) + (p.triangulation?.impactSighting ? 1 : 0)}/3`)}
                     </span>
                   </div>
                 )}
@@ -162,8 +162,8 @@ function PlayerSidebar({
                 <span className="footer-era-tag">
                   {ERA_NAMES[p.currentEra]?.replace(" Era", "") || p.currentEra}
                 </span>
-                <span className="footer-clues-tag">
-                  Clues: <strong>{(p.mission && p.clueProgress?.[p.mission.artifactId]) || 0}/3</strong>
+                <span className="footer-clues-tag" title="Temporal Triangulation Milestones">
+                  Milestones: <strong>{(p.triangulation?.originAnchor ? 1 : 0) + (p.triangulation?.riftVector ? 1 : 0) + (p.triangulation?.impactSighting ? 1 : 0)}/3</strong>
                 </span>
                 {p.completed ? (
                   <span className="footer-mission-done">🏆 #{p.placementRank} Place</span>

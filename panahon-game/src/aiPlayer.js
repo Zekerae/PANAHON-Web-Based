@@ -412,43 +412,51 @@ class AiController {
     const choiceType = choice.type;
 
     if (choiceType === 'artifactStop') {
-      // Stop if player has clues or mission matches
-      const hasClues = (player.clueProgress && Object.keys(player.clueProgress).length > 0);
-      const action = hasClues ? 'stopForArtifact' : 'continueMoving';
+      const artId = player.mission?.artifactId;
+      const isPhase2Retrieval = player.missionPhase === 2 &&
+        player.currentEra === player.mission?.displacedEra &&
+        (player.triangulation?.impactSighting || (player.clueProgress?.[artId] || 0) >= 3);
+      const isPhase3Restoration = player.missionPhase === 3 &&
+        player.currentEra === (player.mission?.originEra || player.mission?.targetEra) &&
+        player.artifactCards?.some(a => a.id === artId);
+
+      const action = (isPhase2Retrieval || isPhase3Restoration) ? 'stopForArtifact' : 'continueMoving';
       engine.resolveChoice(action);
       network?.sendAction({ type: 'RESOLVE_CHOICE', action });
       this.scheduleAiStep(engine, network, 650);
       return;
     }
 
-    if (choiceType === 'timeGatePass') {
-      const targetEra = player.missionPhase === 2
-        ? player.mission?.displacedEra
-        : (player.mission?.originEra || player.mission?.targetEra);
+    if (choiceType === 'timeGatePass' || choiceType === 'timeGateTravel') {
+      let targetEra = null;
+      if (player.missionPhase === 3) {
+        targetEra = player.mission?.originEra || player.mission?.targetEra;
+      } else if (player.triangulation?.originAnchor && player.triangulation?.riftVector && !player.triangulation?.impactSighting) {
+        targetEra = player.mission?.displacedEra;
+      } else if (player.missionPhase === 2) {
+        targetEra = player.mission?.displacedEra;
+      } else if (!player.triangulation?.originAnchor) {
+        targetEra = player.mission?.originEra || player.mission?.targetEra;
+      }
+
       const cost = player.roleKey === 'EXPLORER' ? 1 : 2;
 
-      // If mission points to another era and we have energy to warp, do it!
-      if (targetEra && targetEra !== player.currentEra && player.energy >= cost) {
-        const action = `warp_${targetEra}`;
-        sounds.portal?.();
-        engine.resolveChoice(action);
-        network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+      if (choiceType === 'timeGatePass') {
+        if (targetEra && targetEra !== player.currentEra && player.energy >= cost) {
+          const action = `warp_${targetEra}`;
+          sounds.portal?.();
+          engine.resolveChoice(action);
+          network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+        } else {
+          engine.resolveChoice('continueMoving');
+          network?.sendAction({ type: 'RESOLVE_CHOICE', action: 'continueMoving' });
+        }
       } else {
-        engine.resolveChoice('continueMoving');
-        network?.sendAction({ type: 'RESOLVE_CHOICE', action: 'continueMoving' });
+        const dest = (targetEra && targetEra !== player.currentEra) ? targetEra : 'stay';
+        engine.resolveChoice(dest);
+        network?.sendAction({ type: 'RESOLVE_CHOICE', action: dest });
       }
       this.scheduleAiStep(engine, network, 700);
-      return;
-    }
-
-    if (choiceType === 'timeGateTravel') {
-      const targetEra = player.missionPhase === 2
-        ? player.mission?.displacedEra
-        : (player.mission?.originEra || player.mission?.targetEra);
-      const dest = (targetEra && targetEra !== player.currentEra) ? targetEra : 'stay';
-      engine.resolveChoice(dest);
-      network?.sendAction({ type: 'RESOLVE_CHOICE', action: dest });
-      this.scheduleAiStep(engine, network, 650);
       return;
     }
 

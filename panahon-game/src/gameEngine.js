@@ -135,11 +135,15 @@ export class GameEngine {
     const clueDecks = {};
     const eventDecks = {};
     const dangerDecks = {};
-    
+    // Face-Up Display: 3 visible cards per era (players can see & choose which to take)
+    const faceUpCards = {};
+
     ERA_ORDER.forEach(era => {
       clueDecks[era] = shuffle(allClueCards.filter(c => c.era === era));
       eventDecks[era] = shuffle([...EVENT_CARDS[era]]);
       dangerDecks[era] = shuffle([...DANGER_CARDS[era]]);
+      // Deal 3 face-up cards from each era's shuffled deck
+      faceUpCards[era] = clueDecks[era].splice(0, 3);
     });
 
     // Build board: tiles per era
@@ -221,6 +225,13 @@ export class GameEngine {
         missionPhase: 1, // 1: Research in Home Era, 2: Retrieval in Displaced Era, 3: Return to Origin Era, 4: Restored
         finishedAt: null,
 
+        // Temporal Triangulation Progression
+        triangulation: {
+          originAnchor: false,
+          riftVector: false,
+          impactSighting: false
+        },
+
         // Cards in hand
         clueCards: [],
         artifactCards: [],
@@ -260,6 +271,7 @@ export class GameEngine {
       clueDecks,
       eventDecks,
       dangerDecks,
+      faceUpCards, // 3 visible clue cards per era for the Face-Up Display mechanic
       placementQueue: [],
       timelineMeter: 0,
       temporalOccurrence: 0, // turns remaining
@@ -503,6 +515,11 @@ export class GameEngine {
       return true;
     }
 
+    // Temporal Triangulation: Check Time Gate Chrono-Scan (Step 2)
+    if (tile.type === TILE_TYPES.TIMEGATE) {
+      this.checkTemporalScan(player);
+    }
+
     // If artifact tile, player can choose to stop
     if (tile.type === TILE_TYPES.ARTIFACT && this.state.movesRemaining > 0) {
       // Player may stop for artifact
@@ -576,7 +593,11 @@ export class GameEngine {
       if (victim.clueCards && victim.clueCards.length > 0) {
         const stolenCard = victim.clueCards.pop();
         if (stolenCard.artifactId && victim.clueProgress?.[stolenCard.artifactId] > 0) {
-          victim.clueProgress[stolenCard.artifactId]--;
+          const minMilestones = this.getTriangulationCount(victim);
+          victim.clueProgress[stolenCard.artifactId] = Math.max(
+            victim.mission?.artifactId === stolenCard.artifactId ? minMilestones : 0,
+            victim.clueProgress[stolenCard.artifactId] - 1
+          );
         }
 
         if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
@@ -704,6 +725,11 @@ export class GameEngine {
       };
       this.notify();
       return true;
+    }
+
+    // Temporal Triangulation: Check Time Gate Chrono-Scan (Step 2)
+    if (tile.type === TILE_TYPES.TIMEGATE) {
+      this.checkTemporalScan(player);
     }
 
     // Time Gate passing option
@@ -883,12 +909,13 @@ export class GameEngine {
         };
         this.state.phase = returnPhase;
       } else if (chosenCard) {
+        const isTriangulationStep = this.processClueTriangulation(player, chosenCard, player.currentEra);
         if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
           this.promptClueHandLimit(player, chosenCard, returnPhase);
           return;
         } else {
           player.clueCards.push(chosenCard);
-          if (!chosenCard.isDecoy && chosenCard.artifactId) {
+          if (!isTriangulationStep && !chosenCard.isDecoy && chosenCard.artifactId) {
             if (!player.clueProgress[chosenCard.artifactId]) {
               player.clueProgress[chosenCard.artifactId] = 0;
             }
@@ -906,7 +933,11 @@ export class GameEngine {
         if (victim && victim.clueCards && victim.clueCards.length > 0) {
           const stolenCard = victim.clueCards.pop();
           if (stolenCard.artifactId && victim.clueProgress?.[stolenCard.artifactId] > 0) {
-            victim.clueProgress[stolenCard.artifactId]--;
+            const minMilestones = this.getTriangulationCount(victim);
+            victim.clueProgress[stolenCard.artifactId] = Math.max(
+              victim.mission?.artifactId === stolenCard.artifactId ? minMilestones : 0,
+              victim.clueProgress[stolenCard.artifactId] - 1
+            );
           }
           if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
             this.promptClueHandLimit(player, stolenCard, returnPhase);
@@ -1012,10 +1043,14 @@ export class GameEngine {
         if (discardIdx >= 0 && discardIdx < player.clueCards.length) {
           const [discardedCard] = player.clueCards.splice(discardIdx, 1);
 
-          // Adjust clue progress if real clue was discarded
+          // Adjust clue progress if real clue was discarded (protecting completed triangulation milestones)
           if (!discardedCard.isDecoy && discardedCard.artifactId) {
+            const minMilestones = this.getTriangulationCount(player);
             if (player.clueProgress[discardedCard.artifactId] > 0) {
-              player.clueProgress[discardedCard.artifactId]--;
+              player.clueProgress[discardedCard.artifactId] = Math.max(
+                player.mission?.artifactId === discardedCard.artifactId ? minMilestones : 0,
+                player.clueProgress[discardedCard.artifactId] - 1
+              );
             }
           }
           this.returnClueToDeck(discardedCard);
@@ -1090,6 +1125,17 @@ export class GameEngine {
     // Prevent duplicate object entry
     this.state.clueDecks[era].push(card);
     this.state.clueDecks[era] = shuffle(this.state.clueDecks[era]);
+  }
+
+  // Face-Up Display: replenish one slot in the face-up row after a card is taken.
+  // Draws the next card from the era deck. If the deck is empty, the slot stays empty.
+  _replenishFaceUp(era) {
+    if (!this.state.faceUpCards) return;
+    if (!this.state.faceUpCards[era]) this.state.faceUpCards[era] = [];
+    const deck = this.state.clueDecks[era];
+    if (deck && deck.length > 0) {
+      this.state.faceUpCards[era].push(deck.shift());
+    }
   }
 
   // Present Choice Modal when player reaches Clue Hand Limit (Max 3)
@@ -1213,6 +1259,10 @@ export class GameEngine {
       return;
     }
 
+    // Process Temporal Triangulation (Steps 1 & 3)
+    // Only triggers if card.artifactId === player.mission.artifactId
+    const isTriangulationStep = this.processClueTriangulation(player, card, era);
+
     // Check Hand Limit (Max 3 Clue Cards)
     if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
       this.promptClueHandLimit(player, card, 'action');
@@ -1221,19 +1271,45 @@ export class GameEngine {
 
     player.clueCards.push(card);
 
-    if (!card.isDecoy && card.artifactId) {
+    // Non-triangulation step: still track clue progress for any non-decoy card
+    if (!isTriangulationStep && !card.isDecoy && card.artifactId) {
       if (!player.clueProgress[card.artifactId]) {
         player.clueProgress[card.artifactId] = 0;
       }
       player.clueProgress[card.artifactId]++;
+    }
 
-      // 3-Step Displaced Artifact Loop: Phase 1 complete -> Phase 2 (Retrieval in Displaced Era)
-      if (player.mission && player.mission.artifactId === card.artifactId && player.clueProgress[card.artifactId] >= (GAME_CONSTANTS.REQUIRED_CLUES_FOR_ARTIFACT || 3)) {
-        if (player.missionPhase === 1) {
-          player.missionPhase = 2;
-          this.addLog('mission', `🎯 RESEARCH COMPLETED! ${player.name} deciphered 3 clues for ${player.mission.artifactNickname}! Relic displaced in: ${ERA_NAMES[player.mission.displacedEra]}!`);
-        }
-      }
+    // Build modal messaging
+    let modalTitle, modalSubtitle, modalDesc, modalCardType;
+
+    if (card.isDecoy) {
+      modalTitle = 'Decoy Anomaly!';
+      modalSubtitle = 'FALSE INTELLIGENCE';
+      modalDesc = card.description;
+      modalCardType = 'Decoy Anomaly';
+    } else if (card.triangulationStep === 1) {
+      modalTitle = '📜 ORIGIN ANCHOR LOCKED!';
+      modalSubtitle = 'STEP 1 OF 3: HISTORICAL TRACE';
+      modalDesc = `Historical records confirmed! You unearthed authentic documentation for the ${player.mission?.artifactNickname} in its native ${ERA_NAMES[player.mission?.originEra]}. Head to a Time Gate to scan the residual rift vector!`;
+      modalCardType = 'Triangulation Clue — Step 1 (Origin Anchor)';
+    } else if (card.triangulationStep === 3) {
+      modalTitle = '🎯 GROUND SIGHTINGS VERIFIED!';
+      modalSubtitle = 'STEP 3 OF 3: TRIANGULATION COMPLETE';
+      modalDesc = `Local eyewitnesses confirm the presence of the ${player.mission?.artifactNickname} here in ${ERA_NAMES[player.mission?.displacedEra]}! Triangulation is complete — proceed to the Artifact Tile to retrieve it!`;
+      modalCardType = 'Triangulation Clue — Step 3 (Ground Sighting)';
+    } else if (!card.isDecoy && card.artifactId && card.artifactId !== player.mission?.artifactId) {
+      // Drew a REAL clue but it belongs to ANOTHER operative's artifact — useful for trading!
+      const otherArtName = card.artifactName || 'another relic';
+      modalTitle = 'Foreign Intel Recovered!';
+      modalSubtitle = 'NOT YOUR TARGET — TRADE VALUE HIGH';
+      modalDesc = `This clue belongs to the ${otherArtName} — not your current mission target. Hold it for a Clue Trade with the operative hunting that relic, or discard it to make room!`;
+      modalCardType = 'Field Intel (Foreign Relic)';
+    } else {
+      // Non-decoy, correct artifact, but triangulation conditions not met (wrong era, or step already done)
+      modalTitle = 'Historical Clue Found!';
+      modalSubtitle = null;
+      modalDesc = card.description;
+      modalCardType = 'Clue Card';
     }
 
     this.state.pendingModal = {
@@ -1241,21 +1317,25 @@ export class GameEngine {
       playerId: player.id,
       playerName: player.name,
       isClue: true,
-      cardType: card.isDecoy ? 'Decoy Anomaly' : 'Clue Card',
-      title: card.isDecoy ? 'Decoy Anomaly!' : 'Historical Clue Found!',
-      description: card.description,
+      cardType: modalCardType,
+      title: modalTitle,
+      subtitle: modalSubtitle,
+      description: modalDesc,
       hint: card.hint,
       image: card.image,
       era: era,
       isDecoy: card.isDecoy,
       artifactId: card.artifactId,
       artifactName: card.artifactName,
+      triangulationStep: card.triangulationStep,
       clueCount: player.clueCards.length,
       maxClues: GAME_CONSTANTS.MAX_CLUE_CARDS || 3,
-      artifactProgress: card.artifactId ? (player.clueProgress?.[card.artifactId] || 1) : 0
+      artifactProgress: card.artifactId ? (player.clueProgress?.[card.artifactId] || 1) : 0,
+      triangulation: { ...player.triangulation }
     };
 
-    this.addLog('card', `${player.name} drew a Clue Card from ${ERA_NAMES[era]}. (${player.clueCards.length}/${GAME_CONSTANTS.MAX_CLUE_CARDS || 3} Clues held)`);
+    const stepLabel = card.triangulationStep ? ` [TRIANGULATION STEP ${card.triangulationStep}]` : '';
+    this.addLog('card', `${player.name} drew a Clue Card from ${ERA_NAMES[era]}${stepLabel}. (${player.clueCards.length}/${GAME_CONSTANTS.MAX_CLUE_CARDS || 3} Clues held)`);
     this.state.phase = 'action';
     this.notify();
   }
@@ -1605,15 +1685,23 @@ export class GameEngine {
       }
     }
 
-    // Case 2: Attempting to pick up an Artifact before collecting 3 Clues -> +1 Paradox penalty!
-    if (clueCount < requiredClues) {
+    // Case 2: Attempting to pick up an Artifact before completing Triangulation -> +1 Paradox penalty!
+    const isTriangulated = !!(player.triangulation?.impactSighting || clueCount >= requiredClues);
+    if (!isTriangulated) {
       this.modifyParadox(player, 1);
-      this.addLog('paradox', `⚠️ ${player.name} attempted to access an Artifact without 3 clues! Paradox +1! (${clueCount}/${requiredClues} Clues held)`);
+      const stepMsg = !player.triangulation?.originAnchor
+        ? `You must first discover the Origin Anchor in ${ERA_NAMES[mission?.originEra || player.currentEra]} (Step 1).`
+        : !player.triangulation?.riftVector
+        ? `You must scan the Rift Vector at a Time Gate (Step 2).`
+        : `You must verify local ground sightings in ${ERA_NAMES[mission?.displacedEra || player.currentEra]} (Step 3).`;
+
+      this.addLog('paradox', `⚠️ ${player.name} attempted to access an Artifact without completing Triangulation! Paradox +1! (${clueCount}/${requiredClues} Milestones reached)`);
       this.state.pendingModal = {
         type: 'danger',
         cardType: 'Paradox Strain! ⚠️',
-        title: 'INSUFFICIENT HISTORICAL RESEARCH',
-        description: `You attempted to access the Artifact Tile without collecting 3 matching clues from its Origin Era (${ERA_NAMES[mission?.originEra || player.currentEra]})! You only have ${clueCount}/${requiredClues} clues. Spacetime destabilized: Individual Paradox +1!`,
+        title: 'TEMPORAL TRIANGULATION INCOMPLETE',
+        subtitle: 'INSUFFICIENT HISTORICAL INTEL',
+        description: `You attempted to access the Artifact Tile before completing Temporal Triangulation! ${stepMsg} Spacetime destabilized: Individual Paradox +1!`,
         image: 'assets/Tiles/artifact_tile.png',
         era: player.currentEra
       };
@@ -1622,7 +1710,7 @@ export class GameEngine {
       return;
     }
 
-    // Case 3: Player has 3 clues and is in the Displaced Era -> Phase 2 Retrieval!
+    // Case 3: Player has completed Triangulation and is in the Displaced Era -> Phase 2 Retrieval!
     if (mission && player.currentEra === mission.displacedEra) {
       if (missionArtifact) {
         player.artifactCards.push(missionArtifact);
@@ -1644,7 +1732,7 @@ export class GameEngine {
       }
     }
 
-    // Case 4: Player has 3 clues but is in the wrong era (not displaced era)
+    // Case 4: Player completed Triangulation but is in the wrong era (not displaced era)
     this.state.pendingModal = {
       type: 'info',
       title: 'Displaced Relic Location',
@@ -1656,8 +1744,95 @@ export class GameEngine {
     this.notify();
   }
 
+  // --- Temporal Triangulation Helpers ---
+  getTriangulationCount(player) {
+    if (!player || !player.triangulation) return 0;
+    return (player.triangulation.originAnchor ? 1 : 0) +
+           (player.triangulation.riftVector ? 1 : 0) +
+           (player.triangulation.impactSighting ? 1 : 0);
+  }
+
+  processClueTriangulation(player, card, era) {
+    if (!player || !player.mission || !player.triangulation) return false;
+    if (card.isDecoy) return false;
+
+    const mission = player.mission;
+    const currentEra = era || player.currentEra;
+
+    // Step 1: Historical Trace in Origin Era -> Origin Anchor locked!
+    // REQUIRES the drawn card to match the player's mission artifact specifically.
+    // Only your relic's own historical documentation counts — foreign clue cards fill
+    // your hand (trade value) but cannot prove your artifact was here in its native era.
+    const isMissionCard = card.artifactId === mission.artifactId;
+    if (currentEra === mission.originEra && !player.triangulation.originAnchor) {
+      if (!isMissionCard) return false; // Wrong artifact's card — cannot anchor Step 1
+      player.triangulation.originAnchor = true;
+      card.triangulationStep = 1;
+
+      if (!player.clueProgress[mission.artifactId]) {
+        player.clueProgress[mission.artifactId] = 0;
+      }
+      player.clueProgress[mission.artifactId] = Math.max(player.clueProgress[mission.artifactId], 1);
+
+      this.addLog('mission', `📜 STEP 1 COMPLETE: Origin Anchor Locked! ${player.name} discovered the ${mission.artifactNickname}'s historical archive in ${ERA_NAMES[mission.originEra]}! Next: Head to a Time Gate to scan the Rift Vector!`);
+      return true;
+    }
+
+    // Step 3: Local Ground Intel in Displaced Era -> Impact Sighting locked!
+    // Requires: Origin Anchor + Rift Vector already done, AND you drew ANY non-decoy clue
+    // in the displaced era. Thematically: these are "local eyewitness reports" from displaced-era
+    // inhabitants who wouldn't know the relic by its historical catalogue name — any field
+    // intelligence gathered here confirms the relic's presence in this foreign time period.
+    if (currentEra === mission.displacedEra && player.triangulation.originAnchor && player.triangulation.riftVector && !player.triangulation.impactSighting) {
+      player.triangulation.impactSighting = true;
+      card.triangulationStep = 3;
+
+      if (!player.clueProgress[mission.artifactId]) {
+        player.clueProgress[mission.artifactId] = 0;
+      }
+      player.clueProgress[mission.artifactId] = Math.max(player.clueProgress[mission.artifactId], 3);
+      player.missionPhase = 2; // Triangulation complete -> Phase 2: Ready to retrieve relic!
+
+      this.addLog('mission', `🎯 STEP 3 COMPLETE: Triangulation Finished! ${player.name} confirmed a ${mission.artifactNickname} sighting in ${ERA_NAMES[mission.displacedEra]}! Proceed to the Artifact Tile to retrieve it!`);
+      return true;
+    }
+
+    return false;
+  }
+
+  // --- Temporal Triangulation: Chrono-Scan at Time Gate (Step 2) ---
+  checkTemporalScan(player) {
+    if (!player || !player.mission || !player.triangulation) return false;
+    // Step 2: If Origin Anchor is locked and Rift Vector is not yet scanned:
+    if (player.triangulation.originAnchor && !player.triangulation.riftVector) {
+      player.triangulation.riftVector = true;
+      const artId = player.mission.artifactId;
+      if (!player.clueProgress[artId]) {
+        player.clueProgress[artId] = 0;
+      }
+      player.clueProgress[artId] = Math.max(player.clueProgress[artId], 2);
+
+      this.addLog('mission', `🌀 STEP 2 COMPLETE: Chrono-Scan Verified! Rift Vector locked: ${player.mission.artifactNickname} was displaced into ${ERA_NAMES[player.mission.displacedEra]}!`);
+      
+      this.state.pendingModal = {
+        type: 'info',
+        cardType: 'Chrono-Vortex Triangulation 🌀',
+        title: 'RIFT VECTOR SCANNED!',
+        subtitle: 'STEP 2 OF 3: TRAJECTORY LOCKED',
+        description: `Your Chrono-Device analyzed the portal's residual vortex discharge! The ${player.mission.artifactNickname} was hurled through spacetime into the ${ERA_NAMES[player.mission.displacedEra]}! Warp through this Time Gate to follow ground sightings!`,
+        image: 'assets/Tiles/portal_tile.png',
+        era: player.currentEra,
+        triangulation: { ...player.triangulation }
+      };
+      this.notify();
+      return true;
+    }
+    return false;
+  }
+
   // --- Time Gate ---
   handleTimeGate(player) {
+    this.checkTemporalScan(player);
     const cost = player.roleKey === 'EXPLORER' ? GAME_CONSTANTS.TIME_GATE_COST_EXPLORER : GAME_CONSTANTS.TIME_GATE_COST;
     
     if (player.energy < cost) {
@@ -2167,27 +2342,48 @@ export class GameEngine {
       this.notify();
       return;
     }
+    // Process Temporal Triangulation (Steps 1 & 3)
+    const isTriangulationStep = this.processClueTriangulation(player, card, era);
+
     if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
       this.promptClueHandLimit(player, card, 'action');
       return;
     }
     player.clueCards.push(card);
-    if (!card.isDecoy && card.artifactId) {
+    if (!isTriangulationStep && !card.isDecoy && card.artifactId) {
       if (!player.clueProgress[card.artifactId]) {
         player.clueProgress[card.artifactId] = 0;
       }
       player.clueProgress[card.artifactId]++;
     }
     this.addLog('event', `${player.name} drew Clue Card "${card.title || card.hint}" from ${ERA_NAMES[era]}!`);
+
+    let modalTitle = card.isDecoy ? 'Decoy Card' : (card.title || 'Clue Card');
+    let modalDesc = card.hint || card.description;
+    let modalSubtitle = null;
+
+    if (card.triangulationStep === 1) {
+      modalTitle = '📜 ORIGIN ANCHOR LOCKED!';
+      modalSubtitle = 'STEP 1 OF 3: HISTORICAL TRACE';
+      modalDesc = `Historical records confirmed! You unearthed authentic documentation for ${player.mission?.artifactNickname || 'your relic'} in its native ${ERA_NAMES[player.mission?.originEra]}. Head to a Time Gate to scan the residual rift vector!`;
+    } else if (card.triangulationStep === 3) {
+      modalTitle = '🎯 GROUND SIGHTINGS VERIFIED!';
+      modalSubtitle = 'STEP 3 OF 3: TRIANGULATION COMPLETE';
+      modalDesc = `Local eyewitnesses confirm the presence of ${player.mission?.artifactNickname || 'your relic'} here in ${ERA_NAMES[player.mission?.displacedEra]}! Triangulation is complete. Proceed to the Artifact Tile in this era to retrieve it!`;
+    }
+
     this.state.pendingModal = {
       type: 'clue',
-      cardType: card.isDecoy ? 'Decoy Card' : 'Clue Card',
-      title: card.title || (card.isDecoy ? 'Decoy Card' : 'Clue Card'),
-      description: card.hint || card.description,
+      cardType: card.isDecoy ? 'Decoy Card' : (card.triangulationStep ? `Triangulation Clue (Step ${card.triangulationStep})` : 'Clue Card'),
+      title: modalTitle,
+      subtitle: modalSubtitle,
+      description: modalDesc,
       image: card.image,
       era: era,
       playerId: player.id,
-      playerName: player.name
+      playerName: player.name,
+      triangulationStep: card.triangulationStep,
+      triangulation: { ...player.triangulation }
     };
     this.state.phase = 'action';
     this.notify();

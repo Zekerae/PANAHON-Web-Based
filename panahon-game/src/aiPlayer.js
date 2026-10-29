@@ -470,6 +470,45 @@ class AiController {
       return;
     }
 
+    if (choiceType === 'clueDisplay') {
+      // Face-Up Display: AI picks the most valuable visible card for its current triangulation step.
+      // Step 1 needs: mission artifact's own card (specific card identity required).
+      // Step 3 needs: any non-decoy in displaced era.
+      // Otherwise: take any non-decoy for trade value; draw blind only if all visible are decoys.
+      const options = choice.options || [];
+      const needsStep1 = !player.triangulation?.originAnchor && player.currentEra === player.mission?.originEra;
+      const needsStep3 = player.triangulation?.originAnchor && player.triangulation?.riftVector && !player.triangulation?.impactSighting && player.currentEra === player.mission?.displacedEra;
+
+      let chosen = null;
+      if (needsStep1) {
+        // For Step 1: ONLY the mission artifact's specific card advances triangulation
+        chosen = options.find(o => o.isMissionCard);
+      }
+      if (!chosen && needsStep3) {
+        // For Step 3: any non-decoy triggers local intel
+        chosen = options.find(o => !o.isDecoy);
+      }
+      if (!chosen) {
+        // General: prefer non-decoy for trade value, avoid decoys
+        chosen = options.find(o => !o.isDecoy);
+      }
+
+      let action;
+      if (chosen) {
+        action = `faceup_${chosen.cardId}`;
+      } else if (choice.canDrawBlind) {
+        action = 'draw_blind'; // All face-up visible cards are decoys — draw blind hoping for better
+      } else {
+        action = options.length > 0 ? `faceup_${options[0].cardId}` : 'draw_blind';
+      }
+
+      sounds.btnClick?.();
+      engine.resolveChoice(action);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
     if (choiceType === 'clueHandLimit') {
       const drawnCard = choice.drawnCard;
       const missionArtifactId = player.mission?.artifactId;

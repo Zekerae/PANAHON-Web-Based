@@ -3194,6 +3194,290 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
 
 
 
+  // ===== 0. Face-Up Clue Market Modal (Option A) =====
+  if (choice.type === 'clueDisplay') {
+    const eraName = ERA_NAMES[choice.era] || choice.era;
+    const mission = activePlayer?.mission;
+    const isStep1 = !activePlayer?.triangulation?.originAnchor && choice.era === mission?.originEra;
+    const isStep3 = activePlayer?.triangulation?.originAnchor && activePlayer?.triangulation?.riftVector && !activePlayer?.triangulation?.impactSighting && choice.era === mission?.displacedEra;
+    const options = choice.options || [];
+
+    return (
+      <div className="modal-overlay event-modal-overlay" id="active-modal">
+        <div className="event-vignette-backdrop" />
+        <CardVFXOverlay vfxTag="classified_folder" />
+        <div className="modal event-card-modal" style={{ maxWidth: '840px', width: '95%', maxHeight: '92vh', overflowY: 'auto' }}>
+          <div className="event-header">
+            <div className="event-header-badge">
+              <span>🏛️</span>
+              <span>{eraName.toUpperCase()} • EXPEDITION ARCHIVE</span>
+              <span>🔍</span>
+            </div>
+            <div className="event-title">
+              <span>🗂️</span>
+              <span>TEMPORAL CLUE MARKET</span>
+              <span>🗂️</span>
+            </div>
+          </div>
+
+          <div className="modal-body" style={{ textAlign: 'center', padding: '16px 20px' }}>
+            {/* Mission Objective Reminder */}
+            {mission && (
+              <div style={{
+                background: 'rgba(30, 41, 59, 0.85)',
+                border: '1px solid rgba(148, 163, 184, 0.25)',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '8px',
+                textAlign: 'left'
+              }}>
+                <div>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#94A3B8', letterSpacing: '0.5px', fontWeight: 700 }}>
+                    Target Mission Relic:
+                  </span>
+                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#F8FAFC' }}>
+                    📦 {mission.artifactNickname || mission.artifactName}
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#CBD5E1' }}>
+                  {isStep1 && (
+                    <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#FCD34D', padding: '3px 8px', borderRadius: '4px', fontWeight: 700, border: '1px solid #F59E0B' }}>
+                      📜 Step 1: Draw your relic's archive clue here!
+                    </span>
+                  )}
+                  {isStep3 && (
+                    <span style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#6EE7B7', padding: '3px 8px', borderRadius: '4px', fontWeight: 700, border: '1px solid #10B981' }}>
+                      🎯 Step 3: Draw any local intel clue to lock sighting!
+                    </span>
+                  )}
+                  {!isStep1 && !isStep3 && (
+                    <span style={{ color: '#94A3B8' }}>
+                      Select a clue to hold or trade with other operatives.
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <p style={{ fontSize: '0.86rem', color: '#CBD5E1', marginBottom: '16px', lineHeight: 1.4 }}>
+              Inspect the <strong>3 visible Clue Cards</strong> excavated in this era, or draw blind from the deck:
+            </p>
+
+            {/* 3 Face-Up Cards Display */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '14px',
+              marginBottom: '18px'
+            }}>
+              {options.map((opt, idx) => {
+                const isTargetMatch = opt.isMissionCard;
+                const advancesStep = (isStep1 && opt.isMissionCard) || (isStep3 && !opt.isDecoy);
+
+                return (
+                  <div
+                    key={opt.cardId || idx}
+                    style={{
+                      background: advancesStep
+                        ? 'linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(20, 83, 45, 0.35) 100%)'
+                        : opt.isDecoy
+                        ? 'linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(127, 29, 29, 0.25) 100%)'
+                        : '#1E293B',
+                      border: advancesStep
+                        ? '2px solid #10B981'
+                        : isTargetMatch
+                        ? '2px solid #F59E0B'
+                        : opt.isDecoy
+                        ? '1.5px solid rgba(239, 68, 68, 0.4)'
+                        : '1.5px solid rgba(56, 189, 248, 0.4)',
+                      borderRadius: '10px',
+                      padding: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      textAlign: 'center',
+                      boxShadow: advancesStep
+                        ? '0 0 16px rgba(16, 185, 129, 0.3)'
+                        : '0 4px 12px rgba(0, 0, 0, 0.3)',
+                      position: 'relative'
+                    }}
+                  >
+                    {/* Badge */}
+                    {advancesStep ? (
+                      <div style={{
+                        background: '#10B981',
+                        color: '#022C22',
+                        fontSize: '0.68rem',
+                        fontWeight: 900,
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        marginBottom: '8px',
+                        letterSpacing: '0.5px'
+                      }}>
+                        ⚡ ADVANCES TRIANGULATION!
+                      </div>
+                    ) : opt.isDecoy ? (
+                      <div style={{
+                        background: 'rgba(239, 68, 68, 0.2)',
+                        color: '#FDA4AF',
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        marginBottom: '8px'
+                      }}>
+                        ⚠️ DECOY ANOMALY
+                      </div>
+                    ) : isTargetMatch ? (
+                      <div style={{
+                        background: '#F59E0B',
+                        color: '#451A03',
+                        fontSize: '0.68rem',
+                        fontWeight: 900,
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        marginBottom: '8px'
+                      }}>
+                        🎯 MISSION TARGET RELIC
+                      </div>
+                    ) : (
+                      <div style={{
+                        background: 'rgba(56, 189, 248, 0.15)',
+                        color: '#7DD3FC',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        marginBottom: '8px'
+                      }}>
+                        🌐 FOREIGN INTEL (TRADE)
+                      </div>
+                    )}
+
+                    {/* Card Image */}
+                    {opt.image ? (
+                      <img
+                        src={opt.image}
+                        alt={opt.label || 'Clue'}
+                        style={{
+                          width: '100%',
+                          maxHeight: '120px',
+                          objectFit: 'contain',
+                          borderRadius: '6px',
+                          marginBottom: '8px'
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '100%',
+                        height: '90px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '2.5rem',
+                        background: 'rgba(15, 23, 42, 0.6)',
+                        borderRadius: '6px',
+                        marginBottom: '8px'
+                      }}>
+                        {opt.isDecoy ? '🎭' : '📜'}
+                      </div>
+                    )}
+
+                    {/* Card Title & Info */}
+                    <div style={{ fontSize: '0.88rem', fontWeight: 800, color: opt.isDecoy ? '#FDA4AF' : '#F8FAFC', marginBottom: '4px' }}>
+                      {opt.label}
+                    </div>
+
+                    <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginBottom: '12px', flex: 1, minHeight: '36px', lineHeight: 1.3 }}>
+                      {opt.card?.description || opt.card?.hint || (opt.isDecoy ? 'Leads to nowhere! Beware deceptive timelines.' : `Intel on the ${opt.artifactName || 'relic'}.`)}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                      <button
+                        type="button"
+                        className={`btn ${advancesStep ? 'btn-success' : 'btn-primary'}`}
+                        style={{
+                          flex: 1,
+                          padding: '8px 10px',
+                          fontSize: '0.80rem',
+                          fontWeight: 800,
+                          cursor: (isMyTurn || network.mode !== 'online') ? 'pointer' : 'not-allowed'
+                        }}
+                        disabled={!isMyTurn && network.mode === 'online'}
+                        onClick={() => { sounds.clue?.(); handleSelect(opt.action || `faceup_${opt.cardId}`); }}
+                      >
+                        Claim Clue ➔
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ padding: '8px', fontSize: '0.78rem' }}
+                        title="Inspect Card"
+                        onClick={() => onMaximize && onMaximize({
+                          title: opt.label,
+                          cardType: opt.isDecoy ? 'Decoy Card' : 'Clue Card',
+                          description: opt.card?.description || opt.card?.hint,
+                          image: opt.image,
+                          era: choice.era
+                        })}
+                      >
+                        🔍
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Blind Draw Alternative */}
+            {choice.canDrawBlind && (
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.6)',
+                border: '1px dashed rgba(148, 163, 184, 0.3)',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '10px'
+              }}>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#E2E8F0' }}>
+                    🎲 Don't see what you need?
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+                    Draw blind from the top of the {eraName} deck.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: (isMyTurn || network.mode !== 'online') ? 'pointer' : 'not-allowed'
+                  }}
+                  disabled={!isMyTurn && network.mode === 'online'}
+                  onClick={() => { sounds.btnClick?.(); handleSelect('draw_blind'); }}
+                >
+                  Draw Blind from Deck ➔
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ===== 1. Japanese Event 4: HIDEous plan =====
   if (choice.type === 'hideousPlan') {
     return (

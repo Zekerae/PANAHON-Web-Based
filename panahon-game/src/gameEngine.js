@@ -771,8 +771,8 @@ export class GameEngine {
   resolveChoice(action) {
     if (!this.state.pendingChoice) return;
 
-    const player = this.getCurrentPlayer();
     const choice = this.state.pendingChoice;
+    const player = (choice?.playerId !== undefined ? this.state.players.find(p => p.id === choice.playerId) : null) || this.getCurrentPlayer();
     const choiceType = choice.type;
     const returnPhase = choice.returnPhase || 'action';
     this.state.pendingChoice = null;
@@ -850,6 +850,26 @@ export class GameEngine {
       if (action && action.startsWith('bato_era_')) {
         const chosenEra = action.replace('bato_era_', '');
         this.drawClueCardFromEra(player, chosenEra);
+      }
+      this.state.phase = 'action';
+    } else if (choiceType === 'clueDisplay') {
+      // Face-Up Display: player picked a specific face-up card (faceup_<cardId>)
+      // or chose to draw blind (draw_blind)
+      const era = choice.era;
+      if (action === 'draw_blind') {
+        this._drawBlindClueCard(player, era);
+      } else if (action && action.startsWith('faceup_')) {
+        const chosenCardId = action.replace('faceup_', '');
+        const faceUp = this.state.faceUpCards?.[era] || [];
+        const idx = faceUp.findIndex(c => c.id === chosenCardId);
+        if (idx >= 0) {
+          const [pickedCard] = faceUp.splice(idx, 1);
+          this._replenishFaceUp(era); // Flip up a new card to fill the slot
+          this._receiveClueCard(player, pickedCard, era);
+        } else {
+          // Card no longer available (edge case) — draw blind as fallback
+          this._drawBlindClueCard(player, era);
+        }
       }
       this.state.phase = 'action';
     } else if (choiceType === 'guardianRepair') {
@@ -1229,14 +1249,60 @@ export class GameEngine {
     }
 
     const deck = this.state.clueDecks[era];
-    if (deck.length === 0) {
+    const faceUp = (this.state.faceUpCards?.[era] || []);
+
+    if (deck.length === 0 && faceUp.length === 0) {
       this.addLog('system', 'No more clue cards in this era!');
       this.state.phase = 'action';
       return;
     }
 
-    const card = deck.shift();
+    // --- Face-Up Display mechanic ---
+    // Show the 3 visible cards from this era's display so the player can pick one deliberately.
+    // A "Draw Blind" option still exists for when the player doesn't need a specific card.
+    if (faceUp.length > 0) {
+      this.state.pendingChoice = {
+        type: 'clueDisplay',
+        era,
+        playerId: player.id,
+        options: faceUp.map((c, i) => ({
+          cardId: c.id,
+          action: `faceup_${c.id}`,
+          index: i,
+          label: c.isDecoy ? '🎭 Decoy Card' : (c.hint || c.artifactName || 'Clue Card'),
+          isDecoy: c.isDecoy,
+          artifactId: c.artifactId,
+          artifactName: c.artifactName,
+          image: c.image,
+          isMissionCard: !c.isDecoy && c.artifactId === player.mission?.artifactId,
+          card: c
+        })),
+        canDrawBlind: deck.length > 0,
+        returnPhase: 'action'
+      };
+      this.state.phase = 'action';
+      this.notify();
+      return;
+    }
 
+    // No face-up cards left — draw blind from deck (fallback)
+    this._drawBlindClueCard(player, era);
+  }
+
+  // Internal: draw top card from deck (blind draw, no display choice)
+  _drawBlindClueCard(player, era) {
+    const deck = this.state.clueDecks[era];
+    if (!deck || deck.length === 0) {
+      this.state.phase = 'action';
+      return;
+    }
+    const card = deck.shift();
+    this._receiveClueCard(player, card, era);
+  }
+
+  // Core card-receive logic: Historian passive check, triangulation, hand limit, modal.
+  // Called from both blind draw and face-up pick paths.
+  _receiveClueCard(player, card, era) {
     // Historian passive: discard decoy
     if (card.isDecoy && player.roleKey === 'HISTORIAN' && player.passiveCooldown <= 0) {
       this.addLog('ability', `${player.name} used Decoy Discard! Discarded a decoy card.`);
@@ -1260,7 +1326,6 @@ export class GameEngine {
     }
 
     // Process Temporal Triangulation (Steps 1 & 3)
-    // Only triggers if card.artifactId === player.mission.artifactId
     const isTriangulationStep = this.processClueTriangulation(player, card, era);
 
     // Check Hand Limit (Max 3 Clue Cards)
@@ -2328,65 +2393,39 @@ export class GameEngine {
   // Draw 1 clue card from a designated era deck
   drawClueCardFromEra(player, era) {
     const deck = this.state.clueDecks[era];
-    if (!deck || deck.length === 0) {
+    const faceUp = this.state.faceUpCards?.[era] || [];
+    if ((!deck || deck.length === 0) && faceUp.length === 0) {
       this.addLog('system', `No clue cards available in ${ERA_NAMES[era] || era}!`);
       this.state.phase = 'action';
       return;
     }
-    const card = deck.shift();
-    if (card.isDecoy && player.roleKey === 'HISTORIAN' && player.passiveCooldown <= 0) {
-      this.addLog('ability', `${player.name} used Decoy Discard! Discarded a decoy card.`);
-      player.passiveCooldown = ROLES.HISTORIAN.passive.cooldown;
-      this.returnClueToDeck(card);
+    // Use face-up display if available (same mechanic as drawClueCard)
+    if (faceUp.length > 0) {
+      this.state.pendingChoice = {
+        type: 'clueDisplay',
+        era,
+        playerId: player.id,
+        options: faceUp.map((c, i) => ({
+          cardId: c.id,
+          action: `faceup_${c.id}`,
+          index: i,
+          label: c.isDecoy ? '🎭 Decoy Card' : (c.hint || c.artifactName || 'Clue Card'),
+          isDecoy: c.isDecoy,
+          artifactId: c.artifactId,
+          artifactName: c.artifactName,
+          image: c.image,
+          isMissionCard: !c.isDecoy && c.artifactId === player.mission?.artifactId,
+          card: c
+        })),
+        canDrawBlind: deck && deck.length > 0,
+        returnPhase: 'action'
+      };
       this.state.phase = 'action';
       this.notify();
       return;
     }
-    // Process Temporal Triangulation (Steps 1 & 3)
-    const isTriangulationStep = this.processClueTriangulation(player, card, era);
-
-    if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
-      this.promptClueHandLimit(player, card, 'action');
-      return;
-    }
-    player.clueCards.push(card);
-    if (!isTriangulationStep && !card.isDecoy && card.artifactId) {
-      if (!player.clueProgress[card.artifactId]) {
-        player.clueProgress[card.artifactId] = 0;
-      }
-      player.clueProgress[card.artifactId]++;
-    }
-    this.addLog('event', `${player.name} drew Clue Card "${card.title || card.hint}" from ${ERA_NAMES[era]}!`);
-
-    let modalTitle = card.isDecoy ? 'Decoy Card' : (card.title || 'Clue Card');
-    let modalDesc = card.hint || card.description;
-    let modalSubtitle = null;
-
-    if (card.triangulationStep === 1) {
-      modalTitle = '📜 ORIGIN ANCHOR LOCKED!';
-      modalSubtitle = 'STEP 1 OF 3: HISTORICAL TRACE';
-      modalDesc = `Historical records confirmed! You unearthed authentic documentation for ${player.mission?.artifactNickname || 'your relic'} in its native ${ERA_NAMES[player.mission?.originEra]}. Head to a Time Gate to scan the residual rift vector!`;
-    } else if (card.triangulationStep === 3) {
-      modalTitle = '🎯 GROUND SIGHTINGS VERIFIED!';
-      modalSubtitle = 'STEP 3 OF 3: TRIANGULATION COMPLETE';
-      modalDesc = `Local eyewitnesses confirm the presence of ${player.mission?.artifactNickname || 'your relic'} here in ${ERA_NAMES[player.mission?.displacedEra]}! Triangulation is complete. Proceed to the Artifact Tile in this era to retrieve it!`;
-    }
-
-    this.state.pendingModal = {
-      type: 'clue',
-      cardType: card.isDecoy ? 'Decoy Card' : (card.triangulationStep ? `Triangulation Clue (Step ${card.triangulationStep})` : 'Clue Card'),
-      title: modalTitle,
-      subtitle: modalSubtitle,
-      description: modalDesc,
-      image: card.image,
-      era: era,
-      playerId: player.id,
-      playerName: player.name,
-      triangulationStep: card.triangulationStep,
-      triangulation: { ...player.triangulation }
-    };
-    this.state.phase = 'action';
-    this.notify();
+    // No face-up display — draw blind from deck
+    this._drawBlindClueCard(player, era);
   }
 
   // --- Japanese Danger 3: Inspection Reveal: Kabado ---

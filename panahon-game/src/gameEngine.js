@@ -26,7 +26,7 @@ export function getNextTileIndex(player, era, currentIdx, dir = 1, total = 25) {
   const eraConnections = connections[era];
   const eraRules = junctionRules[era] || {};
   const prev = player?.previousTileIndex;
-   if (dir < 0) {
+  if (dir < 0) {
     if (eraConnections) {
       const incoming = [];
       for (const [sourceStr, targetArr] of Object.entries(eraConnections)) {
@@ -43,17 +43,17 @@ export function getNextTileIndex(player, era, currentIdx, dir = 1, total = 25) {
     }
     return (currentIdx - 1 + total) % total;
   }
-   if (eraConnections) {
+  if (eraConnections) {
     const targets = eraConnections[currentIdx];
-     // Fallback if no outgoing targets defined
+    // Fallback if no outgoing targets defined
     if (!Array.isArray(targets) || targets.length === 0) {
       return dir > 0 ? (currentIdx + 1) % total : (currentIdx - 1 + total) % total;
     }
-     // If single target, strictly follow that single connection (authoritative map graph)
+    // If single target, strictly follow that single connection (authoritative map graph)
     if (targets.length === 1) {
       return targets[0];
     }
-     // Multi-target junction:
+    // Multi-target junction:
     // 1. Explicit junction rule based on arrival space (currentIdx:prev)
     if (prev !== undefined && prev !== null) {
       const ruleKey = `${currentIdx}:${prev}`;
@@ -63,12 +63,12 @@ export function getNextTileIndex(player, era, currentIdx, dir = 1, total = 25) {
         return ruleTarget;
       }
     }
-     // 2. Filter out the space we just arrived from to avoid immediate U-turn unless no other choice
+    // 2. Filter out the space we just arrived from to avoid immediate U-turn unless no other choice
     let candidates = targets.filter(t => t !== prev);
     if (candidates.length === 0) candidates = targets;
-     return candidates[0] !== undefined ? candidates[0] : targets[0];
+    return candidates[0] !== undefined ? candidates[0] : targets[0];
   }
-   if (dir > 0) {
+  if (dir > 0) {
     return (currentIdx + 1) % total;
   } else {
     return (currentIdx - 1 + total) % total;
@@ -335,7 +335,7 @@ export class GameEngine {
 
     this.logEntries = [];
     this.addLog('system', 'Game started! The timeline needs your help.');
-    
+
     // Turn order will be finalized via Initiative Roll-Off
     this.addLog('system', `${players[0].name} is ready for initiative roll!`);
 
@@ -521,14 +521,14 @@ export class GameEngine {
     const player = this.getCurrentPlayer();
     const eraTiles = this.state.board[player.currentEra];
     const currentIdx = player.tileIndex;
-    
+
     // Parse target
     const [targetEra, targetIdxStr] = targetTileId.split('_');
     const targetIdx = parseInt(targetIdxStr);
 
     // Check if target is in the same era
     if (targetEra !== player.currentEra) return false;
-    
+
     // Strict direction constraint: strictly forward (+1) unless Reverse Time Ability is active (-1)
     const direction = this.state.movementDirection || 'forward';
     const dir = direction === 'backward' ? -1 : 1;
@@ -616,7 +616,7 @@ export class GameEngine {
     const otherPlayerIds = tile.players.filter(id => id !== player.id);
     for (const victimId of otherPlayerIds) {
       if (player.shadowPocketsTriggered.includes(victimId)) continue;
-      
+
       const victim = this.state.players.find(p => p.id === victimId);
       if (!victim) continue;
 
@@ -1641,10 +1641,10 @@ export class GameEngine {
     const isGroupHazard = !!card.isGroupHazard;
     const groupHazardOrder = isGroupHazard
       ? (() => {
-          const ids = this.state.players.map(p => p.id);
-          const start = ids.indexOf(player.id);
-          return start === -1 ? ids : [...ids.slice(start), ...ids.slice(0, start)];
-        })()
+        const ids = this.state.players.map(p => p.id);
+        const start = ids.indexOf(player.id);
+        return start === -1 ? ids : [...ids.slice(start), ...ids.slice(0, start)];
+      })()
       : null;
 
     // Danger card requires interactive die roll by player for immersion
@@ -1714,8 +1714,8 @@ export class GameEngine {
     if (!player) return null;
 
     const card = DANGER_CARDS[modal.era]?.find(c => c.id === modal.cardId) ||
-                 DANGER_CARDS[player.currentEra]?.find(c => c.id === modal.cardId) ||
-                 Object.values(DANGER_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.cardName);
+      DANGER_CARDS[player.currentEra]?.find(c => c.id === modal.cardId) ||
+      Object.values(DANGER_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.cardName);
     if (!card) return null;
 
     const diceRoll = explicitRoll ?? rollDie();
@@ -1875,8 +1875,8 @@ export class GameEngine {
     if (!player) return null;
 
     const card = (EVENT_CARDS[modal.era] || []).find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName) ||
-                 (EVENT_CARDS[player.currentEra] || []).find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName) ||
-                 Object.values(EVENT_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName);
+      (EVENT_CARDS[player.currentEra] || []).find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName) ||
+      Object.values(EVENT_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName);
 
     const diceRoll = explicitRoll ?? rollDie();
     const success = (card && typeof card.check === 'function')
@@ -1944,8 +1944,8 @@ export class GameEngine {
       const stepMsg = !player.triangulation?.originAnchor
         ? `You must first find a Clue for the ${mission?.artifactNickname || 'mission artifact'} in ${ERA_NAMES[mission?.originEra || player.currentEra]} (Step 1).`
         : !player.triangulation?.riftVector
-        ? `You must scan the Rift Vector at a Time Gate (Step 2).`
-        : `You must verify local ground sightings in ${ERA_NAMES[mission?.displacedEra || player.currentEra]} (Step 3).`;
+          ? `You must scan the Rift Vector at a Time Gate (Step 2).`
+          : `You must verify local ground sightings in ${ERA_NAMES[mission?.displacedEra || player.currentEra]} (Step 3).`;
 
       this.addLog('paradox', `⚠️ ${player.name} attempted to access an Artifact without completing Triangulation! Paradox +1! (${clueCount}/${requiredClues} Milestones reached)`);
       this.state.pendingModal = {
@@ -2000,8 +2000,8 @@ export class GameEngine {
   getTriangulationCount(player) {
     if (!player || !player.triangulation) return 0;
     return (player.triangulation.originAnchor ? 1 : 0) +
-           (player.triangulation.riftVector ? 1 : 0) +
-           (player.triangulation.impactSighting ? 1 : 0);
+      (player.triangulation.riftVector ? 1 : 0) +
+      (player.triangulation.impactSighting ? 1 : 0);
   }
 
   processClueTriangulation(player, card, era) {
@@ -2065,13 +2065,13 @@ export class GameEngine {
       player.clueProgress[artId] = Math.max(player.clueProgress[artId], 2);
 
       this.addLog('mission', `🌀 STEP 2 COMPLETE: Chrono-Scan Verified! Rift Vector locked: ${player.mission.artifactNickname} was displaced into ${ERA_NAMES[player.mission.displacedEra]}!`);
-      
+
       this.state.pendingModal = {
         type: 'info',
         cardType: 'Chrono-Vortex Triangulation 🌀',
         title: 'RIFT VECTOR SCANNED!',
         subtitle: 'STEP 2 OF 3: TRAJECTORY LOCKED',
-        description: `Your Chrono-Device analyzed the portal's residual vortex discharge! The ${player.mission.artifactNickname} was hurled through spacetime into the ${ERA_NAMES[player.mission.displacedEra]}! Warp through this Time Gate to follow ground sightings!`,
+        description: `Your Chrono-Device analyzed the portal's residual vortex discharge! The ${player.mission.artifactNickname} was hurled through spacetime into the strong style="color: #FFD700; font-weight: 900; text-decoration: underline;">${ERA_NAMES[player.mission.displacedEra].toUpperCase()}</strong>! Warp through this Time Gate to follow ground sightings!`,
         image: 'assets/Tiles/portal_tile.png',
         era: player.currentEra,
         triangulation: { ...player.triangulation }
@@ -2086,7 +2086,7 @@ export class GameEngine {
   handleTimeGate(player) {
     this.checkTemporalScan(player);
     const cost = player.roleKey === 'EXPLORER' ? GAME_CONSTANTS.TIME_GATE_COST_EXPLORER : GAME_CONSTANTS.TIME_GATE_COST;
-    
+
     if (player.energy < cost) {
       this.state.pendingModal = {
         type: 'info',
@@ -2157,7 +2157,7 @@ export class GameEngine {
 
   travelToEra(player, targetEra) {
     const cost = player.roleKey === 'EXPLORER' ? GAME_CONSTANTS.TIME_GATE_COST_EXPLORER : GAME_CONSTANTS.TIME_GATE_COST;
-    
+
     // Check carried artifact contamination before warping
     this.checkCarriedArtifactContamination(player, targetEra);
 
@@ -2244,9 +2244,9 @@ export class GameEngine {
     // Find the trap owner (the Rogue who planted it)
     const trapOwner = this.state.players.find(
       p => p.id === trap.ownerId ||
-           String(p.id) === String(trap.ownerId) ||
-           (trap.ownerName && p.name === trap.ownerName) ||
-           p.roleKey === 'ROGUE'
+        String(p.id) === String(trap.ownerId) ||
+        (trap.ownerName && p.name === trap.ownerName) ||
+        p.roleKey === 'ROGUE'
     ) || this.state.players[trap.ownerId];
 
     const ownerName = trapOwner ? trapOwner.name : 'The Rogue';
@@ -2342,7 +2342,7 @@ export class GameEngine {
 
   modifyTimelineMeter(amount) {
     this.state.timelineMeter = Math.max(0, this.state.timelineMeter + amount);
-    
+
     // Shared Timeline Meter limit is 5. GLOBAL LOSE OVERRIDE: When it surpasses 5 or reaches 6, trigger immediate TIMELINE COLLAPSE!
     const breachLimit = GAME_CONSTANTS.MAX_TIMELINE || 5;
     if (this.state.timelineMeter > breachLimit) {
@@ -3538,7 +3538,7 @@ export class GameEngine {
     });
   }
 
-// loadState is defined above with automatic rehydration
+  // loadState is defined above with automatic rehydration
 }
 
 export default GameEngine;

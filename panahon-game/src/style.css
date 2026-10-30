@@ -13528,3 +13528,91 @@ html, body, #app, .app-root {
   0%, 100% { transform: scale(1); box-shadow: 0 0 8px #FFD700; }
   50% { transform: scale(1.15); box-shadow: 0 0 16px #FFD700, 0 0 24px #F59E0B; }
 }
+
+/* 17. Temporal Clue Market (Option A Face-Up Display) */
+.clue-market-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 720px) {
+  .clue-market-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.clue-market-card {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.clue-market-btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  padding: 8px 6px !important;
+  font-size: 0.66rem !important;
+  letter-spacing: 0.5px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.clue-market-btn.btn-advance {
+  background: linear-gradient(180deg, #059669 0%, #065F46 100%) !important;
+  border: 2px solid #34D399 !important;
+  color: #ECFDF5 !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4), inset 1px 1px 0 #6EE7B7, inset -1px -1px 0 #047857 !important;
+}
+
+.clue-market-btn.btn-advance:hover:not(:disabled) {
+  background: linear-gradient(180deg, #10B981 0%, #059669 100%) !important;
+  border-color: #6EE7B7 !important;
+  color: #FFFFFF !important;
+}
+
+.clue-market-btn.btn-decoy {
+  background: linear-gradient(180deg, #5C2222 0%, #3B1212 100%) !important;
+  border: 2px solid #E57373 !important;
+  color: #FEE2E2 !important;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3), inset 1px 1px 0 #FCA5A5, inset -1px -1px 0 #7F1D1D !important;
+}
+
+.clue-market-btn.btn-decoy:hover:not(:disabled) {
+  background: linear-gradient(180deg, #7F1D1D 0%, #450A0A 100%) !important;
+  border-color: #FCA5A5 !important;
+  color: #FFFFFF !important;
+}
+
+.clue-market-btn.btn-intel {
+  background: linear-gradient(180deg, #4d3826 0%, #38271a 100%) !important;
+  border: 2px solid #c2974d !important;
+  color: #FFD700 !important;
+  box-shadow: inset 1px 1px 0 #ebd07d, inset -1px -1px 0 #5c3e16, 0 3px 0 #120e0a !important;
+}
+
+.clue-market-btn.btn-intel:hover:not(:disabled) {
+  background: linear-gradient(180deg, #5c432d 0%, #453220 100%) !important;
+  border-color: #ffd700 !important;
+  color: #FFFFFF !important;
+}
+
+.clue-market-blind-btn {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+  padding: 10px 18px !important;
+  font-size: 0.68rem !important;
+  letter-spacing: 0.5px !important;
+}

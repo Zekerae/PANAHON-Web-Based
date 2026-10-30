@@ -486,9 +486,9 @@ export const ROLES = {
     },
     active: {
       name: 'Momentum',
-      description: 'Pause movement to interact with a tile, then continue moving remaining rolled spaces (2 Turn CD, 3 Energy Cost).',
+      description: 'Pause movement to interact with a tile, then continue moving remaining rolled spaces (2 Turn CD, 2 Energy Cost).',
       cooldown: 2,
-      energyCost: 3
+      energyCost: 2
     }
   },
   GUARDIAN: {
@@ -795,7 +795,7 @@ export const EVENT_CARDS = {
       sfxTag: 'galleonBell',
       effect: (player, game) => {
         game.modifyEnergy(player, 2);
-        game.drawClueCard(player);
+        game.drawClueCard(player, { fromTile: false });
         return 'Gained +2 Energy and drew 1 Clue Card!';
       }
     },

@@ -731,22 +731,37 @@ export class NetworkManager {
   startGame() {
     if (!this.isHost || !this.roomCode) return;
 
-    if (this.relayType === 'supabase' && this.channel) {
-      const activePlayers = this.players.filter(p => p && p.connected && !p.isSpectator && p.roleKey !== 'SPECTATOR');
-      if (activePlayers.length < 1) return;
+    const activePlayers = this.players.filter(p => p && p.connected && !p.isSpectator && p.roleKey !== 'SPECTATOR');
+    if (activePlayers.length < 1) return;
 
+    let initialState = null;
+    if (this.engine) {
+      const configs = activePlayers.map((p, idx) => ({
+        name: p.name,
+        roleKey: p.roleKey,
+        isLocal: !this.isSpectator && (String(idx) === String(this.playerId)),
+        connectionId: idx
+      }));
+      this.engine.initGame(configs);
+      initialState = JSON.parse(JSON.stringify(this.engine.getState()));
+    }
+
+    const customMap = {
+      coords: (typeof getActiveTileCoordinates === 'function') ? getActiveTileCoordinates() : null,
+      layouts: (typeof getActiveTileLayouts === 'function') ? getActiveTileLayouts() : null,
+      connections: (typeof getActivePathConnections === 'function') ? getActivePathConnections() : null,
+      junctionRules: (typeof getActiveJunctionRules === 'function') ? getActiveJunctionRules() : null
+    };
+
+    if (this.relayType === 'supabase' && this.channel) {
       const payload = {
         players: activePlayers.map((p, idx) => ({
           id: idx,
           name: p.name,
           roleKey: p.roleKey
         })),
-        customMap: {
-          coords: getActiveTileCoordinates(),
-          layouts: getActiveTileLayouts(),
-          connections: getActivePathConnections(),
-          junctionRules: getActiveJunctionRules()
-        }
+        initialState,
+        customMap
       };
 
       this.channel.send({
@@ -756,12 +771,14 @@ export class NetworkManager {
       });
 
       if (this.onGameStart) {
-        this.onGameStart(payload.players);
+        this.onGameStart(payload.players, initialState, customMap);
       }
     } else {
       this.send({
         type: 'START_GAME',
-        roomCode: this.roomCode
+        roomCode: this.roomCode,
+        initialState,
+        customMap
       });
     }
   }
@@ -1071,9 +1088,15 @@ export class NetworkManager {
           } catch (_) {}
         }
         if (this.onGameStart) {
-          this.onGameStart(msg.players, msg.customMap);
-        } else if (this.onStateUpdate && msg.state) {
-          this.onStateUpdate(msg.state);
+          this.onGameStart(msg.players, msg.initialState || msg.state, msg.customMap);
+        } else if (this.onStateUpdate && (msg.initialState || msg.state)) {
+          this.onStateUpdate(msg.initialState || msg.state);
+        }
+        break;
+
+      case 'REQUEST_SYNC':
+        if (this.isHost && this.engine && this.engine.getState()) {
+          this.broadcastState(this.engine.getState());
         }
         break;
 
@@ -1156,11 +1179,11 @@ export class NetworkManager {
         break;
       case 'ROLL_DANGER_DIE':
         sounds.diceRoll();
-        this.engine.rollDangerDie(action.playerIdx);
+        this.engine.rollDangerDie(action.playerIdx, action.diceRoll ?? action.result, action.groupRolls);
         break;
       case 'ROLL_EVENT_DIE':
         sounds.diceRoll();
-        this.engine.rollEventDie(action.playerIdx);
+        this.engine.rollEventDie(action.playerIdx, action.diceRoll ?? action.result);
         break;
       case 'MOVE_STEP':
         sounds.moveStep();

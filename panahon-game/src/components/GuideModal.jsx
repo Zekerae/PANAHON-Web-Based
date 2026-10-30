@@ -369,10 +369,10 @@ export default function GuideModal({ onClose }) {
                   Points have been completely replaced with a <strong>First-In, First-Out (FIFO) Placement Queue</strong>:
                 </p>
                 <div style={{ fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div>🥇 <strong>1st Place:</strong> First player to collect 3 clues, claim their target displaced relic, and return it to its native Origin Era.</div>
-                  <div>🥈 <strong>2nd Place:</strong> Second player to successfully restore their mission relic.</div>
-                  <div>🥉 <strong>3rd Place:</strong> Third player to successfully restore their mission relic.</div>
-                  <div>🎖️ <strong>4th Place:</strong> Fourth player to restore relic (or remaining players ranked by: <em>Artifact Acquired &gt; Clues Collected &gt; Lowest Paradox</em> if 40-minute timer expires).</div>
+                  <div>🥇 <strong>1st Place:</strong> First player to successfully return the artifact to its native Origin Era.</div>
+                  <div>🥈 <strong>2nd Place:</strong> Second player to successfully return the artifact to its native Origin Era.</div>
+                  <div>🥉 <strong>3rd Place:</strong> Third player to successfully return the artifact to its native Origin Era.</div>
+                  <div>🎖️ <strong>4th Place:</strong> Fourth player to successfully return the artifact to its native Origin Era or if the 40-minute timer expires, the player with the lowest individual paradox wins.</div>
                 </div>
               </div>
 
@@ -398,7 +398,7 @@ export default function GuideModal({ onClose }) {
 
         {/* Footer */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px', paddingTop: '10px', borderTop: '2px solid #5A422D' }}>
-          <div style={{ fontSize: '0.72rem', color: '#A89885' }}>
+          <div style={{ fontSize: '0.72rem', color: 'rgba(168, 152, 133, 1)' }}>
             Tip: Press <kbd style={{ background: '#32261D', border: '1px solid #5A422D', padding: '2px 6px', borderRadius: '3px', color: '#FFD700', fontFamily: 'var(--font-display)' }}>ESC</kbd> anytime to return
           </div>
           <button

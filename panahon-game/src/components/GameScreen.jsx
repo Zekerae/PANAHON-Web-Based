@@ -224,7 +224,7 @@ function GameScreen({
 
   const handleRollDice = useCallback(() => {
     if (isRolling || state.phase !== 'rolling' || !isMyTurn) return;
-    if (currentPlayer && (currentPlayer.energy <= 0 || currentPlayer.skipNextTurn)) {
+    if (currentPlayer && ((currentPlayer.energy <= 0 && !state.momentumActive) || currentPlayer.skipNextTurn)) {
       sounds.danger?.();
       return;
     }
@@ -323,13 +323,15 @@ function GameScreen({
 
   const handleReturnArtifact = useCallback(() => {
     if (state.phase !== 'action' || !isMyTurn) return;
-    const matchingArt = currentPlayer.artifactCards.find(a => (a.originEra || a.era) === currentPlayer.currentEra);
+    const currentTile = state?.board?.[currentPlayer?.currentEra]?.[currentPlayer?.tileIndex];
+    if (currentTile?.type !== 'artifact') return;
+    const matchingArt = currentPlayer?.artifactCards?.find(a => (a.originEra || a.era) === currentPlayer?.currentEra);
     if (matchingArt) {
       sounds.artifact();
       engine.returnArtifact(state.currentPlayerIndex, matchingArt.id);
       network.sendAction({ type: 'RETURN_ARTIFACT', playerIdx: state.currentPlayerIndex, artifactId: matchingArt.id });
     }
-  }, [state.phase, isMyTurn, currentPlayer, state.currentPlayerIndex, engine, network]);
+  }, [state.phase, isMyTurn, currentPlayer, state?.board, state.currentPlayerIndex, engine, network, sounds]);
 
   const handleCoopStabilizeTimeline = useCallback(() => {
     if (!isMyTurn || !currentPlayer?.completed) return;
@@ -405,9 +407,10 @@ function GameScreen({
 
   const currentTile = state?.board?.[currentPlayer?.currentEra]?.[currentPlayer?.tileIndex];
   const isOnTimeGate = currentTile?.type === 'timeGate';
+  const isOnArtifactTile = currentTile?.type === 'artifact';
   const timeGateCost = currentPlayer?.roleKey === 'EXPLORER' ? 1 : 2;
   const canTimeWarp = isMyTurn && isOnTimeGate && (currentPlayer?.energy || 0) >= timeGateCost;
-  const matchingArtifact = currentPlayer?.artifactCards?.find(a => a.era === currentPlayer?.currentEra);
+  const matchingArtifact = isOnArtifactTile && currentPlayer?.artifactCards?.find(a => (a.originEra || a.era) === currentPlayer?.currentEra);
 
   // --- Comprehensive Keyboard Shortcuts (Roll, Step Move, Skill [Q/S], End Turn [E/T/Space/Enter]) ---
   React.useEffect(() => {
@@ -442,7 +445,7 @@ function GameScreen({
           e.preventDefault();
           if (currentPlayer && currentPlayer.skipNextTurn) {
             handleAcknowledgeSkip();
-          } else if (currentPlayer && currentPlayer.energy <= 0) {
+          } else if (currentPlayer && currentPlayer.energy <= 0 && !state.momentumActive) {
             handleRest();
           } else {
             handleRollDice();
@@ -628,7 +631,7 @@ function GameScreen({
                   >
                     <span>{currentPlayer?.timeStoppedBy ? "⌛ THAW (TIME STOPPED)" : "⏭️ SKIP TURN (HAZARD)"}</span>
                   </button>
-                ) : currentPlayer?.energy <= 0 ? (
+                ) : (currentPlayer?.energy <= 0 && !state.momentumActive) ? (
                   <button
                     type="button"
                     className="btn btn-primary mobile-dock-roll-btn"
@@ -651,7 +654,7 @@ function GameScreen({
                         onClick={handleUseSkill}
                       >
                         <span>🏃 Momentum [Q]</span>
-                        <span style={{ fontSize: '0.68rem', opacity: 0.9 }}>-3En</span>
+                        <span style={{ fontSize: '0.68rem', opacity: 0.9 }}>-2En</span>
                       </button>
                     )}
                     <button

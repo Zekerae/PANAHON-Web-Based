@@ -37,7 +37,7 @@ function GameActions({
 
   const isStartOfMovement = state.phase === 'moving' && !state.hasMovedThisTurn && (!state.stepsTakenThisTurn || state.stepsTakenThisTurn === 0);
   const isMovingBackward = state.movementDirection === 'backward';
-  const isExhausted = Boolean(currentPlayer && currentPlayer.energy <= 0);
+  const isExhausted = Boolean(currentPlayer && currentPlayer.energy <= 0 && !state.momentumActive);
   const isSkipped = Boolean(currentPlayer && currentPlayer.skipNextTurn);
   const isTimeStopped = Boolean(currentPlayer && currentPlayer.timeStoppedBy);
   const canReverseTime = isMyTurn && isStartOfMovement && !isMovingBackward && currentPlayer.reverseTimeCooldown === 0 && currentPlayer.energy >= GAME_CONSTANTS.REVERSE_TIME_COST;
@@ -104,10 +104,12 @@ function GameActions({
 
   const currentTile = state.board?.[currentPlayer.currentEra]?.[currentPlayer.tileIndex];
   const isOnTimeGate = currentTile?.type === 'timeGate';
+  const isOnArtifactTile = currentTile?.type === 'artifact';
   const timeGateCost = currentPlayer.roleKey === 'EXPLORER' ? 1 : 2;
   const canTimeWarp = isMyTurn && isOnTimeGate && (currentPlayer.energy || 0) >= timeGateCost;
 
-  const matchingArtifact = currentPlayer.artifactCards?.find(a => a.era === currentPlayer.currentEra);
+  // Matching relic can ONLY be returned when landed on the Artifact Tile in the Origin Era
+  const matchingArtifact = isOnArtifactTile && currentPlayer.artifactCards?.find(a => (a.originEra || a.era) === currentPlayer.currentEra);
 
   if (isSpectator) {
     const players = state.players || [];
@@ -910,7 +912,7 @@ function GameActions({
                   ) : (
                     <>
                       <div style={{ fontSize: "0.68rem", color: "#C8B293", marginBottom: "8px", lineHeight: 1.3 }}>
-                        Pause movement to interact with a tile, then continue moving remaining rolled spaces (2 Turn CD, 3 Energy Cost).
+                        Pause movement to interact with a tile, then continue moving remaining rolled spaces (2 Turn CD, 2 Energy Cost).
                       </div>
                       <button
                         type="button"
@@ -932,7 +934,7 @@ function GameActions({
                         title={abilityStatusText}
                         onClick={() => { sounds.abilityActivate?.(); onUseSkill(); }}
                       >
-                        <span>🏃 ACTIVATE MOMENTUM (PAUSE & INTERACT) • -3 EN</span>
+                        <span>🏃 ACTIVATE MOMENTUM (PAUSE & INTERACT) • -2 EN</span>
                         <kbd style={{ background: canUseAbilityNow ? "#082F49" : "#120E0A", border: canUseAbilityNow ? "1px solid #38BDF8" : "1px solid #4A3423", padding: "1px 5px", borderRadius: "3px", fontSize: "0.62rem", color: canUseAbilityNow ? "#38BDF8" : "#735E4E" }}>Q</kbd>
                       </button>
                     </>
@@ -1262,7 +1264,7 @@ function GameActions({
                       cursor: canUseAbilityNow ? "pointer" : "not-allowed"
                     }}
                   >
-                    🏃 Activate Momentum (-3 En) [Q]
+                    🏃 Activate Momentum (-2 En) [Q]
                   </button>
                 </div>
               )}

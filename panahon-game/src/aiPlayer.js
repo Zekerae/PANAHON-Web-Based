@@ -83,8 +83,15 @@ class AiController {
             return;
           }
           sounds.diceRoll?.();
-          const res = engine.rollDangerDie(player.id);
-          network?.sendAction({ type: 'ROLL_DANGER_DIE', playerIdx: player.id });
+          const targetId = state.pendingModal.playerId !== undefined ? state.pendingModal.playerId : player.id;
+          const res = engine.rollDangerDie(targetId);
+          const groupRolls = res?.groupResults ? res.groupResults.reduce((acc, r) => { acc[r.playerId] = r.roll; return acc; }, {}) : undefined;
+          network?.sendAction({
+            type: 'ROLL_DANGER_DIE',
+            playerIdx: targetId,
+            diceRoll: res?.diceRoll,
+            groupRolls
+          });
           if (res?.success) {
             sounds.artifact?.();
           } else {
@@ -103,8 +110,13 @@ class AiController {
             return;
           }
           sounds.diceRoll?.();
-          const res = engine.rollEventDie(player.id);
-          network?.sendAction({ type: 'ROLL_EVENT_DIE', playerIdx: player.id });
+          const targetId = state.pendingModal.playerId !== undefined ? state.pendingModal.playerId : player.id;
+          const res = engine.rollEventDie(targetId);
+          network?.sendAction({
+            type: 'ROLL_EVENT_DIE',
+            playerIdx: targetId,
+            diceRoll: res?.diceRoll
+          });
           if (res?.success) {
             sounds.runeBeam?.() || sounds.artifact?.();
           }
@@ -232,7 +244,7 @@ class AiController {
           player.roleKey === 'EXPLORER' &&
           !player.usedAbilityThisTurn &&
           (!player.activeCooldown || player.activeCooldown <= 0) &&
-          player.energy >= 3 &&
+          player.energy >= 2 &&
           !state.momentumActive &&
           Math.random() < 0.75
         ) {
@@ -318,8 +330,10 @@ class AiController {
 
       // 6. Action Phase
       if (state.phase === 'action') {
-        // A. Check if bot has an artifact matching the current era to return!
-        const matchingArtifact = player.artifactCards.find(a => (a.originEra || a.era) === player.currentEra);
+        // A. Check if bot is on the Artifact Tile with a relic matching the current era to return!
+        const curTile = state.board?.[player.currentEra]?.[player.tileIndex];
+        const isOnArtifactTile = curTile?.type === 'artifact';
+        const matchingArtifact = isOnArtifactTile && player.artifactCards.find(a => (a.originEra || a.era) === player.currentEra);
         if (matchingArtifact) {
           sounds.victory?.();
           engine.returnArtifact(player.id, matchingArtifact.id);
@@ -412,49 +426,96 @@ class AiController {
     const choiceType = choice.type;
 
     if (choiceType === 'artifactStop') {
-      // Stop if player has clues or mission matches
-      const hasClues = (player.clueProgress && Object.keys(player.clueProgress).length > 0);
-      const action = hasClues ? 'stopForArtifact' : 'continueMoving';
+      const artId = player.mission?.artifactId;
+      const isPhase2Retrieval = player.missionPhase === 2 &&
+        player.currentEra === player.mission?.displacedEra &&
+        (player.triangulation?.impactSighting || (player.clueProgress?.[artId] || 0) >= 3);
+      const isPhase3Restoration = player.missionPhase === 3 &&
+        player.currentEra === (player.mission?.originEra || player.mission?.targetEra) &&
+        player.artifactCards?.some(a => a.id === artId);
+
+      const action = (isPhase2Retrieval || isPhase3Restoration) ? 'stopForArtifact' : 'continueMoving';
       engine.resolveChoice(action);
       network?.sendAction({ type: 'RESOLVE_CHOICE', action });
       this.scheduleAiStep(engine, network, 650);
       return;
     }
 
-    if (choiceType === 'timeGatePass') {
-      const targetEra = player.missionPhase === 2
-        ? player.mission?.displacedEra
-        : (player.mission?.originEra || player.mission?.targetEra);
+    if (choiceType === 'timeGatePass' || choiceType === 'timeGateTravel') {
+      let targetEra = null;
+      if (player.missionPhase === 3) {
+        targetEra = player.mission?.originEra || player.mission?.targetEra;
+      } else if (player.triangulation?.originAnchor && player.triangulation?.riftVector && !player.triangulation?.impactSighting) {
+        targetEra = player.mission?.displacedEra;
+      } else if (player.missionPhase === 2) {
+        targetEra = player.mission?.displacedEra;
+      } else if (!player.triangulation?.originAnchor) {
+        targetEra = player.mission?.originEra || player.mission?.targetEra;
+      }
+
       const cost = player.roleKey === 'EXPLORER' ? 1 : 2;
 
-      // If mission points to another era and we have energy to warp, do it!
-      if (targetEra && targetEra !== player.currentEra && player.energy >= cost) {
-        const action = `warp_${targetEra}`;
-        sounds.portal?.();
-        engine.resolveChoice(action);
-        network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+      if (choiceType === 'timeGatePass') {
+        if (targetEra && targetEra !== player.currentEra && player.energy >= cost) {
+          const action = `warp_${targetEra}`;
+          sounds.portal?.();
+          engine.resolveChoice(action);
+          network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+        } else {
+          engine.resolveChoice('continueMoving');
+          network?.sendAction({ type: 'RESOLVE_CHOICE', action: 'continueMoving' });
+        }
       } else {
-        engine.resolveChoice('continueMoving');
-        network?.sendAction({ type: 'RESOLVE_CHOICE', action: 'continueMoving' });
+        const dest = (targetEra && targetEra !== player.currentEra) ? targetEra : 'stay';
+        engine.resolveChoice(dest);
+        network?.sendAction({ type: 'RESOLVE_CHOICE', action: dest });
       }
       this.scheduleAiStep(engine, network, 700);
-      return;
-    }
-
-    if (choiceType === 'timeGateTravel') {
-      const targetEra = player.missionPhase === 2
-        ? player.mission?.displacedEra
-        : (player.mission?.originEra || player.mission?.targetEra);
-      const dest = (targetEra && targetEra !== player.currentEra) ? targetEra : 'stay';
-      engine.resolveChoice(dest);
-      network?.sendAction({ type: 'RESOLVE_CHOICE', action: dest });
-      this.scheduleAiStep(engine, network, 650);
       return;
     }
 
     if (choiceType === 'historianDecipher') {
       // Pick first mystery clue card
       const action = 'pick_0';
+      sounds.btnClick?.();
+      engine.resolveChoice(action);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
+    if (choiceType === 'clueDisplay') {
+      // Face-Up Display: AI picks the most valuable visible card for its current triangulation step.
+      // Step 1 needs: mission artifact's own card (specific card identity required).
+      // Step 3 needs: any non-decoy in displaced era.
+      // Otherwise: take any non-decoy for trade value; draw blind only if all visible are decoys.
+      const options = choice.options || [];
+      const needsStep1 = !player.triangulation?.originAnchor && player.currentEra === player.mission?.originEra;
+      const needsStep3 = player.triangulation?.originAnchor && player.triangulation?.riftVector && !player.triangulation?.impactSighting && player.currentEra === player.mission?.displacedEra;
+
+      let chosen = null;
+      if (needsStep1) {
+        // For Step 1: ONLY the mission artifact's specific card advances triangulation
+        chosen = options.find(o => o.isMissionCard);
+      }
+      if (!chosen && needsStep3) {
+        // For Step 3: any non-decoy triggers local intel
+        chosen = options.find(o => !o.isDecoy);
+      }
+      if (!chosen) {
+        // General: prefer non-decoy for trade value, avoid decoys
+        chosen = options.find(o => !o.isDecoy);
+      }
+
+      let action;
+      if (chosen) {
+        action = `faceup_${chosen.cardId}`;
+      } else if (choice.canDrawBlind) {
+        action = 'draw_blind'; // All face-up visible cards are decoys — draw blind hoping for better
+      } else {
+        action = options.length > 0 ? `faceup_${options[0].cardId}` : 'draw_blind';
+      }
+
       sounds.btnClick?.();
       engine.resolveChoice(action);
       network?.sendAction({ type: 'RESOLVE_CHOICE', action });

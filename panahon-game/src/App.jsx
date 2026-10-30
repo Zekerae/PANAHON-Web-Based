@@ -133,17 +133,53 @@ export default function App() {
       const isAi = drawingP?.isAi === true;
       const isSpectator = network.isSpectator;
       const isOnline = network.mode === 'online';
-      const isMyCard = !isSpectator && (
+
+      // Group hazards rotate the interactive roll between operatives. The modal belongs
+      // to whoever is currently rolling, not only to the player who triggered the card.
+      const groupRollerId = gameState.pendingModal.isGroupHazard && gameState.pendingModal.needsRoll
+        ? (gameState.pendingModal.currentRollerId ?? gameState.pendingModal.playerId)
+        : null;
+      const groupRoller = groupRollerId !== null
+        ? gameState.players?.find(p => String(p.id) === String(groupRollerId))
+        : null;
+      const isMyGroupRoll = !!(groupRoller && !groupRoller.isAi && (
+        isOnline ? String(groupRoller.id) === String(network.playerId) : true
+      ));
+
+      const isGroupHazardResolved = !!(
+        gameState.pendingModal.isGroupHazard &&
+        !gameState.pendingModal.needsRoll &&
+        Array.isArray(gameState.pendingModal.groupResults) &&
+        gameState.pendingModal.groupResults.length
+      );
+      const isMyGroupResult = isGroupHazardResolved && (
         isOnline
-          ? (drawingP?.id !== undefined ? String(drawingP.id) === String(network.playerId) : false)
-          : (!isAi && (activeP?.id === drawingP?.id || drawingP?.isLocal))
+          ? gameState.pendingModal.groupResults.some(r => String(r.playerId) === String(network.playerId))
+          : gameState.pendingModal.groupResults.some(r => {
+              const p = gameState.players?.find(pp => String(pp.id) === String(r.playerId));
+              return p && !p.isAi;
+            })
+      );
+
+      const isMyCard = !isSpectator && (
+        gameState.pendingModal.isGroupHazard && gameState.pendingModal.needsRoll
+          ? isMyGroupRoll
+          : (isGroupHazardResolved
+            ? isMyGroupResult
+            : (isOnline
+              ? (drawingP?.id !== undefined ? String(drawingP.id) === String(network.playerId) : false)
+              : (!isAi && (activeP?.id === drawingP?.id || drawingP?.isLocal))))
       );
 
       if (!isMyCard) {
         setObservedModal(prev => ({
           ...gameState.pendingModal,
           drawingPlayer: drawingP,
-          _timestamp: (prev?.id === gameState.pendingModal.id && prev?.needsRoll === gameState.pendingModal.needsRoll)
+          _timestamp: (
+            prev?.id === gameState.pendingModal.id &&
+            prev?.needsRoll === gameState.pendingModal.needsRoll &&
+            prev?.currentRollerId === gameState.pendingModal.currentRollerId
+          )
             ? (prev?._timestamp || Date.now())
             : Date.now()
         }));
@@ -157,6 +193,7 @@ export default function App() {
     gameState?.pendingModal,
     gameState?.pendingModal?.needsRoll,
     gameState?.pendingModal?.diceRoll,
+    gameState?.pendingModal?.currentRollerId,
     gameState?.currentPlayerIndex,
     network?.playerId,
     network?.isSpectator,

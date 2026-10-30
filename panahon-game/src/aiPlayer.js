@@ -75,6 +75,19 @@ class AiController {
           return;
         }
 
+        // Group hazards wait for human operatives to roll their own die. Bots never
+        // dismiss or roll on a human's behalf while the sequence is on a human turn.
+        if (state.pendingModal.isGroupHazard && state.pendingModal.needsRoll) {
+          const rollerId = state.pendingModal.currentRollerId !== undefined
+            ? state.pendingModal.currentRollerId
+            : state.pendingModal.playerId;
+          const roller = state.players?.find(p => String(p.id) === String(rollerId));
+          if (roller && !roller.isAi) {
+            this.scheduleAiStep(engine, network, 700);
+            return;
+          }
+        }
+
         // If danger card requires survival die roll, let bot roll interactively
         if (state.pendingModal.type === 'danger' && state.pendingModal.needsRoll) {
           const elapsed = Date.now() - state.pendingModal._shownAt;
@@ -83,7 +96,9 @@ class AiController {
             return;
           }
           sounds.diceRoll?.();
-          const targetId = state.pendingModal.playerId !== undefined ? state.pendingModal.playerId : player.id;
+          const targetId = state.pendingModal.currentRollerId !== undefined
+            ? state.pendingModal.currentRollerId
+            : (state.pendingModal.playerId !== undefined ? state.pendingModal.playerId : player.id);
           const res = engine.rollDangerDie(targetId);
           const groupRolls = res?.groupResults ? res.groupResults.reduce((acc, r) => { acc[r.playerId] = r.roll; return acc; }, {}) : undefined;
           network?.sendAction({

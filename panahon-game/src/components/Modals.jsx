@@ -799,6 +799,79 @@ export function CardVFXOverlay({ vfxTag, isFailure }) {
   );
 }
 
+function GroupHazardTracker({ modal, players = [] }) {
+  if (!modal?.isGroupHazard) return null;
+
+  const order = Array.isArray(modal.groupHazardOrder) && modal.groupHazardOrder.length
+    ? modal.groupHazardOrder
+    : players.map(p => p.id);
+  const results = Array.isArray(modal.groupResults) ? modal.groupResults : [];
+  const rolledCount = results.length;
+
+  return (
+    <div style={{
+      marginTop: '10px',
+      padding: '10px',
+      background: 'rgba(0, 0, 0, 0.55)',
+      border: '1.5px solid #F59E0B',
+      borderRadius: '8px'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '8px',
+        marginBottom: '8px'
+      }}>
+        <span style={{ fontSize: '0.72rem', color: '#FCD34D', fontWeight: 800, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+          🌋 Group Hazard — All Operatives Roll
+        </span>
+        <span style={{ fontSize: '0.68rem', color: '#CBD5E1', fontWeight: 700 }}>
+          {rolledCount}/{order.length}
+        </span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(118px, 1fr))', gap: '6px' }}>
+        {order.map(id => {
+          const player = players.find(p => String(p.id) === String(id));
+          const result = results.find(r => String(r.playerId) === String(id));
+          const isCurrent = modal.needsRoll && String(id) === String(modal.currentRollerId);
+
+          return (
+            <div
+              key={id}
+              style={{
+                background: result
+                  ? (result.safe ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)')
+                  : (isCurrent ? 'rgba(245, 158, 11, 0.22)' : 'rgba(255, 255, 255, 0.05)'),
+                border: `1px solid ${result ? (result.safe ? '#10B981' : '#EF4444') : (isCurrent ? '#F59E0B' : 'rgba(148, 163, 184, 0.3)')}`,
+                padding: '6px',
+                borderRadius: '4px',
+                textAlign: 'center',
+                boxShadow: isCurrent && !result ? '0 0 10px rgba(245, 158, 11, 0.35)' : 'none'
+              }}
+            >
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#FFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {player?.name || `Player ${id}`}{player?.isAi ? ' 🤖' : ''}
+              </div>
+              <div style={{
+                fontSize: '0.68rem',
+                marginTop: '2px',
+                color: result ? (result.safe ? '#34D399' : '#FDA4AF') : (isCurrent ? '#FCD34D' : '#94A3B8'),
+                fontWeight: 700
+              }}>
+                {result
+                  ? (result.safe ? `✓ ${result.roll} SAFE` : `✗ ${result.roll} −${result.energyLoss}⚡`)
+                  : (isCurrent ? (player?.isAi ? '🤖 Rolling...' : '🎲 Roll now!') : '⏳ Waiting')}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   if (!modal) return null;
 
@@ -811,11 +884,43 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   const isSpectator = network?.isSpectator === true;
   const isOnline = network?.mode === 'online';
 
+  // Group hazards rotate the interactive roll between operatives. Humans must click
+  // the die for their own roll; bots are auto-resolved by the engine.
+  const isGroupHazardPending = !!(modal.isGroupHazard && modal.needsRoll);
+  const groupRollerId = isGroupHazardPending ? (modal.currentRollerId ?? modal.playerId) : null;
+  const groupRoller = groupRollerId !== null
+    ? engine?.state?.players?.find(p => String(p.id) === String(groupRollerId))
+    : null;
+  const isMyGroupRoll = !!(groupRoller && !groupRoller.isAi && (
+    isOnline ? String(groupRoller.id) === String(network?.playerId) : true
+  ));
+
+  // Once the group sequence is done, keep the full result screen for every human who
+  // took part so they can clearly see their own roll and penalty.
+  const isGroupHazardResolved = !!(
+    modal.isGroupHazard &&
+    !modal.needsRoll &&
+    Array.isArray(modal.groupResults) &&
+    modal.groupResults.length
+  );
+  const isMyGroupResult = isGroupHazardResolved && (
+    isOnline
+      ? modal.groupResults.some(r => String(r.playerId) === String(network?.playerId))
+      : modal.groupResults.some(r => {
+          const p = engine?.state?.players?.find(pp => String(pp.id) === String(r.playerId));
+          return p && !p.isAi;
+        })
+  );
+
   // In online mode, drawing player id matches network.playerId; in local mode, human player is taking turn
   const isMyCard = !isSpectator && (
-    isOnline
-      ? (drawingPlayer?.id !== undefined ? String(drawingPlayer.id) === String(network.playerId) : false)
-      : (!isAi && (activePlayer?.id === drawingPlayer?.id || drawingPlayer?.isLocal))
+    isGroupHazardPending
+      ? isMyGroupRoll
+      : (isGroupHazardResolved
+        ? isMyGroupResult
+        : (isOnline
+          ? (drawingPlayer?.id !== undefined ? String(drawingPlayer.id) === String(network.playerId) : false)
+          : (!isAi && (activePlayer?.id === drawingPlayer?.id || drawingPlayer?.isLocal))))
   );
 
   const isOtherPlayer = !isMyCard;
@@ -857,7 +962,9 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     setIsRollingDanger(true);
     sounds.diceRoll?.();
 
-    const targetPlayerId = modal?.playerId !== undefined ? modal.playerId : activePlayer?.id;
+    const targetPlayerId = modal?.currentRollerId !== undefined
+      ? modal.currentRollerId
+      : (modal?.playerId !== undefined ? modal.playerId : activePlayer?.id);
     setTimeout(() => {
       const res = engine?.rollDangerDie?.(targetPlayerId);
       const groupRolls = res?.groupResults ? res.groupResults.reduce((acc, r) => { acc[r.playerId] = r.roll; return acc; }, {}) : undefined;
@@ -874,7 +981,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         sounds.danger?.();
       }
     }, 700);
-  }, [isRollingDanger, modal?.needsRoll, modal?.playerId, isOtherPlayer, engine, network, activePlayer?.id]);
+  }, [isRollingDanger, modal?.needsRoll, modal?.playerId, modal?.currentRollerId, isOtherPlayer, engine, network, activePlayer?.id]);
 
   const handleRollEvent = useCallback(() => {
     if (isRollingEvent || !modal?.needsRoll || isOtherPlayer) return;
@@ -1053,8 +1160,8 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   }, [isOtherPlayer, isHovered, durationMs, modal?.title, modal?._timestamp, modal?.id, modal?.diceRoll, modal?.needsRoll]);
 
   const handleDismiss = useCallback(() => {
-    // Prevent accidental manual or synthetic dismissal if a die roll is required for this player
-    if ((isDanger || isEvent) && modal?.needsRoll && !isOtherPlayer) {
+    // Never dismiss a hazard/event card before the required roll has been made.
+    if ((isDanger || isEvent) && modal?.needsRoll) {
       return;
     }
     sounds.btnClick();
@@ -1274,6 +1381,8 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
             </div>
           )}
 
+          <GroupHazardTracker modal={modal} players={engine?.state?.players || []} />
+
           {(isDanger || isEvent) && modal.needsRoll && (
             <div style={{
               marginTop: '8px',
@@ -1289,9 +1398,17 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
             }}>
               <Dice size="sm" isRolling={true} theme={isEvent ? 'chrono' : 'hazard'} />
               <div>
-                <strong style={{ color: '#FFF' }}>{isEvent ? 'Celestial Rune Check' : 'Survival Hazard Check'}</strong>
+                <strong style={{ color: '#FFF' }}>
+                  {isEvent
+                    ? 'Celestial Rune Check'
+                    : (modal.isGroupHazard ? `Group Hazard — ${modal.currentRollerName || 'Operative'}'s Roll` : 'Survival Hazard Check')}
+                </strong>
                 <div style={{ fontSize: '0.7rem', color: '#CBD5E1', marginTop: '1px' }}>
-                  {isEvent ? 'Rolling D6 for rune resonance (4-6)...' : 'Rolling survival die to determine fate...'}
+                  {isEvent
+                    ? 'Rolling D6 for rune resonance (4-6)...'
+                    : (modal.isGroupHazard
+                      ? `Waiting for ${modal.currentRollerName || 'the next operative'} to roll a D6 (6 escapes safely)...`
+                      : 'Rolling survival die to determine fate...')}
                 </div>
               </div>
             </div>
@@ -1357,6 +1474,10 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               <span style={{ color: '#FCD34D', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
                 ⏸️ Paused (Hovering)
               </span>
+            ) : modal?.needsRoll ? (
+              <span style={{ color: '#FCD34D', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                🎲 Waiting for manual roll
+              </span>
             ) : (
               <span style={{ color: '#94A3B8' }}>
                 ⏱️ Auto-closing (Hover to pause)
@@ -1365,21 +1486,23 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
           </div>
         </div>
 
-        <div className="overlay-timer-bar">
-          <div
-            className="overlay-timer-fill"
-            style={{
-              background: timerFillGradient,
-              animationDuration: `${durationMs}ms`,
-              animationPlayState: isHovered ? 'paused' : 'running'
-            }}
-            onAnimationEnd={() => {
-              if (!isHovered) {
-                onDismissRef.current?.();
-              }
-            }}
-          ></div>
-        </div>
+        {!modal?.needsRoll && (
+          <div className="overlay-timer-bar">
+            <div
+              className="overlay-timer-fill"
+              style={{
+                background: timerFillGradient,
+                animationDuration: `${durationMs}ms`,
+                animationPlayState: isHovered ? 'paused' : 'running'
+              }}
+              onAnimationEnd={() => {
+                if (!isHovered) {
+                  onDismissRef.current?.();
+                }
+              }}
+            ></div>
+          </div>
+        )}
       </div>
     );
   }
@@ -2135,7 +2258,11 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
 
               <div className="danger-status-alert">
                 {modal.needsRoll ? (
-                  <span>⚠️ IMMINENT DANGER: SURVIVAL ROLL REQUIRED</span>
+                  <span>
+                    {modal.isGroupHazard
+                      ? `⚠️ GROUP HAZARD: ${(modal.currentRollerName || 'OPERATIVE').toUpperCase()}'S ROLL REQUIRED`
+                      : '⚠️ IMMINENT DANGER: SURVIVAL ROLL REQUIRED'}
+                  </span>
                 ) : modal.success ? (
                   <span className="text-success">✓ HAZARD EVADED SAFELY</span>
                 ) : (
@@ -2149,11 +2276,17 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               <div className="danger-lore-desc">{modal.description}</div>
             </div>
 
+            <GroupHazardTracker modal={modal} players={engine?.state?.players || []} />
+
             {modal.needsRoll ? (
               <div className="danger-survival-stage">
                 <div className="survival-rule-banner">
                   <span className="rule-icon">🎲</span>
-                  <span className="rule-text">TUMBLE THE SURVIVAL DIE TO DETERMINE YOUR FATE</span>
+                  <span className="rule-text">
+                    {modal.isGroupHazard
+                      ? `${(modal.currentRollerName || 'OPERATIVE').toUpperCase()}: TUMBLE YOUR SURVIVAL DIE`
+                      : 'TUMBLE THE SURVIVAL DIE TO DETERMINE YOUR FATE'}
+                  </span>
                 </div>
                 <div className="danger-dice-roll-area">
                   <Dice
@@ -2167,38 +2300,30 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                     showLabel={false}
                   />
                   <div className="dice-action-caption">
-                    <div className="caption-bold">{isRollingDanger ? 'Tumbling Survival Die...' : 'Roll to Survive!'}</div>
-                    <div className="caption-sub">Press Space or click the die</div>
+                    <div className="caption-bold">
+                      {isRollingDanger
+                        ? 'Tumbling Survival Die...'
+                        : (modal.isGroupHazard ? `${modal.currentRollerName || 'Your'} Roll to Survive!` : 'Roll to Survive!')}
+                    </div>
+                    <div className="caption-sub">
+                      {modal.isGroupHazard ? 'Roll a 6 to escape safely (this die is only for your operative)' : 'Press Space or click the die'}
+                    </div>
                   </div>
                 </div>
               </div>
             ) : (
               <>
-                {modal.isGroupHazard && modal.groupResults && (
-              <div className="group-hazard-results-box" style={{ margin: '12px 0', background: 'rgba(0,0,0,0.6)', padding: '12px', borderRadius: '8px', border: '1.5px solid #F59E0B' }}>
-                <div style={{ fontSize: '0.78rem', color: '#FCD34D', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase' }}>
-                  🌋 Group Hazard: Volcanic Survival Rolls
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
-                  {modal.groupResults.map(r => (
-                    <div key={r.playerId} style={{ background: r.safe ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)', border: `1px solid ${r.safe ? '#10B981' : '#EF4444'}`, padding: '8px 6px', borderRadius: '4px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#FFF' }}>{r.playerName}</div>
-                      <div style={{ fontSize: '0.72rem', color: r.safe ? '#34D399' : '#FDA4AF', marginTop: '2px' }}>
-                        Roll: <strong>{r.roll}</strong> {r.safe ? '✓ SAFE' : `-${r.energyLoss}⚡`}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
               <div className={`danger-outcome-plaque ${modal.success ? 'outcome-evaded' : 'outcome-failed'}`}>
                 <div className="outcome-dice-wrap">
                   <Dice value={modal.diceRoll} size="sm" theme={modal.success ? 'success' : 'hazard'} isInteractive={false} />
                 </div>
                 <div className="outcome-details">
                   <div className="outcome-verdict">
-                    {modal.success ? '✓ HAZARD EVADED!' : '✗ HAZARD TRIGGERED!'}
+                    {modal.isGroupHazard
+                      ? (modal.success
+                        ? `✓ ${modal.playerName || 'TRIGGERING OPERATIVE'} EVADED!`
+                        : `✗ ${modal.playerName || 'TRIGGERING OPERATIVE'} WAS HIT!`)
+                      : (modal.success ? '✓ HAZARD EVADED!' : '✗ HAZARD TRIGGERED!')}
                     <span className="outcome-roll-val">(Rolled {modal.diceRoll})</span>
                   </div>
                   <div className="outcome-msg">
@@ -2225,7 +2350,13 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                 autoFocus
               >
                 <span>🎲</span>
-                <span>{isRollingDanger ? 'TUMBLING DIE...' : 'ROLL SURVIVAL DIE'}</span>
+                <span>
+                  {isRollingDanger
+                    ? 'TUMBLING DIE...'
+                    : (modal.isGroupHazard
+                      ? `ROLL FOR ${(modal.currentRollerName || 'YOUR OPERATIVE').toUpperCase()}`
+                      : 'ROLL SURVIVAL DIE')}
+                </span>
                 <kbd className="danger-kbd">[ SPACE ]</kbd>
               </button>
             ) : (

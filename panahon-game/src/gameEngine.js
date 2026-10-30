@@ -1635,6 +1635,18 @@ export class GameEngine {
 
     const previousPhase = this.state.phase;
 
+    // Group hazards are rolled one operative at a time, starting with the player who
+    // triggered the card. Human operatives must always roll manually, while bots are
+    // resolved automatically by the engine once their turn in the sequence arrives.
+    const isGroupHazard = !!card.isGroupHazard;
+    const groupHazardOrder = isGroupHazard
+      ? (() => {
+          const ids = this.state.players.map(p => p.id);
+          const start = ids.indexOf(player.id);
+          return start === -1 ? ids : [...ids.slice(start), ...ids.slice(0, start)];
+        })()
+      : null;
+
     // Danger card requires interactive die roll by player for immersion
     this.state.pendingModal = {
       type: 'danger',
@@ -1656,7 +1668,13 @@ export class GameEngine {
       failMsg: card.failMsg,
       vfxTag: card.vfxTag,
       sfxTag: card.sfxTag,
-      isGroupHazard: !!card.isGroupHazard
+      isGroupHazard: isGroupHazard,
+      groupHazardOrder: groupHazardOrder,
+      groupResults: isGroupHazard ? [] : undefined,
+      currentRollerId: isGroupHazard ? groupHazardOrder[0] : player.id,
+      currentRollerName: isGroupHazard
+        ? (this.state.players.find(p => p.id === groupHazardOrder[0])?.name || player.name)
+        : player.name
     };
 
     this.addLog('danger', `${player.name} triggered ${card.name}! Survival check: ${card.description}`);
@@ -1687,7 +1705,11 @@ export class GameEngine {
       return null;
     }
 
-    const targetIdx = playerIdx !== undefined ? playerIdx : (modal.playerId !== undefined ? modal.playerId : this.state.currentPlayerIndex);
+    const targetIdx = playerIdx !== undefined
+      ? playerIdx
+      : (modal.currentRollerId !== undefined
+        ? modal.currentRollerId
+        : (modal.playerId !== undefined ? modal.playerId : this.state.currentPlayerIndex));
     const player = this.state.players[targetIdx];
     if (!player) return null;
 
@@ -1699,54 +1721,114 @@ export class GameEngine {
     const diceRoll = explicitRoll ?? rollDie();
 
     // Group Hazard check (Spanish Danger 1: Bulkang galit)
+    // Rolls happen sequentially: each human clicks their own die, while bot rolls are
+    // auto-resolved so the game never stalls waiting on an AI operative.
     if (modal.isGroupHazard || card.isGroupHazard) {
-      const groupResults = [];
-      this.state.players.forEach(p => {
-        const pRoll = (p.id === player.id)
-          ? diceRoll
-          : (explicitGroupRolls?.[p.id] ?? rollDie());
-        let pSafe = (pRoll === 6);
-        if (p.sanctuaryShield) {
+      const order = modal.groupHazardOrder && modal.groupHazardOrder.length
+        ? modal.groupHazardOrder
+        : this.state.players.map(p => p.id);
+      const currentRollerId = modal.currentRollerId !== undefined
+        ? modal.currentRollerId
+        : (order[0] !== undefined ? order[0] : player.id);
+
+      // Only the operative whose turn it is in the group sequence may roll.
+      if (String(targetIdx) !== String(currentRollerId)) {
+        return null;
+      }
+
+      const roller = this.state.players.find(p => String(p.id) === String(currentRollerId)) || player;
+      const groupResults = Array.isArray(modal.groupResults) ? [...modal.groupResults] : [];
+      const rolledIds = new Set(groupResults.map(r => String(r.playerId)));
+
+      const resolveRoll = (operative, value) => {
+        let pSafe = (value === 6);
+        if (operative.sanctuaryShield) {
           pSafe = true;
-          p.sanctuaryShield = false;
-        } else if (p.shielded) {
+          operative.sanctuaryShield = false;
+        } else if (operative.shielded) {
           pSafe = true;
-          p.shielded = false;
+          operative.shielded = false;
         }
 
-        const isGuardian = (p.roleKey === 'GUARDIAN');
+        const isGuardian = (operative.roleKey === 'GUARDIAN');
         const loss = pSafe ? 0 : (isGuardian ? 2 : 3);
         if (!pSafe && loss > 0) {
-          this.modifyEnergy(p, -loss);
+          this.modifyEnergy(operative, -loss);
         }
-        groupResults.push({
-          playerId: p.id,
-          playerName: p.name,
-          roll: pRoll,
+
+        const result = {
+          playerId: operative.id,
+          playerName: operative.name,
+          roll: value,
           safe: pSafe,
           energyLoss: loss,
-          roleKey: p.roleKey
-        });
-      });
-
-      const pResult = groupResults.find(r => r.playerId === player.id);
-      const success = pResult ? pResult.safe : (diceRoll === 6);
-
-      const updatedModal = {
-        ...modal,
-        needsRoll: false,
-        diceRoll: diceRoll,
-        success: success,
-        groupResults: groupResults,
-        failMsg: success
-          ? 'You rolled a 6 and escaped the eruption safely!'
-          : `You rolled a ${diceRoll}! Lost ${player.roleKey === 'GUARDIAN' ? '2' : '3'} Energy.`
+          roleKey: operative.roleKey
+        };
+        this.addLog('danger', `🌋 ${operative.name} rolled ${value} — ${pSafe ? 'escaped safely!' : `lost ${loss} Energy.`}`);
+        return result;
       };
-      this.state.pendingModal = updatedModal;
-      this.addLog('danger', `Volcano Eruption resolved! Group rolls: ${groupResults.map(r => `${r.playerName}: [${r.roll}] ${r.safe ? 'Safe' : `-${r.energyLoss}⚡`}`).join(', ')}`);
-      groupResults.filter(r => r.safe).forEach(r => this.grantSupplyLine(this.state.players[r.playerId]));
+
+      const firstResult = resolveRoll(roller, diceRoll);
+      groupResults.push(firstResult);
+      rolledIds.add(String(roller.id));
+
+      let nextId = order.find(id => !rolledIds.has(String(id)));
+
+      // Auto-resolve any bot operatives whose turn is next.
+      while (nextId !== undefined) {
+        const nextPlayer = this.state.players.find(p => String(p.id) === String(nextId));
+        if (!nextPlayer) {
+          rolledIds.add(String(nextId));
+          nextId = order.find(id => !rolledIds.has(String(id)));
+          continue;
+        }
+        if (!nextPlayer.isAi) break;
+
+        const botRoll = explicitGroupRolls?.[nextPlayer.id] ?? rollDie();
+        const botResult = resolveRoll(nextPlayer, botRoll);
+        groupResults.push(botResult);
+        rolledIds.add(String(nextPlayer.id));
+        nextId = order.find(id => !rolledIds.has(String(id)));
+      }
+
+      if (nextId === undefined) {
+        const drawResult = groupResults.find(r => String(r.playerId) === String(modal.playerId)) || firstResult;
+        const success = !!drawResult?.safe;
+        const drawerName = modal.playerName || 'The operative';
+        const updatedModal = {
+          ...modal,
+          needsRoll: false,
+          currentRollerId: null,
+          currentRollerName: null,
+          diceRoll: drawResult?.roll ?? diceRoll,
+          success: success,
+          groupResults: groupResults,
+          failMsg: success
+            ? `${drawerName} rolled a 6 and escaped the eruption safely!`
+            : `${drawerName} rolled a ${drawResult?.roll ?? diceRoll}! Lost ${drawResult?.energyLoss ?? 3} Energy.`,
+          _shownAt: Date.now()
+        };
+        this.state.pendingModal = updatedModal;
+        this.addLog('danger', `Volcano Eruption resolved! Group rolls: ${groupResults.map(r => `${r.playerName}: [${r.roll}] ${r.safe ? 'Safe' : `-${r.energyLoss}⚡`}`).join(', ')}`);
+        groupResults.filter(r => r.safe).forEach(r => this.grantSupplyLine(this.state.players.find(p => p.id === r.playerId)));
+        this.notify();
+        return { diceRoll, success: firstResult.safe, groupResults };
+      }
+
+      const nextPlayer = this.state.players.find(p => String(p.id) === String(nextId));
+      this.state.pendingModal = {
+        ...modal,
+        needsRoll: true,
+        diceRoll: null,
+        success: null,
+        groupResults: groupResults,
+        currentRollerId: nextId,
+        currentRollerName: nextPlayer?.name || `Player ${nextId}`,
+        groupHazardOrder: order,
+        _shownAt: Date.now()
+      };
       this.notify();
-      return { diceRoll, success, groupResults };
+      return { diceRoll, success: firstResult.safe, groupResults };
     }
 
     const success = typeof card.check === 'function' ? card.check(diceRoll) : true;
@@ -3259,8 +3341,10 @@ export class GameEngine {
   dismissModal() {
     let activeModal = this.state.pendingModal;
     if (activeModal?.needsRoll) {
-      const targetId = activeModal.playerId !== undefined ? activeModal.playerId : this.state.currentPlayerIndex;
-      const modalPlayer = this.state.players?.find(p => p.id === targetId) || this.getCurrentPlayer();
+      const targetId = activeModal.currentRollerId !== undefined
+        ? activeModal.currentRollerId
+        : (activeModal.playerId !== undefined ? activeModal.playerId : this.state.currentPlayerIndex);
+      const modalPlayer = this.state.players?.find(p => String(p.id) === String(targetId)) || this.getCurrentPlayer();
       // Human players MUST roll manually. Never auto-roll or dismiss early for humans.
       if (!modalPlayer?.isAi) {
         return false;
@@ -3271,6 +3355,12 @@ export class GameEngine {
       } else if (activeModal.type === 'event') {
         this.rollEventDie(targetId);
         activeModal = this.state.pendingModal;
+      }
+
+      // A group hazard may have advanced to a human operative's roll. Never dismiss
+      // the card while another operative still has to tumble their own die.
+      if (activeModal?.needsRoll) {
+        return false;
       }
     }
 

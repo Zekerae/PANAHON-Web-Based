@@ -123,7 +123,13 @@ function PlayerHand({
                 {/* 3 Step Badges */}
                 <div className="mission-step-chips">
                   {[
-                    { step: 1, label: "1. Origin Anchor", icon: "📜", done: !!viewedPlayer.triangulation?.originAnchor, desc: `Excavate historical records in ${ERA_NAMES[viewedPlayer.mission?.originEra]}` },
+                    {
+                      step: 1,
+                      label: "1. Artifact Clue",
+                      icon: "🔍",
+                      done: !!viewedPlayer.triangulation?.originAnchor,
+                      desc: `Find a Clue for ${viewedPlayer.mission?.artifactNickname || 'your mission artifact'} in ${ERA_NAMES[viewedPlayer.mission?.originEra]}`
+                    },
                     { step: 2, label: "2. Rift Vector", icon: "🌀", done: !!viewedPlayer.triangulation?.riftVector, desc: "Scan vortex discharge at a Time Gate" },
                     { step: 3, label: "3. Ground Intel", icon: "👁️", done: !!viewedPlayer.triangulation?.impactSighting, desc: `Confirm ground sightings in ${ERA_NAMES[viewedPlayer.mission?.displacedEra]}` }
                   ].map((s) => (
@@ -141,7 +147,7 @@ function PlayerHand({
                 {/* Directive Banner */}
                 <div className="mission-directive-pill">
                   {!viewedPlayer.triangulation?.originAnchor ? (
-                    <span>🎯 <strong>Next Directive:</strong> Land on Clue Tile (🔍) in <strong>{ERA_NAMES[viewedPlayer.mission?.originEra]}</strong> to lock Origin Anchor.</span>
+                    <span>🎯 <strong>Next Directive:</strong> Land on a Clue Tile (🔍) in <strong>{ERA_NAMES[viewedPlayer.mission?.originEra]}</strong> to find a Clue for <strong>{viewedPlayer.mission?.artifactNickname || 'your mission artifact'}</strong>.</span>
                   ) : !viewedPlayer.triangulation?.riftVector ? (
                     <span>🎯 <strong>Next Directive:</strong> Pass or land on a <strong>Time Gate (🌀)</strong> to scan & lock Rift Vector!</span>
                   ) : !viewedPlayer.triangulation?.impactSighting ? (

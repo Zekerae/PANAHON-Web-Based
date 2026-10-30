@@ -1402,10 +1402,10 @@ export class GameEngine {
       modalDesc = card.description;
       modalCardType = 'Decoy Anomaly';
     } else if (card.triangulationStep === 1) {
-      modalTitle = '📜 ORIGIN ANCHOR LOCKED!';
-      modalSubtitle = 'STEP 1 OF 3: HISTORICAL TRACE';
-      modalDesc = `Historical records confirmed! You unearthed authentic documentation for the ${player.mission?.artifactNickname} in its native ${ERA_NAMES[player.mission?.originEra]}. Head to a Time Gate to scan the residual rift vector!`;
-      modalCardType = 'Triangulation Clue — Step 1 (Origin Anchor)';
+      modalTitle = '📜 ARTIFACT CLUE FOUND!';
+      modalSubtitle = 'STEP 1 OF 3: MISSION CLUE';
+      modalDesc = `Mission clue recovered! You found a Clue for the ${player.mission?.artifactNickname} in its native ${ERA_NAMES[player.mission?.originEra]}. Head to a Time Gate to scan the residual rift vector!`;
+      modalCardType = 'Triangulation Clue — Step 1 (Artifact Clue)';
     } else if (card.triangulationStep === 3) {
       modalTitle = '🎯 GROUND SIGHTINGS VERIFIED!';
       modalSubtitle = 'STEP 3 OF 3: TRIANGULATION COMPLETE';
@@ -1942,7 +1942,7 @@ export class GameEngine {
     if (!isTriangulated) {
       this.modifyParadox(player, 1);
       const stepMsg = !player.triangulation?.originAnchor
-        ? `You must first discover the Origin Anchor in ${ERA_NAMES[mission?.originEra || player.currentEra]} (Step 1).`
+        ? `You must first find a Clue for the ${mission?.artifactNickname || 'mission artifact'} in ${ERA_NAMES[mission?.originEra || player.currentEra]} (Step 1).`
         : !player.triangulation?.riftVector
         ? `You must scan the Rift Vector at a Time Gate (Step 2).`
         : `You must verify local ground sightings in ${ERA_NAMES[mission?.displacedEra || player.currentEra]} (Step 3).`;
@@ -2026,7 +2026,7 @@ export class GameEngine {
       }
       player.clueProgress[mission.artifactId] = Math.max(player.clueProgress[mission.artifactId], 1);
 
-      this.addLog('mission', `📜 STEP 1 COMPLETE: Origin Anchor Locked! ${player.name} discovered the ${mission.artifactNickname}'s historical archive in ${ERA_NAMES[mission.originEra]}! Next: Head to a Time Gate to scan the Rift Vector!`);
+      this.addLog('mission', `📜 STEP 1 COMPLETE: Artifact Clue Found! ${player.name} found a Clue for the ${mission.artifactNickname} in ${ERA_NAMES[mission.originEra]}! Next: Head to a Time Gate to scan the Rift Vector!`);
       return true;
     }
 

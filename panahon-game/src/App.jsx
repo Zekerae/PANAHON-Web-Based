@@ -576,7 +576,10 @@ export default function App() {
             engine={engine}
             network={network}
             onDismiss={() => {
-              if (engine.state) {
+              // Only clear the choice this modal is actually showing. Resolving a
+              // choice can immediately produce a chained follow-up choice (e.g.
+              // clueDisplay -> clueHandLimit), which must not be dismissed here.
+              if (engine.state && engine.state.pendingChoice === gameState.pendingChoice) {
                 engine.state.pendingChoice = null;
                 engine.notify('choice_dismiss');
               }

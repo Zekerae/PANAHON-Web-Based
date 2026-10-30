@@ -2788,9 +2788,17 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
     if (action && (action.startsWith('warp_') || action.startsWith('teleport_') || ['spanish', 'american', 'japanese', 'myth'].includes(action))) {
       sounds.portal();
     }
+    const resolvingChoice = engine?.state?.pendingChoice;
     engine.resolveChoice(action);
     network.sendAction({ type: 'RESOLVE_CHOICE', action });
-    onDismiss();
+
+    // resolveChoice may chain directly into a follow-up choice (e.g. selecting a
+    // face-up Clue Card while at the 3/3 hand limit creates a clueHandLimit choice).
+    // Only dismiss the choice we just resolved; never wipe a newly-created one.
+    const nextChoice = engine?.state?.pendingChoice;
+    if (!nextChoice || nextChoice === resolvingChoice) {
+      onDismiss();
+    }
   };
 
   if (isAi) {

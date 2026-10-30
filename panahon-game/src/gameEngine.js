@@ -529,7 +529,7 @@ export class GameEngine {
     // Check if target is in the same era
     if (targetEra !== player.currentEra) return false;
 
-    // Strict direction constraint: strictly forward (+1) unless Reverse Time Ability is active (-1)
+    // Strict direction constraint: strictly backward (-1) if Reverse Time is active, else forward (+1)
     const direction = this.state.movementDirection || 'forward';
     const dir = direction === 'backward' ? -1 : 1;
     const expectedNext = this.getNextTileIndex(player, targetEra, currentIdx, dir);
@@ -555,7 +555,6 @@ export class GameEngine {
 
     // If artifact tile, player can choose to stop
     if (tile.type === TILE_TYPES.ARTIFACT && this.state.movesRemaining > 0) {
-      // Player may stop for artifact
       this.state.pendingChoice = {
         type: 'artifactStop',
         title: 'Artifact Tile',
@@ -592,7 +591,7 @@ export class GameEngine {
       return true;
     }
 
-    // If no more moves, resolve tile and reset direction
+    // If no more moves, resolve tile and reset direction only here
     if (this.state.movesRemaining <= 0) {
       this.state.movementDirection = 'forward';
       this.state.momentumActive = false;

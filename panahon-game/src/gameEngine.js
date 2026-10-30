@@ -2071,7 +2071,7 @@ export class GameEngine {
         cardType: 'Chrono-Vortex Triangulation 🌀',
         title: 'RIFT VECTOR SCANNED!',
         subtitle: 'STEP 2 OF 3: TRAJECTORY LOCKED',
-        description: `Your Chrono-Device analyzed the portal's residual vortex discharge! The ${player.mission.artifactNickname} was hurled through spacetime into the <strong style="color: #FFD700; font-weight: 900; text-decoration: underline;">${ERA_NAMES[player.mission.displacedEra].toUpperCase()}</strong>! Warp through this Time Gate to follow ground sightings!`,
+        description: `Your Chrono-Device analyzed the portal's residual vortex discharge! The ${player.mission.artifactNickname} was hurled through spacetime into the ${eraName.toUpperCase().replace(/[A-Z]/g, c => String.fromCodePoint(0x1D5D4 + c.charCodeAt(0) - 65))}! Warp through this Time Gate to follow ground sightings!`,
         image: 'assets/Tiles/portal_tile.png',
         era: player.currentEra,
         triangulation: { ...player.triangulation }

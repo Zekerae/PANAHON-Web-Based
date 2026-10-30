@@ -536,10 +536,25 @@ wss.on('connection', (ws) => {
               id: p.id,
               name: p.name,
               roleKey: p.roleKey
-            }))
+            })),
+            initialState: msg.initialState || null,
+            customMap: msg.customMap || null
           });
 
           console.log(`Game started in room ${currentRoom.code} with ${activePlayers.length} players`);
+          break;
+        }
+
+        case 'REQUEST_SYNC': {
+          if (!currentRoom) return;
+          if (currentRoom.state) {
+            ws.send(JSON.stringify({ type: 'STATE_UPDATE', state: currentRoom.state }));
+          } else {
+            const hostPlayer = currentRoom.players.find(p => p.id === currentRoom.host);
+            if (hostPlayer && hostPlayer.ws && hostPlayer.ws.readyState === 1) {
+              hostPlayer.ws.send(JSON.stringify({ type: 'REQUEST_SYNC', requesterId: currentPlayerId }));
+            }
+          }
           break;
         }
 

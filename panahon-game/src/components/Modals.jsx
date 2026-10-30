@@ -809,8 +809,8 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   // In online mode, drawing player id matches network.playerId; in local mode, human player is taking turn
   const isMyCard = !isSpectator && (
     isOnline
-      ? (drawingPlayer?.id !== undefined ? drawingPlayer.id === network.playerId : false)
-      : (!isAi && activePlayer?.id === drawingPlayer?.id)
+      ? (drawingPlayer?.id !== undefined ? String(drawingPlayer.id) === String(network.playerId) : false)
+      : (!isAi && (activePlayer?.id === drawingPlayer?.id || drawingPlayer?.isLocal))
   );
 
   const isOtherPlayer = !isMyCard;
@@ -852,9 +852,16 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     setIsRollingDanger(true);
     sounds.diceRoll?.();
 
+    const targetPlayerId = modal?.playerId !== undefined ? modal.playerId : activePlayer?.id;
     setTimeout(() => {
-      const res = engine?.rollDangerDie?.(activePlayer?.id);
-      network?.sendAction?.({ type: 'ROLL_DANGER_DIE', playerIdx: activePlayer?.id });
+      const res = engine?.rollDangerDie?.(targetPlayerId);
+      const groupRolls = res?.groupResults ? res.groupResults.reduce((acc, r) => { acc[r.playerId] = r.roll; return acc; }, {}) : undefined;
+      network?.sendAction?.({
+        type: 'ROLL_DANGER_DIE',
+        playerIdx: targetPlayerId,
+        diceRoll: res?.diceRoll,
+        groupRolls
+      });
       setIsRollingDanger(false);
       if (res?.success) {
         sounds.artifact?.();
@@ -862,16 +869,21 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         sounds.danger?.();
       }
     }, 700);
-  }, [isRollingDanger, modal?.needsRoll, isOtherPlayer, engine, network, activePlayer?.id]);
+  }, [isRollingDanger, modal?.needsRoll, modal?.playerId, isOtherPlayer, engine, network, activePlayer?.id]);
 
   const handleRollEvent = useCallback(() => {
     if (isRollingEvent || !modal?.needsRoll || isOtherPlayer) return;
     setIsRollingEvent(true);
     sounds.diceRoll?.();
 
+    const targetPlayerId = modal?.playerId !== undefined ? modal.playerId : activePlayer?.id;
     setTimeout(() => {
-      const res = engine?.rollEventDie?.(activePlayer?.id);
-      network?.sendAction?.({ type: 'ROLL_EVENT_DIE', playerIdx: activePlayer?.id });
+      const res = engine?.rollEventDie?.(targetPlayerId);
+      network?.sendAction?.({
+        type: 'ROLL_EVENT_DIE',
+        playerIdx: targetPlayerId,
+        diceRoll: res?.diceRoll
+      });
       setIsRollingEvent(false);
       if (res?.success) {
         sounds.runeBeam?.() || sounds.artifact?.();
@@ -879,7 +891,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         sounds.btnClick?.();
       }
     }, 700);
-  }, [isRollingEvent, modal?.needsRoll, isOtherPlayer, engine, network, activePlayer?.id]);
+  }, [isRollingEvent, modal?.needsRoll, modal?.playerId, isOtherPlayer, engine, network, activePlayer?.id]);
 
   // Spacebar and Enter shortcut to roll survival or event die
   useEffect(() => {
@@ -942,98 +954,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   }, [isTemporalOccurrence]);
 
   useEffect(() => {
-    if (isPeekClues) {
-    return (
-      <div className="modal-overlay event-modal-overlay" id="active-modal">
-        <div className="event-vignette-backdrop" />
-        <CardVFXOverlay vfxTag="sepia_ticker_tape" />
-        <div className="modal event-card-modal" style={{ maxWidth: '780px', width: '95%' }}>
-          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
-          <div className="event-header">
-            <div className="event-header-badge">
-              <span>📜</span>
-              <span>INTELLIGENCE RECONNAISSANCE</span>
-              <span>📜</span>
-            </div>
-            <div className="event-title">
-              <span>⚡</span>
-              <span>UPDATED KA DAPAT DITO AH!</span>
-              <span>⚡</span>
-            </div>
-            <div className="event-sector-tag">
-              TOP 3 CLUE CARDS • {ERA_NAMES[modal.era]?.toUpperCase()} CLUE DECK
-            </div>
-          </div>
-          <div className="modal-body" style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: '0.82rem', color: '#CBD5E1', marginBottom: '14px' }}>
-              These are the top 3 Clue Cards in the <strong>{ERA_NAMES[modal.era]}</strong> deck. They remain in the deck in the exact same order:
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-              {(modal.cards || []).map((card, idx) => (
-                <div key={idx} style={{ background: '#1E293B', border: '1.5px solid #F59E0B', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#FCD34D', fontWeight: 800, textTransform: 'uppercase', marginBottom: '6px' }}>
-                    #{idx + 1} In Deck {card.isDecoy ? '• [DECOY]' : '• [AUTHENTIC]'}
-                  </div>
-                  {card.image && (
-                    <img src={card.image} alt={card.title || 'Clue'} style={{ width: '100%', maxHeight: '160px', objectFit: 'contain', borderRadius: '4px', marginBottom: '8px' }} />
-                  )}
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFF' }}>{card.title || card.hint}</div>
-                  <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '4px' }}>{card.description || card.hint}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="modal-actions" style={{ marginTop: '16px' }}>
-            <button className="btn btn-primary" onClick={handleDismiss} autoFocus>
-              <span>✓</span> Close Inspection
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isDangerNegated) {
-    return (
-      <div className="modal-overlay event-modal-overlay" id="active-modal">
-        <div className="event-vignette-backdrop" />
-        <CardVFXOverlay vfxTag="sanctuary_shield" />
-        <div className="modal event-card-modal" style={{ maxWidth: '540px', width: '92%' }}>
-          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
-          <div className="event-header">
-            <div className="event-header-badge" style={{ background: '#F59E0B', color: '#000' }}>
-              <span>🛡️</span>
-              <span>SANCTUARY SHIELD BLESSING</span>
-              <span>🛡️</span>
-            </div>
-            <div className="event-title" style={{ color: '#FFD700' }}>
-              <span>✨</span>
-              <span>HAZARD COMPLETELY NEGATED!</span>
-              <span>✨</span>
-            </div>
-          </div>
-          <div className="modal-body" style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '4.5rem', margin: '14px 0', filter: 'drop-shadow(0 0 20px #FFD700)' }}>
-              🛡️✨
-            </div>
-            <div style={{ fontSize: '1rem', color: '#FFF', fontWeight: 700, marginBottom: '8px' }}>
-              Protected by Intramuros Sanctuary!
-            </div>
-            <div style={{ fontSize: '0.85rem', color: '#CBD5E1', maxWidth: '420px', margin: '0 auto' }}>
-              {modal.description || 'Your Sanctuary Shield absorbed the hazard strike, negating all penalties and discarding the danger card!'}
-            </div>
-          </div>
-          <div className="modal-actions" style={{ marginTop: '16px' }}>
-            <button className="btn btn-primary" onClick={handleDismiss} autoFocus>
-              <span>🛡️</span> Continue Journey
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isTimeStop) {
+    if (isTimeStop) {
       sounds.timeFreeze?.() || sounds.timeRift?.();
     }
   }, [isTimeStop]);
@@ -1124,6 +1045,10 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   }, [isOtherPlayer, isHovered, durationMs, modal?.title, modal?._timestamp, modal?.id, modal?.diceRoll, modal?.needsRoll]);
 
   const handleDismiss = useCallback(() => {
+    // Prevent accidental manual or synthetic dismissal if a die roll is required for this player
+    if ((isDanger || isEvent) && modal?.needsRoll && !isOtherPlayer) {
+      return;
+    }
     sounds.btnClick();
     if (!network?.isSpectator && (network?.mode !== 'online' || modal.playerId === undefined || modal.playerId === network.playerId)) {
       if (typeof engine?.dismissModal === 'function') {
@@ -1132,12 +1057,12 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
       network?.sendAction?.({ type: 'DISMISS_MODAL' });
     }
     onDismissRef.current?.();
-  }, [network, modal.playerId, engine]);
+  }, [network, modal?.playerId, modal?.needsRoll, isDanger, isEvent, isOtherPlayer, engine]);
 
   // Spacebar and Enter shortcut for active player / victim to acknowledge modals when not waiting for a die roll
   useEffect(() => {
     if ((isDanger || isEvent) && modal?.needsRoll && !isOtherPlayer) return; // Handled by handleRollDanger / handleRollEvent
-    if (isOtherPlayer && (!isTimeStop || !isTimeStopForMe)) return;
+    if (isOtherPlayer && (!isTimeStop || !isTimeStopForMe) && !isPeekClues) return;
     const handleKeyDown = (e) => {
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
@@ -1146,9 +1071,9 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDanger, isEvent, modal?.needsRoll, isOtherPlayer, isTimeStop, isTimeStopForMe, handleDismiss]);
+  }, [isDanger, isEvent, modal?.needsRoll, isOtherPlayer, isTimeStop, isTimeStopForMe, isPeekClues, handleDismiss]);
 
-  if (isOtherPlayer && (!isTimeStop || !isTimeStopForMe)) {
+  if (isOtherPlayer && (!isTimeStop || !isTimeStopForMe) && !isPeekClues) {
     const cardClass = isTimeStop
       ? 'side-card-timestop event-card'
       : (isAbilityActivate
@@ -1446,6 +1371,195 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               }
             }}
           ></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPeekClues) {
+    return (
+      <div className="modal-overlay event-modal-overlay" id="active-modal">
+        <div className="event-vignette-backdrop" />
+        <CardVFXOverlay vfxTag="sepia_ticker_tape" />
+        <div className="modal event-card-modal" style={{ maxWidth: '820px', width: '95%', maxHeight: '92vh', overflowY: 'auto' }}>
+          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+          <div className="event-header">
+            <div className="event-header-badge">
+              <span>📜</span>
+              <span>INTELLIGENCE RECONNAISSANCE</span>
+              <span>📜</span>
+            </div>
+            <div className="event-title">
+              <span>⚡</span>
+              <span>UPDATED KA DAPAT DITO AH!</span>
+              <span>⚡</span>
+            </div>
+            <div className="event-sector-tag">
+              TOP 3 CLUE CARDS • {ERA_NAMES[modal.era]?.toUpperCase()} CLUE DECK
+            </div>
+          </div>
+          <div className="modal-body" style={{ textAlign: 'center', padding: '16px 20px' }}>
+            {/* Drawer Info Banner */}
+            <div style={{
+              background: 'rgba(30, 41, 59, 0.85)',
+              border: '1px solid rgba(148, 163, 184, 0.25)',
+              borderRadius: '8px',
+              padding: '8px 14px',
+              marginBottom: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '0.82rem',
+              color: '#F8FAFC'
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>📻</span>
+                <span>Operative <strong>{modal.playerName || 'Castaway'}</strong> drew <em>Updated ka dapat dito ah!</em></span>
+              </span>
+              <span style={{ fontSize: '0.70rem', background: 'rgba(56, 189, 248, 0.2)', color: '#38BDF8', padding: '3px 8px', borderRadius: '4px', border: '1px solid #0284C7', fontWeight: 700 }}>
+                Top 3 Clue Inspection
+              </span>
+            </div>
+
+            <p style={{ fontSize: '0.84rem', color: '#CBD5E1', marginBottom: '16px', lineHeight: 1.4 }}>
+              These are the top 3 Clue Cards excavated in the <strong>{ERA_NAMES[modal.era]}</strong> deck. They remain in the deck in this exact sequence:
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px' }}>
+              {(modal.cards || []).map((card, idx) => {
+                const cardTitle = card.isDecoy
+                  ? 'Decoy Timeline Anomaly'
+                  : (card.artifactName ? `Clue: ${card.artifactName}` : (card.title || card.hint || `Clue #${idx + 1}`));
+                const cardDesc = card.isDecoy
+                  ? 'Beware deceptive timelines! This clue leads to nowhere.'
+                  : (card.hint || card.description || 'Authentic historical intelligence on the relic.');
+
+                return (
+                  <div
+                    key={card.id || idx}
+                    style={{
+                      background: card.isDecoy
+                        ? 'linear-gradient(180deg, #1E293B 0%, rgba(127, 29, 29, 0.3) 100%)'
+                        : 'linear-gradient(180deg, #1E293B 0%, rgba(20, 83, 45, 0.3) 100%)',
+                      border: card.isDecoy ? '1.5px solid rgba(239, 68, 68, 0.5)' : '1.5px solid #10B981',
+                      borderRadius: '8px',
+                      padding: '12px 10px',
+                      textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      cursor: card.image ? 'pointer' : 'default',
+                      boxShadow: card.isDecoy ? '0 0 10px rgba(239, 68, 68, 0.2)' : '0 0 12px rgba(16, 185, 129, 0.2)'
+                    }}
+                    onClick={() => onMaximize?.({
+                      title: cardTitle,
+                      cardType: card.isDecoy ? 'Decoy Card' : 'Clue Card',
+                      description: cardDesc,
+                      image: card.image,
+                      era: modal.era
+                    })}
+                    title={card.image ? "Click to inspect card in high resolution" : undefined}
+                  >
+                    <div style={{
+                      fontSize: '0.68rem',
+                      color: card.isDecoy ? '#FDA4AF' : '#6EE7B7',
+                      background: card.isDecoy ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                      padding: '3px 6px',
+                      borderRadius: '3px',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      marginBottom: '8px',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      letterSpacing: '0.5px'
+                    }}>
+                      #{idx + 1} In Deck • {card.isDecoy ? '⚠️ [DECOY]' : '⭐ [AUTHENTIC]'}
+                    </div>
+
+                    {card.image ? (
+                      <div style={{ position: 'relative', width: '100%', marginBottom: '8px' }}>
+                        <img
+                          src={card.image}
+                          alt={cardTitle}
+                          style={{ width: '100%', maxHeight: '150px', objectFit: 'contain', borderRadius: '4px', display: 'block' }}
+                        />
+                        <span style={{
+                          position: 'absolute',
+                          bottom: '4px',
+                          right: '4px',
+                          background: 'rgba(0, 0, 0, 0.75)',
+                          border: '1px solid rgba(255, 255, 255, 0.25)',
+                          borderRadius: '4px',
+                          padding: '2px 5px',
+                          fontSize: '0.60rem',
+                          color: '#E2E8F0',
+                          fontWeight: 600
+                        }}>
+                          🔍 View
+                        </span>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '2.5rem', margin: '14px 0' }}>
+                        {card.isDecoy ? '🎭' : '📜'}
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: '0.84rem', fontWeight: 800, color: card.isDecoy ? '#FDA4AF' : '#F8FAFC', marginBottom: '4px' }}>
+                      {cardTitle}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: '#94A3B8', lineHeight: 1.35, flex: 1 }}>
+                      {cardDesc}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="modal-actions" style={{ marginTop: '16px', display: 'flex', justifyContent: 'center' }}>
+            <button className="btn btn-primary" onClick={handleDismiss} autoFocus style={{ minWidth: 0, padding: '10px 24px' }}>
+              <span>✓</span> Close Inspection
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isDangerNegated) {
+    return (
+      <div className="modal-overlay event-modal-overlay" id="active-modal">
+        <div className="event-vignette-backdrop" />
+        <CardVFXOverlay vfxTag="sanctuary_shield" />
+        <div className="modal event-card-modal" style={{ maxWidth: '540px', width: '92%' }}>
+          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+          <div className="event-header">
+            <div className="event-header-badge" style={{ background: '#F59E0B', color: '#000' }}>
+              <span>🛡️</span>
+              <span>SANCTUARY SHIELD BLESSING</span>
+              <span>🛡️</span>
+            </div>
+            <div className="event-title" style={{ color: '#FFD700' }}>
+              <span>✨</span>
+              <span>HAZARD COMPLETELY NEGATED!</span>
+              <span>✨</span>
+            </div>
+          </div>
+          <div className="modal-body" style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '4.5rem', margin: '14px 0', filter: 'drop-shadow(0 0 20px #FFD700)' }}>
+              🛡️✨
+            </div>
+            <div style={{ fontSize: '1rem', color: '#FFF', fontWeight: 700, marginBottom: '8px' }}>
+              Protected by Intramuros Sanctuary!
+            </div>
+            <div style={{ fontSize: '0.85rem', color: '#CBD5E1', maxWidth: '420px', margin: '0 auto' }}>
+              {modal.description || 'Your Sanctuary Shield absorbed the hazard strike, negating all penalties and discarding the danger card!'}
+            </div>
+          </div>
+          <div className="modal-actions" style={{ marginTop: '16px' }}>
+            <button className="btn btn-primary" onClick={handleDismiss} autoFocus>
+              <span>🛡️</span> Continue Journey
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1971,7 +2085,9 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         {modal.vfxTag && <CardVFXOverlay vfxTag={modal.vfxTag} isFailure={!modal.success && modal.needsRoll === false} />}
 
         <div className="modal danger-card-modal" role="dialog" aria-label="Hazard Anomaly Strike">
-          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+          {!modal.needsRoll && (
+            <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+          )}
 
           <div className="danger-header">
             <div className="danger-header-badge">
@@ -2127,7 +2243,9 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         {modal.vfxTag && <CardVFXOverlay vfxTag={modal.vfxTag} />}
 
         <div className="modal event-card-modal" role="dialog" aria-label="Chronal Timeline Event">
-          <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+          {!modal.needsRoll && (
+            <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
+          )}
 
           <div className="event-header">
             <div className="event-header-badge">
@@ -2279,7 +2397,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
   if (isClue) {
     const isDecoy = modal.isDecoy || modal.cardType === 'Decoy Card' || modal.title?.includes('Decoy');
     const clueCount = modal.clueCount ?? drawingPlayer?.clueCards?.length ?? 1;
-    const maxClues = modal.maxClues ?? 5;
+    const maxClues = modal.maxClues ?? (GAME_CONSTANTS?.MAX_CLUE_CARDS || 3);
     const relicName = modal.artifactName || (modal.artifactId && ARTIFACTS[modal.era]?.find(a => a.id === modal.artifactId)?.name) || 'Historical Relic';
     const progressCount = modal.artifactProgress ?? (modal.artifactId && drawingPlayer?.clueProgress?.[modal.artifactId]) ?? 1;
 
@@ -2312,7 +2430,12 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
 
           <div className="modal-body clue-modal-body">
             <div className="clue-chamber-stage">
-              <div className="clue-card-frame">
+              <div
+                className="clue-card-frame"
+                style={{ cursor: modal.image ? 'pointer' : 'default' }}
+                onClick={() => modal.image && onMaximize?.({ ...modal, name: modal.title })}
+                title={modal.image ? "Click to inspect Clue Card in high resolution" : undefined}
+              >
                 {modal.image ? (
                   <img src={modal.image} alt={modal.title} className="clue-card-img" />
                 ) : (
@@ -3429,27 +3552,9 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                     {/* Action Button */}
                     <button
                       type="button"
-                      className="btn clue-market-btn"
+                      className={`btn clue-market-btn ${advancesStep ? 'btn-advance' : opt.isDecoy ? 'btn-decoy' : 'btn-intel'}`}
                       style={{
-                        cursor: (isMyTurn || network.mode !== 'online') ? 'pointer' : 'not-allowed',
-                        background: advancesStep
-                          ? 'linear-gradient(180deg, #059669 0%, #065F46 100%) !important'
-                          : opt.isDecoy
-                          ? 'linear-gradient(180deg, #5C2222 0%, #3B1212 100%) !important'
-                          : 'linear-gradient(180deg, #4d3826 0%, #38271a 100%) !important',
-                        borderColor: advancesStep
-                          ? '#34D399 !important'
-                          : opt.isDecoy
-                          ? '#E57373 !important'
-                          : '#f5c442 !important',
-                        color: advancesStep
-                          ? '#ECFDF5 !important'
-                          : opt.isDecoy
-                          ? '#FEE2E2 !important'
-                          : '#FFD700 !important',
-                        boxShadow: advancesStep
-                          ? '0 0 12px rgba(16, 185, 129, 0.4), inset 1px 1px 0 #6EE7B7, inset -1px -1px 0 #047857 !important'
-                          : undefined
+                        cursor: (isMyTurn || network.mode !== 'online') ? 'pointer' : 'not-allowed'
                       }}
                       disabled={!isMyTurn && network.mode === 'online'}
                       onClick={() => { sounds.clue?.(); handleSelect(opt.action || `faceup_${opt.cardId}`); }}
@@ -3526,11 +3631,14 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
               Retreat into the secret subterranean hideout. Skip your next <strong>2 turns</strong> in exchange for a massive restorative surge:
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '14px' }}>
               <button
                 type="button"
                 className="btn btn-secondary"
                 style={{
+                  minWidth: 0,
+                  width: '100%',
+                  boxSizing: 'border-box',
                   background: 'linear-gradient(145deg, rgba(16, 185, 129, 0.18) 0%, rgba(15, 23, 42, 0.9) 100%)',
                   border: '2px solid #10B981',
                   borderRadius: '10px',
@@ -3561,6 +3669,9 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                 type="button"
                 className="btn btn-secondary"
                 style={{
+                  minWidth: 0,
+                  width: '100%',
+                  boxSizing: 'border-box',
                   background: 'linear-gradient(145deg, rgba(168, 85, 247, 0.18) 0%, rgba(15, 23, 42, 0.9) 100%)',
                   border: '2px solid #A855F7',
                   borderRadius: '10px',
@@ -3681,13 +3792,16 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
               The rune stones cast into the heavens resonated! Choose which Timeline quadrant to draw your Clue Card from:
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
               {choice.options.map((opt, i) => (
                 <button
                   key={i}
                   type="button"
                   className="btn btn-secondary"
                   style={{
+                    minWidth: 0,
+                    width: '100%',
+                    boxSizing: 'border-box',
                     background: 'linear-gradient(145deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%)',
                     border: '1.5px solid #F59E0B',
                     borderRadius: '8px',
@@ -3717,7 +3831,6 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
     return (
       <div className="modal-overlay event-modal-overlay" id="active-modal">
         <div className="event-vignette-backdrop" />
-        <CardVFXOverlay vfxTag="classified_folder" />
         <div className="modal event-card-modal" style={{ maxWidth: '820px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
           <div className="event-header">
             <div className="event-header-badge">
@@ -3737,7 +3850,7 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
               Select <strong>1 specific Clue Card</strong> from the remaining {ERA_NAMES[choice.era]} deck to add directly to your hand, then shuffle the deck:
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px' }}>
               {cards.map((c, idx) => (
                 <button
                   key={idx}
@@ -3752,6 +3865,9 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                     flexDirection: 'column',
                     alignItems: 'center',
                     textAlign: 'center',
+                    minWidth: 0,
+                    width: '100%',
+                    boxSizing: 'border-box',
                     cursor: (isMyTurn || network.mode !== 'online') ? 'pointer' : 'not-allowed'
                   }}
                   disabled={!isMyTurn && network.mode === 'online'}

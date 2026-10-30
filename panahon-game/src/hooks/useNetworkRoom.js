@@ -131,17 +131,28 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
       showToast('Anomaly Closed', msg || 'Room closed by host.', 'danger');
     };
 
-    network.onGameStart = (players) => {
+    network.onGameStart = (players, initialState) => {
       sounds.portal();
       // Filter out any spectators so only actual players receive board characters
       const nonSpectatorPlayers = (players || []).filter(p => p && !p.isSpectator && p.roleKey !== 'SPECTATOR');
       const configs = nonSpectatorPlayers.map((p) => ({
         name: p.name,
         roleKey: p.roleKey,
-        isLocal: !network.isSpectator && (network.isHost ? p.id === 0 : p.id === network.playerId),
+        isLocal: !network.isSpectator && (String(p.id) === String(network.playerId)),
         connectionId: p.id
       }));
-      engine.initGame(configs);
+
+      if (initialState) {
+        engine.loadState(initialState);
+        if (engine.state?.players) {
+          engine.state.players.forEach(p => {
+            p.isLocal = !network.isSpectator && (String(p.id) === String(network.playerId));
+          });
+        }
+      } else {
+        engine.initGame(configs);
+      }
+
       sounds.startBgMusic();
       if (onGameStartSuccess) {
         onGameStartSuccess({ isSpectator: Boolean(network.isSpectator) });
@@ -152,7 +163,7 @@ export function useNetworkRoom({ network, engine, showToast, onGameStartSuccess 
     network.onStateUpdate = (state) => {
       if (state && Array.isArray(state.players)) {
         state.players.forEach(p => {
-          p.isLocal = !network.isSpectator && (network.isHost ? p.id === 0 : p.id === network.playerId);
+          p.isLocal = !network.isSpectator && (String(p.id) === String(network.playerId));
         });
       }
       engine.loadState(state);

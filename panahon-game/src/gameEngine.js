@@ -114,11 +114,48 @@ export class GameEngine {
         }
       }
     }
+    if (state.dangerDecks) {
+      for (const era of Object.keys(state.dangerDecks)) {
+        if (Array.isArray(state.dangerDecks[era])) {
+          state.dangerDecks[era] = state.dangerDecks[era].map(card => {
+            if (card && typeof card.check === 'function' && typeof card.failEffect === 'function') return card;
+            const canonical = (DANGER_CARDS[era] || []).find(c => c.id === card?.id || c.name === card?.name) ||
+              Object.values(DANGER_CARDS).flat().find(c => c.id === card?.id || c.name === card?.name);
+            return canonical ? { ...canonical, ...card, check: canonical.check, failEffect: canonical.failEffect } : card;
+          });
+        }
+      }
+    }
+    const rehydrateModal = (modal) => {
+      if (!modal) return modal;
+      if (modal.type === 'danger') {
+        const canonical = (DANGER_CARDS[modal.era] || []).find(c => c.id === modal.cardId || c.name === modal.cardName) ||
+          Object.values(DANGER_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.cardName);
+        if (canonical) {
+          modal.check = canonical.check;
+          modal.failEffect = canonical.failEffect;
+        }
+      } else if (modal.type === 'event') {
+        const canonical = (EVENT_CARDS[modal.era] || []).find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName) ||
+          Object.values(EVENT_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName);
+        if (canonical) {
+          modal.effect = canonical.effect;
+          if (canonical.check) modal.check = canonical.check;
+        }
+      }
+      return modal;
+    };
+    if (state.pendingModal) {
+      rehydrateModal(state.pendingModal);
+    }
+    if (Array.isArray(state.modalQueue)) {
+      state.modalQueue.forEach(m => rehydrateModal(m));
+    }
   }
 
   loadState(stateData, source = 'remote_state') {
     if (!stateData) return;
-    const parsed = typeof stateData === 'string' ? JSON.parse(stateData) : stateData;
+    const parsed = typeof stateData === 'string' ? JSON.parse(stateData) : JSON.parse(JSON.stringify(stateData));
     this.rehydrateState(parsed);
     this.state = parsed;
     this.notify(source);
@@ -278,6 +315,7 @@ export class GameEngine {
       temporalOccurrenceId: null,
       temporalOccurrenceAnnounced: false,
       diceResult: null,
+      initialRoll: null,
       totalMoves: 0,
       movesRemaining: 0,
       movementDirection: 'forward', // 'forward' | 'backward'
@@ -288,6 +326,7 @@ export class GameEngine {
       gameOver: false,
       winner: null,
       pendingModal: null,
+      modalQueue: [],
       pendingChoice: null,
       queuedTileResolution: null,
       hasCompletedIntro: false
@@ -439,7 +478,8 @@ export class GameEngine {
     }
 
     // Check 0 Energy: Cannot roll die when exhausted! Must rest to recover energy.
-    if (player.energy <= 0) {
+    // Exception: If Momentum is active for this turn, allow rolling so operative can move!
+    if (player.energy <= 0 && !this.state.momentumActive) {
       player.stranded = true;
       this.addLog('warning', `⛔ ${player.name} is exhausted (0 Energy) and cannot roll the die! Must Rest to recover.`);
       return null;
@@ -819,7 +859,7 @@ export class GameEngine {
       if (action === 'anito_accept') {
         if (player.energy >= 2) {
           this.modifyEnergy(player, -2);
-          this.drawClueCard(player);
+          this._drawBlindClueCard(player, player.currentEra);
           this.addLog('event', `${player.name} exchanged 2 Energy for 1 Clue Card via Anito Grab!`);
         }
       } else {
@@ -829,7 +869,7 @@ export class GameEngine {
     } else if (choiceType === 'batoBatoEra') {
       if (action && action.startsWith('bato_era_')) {
         const chosenEra = action.replace('bato_era_', '');
-        this.drawClueCardFromEra(player, chosenEra);
+        this._drawBlindClueCard(player, chosenEra);
       }
       this.state.phase = 'action';
     } else if (choiceType === 'clueDisplay') {
@@ -909,22 +949,8 @@ export class GameEngine {
         };
         this.state.phase = returnPhase;
       } else if (chosenCard) {
-        const isTriangulationStep = this.processClueTriangulation(player, chosenCard, player.currentEra);
-        if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
-          this.promptClueHandLimit(player, chosenCard, returnPhase);
-          return;
-        } else {
-          player.clueCards.push(chosenCard);
-          if (!isTriangulationStep && !chosenCard.isDecoy && chosenCard.artifactId) {
-            if (!player.clueProgress[chosenCard.artifactId]) {
-              player.clueProgress[chosenCard.artifactId] = 0;
-            }
-            player.clueProgress[chosenCard.artifactId]++;
-          }
-          const cardDesc = chosenCard.isDecoy ? 'Decoy Card' : (chosenCard.artifactName ? `${chosenCard.artifactName} Clue` : (chosenCard.hint || 'Mystery Clue'));
-          this.addLog('clue', `📜 ${player.name} deciphered and placed into hand: ${cardDesc}! (${player.clueCards.length}/${GAME_CONSTANTS.MAX_CLUE_CARDS || 3} Clues held)`);
-          this.state.phase = returnPhase;
-        }
+        this._receiveClueCard(player, chosenCard, player.currentEra);
+        this.state.phase = returnPhase;
       }
     } else if (choiceType === 'roguePickpocket') {
       if (action.startsWith('steal_clue_')) {
@@ -1186,7 +1212,7 @@ export class GameEngine {
     try {
       switch (tile.type) {
         case TILE_TYPES.CLUE:
-          this.drawClueCard(player);
+          this.drawClueCard(player, { fromTile: true });
           break;
         case TILE_TYPES.EVENT:
           this.drawEventCard(player);
@@ -1218,29 +1244,43 @@ export class GameEngine {
     this.notify();
   }
 
+  // --- Modal Queuing Helper ---
+  showOrQueueModal(modalData) {
+    if (!this.state.modalQueue) {
+      this.state.modalQueue = [];
+    }
+    if (this.state.pendingModal) {
+      this.state.modalQueue.push(modalData);
+    } else {
+      this.state.pendingModal = modalData;
+    }
+    this.notify();
+  }
+
   // --- Card Drawing ---
-  drawClueCard(player) {
-    let era = player.currentEra;
+  drawClueCard(player, options = {}) {
+    let era = options.era || player.currentEra;
+    const fromTile = options.fromTile !== undefined ? Boolean(options.fromTile) : true;
 
     // Temporal Occurrence: draw from random era
     if (this.state.temporalGlitchTurns > 0 || this.state.temporalOccurrence > 0) {
       era = ERA_ORDER[Math.floor(Math.random() * ERA_ORDER.length)];
-      this.addLog('temporal', `Temporal Disturbance! Drawing Event from ${ERA_NAMES[era]} instead!`);
+      this.addLog('temporal', `Temporal Disturbance! Drawing Clue from ${ERA_NAMES[era]} instead!`);
     }
 
     const deck = this.state.clueDecks[era];
     const faceUp = (this.state.faceUpCards?.[era] || []);
 
-    if (deck.length === 0 && faceUp.length === 0) {
+    if ((!deck || deck.length === 0) && faceUp.length === 0) {
       this.addLog('system', 'No more clue cards in this era!');
       this.state.phase = 'action';
       return;
     }
 
-    // --- Face-Up Display mechanic ---
-    // Show the 3 visible cards from this era's display so the player can pick one deliberately.
-    // A "Draw Blind" option still exists for when the player doesn't need a specific card.
-    if (faceUp.length > 0) {
+    // --- Face-Up Display mechanic (Option A) ---
+    // If landing on a Clue Tile on the board, show the 3 visible cards from this era's display
+    // so the player can pick one deliberately, or draw blind from the deck.
+    if (fromTile && faceUp.length > 0) {
       this.state.pendingChoice = {
         type: 'clueDisplay',
         era,
@@ -1257,7 +1297,7 @@ export class GameEngine {
           isMissionCard: !c.isDecoy && c.artifactId === player.mission?.artifactId,
           card: c
         })),
-        canDrawBlind: deck.length > 0,
+        canDrawBlind: deck && deck.length > 0,
         returnPhase: 'action'
       };
       this.state.phase = 'action';
@@ -1265,7 +1305,7 @@ export class GameEngine {
       return;
     }
 
-    // No face-up cards left — draw blind from deck (fallback)
+    // Direct / blind draw from deck (used by Event Cards, rewards, abilities, or when face-up display is bypassed)
     this._drawBlindClueCard(player, era);
   }
 
@@ -1288,7 +1328,7 @@ export class GameEngine {
       this.addLog('ability', `${player.name} used Decoy Discard! Discarded a decoy card.`);
       player.passiveCooldown = ROLES.HISTORIAN.passive.cooldown;
       this.returnClueToDeck(card);
-      this.state.pendingModal = {
+      this.showOrQueueModal({
         type: 'abilityActivate',
         abilityKey: 'DECOY_DISCARD',
         playerId: player.id,
@@ -1299,7 +1339,7 @@ export class GameEngine {
         title: 'DECOY SAFELY NEUTRALIZED!',
         subtitle: 'HISTORIAN PASSIVE: DECOY DISCARD',
         description: `${player.name} excavated a deceptive Decoy Card (${card.hint || card.description}), but ancient scholarly mastery safely purged it back into the ${ERA_NAMES[card.era] || 'timeline'} deck!`
-      };
+      });
       this.state.phase = 'action';
       this.notify();
       return;
@@ -1357,7 +1397,7 @@ export class GameEngine {
       modalCardType = 'Clue Card';
     }
 
-    this.state.pendingModal = {
+    const clueModal = {
       type: 'card',
       playerId: player.id,
       playerName: player.name,
@@ -1378,6 +1418,8 @@ export class GameEngine {
       artifactProgress: card.artifactId ? (player.clueProgress?.[card.artifactId] || 1) : 0,
       triangulation: { ...player.triangulation }
     };
+
+    this.showOrQueueModal(clueModal);
 
     const stepLabel = card.triangulationStep ? ` [TRIANGULATION STEP ${card.triangulationStep}]` : '';
     this.addLog('card', `${player.name} drew a Clue Card from ${ERA_NAMES[era]}${stepLabel}. (${player.clueCards.length}/${GAME_CONSTANTS.MAX_CLUE_CARDS || 3} Clues held)`);
@@ -1409,7 +1451,7 @@ export class GameEngine {
     const canonical = (EVENT_CARDS[era] || []).find(c => c.id === card.id || c.name === card.name) ||
       Object.values(EVENT_CARDS).flat().find(c => c.id === card.id || c.name === card.name);
 
-    const needsRoll = !!(card.needsRoll || canonical?.needsRoll || card.id === 'evt_my_4');
+    const needsRoll = !!(card.needsRoll || canonical?.needsRoll || typeof card.check === 'function' || typeof canonical?.check === 'function' || card.id === 'evt_my_4');
 
     if (needsRoll) {
       this.state.pendingModal = {
@@ -1453,6 +1495,8 @@ export class GameEngine {
     }
 
     let result = '';
+    const priorModal = this.state.pendingModal;
+    this.state.pendingModal = null;
     if (typeof effectFn === 'function') {
       try {
         result = effectFn(player, this);
@@ -1469,7 +1513,7 @@ export class GameEngine {
 
     gameLogger.card(`Player ${player.name} drew Event Card: "${card.name || card.id}" (${era}) - Result: ${result}`);
 
-    this.state.pendingModal = {
+    const eventModal = {
       type: 'event',
       cardType: 'Chronal Timeline Event',
       cardId: card.id,
@@ -1483,6 +1527,33 @@ export class GameEngine {
       vfxTag: card.vfxTag,
       sfxTag: card.sfxTag
     };
+
+    // If effectFn created a specialized inspection modal (such as peek_clues for "Updated ka dapat dito ah!"),
+    // present it directly as pendingModal so the player immediately sees the excavated top clue cards!
+    if (this.state.pendingModal && this.state.pendingModal.type === 'peek_clues') {
+      this.state.pendingModal.cardId = card.id;
+      this.state.pendingModal.eventCardImage = card.image;
+      this.state.pendingModal.eventCardName = card.name;
+      this.state.pendingModal.eventDescription = card.description;
+      this.addLog('event', `${player.name}: ${card.name} — ${result}`);
+      if (!this.state.pendingChoice) {
+        this.state.phase = 'action';
+      }
+      this.notify();
+      return;
+    }
+
+    // If effectFn created a modal (such as a Clue Card Reveal modal from Paldoooo),
+    // queue it so the event card is presented first and the clue reveal pops up when dismissed!
+    if (this.state.pendingModal) {
+      if (!this.state.modalQueue) this.state.modalQueue = [];
+      this.state.modalQueue.push(this.state.pendingModal);
+    } else if (priorModal) {
+      if (!this.state.modalQueue) this.state.modalQueue = [];
+      this.state.modalQueue.push(priorModal);
+    }
+
+    this.state.pendingModal = eventModal;
     this.addLog('event', `${player.name}: ${card.name} — ${result}`);
     if (!this.state.pendingChoice) {
       this.state.phase = 'action';
@@ -1531,9 +1602,12 @@ export class GameEngine {
       return;
     }
 
+    const previousPhase = this.state.phase;
+
     // Danger card requires interactive die roll by player for immersion
     this.state.pendingModal = {
       type: 'danger',
+      previousPhase: previousPhase,
       cardType: 'Hazard Anomaly',
       cardId: card.id,
       title: `${card.name} (${card.nickname})`,
@@ -1555,12 +1629,14 @@ export class GameEngine {
     };
 
     this.addLog('danger', `${player.name} triggered ${card.name}! Survival check: ${card.description}`);
-    this.state.phase = 'action';
+    if (previousPhase !== 'rolling') {
+      this.state.phase = 'action';
+    }
     this.notify();
   }
 
   // --- Interactive Danger Die Roll ---
-  rollDangerDie(playerIdx) {
+  rollDangerDie(playerIdx, explicitRoll = null, explicitGroupRolls = null) {
     const modal = this.state.pendingModal;
     if (!modal || modal.type !== 'danger' || !modal.needsRoll) {
       return null;
@@ -1575,13 +1651,15 @@ export class GameEngine {
                  Object.values(DANGER_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.cardName);
     if (!card) return null;
 
-    const diceRoll = rollDie();
+    const diceRoll = explicitRoll ?? rollDie();
 
     // Group Hazard check (Spanish Danger 1: Bulkang galit)
     if (modal.isGroupHazard || card.isGroupHazard) {
       const groupResults = [];
       this.state.players.forEach(p => {
-        const pRoll = (p.id === player.id) ? diceRoll : rollDie();
+        const pRoll = (p.id === player.id)
+          ? diceRoll
+          : (explicitGroupRolls?.[p.id] ?? rollDie());
         let pSafe = (pRoll === 6);
         if (p.sanctuaryShield) {
           pSafe = true;
@@ -1657,7 +1735,7 @@ export class GameEngine {
   }
 
   // --- Interactive Event Die Roll ---
-  rollEventDie(playerIdx) {
+  rollEventDie(playerIdx, explicitRoll = null) {
     const modal = this.state.pendingModal;
     if (!modal || modal.type !== 'event' || !modal.needsRoll) {
       return null;
@@ -1671,7 +1749,7 @@ export class GameEngine {
                  (EVENT_CARDS[player.currentEra] || []).find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName) ||
                  Object.values(EVENT_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName);
 
-    const diceRoll = rollDie();
+    const diceRoll = explicitRoll ?? rollDie();
     const success = (card && typeof card.check === 'function')
       ? card.check(diceRoll)
       : (diceRoll >= 4);
@@ -2074,16 +2152,12 @@ export class GameEngine {
 
   // --- Resource Modification ---
   modifyEnergy(player, amount) {
-    const prevEnergy = player.energy;
     player.energy = Math.max(0, Math.min(GAME_CONSTANTS.MAX_ENERGY, player.energy + amount));
     if (player.energy <= 0) {
-      player.stranded = true;
-      if (prevEnergy > 0) {
-        this.modifyParadox(player, 1);
-        this.addLog('paradox', `⚠️ ${player.name} reached 0 Energy (Exhaustion)! Suffered +1 Paradox.`);
-      } else {
-        this.addLog('warning', `${player.name} has 0 Energy (Exhausted)! Must Rest to recover.`);
+      if (!this.state?.momentumActive) {
+        player.stranded = true;
       }
+      this.addLog('warning', `${player.name} has 0 Energy (Exhausted)! Must Rest to recover.`);
     } else {
       player.stranded = false;
     }
@@ -2237,19 +2311,27 @@ export class GameEngine {
   // --- American Event 1: Peek Top 3 Clues ("Updated ka dapat dito ah!") ---
   peekTopClues(player, count = 3) {
     const era = player.currentEra;
-    const deck = this.state.clueDecks[era] || [];
-    const topCards = deck.slice(0, count);
+    let deck = this.state.clueDecks[era] || [];
+    if (deck.length === 0) {
+      const allClueCards = generateClueCards();
+      this.state.clueDecks[era] = shuffle(allClueCards.filter(c => c.era === era));
+      deck = this.state.clueDecks[era];
+    }
+    const topCards = deck.slice(0, Math.min(count, deck.length));
     this.state.pendingModal = {
       type: 'peek_clues',
       cardType: 'Intelligence Peek',
+      cardId: 'evt_am_1',
       title: 'Updated ka dapat dito ah!',
+      cardName: 'Updated ka dapat dito ah!',
       description: `Inspecting top ${topCards.length} Clue Cards of ${ERA_NAMES[era]} without drawing them.`,
       cards: topCards,
       era: era,
       playerId: player.id,
       playerName: player.name,
       vfxTag: 'sepia_ticker_tape',
-      sfxTag: 'morseCode'
+      sfxTag: 'morseCode',
+      _shownAt: Date.now()
     };
     this.addLog('event', `${player.name} inspected top ${topCards.length} Clue Cards of ${ERA_NAMES[era]}.`);
     this.state.phase = 'action';
@@ -2269,11 +2351,8 @@ export class GameEngine {
       const targetCard = deck.find(c => c.artifactId === player.mission?.missionArtifactId) || deck[0];
       const idx = deck.indexOf(targetCard);
       deck.splice(idx, 1);
-      player.clueCards.push(targetCard);
-      if (targetCard.artifactId && !targetCard.isDecoy) {
-        player.clueProgress[targetCard.artifactId] = (player.clueProgress[targetCard.artifactId] || 0) + 1;
-      }
       this.state.clueDecks[era] = shuffle(deck);
+      this._receiveClueCard(player, targetCard, era);
       return `${player.name} retrieved "${targetCard.title || targetCard.hint}" and shuffled the deck!`;
     }
     this.state.pendingChoice = {
@@ -2300,12 +2379,9 @@ export class GameEngine {
     if (!deck || cardIdx < 0 || cardIdx >= deck.length) return;
     const card = deck.splice(cardIdx, 1)[0];
     if (card) {
-      player.clueCards.push(card);
-      if (card.artifactId && !card.isDecoy) {
-        player.clueProgress[card.artifactId] = (player.clueProgress[card.artifactId] || 0) + 1;
-      }
       this.state.clueDecks[era] = shuffle(deck);
       this.addLog('event', `${player.name} chose "${card.title || card.hint}" from the deck and shuffled.`);
+      this._receiveClueCard(player, card, era);
     }
     this.state.phase = 'action';
     this.notify();
@@ -2523,19 +2599,20 @@ export class GameEngine {
         break;
 
       case 'EXPLORER':
-        // Momentum (Active Ability): Pause movement to interact with a tile, then continue moving remaining rolled spaces (2 Turn CD, 3 Energy Cost)
-        if (player.energy < 3) {
-          this.addLog('warning', 'Not enough Energy for Momentum! (Requires 3 Energy)');
+        // Momentum (Active Ability): Pause movement to interact with a tile, then continue moving remaining rolled spaces (2 Turn CD, 2 Energy Cost)
+        if (player.energy < 2) {
+          this.addLog('warning', 'Not enough Energy for Momentum! (Requires 2 Energy)');
           return false;
         }
-        this.modifyEnergy(player, -3);
+        this.modifyEnergy(player, -2);
         player.usedAbilityThisTurn = true;
         player.activeCooldown = ROLES.EXPLORER.active.cooldown || 2;
         player.bonusMoves = 0;
+        player.stranded = false;
         this.state.momentumActive = true;
         this.state.momentumUsedMidTile = false;
 
-        this.state.pendingModal = {
+        this.showOrQueueModal({
           type: 'abilityActivate',
           abilityKey: 'MOMENTUM',
           playerId: player.id,
@@ -2544,10 +2621,10 @@ export class GameEngine {
           playerAvatar: player.role?.avatar || 'assets/Characters/Copy of adventurer.png',
           playerColor: player.color || '#3498DB',
           title: 'MOMENTUM ACTIVATED!',
-          subtitle: 'EXPLORER ACTIVE ABILITY (2 Turn CD, 3 Energy Cost)',
+          subtitle: 'EXPLORER ACTIVE ABILITY (2 Turn CD, 2 Energy Cost)',
           description: `${player.name} activated Momentum! During movement this turn, pause to interact with the tile you are standing on, and then continue moving your remaining rolled spaces!`
-        };
-        this.addLog('ability', `🏃 ${player.name} activated Momentum (3 Energy Cost)! Can pause and interact with a tile mid-movement, then continue moving.`);
+        });
+        this.addLog('ability', `🏃 ${player.name} activated Momentum (2 Energy Cost)! Can pause and interact with a tile mid-movement, then continue moving.`);
         this.notify();
         return true;
 
@@ -3108,12 +3185,16 @@ export class GameEngine {
     this.state.stepsTakenThisTurn = 0;
     this.state.hasMovedThisTurn = false;
     this.state.movementDirection = 'forward';
+    if (player.energy <= 0) {
+      player.stranded = true;
+    }
     this.state.momentumActive = false;
     this.state.momentumUsedMidTile = false;
     for (const p of this.state.players) {
       p.bonusMoves = 0;
     }
     this.state.pendingModal = null;
+    this.state.modalQueue = [];
     this.state.pendingChoice = null;
 
     this.addLog('turn', `--- ${nextPlayer.name}'s turn ---`);
@@ -3140,12 +3221,21 @@ export class GameEngine {
   }
 
   dismissModal() {
-    const activeModal = this.state.pendingModal;
-    if (activeModal?.type === 'danger' && activeModal?.needsRoll) {
-      this.rollDangerDie(activeModal.playerId);
-    }
-    if (activeModal?.type === 'event' && activeModal?.needsRoll) {
-      this.rollEventDie(activeModal.playerId);
+    let activeModal = this.state.pendingModal;
+    if (activeModal?.needsRoll) {
+      const targetId = activeModal.playerId !== undefined ? activeModal.playerId : this.state.currentPlayerIndex;
+      const modalPlayer = this.state.players?.find(p => p.id === targetId) || this.getCurrentPlayer();
+      // Human players MUST roll manually. Never auto-roll or dismiss early for humans.
+      if (!modalPlayer?.isAi) {
+        return false;
+      }
+      if (activeModal.type === 'danger') {
+        this.rollDangerDie(targetId);
+        activeModal = this.state.pendingModal;
+      } else if (activeModal.type === 'event') {
+        this.rollEventDie(targetId);
+        activeModal = this.state.pendingModal;
+      }
     }
 
     const wasBatoBato = (activeModal?.type === 'event' && activeModal?.cardId === 'evt_my_4');
@@ -3155,6 +3245,13 @@ export class GameEngine {
     const queuedDangerPlayerId = activeModal?.triggerDangerPlayerId;
 
     this.state.pendingModal = null;
+
+    // Check modalQueue first: if another modal is waiting (e.g. clue reveal from event card), pop and display it!
+    if (this.state.modalQueue && this.state.modalQueue.length > 0) {
+      this.state.pendingModal = this.state.modalQueue.shift();
+      this.notify();
+      return;
+    }
 
     if (wasParadoxModal && queuedDangerPlayerId !== undefined) {
       const targetPlayer = this.state.players.find(p => p.id === queuedDangerPlayerId);
@@ -3170,7 +3267,7 @@ export class GameEngine {
       if (targetPlayer) {
         if (targetPlayer.isAi) {
           const targetEra = targetPlayer.mission?.displacedEra || targetPlayer.currentEra;
-          this.drawClueCardFromEra(targetPlayer, targetEra);
+          this._drawBlindClueCard(targetPlayer, targetEra);
         } else {
           this.state.pendingChoice = {
             type: 'batoBatoEra',
@@ -3211,6 +3308,9 @@ export class GameEngine {
     if (this.state.movesRemaining > 0) {
       this.state.phase = 'moving';
       gameLogger.phase(`Modal dismissed: moves remain (${this.state.movesRemaining}), returning to moving phase`);
+    } else if (!this.state.diceResult && !this.state.initialRoll) {
+      this.state.phase = 'rolling';
+      gameLogger.phase('Modal dismissed: no roll yet, preserving rolling phase');
     } else {
       this.state.phase = 'action';
       gameLogger.phase('Modal dismissed: 0 moves remaining, phase set to action');

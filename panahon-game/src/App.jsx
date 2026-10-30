@@ -21,6 +21,7 @@ import AppRouter from './components/AppRouter.jsx';
 import GuideModal from './components/GuideModal.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
 import { CardModal, ChoiceModal, MaximizedCardPreview } from './components/Modals.jsx';
+import ErrorBoundary from './components/common/ErrorBoundary.jsx';
 
 export default function App() {
   const engineRef = useRef(null);
@@ -134,8 +135,8 @@ export default function App() {
       const isOnline = network.mode === 'online';
       const isMyCard = !isSpectator && (
         isOnline
-          ? (drawingP?.id !== undefined ? drawingP.id === network.playerId : false)
-          : (!isAi && activeP?.id === drawingP?.id)
+          ? (drawingP?.id !== undefined ? String(drawingP.id) === String(network.playerId) : false)
+          : (!isAi && (activeP?.id === drawingP?.id || drawingP?.isLocal))
       );
 
       if (!isMyCard) {
@@ -502,47 +503,58 @@ export default function App() {
       />
 
       {/* MODAL HOST - ONLY RENDERED DURING ACTIVE GAMEPLAY */}
-      {isGameActive && gameState?.pendingModal && !observedModal && (
-        <CardModal
-          modal={gameState.pendingModal}
-          engine={engine}
-          network={network}
-          onDismiss={dismissModal}
-          onMaximize={(cardData) => dispatch({ type: 'SET_MAXIMIZED_CARD', cardData })}
-        />
-      )}
+      <ErrorBoundary
+        onReset={() => {
+          dismissModal();
+          handleDismissObservedModal();
+          if (engine?.state) {
+            engine.state.pendingChoice = null;
+            engine.notify('choice_dismiss');
+          }
+        }}
+      >
+        {isGameActive && gameState?.pendingModal && !observedModal && (
+          <CardModal
+            modal={gameState.pendingModal}
+            engine={engine}
+            network={network}
+            onDismiss={dismissModal}
+            onMaximize={(cardData) => dispatch({ type: 'SET_MAXIMIZED_CARD', cardData })}
+          />
+        )}
 
-      {isGameActive && observedModal && (
-        <CardModal
-          modal={observedModal}
-          engine={engine}
-          network={network}
-          onDismiss={handleDismissObservedModal}
-          onMaximize={(cardData) => dispatch({ type: 'SET_MAXIMIZED_CARD', cardData })}
-        />
-      )}
+        {isGameActive && observedModal && (
+          <CardModal
+            modal={observedModal}
+            engine={engine}
+            network={network}
+            onDismiss={handleDismissObservedModal}
+            onMaximize={(cardData) => dispatch({ type: 'SET_MAXIMIZED_CARD', cardData })}
+          />
+        )}
 
-      {isGameActive && !gameState?.pendingModal && !observedModal && gameState?.pendingChoice && (
-        <ChoiceModal
-          choice={gameState.pendingChoice}
-          engine={engine}
-          network={network}
-          onDismiss={() => {
-            if (engine.state) {
-              engine.state.pendingChoice = null;
-              engine.notify('choice_dismiss');
-            }
-          }}
-          onMaximize={(cardData) => dispatch({ type: 'SET_MAXIMIZED_CARD', cardData })}
-        />
-      )}
+        {isGameActive && !gameState?.pendingModal && !observedModal && gameState?.pendingChoice && (
+          <ChoiceModal
+            choice={gameState.pendingChoice}
+            engine={engine}
+            network={network}
+            onDismiss={() => {
+              if (engine.state) {
+                engine.state.pendingChoice = null;
+                engine.notify('choice_dismiss');
+              }
+            }}
+            onMaximize={(cardData) => dispatch({ type: 'SET_MAXIMIZED_CARD', cardData })}
+          />
+        )}
 
-      {appState.maximizedCardData && (
-        <MaximizedCardPreview
-          data={appState.maximizedCardData}
-          onClose={() => dispatch({ type: 'SET_MAXIMIZED_CARD', cardData: null })}
-        />
-      )}
+        {appState.maximizedCardData && (
+          <MaximizedCardPreview
+            data={appState.maximizedCardData}
+            onClose={() => dispatch({ type: 'SET_MAXIMIZED_CARD', cardData: null })}
+          />
+        )}
+      </ErrorBoundary>
 
       {appState.showGuide && (
         <GuideModal onClose={() => dispatch({ type: 'CLOSE_GUIDE' })} />

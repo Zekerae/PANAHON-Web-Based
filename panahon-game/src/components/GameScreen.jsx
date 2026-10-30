@@ -224,7 +224,7 @@ function GameScreen({
 
   const handleRollDice = useCallback(() => {
     if (isRolling || state.phase !== 'rolling' || !isMyTurn) return;
-    if (currentPlayer && (currentPlayer.energy <= 0 || currentPlayer.skipNextTurn)) {
+    if (currentPlayer && ((currentPlayer.energy <= 0 && !state.momentumActive) || currentPlayer.skipNextTurn)) {
       sounds.danger?.();
       return;
     }
@@ -445,7 +445,7 @@ function GameScreen({
           e.preventDefault();
           if (currentPlayer && currentPlayer.skipNextTurn) {
             handleAcknowledgeSkip();
-          } else if (currentPlayer && currentPlayer.energy <= 0) {
+          } else if (currentPlayer && currentPlayer.energy <= 0 && !state.momentumActive) {
             handleRest();
           } else {
             handleRollDice();
@@ -631,7 +631,7 @@ function GameScreen({
                   >
                     <span>{currentPlayer?.timeStoppedBy ? "⌛ THAW (TIME STOPPED)" : "⏭️ SKIP TURN (HAZARD)"}</span>
                   </button>
-                ) : currentPlayer?.energy <= 0 ? (
+                ) : (currentPlayer?.energy <= 0 && !state.momentumActive) ? (
                   <button
                     type="button"
                     className="btn btn-primary mobile-dock-roll-btn"
@@ -654,7 +654,7 @@ function GameScreen({
                         onClick={handleUseSkill}
                       >
                         <span>🏃 Momentum [Q]</span>
-                        <span style={{ fontSize: '0.68rem', opacity: 0.9 }}>-3En</span>
+                        <span style={{ fontSize: '0.68rem', opacity: 0.9 }}>-2En</span>
                       </button>
                     )}
                     <button

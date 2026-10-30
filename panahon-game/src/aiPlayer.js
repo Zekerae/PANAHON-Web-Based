@@ -83,8 +83,15 @@ class AiController {
             return;
           }
           sounds.diceRoll?.();
-          const res = engine.rollDangerDie(player.id);
-          network?.sendAction({ type: 'ROLL_DANGER_DIE', playerIdx: player.id });
+          const targetId = state.pendingModal.playerId !== undefined ? state.pendingModal.playerId : player.id;
+          const res = engine.rollDangerDie(targetId);
+          const groupRolls = res?.groupResults ? res.groupResults.reduce((acc, r) => { acc[r.playerId] = r.roll; return acc; }, {}) : undefined;
+          network?.sendAction({
+            type: 'ROLL_DANGER_DIE',
+            playerIdx: targetId,
+            diceRoll: res?.diceRoll,
+            groupRolls
+          });
           if (res?.success) {
             sounds.artifact?.();
           } else {
@@ -103,8 +110,13 @@ class AiController {
             return;
           }
           sounds.diceRoll?.();
-          const res = engine.rollEventDie(player.id);
-          network?.sendAction({ type: 'ROLL_EVENT_DIE', playerIdx: player.id });
+          const targetId = state.pendingModal.playerId !== undefined ? state.pendingModal.playerId : player.id;
+          const res = engine.rollEventDie(targetId);
+          network?.sendAction({
+            type: 'ROLL_EVENT_DIE',
+            playerIdx: targetId,
+            diceRoll: res?.diceRoll
+          });
           if (res?.success) {
             sounds.runeBeam?.() || sounds.artifact?.();
           }
@@ -232,7 +244,7 @@ class AiController {
           player.roleKey === 'EXPLORER' &&
           !player.usedAbilityThisTurn &&
           (!player.activeCooldown || player.activeCooldown <= 0) &&
-          player.energy >= 3 &&
+          player.energy >= 2 &&
           !state.momentumActive &&
           Math.random() < 0.75
         ) {

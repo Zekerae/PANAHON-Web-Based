@@ -192,7 +192,8 @@ export class GameEngine {
         era,
         type,
         index: idx,
-        trap: null,  // for Strategist traps
+        trap: null,         // for Rogue traps
+        commandPost: null,  // for Strategist command posts
         players: []
       }));
     });
@@ -369,6 +370,9 @@ export class GameEngine {
             }
             if (tile.trap && idMap[tile.trap.ownerId] !== undefined) {
               tile.trap.ownerId = idMap[tile.trap.ownerId];
+            }
+            if (tile.commandPost && idMap[tile.commandPost.ownerId] !== undefined) {
+              tile.commandPost.ownerId = idMap[tile.commandPost.ownerId];
             }
           });
         }
@@ -1209,6 +1213,31 @@ export class GameEngine {
 
     this.state.phase = 'cardResolution';
 
+    // Command Post (Strategist Active & Passive Territory Control)
+    if (tile.commandPost) {
+      const isOwner = player.id === tile.commandPost.ownerId || String(player.id) === String(tile.commandPost.ownerId);
+      if (isOwner) {
+        // Safe haven: restore +2 Chrono Energy
+        this.modifyEnergy(player, 2);
+        this.addLog('ability', `🚩 Command Post: ${player.name} rested at their fortified Command Post, recovering +2 Energy! (Now: ${player.energy}/${GAME_CONSTANTS.MAX_ENERGY})`);
+      } else {
+        // Rival operative pays 1 Energy toll to the owner
+        const owner = this.state.players.find(p => p.id === tile.commandPost.ownerId || String(p.id) === String(tile.commandPost.ownerId));
+        const toll = Math.min(1, player.energy || 0);
+        if (toll > 0) {
+          this.modifyEnergy(player, -toll);
+          if (owner) {
+            this.modifyEnergy(owner, toll);
+            this.addLog('ability', `🚩 Command Post Toll: ${player.name} entered ${tile.commandPost.ownerName}'s Command Post and paid a 1 Energy toll to ${owner.name}!`);
+          } else {
+            this.addLog('ability', `🚩 Command Post Toll: ${player.name} entered a fortified Command Post and lost 1 Energy!`);
+          }
+        } else {
+          this.addLog('info', `🚩 Command Post: ${player.name} entered ${tile.commandPost.ownerName}'s Command Post, but had 0 Energy to pay toll!`);
+        }
+      }
+    }
+
     try {
       switch (tile.type) {
         case TILE_TYPES.CLUE:
@@ -1581,6 +1610,8 @@ export class GameEngine {
         vfxTag: 'sanctuary_shield',
         sfxTag: 'cathedralChime'
       };
+      // Strategist passive: negated hazards still count as surviving the Danger Card
+      this.grantSupplyLine(player);
       this.state.phase = 'action';
       this.notify();
       return;
@@ -1633,6 +1664,20 @@ export class GameEngine {
       this.state.phase = 'action';
     }
     this.notify();
+  }
+
+  // Strategist passive: Supply Line
+  // Grants +1 Energy to an operative who survives a Danger Card while a Strategist is in play.
+  grantSupplyLine(survivor) {
+    if (!survivor) return false;
+    const strategist = this.state.players.find(p => p.roleKey === 'STRATEGIST');
+    if (!strategist) return false;
+    this.modifyEnergy(survivor, 1);
+    this.addLog(
+      'ability',
+      `⚡ ${strategist.name}'s Supply Line grants ${survivor.name} +1 Energy for surviving a Danger Card! (Now: ${survivor.energy}/${GAME_CONSTANTS.MAX_ENERGY})`
+    );
+    return true;
   }
 
   // --- Interactive Danger Die Roll ---
@@ -1699,6 +1744,7 @@ export class GameEngine {
       };
       this.state.pendingModal = updatedModal;
       this.addLog('danger', `Volcano Eruption resolved! Group rolls: ${groupResults.map(r => `${r.playerName}: [${r.roll}] ${r.safe ? 'Safe' : `-${r.energyLoss}⚡`}`).join(', ')}`);
+      groupResults.filter(r => r.safe).forEach(r => this.grantSupplyLine(this.state.players[r.playerId]));
       this.notify();
       return { diceRoll, success, groupResults };
     }
@@ -1723,6 +1769,7 @@ export class GameEngine {
 
     if (success) {
       this.addLog('danger', `${player.name}: ${card.name} — Rolled ${diceRoll}! ${card.successMsg}`);
+      this.grantSupplyLine(player);
     } else {
       if (typeof card.failEffect === 'function') {
         card.failEffect(player, this, guardianReduction);
@@ -2101,7 +2148,7 @@ export class GameEngine {
     if (trap.ownerName && player.name === trap.ownerName) {
       return true;
     }
-    if (player.roleKey === 'STRATEGIST' && (!trap.ownerRole || trap.ownerRole === 'STRATEGIST')) {
+    if (player.roleKey === 'ROGUE' && (!trap.ownerRole || trap.ownerRole === 'ROGUE')) {
       return true;
     }
     return false;
@@ -2112,18 +2159,18 @@ export class GameEngine {
     const trap = tile.trap;
     tile.trap = null;
 
-    // Find the trap owner (the Strategist who planted it)
+    // Find the trap owner (the Rogue who planted it)
     const trapOwner = this.state.players.find(
       p => p.id === trap.ownerId ||
            String(p.id) === String(trap.ownerId) ||
            (trap.ownerName && p.name === trap.ownerName) ||
-           p.roleKey === 'STRATEGIST'
+           p.roleKey === 'ROGUE'
     ) || this.state.players[trap.ownerId];
 
-    const ownerName = trapOwner ? trapOwner.name : 'The Strategist';
+    const ownerName = trapOwner ? trapOwner.name : 'The Rogue';
     this.addLog('trap', `🕸️ ${player.name} landed on ${ownerName}'s Temporal Trap!`);
 
-    // Strategist passive: +1 energy to trap owner
+    // Rogue passive: +1 energy to trap owner from Trap Mastery
     if (trapOwner) {
       this.modifyEnergy(trapOwner, 1);
       this.addLog('ability', `⚡ ${trapOwner.name} gained +1 Energy from Trap Mastery! (Now: ${trapOwner.energy}/${GAME_CONSTANTS.MAX_ENERGY})`);
@@ -2644,10 +2691,52 @@ export class GameEngine {
         };
         break;
 
-      case 'STRATEGIST':
-        // Temporal Trap
+      case 'STRATEGIST': {
+        // Command Post: Fortify current tile with a Command Post (2 Turn CD, 2 Energy Cost)
         if (player.energy < 2) {
-          this.addLog('warning', 'Not enough Energy for Temporal Trap!');
+          this.addLog('warning', 'Not enough Energy for Command Post! Requires 2 Energy.');
+          return false;
+        }
+
+        const currentTile = this.state.board[player.currentEra][player.tileIndex];
+        if (currentTile.commandPost && (currentTile.commandPost.ownerId === player.id || String(currentTile.commandPost.ownerId) === String(player.id))) {
+          this.addLog('warning', 'You already have an established Command Post on this space!');
+          return false;
+        }
+
+        this.modifyEnergy(player, -2);
+        currentTile.commandPost = {
+          ownerId: player.id,
+          ownerName: player.name,
+          ownerRole: player.roleKey,
+          era: player.currentEra,
+          tileIndex: player.tileIndex
+        };
+        player.usedAbilityThisTurn = true;
+        player.activeCooldown = ROLES.STRATEGIST.active.cooldown;
+
+        this.state.pendingModal = {
+          type: 'abilityActivate',
+          abilityKey: 'COMMAND_POST',
+          playerId: player.id,
+          playerName: player.name,
+          playerRole: 'The Strategist',
+          playerAvatar: player.role?.avatar || 'assets/Characters/Copy of strategist.png',
+          playerColor: player.color || '#F39C12',
+          tileIndex: player.tileIndex,
+          era: player.currentEra,
+          title: 'COMMAND POST ESTABLISHED!',
+          subtitle: 'STRATEGIST ACTIVE ABILITY',
+          description: `${player.name} fortified Space #${player.tileIndex + 1} with a strategic Command Post! Safe haven grants +2 Energy to ${player.name}, while extracting a 1 Energy toll from any rival entering it!`
+        };
+        this.addLog('ability', `🚩 ${player.name} fortified Space #${player.tileIndex + 1} with a Command Post!`);
+        break;
+      }
+
+      case 'ROGUE': {
+        // Temporal Trap: Arm a hidden Danger Trap on your current tile (2 Turn CD, 2 Energy Cost)
+        if (player.energy < 2) {
+          this.addLog('warning', 'Not enough Energy for Temporal Trap! Requires 2 Energy.');
           return false;
         }
         this.modifyEnergy(player, -2);
@@ -2660,76 +2749,22 @@ export class GameEngine {
           tileIndex: player.tileIndex
         };
         player.usedAbilityThisTurn = true;
-        player.activeCooldown = ROLES.STRATEGIST.active.cooldown;
+        player.activeCooldown = ROLES.ROGUE.active.cooldown;
         this.state.pendingModal = {
           type: 'abilityActivate',
           abilityKey: 'TEMPORAL_TRAP',
           playerId: player.id,
           playerName: player.name,
-          playerRole: 'The Strategist',
-          playerAvatar: player.role?.avatar || 'assets/Characters/Copy of strategist.png',
-          playerColor: player.color || '#F39C12',
+          playerRole: 'The Rogue',
+          playerAvatar: player.role?.avatar || 'assets/Characters/rogue_128x128.png',
+          playerColor: player.color || '#9B59B6',
           tileIndex: player.tileIndex,
           era: player.currentEra,
           title: 'TEMPORAL TRAP ARMED!',
-          subtitle: 'STRATEGIST ACTIVE ABILITY',
+          subtitle: 'ROGUE ACTIVE ABILITY',
           description: `${player.name} armed a lethal Temporal Trap on Space #${player.tileIndex + 1}! Any rival operative landing here will trigger a Hazard penalty and grant +1 Energy to ${player.name}!`
         };
         this.addLog('ability', `🕸️ ${player.name} planted a Temporal Trap on Space #${player.tileIndex + 1}!`);
-        break;
-
-      case 'ROGUE': {
-        // Pickpocket / Swipe: Target a player within 2 tiles to steal 1 Clue Card or 2 Energy (3 Turn CD, 2 Energy Cost)
-        if (player.energy < 2) {
-          this.addLog('warning', 'Not enough Energy for Pickpocket! Requires 2 Energy.');
-          return false;
-        }
-
-        const targets = this.state.players.filter(p => 
-          p.id !== player.id && 
-          p.currentEra === player.currentEra && 
-          Math.abs(p.tileIndex - player.tileIndex) <= 2
-        );
-
-        if (targets.length === 0) {
-          this.addLog('warning', 'No operatives within 2 tiles to Pickpocket!');
-          return false;
-        }
-
-        this.modifyEnergy(player, -2);
-        player.usedAbilityThisTurn = true;
-        player.activeCooldown = ROLES.ROGUE.active.cooldown;
-
-        const options = [];
-        targets.forEach(tgt => {
-          if (tgt.clueCards && tgt.clueCards.length > 0) {
-            options.push({
-              label: `🔍 Steal 1 Clue Card from ${tgt.name} (${tgt.clueCards.length} held)`,
-              action: `steal_clue_${tgt.id}`
-            });
-          }
-          if (tgt.energy > 0) {
-            const stealAmount = Math.min(2, tgt.energy);
-            options.push({
-              label: `⚡ Steal ${stealAmount} Energy from ${tgt.name} (${tgt.energy} En held)`,
-              action: `steal_energy_${tgt.id}`
-            });
-          }
-        });
-
-        if (options.length === 0) {
-          this.addLog('info', `${player.name} scanned nearby operatives, but their pockets are completely barren!`);
-          break;
-        }
-
-        this.state.pendingChoice = {
-          type: 'roguePickpocket',
-          returnPhase: this.state.phase,
-          title: '🗡️ Pickpocket / Swipe (Rogue)',
-          message: 'Choose an operative within 2 tiles to pickpocket:',
-          options
-        };
-        this.addLog('ability', `🗡️ ${player.name} targets nearby operatives with Pickpocket!`);
         break;
       }
 
@@ -2876,8 +2911,9 @@ export class GameEngine {
       return false;
     }
 
-    this.modifyEnergy(player, 3);
-    this.addLog('action', `${player.name} rested and recovered 3 Energy.`);
+    const recoverAmount = 3;
+    this.modifyEnergy(player, recoverAmount);
+    this.addLog('action', `${player.name} rested and recovered ${recoverAmount} Energy.`);
     this.endTurn();
     return true;
   }

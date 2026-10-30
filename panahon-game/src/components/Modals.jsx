@@ -15,6 +15,7 @@ export function MaximizedCardPreview({ data, onClose }) {
     const abilityKey = data.abilityKey || 'GENERIC';
     const isMomentum = abilityKey === 'MOMENTUM';
     const isTrap = abilityKey === 'TEMPORAL_TRAP';
+    const isCommandPost = abilityKey === 'COMMAND_POST';
     const isRepair = abilityKey === 'TEMPORAL_REPAIR';
     const isPickpocket = abilityKey === 'PICKPOCKET' || abilityKey === 'SHADOW_POCKETS';
     const isDecoyDiscard = abilityKey === 'DECOY_DISCARD';
@@ -25,29 +26,33 @@ export function MaximizedCardPreview({ data, onClose }) {
       ? 'theme-momentum'
       : (isTrap
         ? 'theme-trap'
-        : (isRepair
-          ? 'theme-repair'
-          : (isPickpocket
-            ? 'theme-pickpocket'
-            : (isDecoyDiscard
-              ? 'theme-decoy'
-              : (isForesight
-                ? 'theme-foresight'
-                : 'theme-reverse')))));
+        : (isCommandPost
+          ? 'theme-command-post'
+          : (isRepair
+            ? 'theme-repair'
+            : (isPickpocket
+              ? 'theme-pickpocket'
+              : (isDecoyDiscard
+                ? 'theme-decoy'
+                : (isForesight
+                  ? 'theme-foresight'
+                  : 'theme-reverse'))))));
 
     const icon = isMomentum
       ? '⚡'
       : (isTrap
         ? '🕸️'
-        : (isRepair
-          ? '✨'
-          : (isPickpocket
-            ? '🗡️'
-            : (isDecoyDiscard
-              ? '📜'
-              : (isForesight
-                ? '🔮'
-                : '⏪')))));
+        : (isCommandPost
+          ? '🚩'
+          : (isRepair
+            ? '✨'
+            : (isPickpocket
+              ? '🗡️'
+              : (isDecoyDiscard
+                ? '📜'
+                : (isForesight
+                  ? '🔮'
+                  : '⏪'))))));
 
     return (
       <div className={`modal-overlay ability-immersion-overlay ${themeClass}`} style={{ zIndex: 10000 }}>
@@ -978,6 +983,9 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         case 'TEMPORAL_TRAP':
           sounds.trapPlant?.();
           break;
+        case 'COMMAND_POST':
+          sounds.btnClick?.();
+          break;
         case 'TEMPORAL_REPAIR':
           sounds.holyRepair?.();
           break;
@@ -1712,6 +1720,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     const abilityKey = modal.abilityKey || 'GENERIC';
     const isMomentum = abilityKey === 'MOMENTUM';
     const isTrap = abilityKey === 'TEMPORAL_TRAP';
+    const isCommandPost = abilityKey === 'COMMAND_POST';
     const isRepair = abilityKey === 'TEMPORAL_REPAIR';
     const isPickpocket = abilityKey === 'PICKPOCKET' || abilityKey === 'SHADOW_POCKETS';
     const isDecoyDiscard = abilityKey === 'DECOY_DISCARD';
@@ -1722,29 +1731,33 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
       ? 'theme-momentum'
       : (isTrap
         ? 'theme-trap'
-        : (isRepair
-          ? 'theme-repair'
-          : (isPickpocket
-            ? 'theme-pickpocket'
-            : (isDecoyDiscard
-              ? 'theme-decoy'
-              : (isForesight
-                ? 'theme-foresight'
-                : 'theme-reverse')))));
+        : (isCommandPost
+          ? 'theme-command-post'
+          : (isRepair
+            ? 'theme-repair'
+            : (isPickpocket
+              ? 'theme-pickpocket'
+              : (isDecoyDiscard
+                ? 'theme-decoy'
+                : (isForesight
+                  ? 'theme-foresight'
+                  : 'theme-reverse'))))));
 
     const icon = isMomentum
       ? '⚡'
       : (isTrap
         ? '🕸️'
-        : (isRepair
-          ? '✨'
-          : (isPickpocket
-            ? '🗡️'
-            : (isDecoyDiscard
-              ? '📜'
-              : (isForesight
-                ? '🔮'
-                : '⏪')))));
+        : (isCommandPost
+          ? '🚩'
+          : (isRepair
+            ? '✨'
+            : (isPickpocket
+              ? '🗡️'
+              : (isDecoyDiscard
+                ? '📜'
+                : (isForesight
+                  ? '🔮'
+                  : '⏪'))))));
 
     return (
       <div className={`modal-overlay ability-immersion-overlay ${themeClass}`} id="active-modal">

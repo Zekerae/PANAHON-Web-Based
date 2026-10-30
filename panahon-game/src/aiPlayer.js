@@ -356,13 +356,17 @@ class AiController {
               shouldCast = true;
             }
           } else if (player.roleKey === 'STRATEGIST') {
+            // Strategist Command Post: fortify high-value or current tile if not already fortified
             const currentTile = state.board[player.currentEra][player.tileIndex];
-            if (currentTile.type === TILE_TYPES.CLUE || currentTile.type === TILE_TYPES.ARTIFACT) {
-              shouldCast = true;
+            if (!currentTile.commandPost && player.energy >= 2) {
+              if ([TILE_TYPES.CLUE, TILE_TYPES.ARTIFACT, TILE_TYPES.TIMEGATE].includes(currentTile.type) || player.energy >= 4) {
+                shouldCast = true;
+              }
             }
           } else if (player.roleKey === 'ROGUE') {
-            const targets = state.players.filter(p => p.id !== player.id && p.currentEra === player.currentEra && Math.abs(p.tileIndex - player.tileIndex) <= 2);
-            if (targets.length > 0 && player.energy >= 2) {
+            // Rogue Temporal Trap: plant traps on high traffic or objective tiles
+            const currentTile = state.board[player.currentEra][player.tileIndex];
+            if (currentTile.type === TILE_TYPES.CLUE || currentTile.type === TILE_TYPES.ARTIFACT || currentTile.type === TILE_TYPES.TIMEGATE) {
               shouldCast = true;
             }
           } else if (player.roleKey === 'CHRONOMANCER') {

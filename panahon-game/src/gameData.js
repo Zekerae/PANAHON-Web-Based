@@ -512,17 +512,17 @@ export const ROLES = {
   STRATEGIST: {
     id: 'strategist',
     name: 'The Strategist',
-    description: 'Manipulates resources and controls spaces',
+    description: 'Controls tactical territory and orchestrates supply lines',
     avatar: 'assets/Characters/Copy of strategist.png',
     color: '#F39C12',
     passive: {
-      name: 'Trap Mastery',
-      description: '+1 Energy when someone triggers your Trap',
+      name: 'Supply Line',
+      description: 'Grants +1 Energy whenever any operative survives a Danger Card',
       cooldown: 0
     },
     active: {
-      name: 'Temporal Trap',
-      description: 'Plant a Trap (Danger Tile) in your current tile (2 Turn CD, 2 Energy Cost)',
+      name: 'Command Post',
+      description: 'Fortify current tile with a Command Post: Safe haven restoring +2 Energy for you, and charges rivals a 1 Energy toll (2 Turn CD, 2 Energy Cost)',
       cooldown: 2,
       energyCost: 2
     }
@@ -530,18 +530,18 @@ export const ROLES = {
   ROGUE: {
     id: 'rogue',
     name: 'The Rogue',
-    description: 'Master of shadows, swift theft, and opportunism',
+    description: 'Master of shadows, traps, and opportunism',
     avatar: 'assets/Characters/rogue_128x128.png',
     color: '#9B59B6',
     passive: {
-      name: 'Shadow Pockets',
-      description: 'When passing through or landing on an occupied tile, steal 1 Energy or 1 Clue Card (once per player per turn)',
+      name: 'Trap Mastery',
+      description: '+1 Energy when someone triggers your Trap, and immune to all traps',
       cooldown: 0
     },
     active: {
-      name: 'Pickpocket',
-      description: 'Target a player within 2 tiles to steal 1 Clue Card or 2 Energy (3 Turn CD, 2 Energy Cost)',
-      cooldown: 3,
+      name: 'Temporal Trap',
+      description: 'Plant a Trap (Danger Tile) in your current tile (2 Turn CD, 2 Energy Cost)',
+      cooldown: 2,
       energyCost: 2
     }
   },

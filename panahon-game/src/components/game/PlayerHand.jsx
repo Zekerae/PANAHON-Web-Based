@@ -61,124 +61,94 @@ function PlayerHand({
       </div>
 
       {/* Tab Contents */}
-      <div className="hand-tab-body">
+      <div className={`hand-tab-body ${activeHandTab === 'mission' ? 'tab-body-mission' : ''}`}>
         {activeHandTab === 'mission' && viewedPlayer.mission && (
-          <div className="mission-display">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <div className="mission-title">
+          <div className="mission-display mission-compact">
+            {/* Row 1: Mission Header & Identity */}
+            <div className="mission-compact-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 0 }}>
+                <span className="mission-title" style={{ fontSize: '0.74rem', margin: 0, whiteSpace: 'nowrap' }}>
                   {canReveal
-                    ? `Mission: Retrieve ${viewedPlayer.mission.artifactNickname || viewedPlayer.mission.artifactName || 'Classified Relic'}`
-                    : `Mission: Classified Objective (${viewedPlayer.name})`}
-                </div>
-                <div className="mission-objective">
-                  {canReveal
-                    ? viewedPlayer.mission.description
-                    : `Historical mission details and clues are classified to ${viewedPlayer.name}.`}
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '0.7rem', background: '#140E0A', padding: '2px 6px', borderRadius: '3px', border: '1px solid #5A422D', color: '#E5C58A' }}>
-                  Target Era: <strong>{ERA_NAMES[viewedPlayer.mission.targetEra]}</strong>
+                    ? `MISSION: RETRIEVE ${viewedPlayer.mission.artifactNickname || viewedPlayer.mission.artifactName || 'RELIC'}`
+                    : `MISSION: CLASSIFIED OBJECTIVE (${viewedPlayer.name})`}
                 </span>
+                <span className="mission-era-pill">
+                  🏛️ {ERA_NAMES[viewedPlayer.mission.originEra || viewedPlayer.mission.targetEra]}
+                </span>
+                <span
+                  className="mission-lock-pill"
+                  style={{
+                    color: ((viewedPlayer.triangulation?.originAnchor ? 1 : 0) + (viewedPlayer.triangulation?.riftVector ? 1 : 0) + (viewedPlayer.triangulation?.impactSighting ? 1 : 0)) === 3 ? '#4ADE80' : '#FACC15',
+                    borderColor: ((viewedPlayer.triangulation?.originAnchor ? 1 : 0) + (viewedPlayer.triangulation?.riftVector ? 1 : 0) + (viewedPlayer.triangulation?.impactSighting ? 1 : 0)) === 3 ? 'rgba(74, 222, 128, 0.4)' : '#5A422D'
+                  }}
+                >
+                  {isViewingSelf
+                    ? `🔒 ${(viewedPlayer.triangulation?.originAnchor ? 1 : 0) + (viewedPlayer.triangulation?.riftVector ? 1 : 0) + (viewedPlayer.triangulation?.impactSighting ? 1 : 0)}/3 LOCKED`
+                    : `📜 ${clueCards.length} CLUES`}
+                </span>
+              </div>
+              <div className="mission-desc-inline" title={canReveal ? viewedPlayer.mission.description : ''}>
+                {canReveal
+                  ? viewedPlayer.mission.description
+                  : `Historical mission details and clues are classified to ${viewedPlayer.name}.`}
               </div>
             </div>
 
+            {/* Row 2: Status & Directives */}
             {viewedPlayer.completed ? (
-              <div style={{ marginTop: '12px', padding: '10px 14px', background: 'linear-gradient(180deg, #3A2E1E 0%, #20170E 100%)', border: '2px solid #C2974D', borderRadius: '4px', boxShadow: 'inset 1px 1px 0 #EBD07D, 0 4px 12px rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ color: '#FFD700', fontWeight: 800, fontSize: '0.85rem' }}>
+              <div className="mission-completed-row">
+                <span style={{ color: '#FFD700', fontWeight: 800, fontSize: '0.78rem' }}>
                   🏆 {viewedPlayer.placementRank === 1 ? '1ST' : viewedPlayer.placementRank === 2 ? '2ND' : viewedPlayer.placementRank === 3 ? '3RD' : `${viewedPlayer.placementRank}TH`} PLACE LOCKED IN!
                 </span>
-                <span style={{ fontSize: '0.72rem', color: '#FDE047' }}>
-                  Relic returned to {ERA_NAMES[viewedPlayer.mission.originEra || viewedPlayer.mission.targetEra]}. Assist allies before Timeline Meter exceeds 5 (reaches 6)!
+                <span style={{ fontSize: '0.7rem', color: '#FDE047', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  Relic returned to {ERA_NAMES[viewedPlayer.mission.originEra || viewedPlayer.mission.targetEra]}. Assist allies before Timeline breaches!
                 </span>
               </div>
             ) : artifactCards.some(a => a.id === viewedPlayer.mission.artifactId) ? (
-              <div style={{ marginTop: '12px', padding: '10px 14px', background: 'linear-gradient(180deg, #352518 0%, #1A120B 100%)', border: '2px solid #5EEAD4', borderRadius: '4px', boxShadow: '0 0 14px rgba(94, 234, 212, 0.3)' }}>
-                <div style={{ color: '#5EEAD4', fontWeight: 800, fontSize: '0.84rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>📦</span> PHASE 3: RETURN TO ORIGIN ERA ({ERA_NAMES[viewedPlayer.mission.originEra || viewedPlayer.mission.targetEra]})
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#FDE68A' }}>
-                  You hold the <strong>{viewedPlayer.mission.artifactNickname}</strong>! Travel back to its native <strong>{ERA_NAMES[viewedPlayer.mission.originEra || viewedPlayer.mission.targetEra]}</strong> and land on the Artifact/Return Tile to restore history and lock in your FIFO placement!
-                </div>
+              <div className="mission-phase-row phase-return">
+                <span className="mission-phase-tag">📦 PHASE 3: RETURN TO ORIGIN</span>
+                <span style={{ fontSize: '0.7rem', color: '#FDE68A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  You hold <strong>{viewedPlayer.mission.artifactNickname}</strong>! Travel back to native <strong>{ERA_NAMES[viewedPlayer.mission.originEra || viewedPlayer.mission.targetEra]}</strong> and land on the Artifact Tile to restore history!
+                </span>
               </div>
             ) : (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) >= 3 ? (
-              <div style={{ marginTop: '12px', padding: '10px 14px', background: 'linear-gradient(180deg, #422006 0%, #1E120A 100%)', border: '2px solid #F59E0B', borderRadius: '4px', boxShadow: '0 0 14px rgba(245, 158, 11, 0.35)' }}>
-                <div style={{ color: '#FCD34D', fontWeight: 800, fontSize: '0.84rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>📍</span> PHASE 2: RETRIEVAL IN DISPLACED ERA
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#FEF08A' }}>
-                  Research complete (3/3 Clues)! The <strong>{viewedPlayer.mission.artifactNickname}</strong> has materialized in the <strong>{ERA_NAMES[viewedPlayer.mission.displacedEra]}</strong>! Travel there via Time Gate and land on the Artifact Tile to claim it!
-                </div>
+              <div className="mission-phase-row phase-retrieve">
+                <span className="mission-phase-tag">📍 PHASE 2: DISPLACED RETRIEVAL</span>
+                <span style={{ fontSize: '0.7rem', color: '#FEF08A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  Research complete! Materialized in <strong>{ERA_NAMES[viewedPlayer.mission.displacedEra]}</strong>! Travel there via Time Gate & land on the Artifact Tile to claim it!
+                </span>
               </div>
             ) : (
-              <div className="mission-progress" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span className="mission-progress-text" style={{ fontWeight: 700, color: "#E5C58A" }}>
-                    Temporal Triangulation: {viewedPlayer.mission?.artifactNickname || 'Relic'}
-                  </span>
-                  <span style={{ fontSize: "0.74rem", fontWeight: 800, color: (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) >= 3 ? "#4ADE80" : "#FACC15" }}>
-                    {isViewingSelf
-                      ? `${(viewedPlayer.triangulation?.originAnchor ? 1 : 0) + (viewedPlayer.triangulation?.riftVector ? 1 : 0) + (viewedPlayer.triangulation?.impactSighting ? 1 : 0)}/3 Locked`
-                      : `${clueCards.length} Clues`}
-                  </span>
-                </div>
-
-                {/* 3 Triangulation Step Badges */}
-                <div style={{ display: "flex", gap: "6px", margin: "2px 0 4px", alignItems: "center" }}>
+              <div className="mission-triangulation-row">
+                {/* 3 Step Badges */}
+                <div className="mission-step-chips">
                   {[
-                    { step: 1, label: "Origin Anchor", icon: "📜", done: !!viewedPlayer.triangulation?.originAnchor, desc: `Excavate historical records in ${ERA_NAMES[viewedPlayer.mission?.originEra]}` },
-                    { step: 2, label: "Rift Vector", icon: "🌀", done: !!viewedPlayer.triangulation?.riftVector, desc: "Scan vortex discharge at a Time Gate" },
-                    { step: 3, label: "Ground Intel", icon: "👁️", done: !!viewedPlayer.triangulation?.impactSighting, desc: `Confirm ground sightings in ${ERA_NAMES[viewedPlayer.mission?.displacedEra]}` }
+                    { step: 1, label: "1. Origin Anchor", icon: "📜", done: !!viewedPlayer.triangulation?.originAnchor, desc: `Excavate historical records in ${ERA_NAMES[viewedPlayer.mission?.originEra]}` },
+                    { step: 2, label: "2. Rift Vector", icon: "🌀", done: !!viewedPlayer.triangulation?.riftVector, desc: "Scan vortex discharge at a Time Gate" },
+                    { step: 3, label: "3. Ground Intel", icon: "👁️", done: !!viewedPlayer.triangulation?.impactSighting, desc: `Confirm ground sightings in ${ERA_NAMES[viewedPlayer.mission?.displacedEra]}` }
                   ].map((s) => (
                     <div
                       key={s.step}
-                      style={{
-                        flex: 1,
-                        padding: "5px 3px",
-                        minHeight: "32px",
-                        borderRadius: "6px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "4px",
-                        background: s.done ? "linear-gradient(180deg, #4D3826 0%, #352518 100%)" : "#140E0A",
-                        border: s.done ? "1.5px solid #F5C442" : "1px dashed #5A422D",
-                        boxShadow: s.done ? "inset 1px 1px 0 #EBD07D, 0 2px 6px rgba(0,0,0,0.6)" : "none",
-                        fontSize: "0.72rem",
-                        fontWeight: 700,
-                        color: s.done ? "#FFD700" : "#735E4E",
-                        transition: "all 0.3s ease",
-                        textAlign: "center"
-                      }}
+                      className={`mission-step-chip ${s.done ? 'step-done' : ''}`}
                       title={`${s.label}: ${s.desc} - ${s.done ? "VERIFIED ✅" : "PENDING ⏳"}`}
                     >
-                      <span>{s.done ? "✅" : s.icon}</span>
-                      <span style={{ fontSize: "0.68rem" }}>{s.label}</span>
+                      <span className="step-icon">{s.done ? "✅" : s.icon}</span>
+                      <span className="step-label">{s.label}</span>
                     </div>
                   ))}
                 </div>
 
-                {/* Directive Guidance */}
-                <div style={{ fontSize: "0.72rem", color: "#FDE68A", background: "rgba(0,0,0,0.3)", padding: "4px 8px", borderRadius: "4px", borderLeft: "3px solid #F59E0B" }}>
+                {/* Directive Banner */}
+                <div className="mission-directive-pill">
                   {!viewedPlayer.triangulation?.originAnchor ? (
-                    <span>🎯 <strong>Next Directive:</strong> Land on a Clue Tile (🔍) in <strong>{ERA_NAMES[viewedPlayer.mission?.originEra]}</strong> to lock the historical Origin Anchor.</span>
+                    <span>🎯 <strong>Next Directive:</strong> Land on Clue Tile (🔍) in <strong>{ERA_NAMES[viewedPlayer.mission?.originEra]}</strong> to lock Origin Anchor.</span>
                   ) : !viewedPlayer.triangulation?.riftVector ? (
-                    <span>🎯 <strong>Next Directive:</strong> Pass or land on a <strong>Time Gate (🌀)</strong> to perform a Chrono-Scan and lock the Rift Vector!</span>
+                    <span>🎯 <strong>Next Directive:</strong> Pass or land on a <strong>Time Gate (🌀)</strong> to scan & lock Rift Vector!</span>
                   ) : !viewedPlayer.triangulation?.impactSighting ? (
-                    <span>🎯 <strong>Next Directive:</strong> Warp to <strong>{ERA_NAMES[viewedPlayer.mission?.displacedEra]}</strong> and land on a Clue Tile (🔍) for ground sightings.</span>
+                    <span>🎯 <strong>Next Directive:</strong> Warp to <strong>{ERA_NAMES[viewedPlayer.mission?.displacedEra]}</strong> & land on Clue Tile (🔍) for Ground Intel.</span>
                   ) : (
-                    <span>🎯 <strong>Triangulation Complete!</strong> Proceed to the Artifact Tile (🏺) in <strong>{ERA_NAMES[viewedPlayer.mission?.displacedEra]}</strong> to retrieve {viewedPlayer.mission?.artifactNickname}!</span>
+                    <span>🎯 <strong>Triangulation Complete!</strong> Land on Artifact Tile (🏺) in <strong>{ERA_NAMES[viewedPlayer.mission?.displacedEra]}</strong> to retrieve {viewedPlayer.mission?.artifactNickname}!</span>
                   )}
-                </div>
-
-                <div className="mission-progress-bar">
-                  <div
-                    className="mission-progress-fill"
-                    style={{
-                      width: `${(((viewedPlayer.triangulation?.originAnchor ? 1 : 0) + (viewedPlayer.triangulation?.riftVector ? 1 : 0) + (viewedPlayer.triangulation?.impactSighting ? 1 : 0)) / 3) * 100}%`
-                    }}
-                  ></div>
                 </div>
               </div>
             )}

@@ -192,7 +192,8 @@ export class GameEngine {
         era,
         type,
         index: idx,
-        trap: null,  // for Strategist traps
+        trap: null,         // for Rogue traps
+        commandPost: null,  // for Strategist command posts
         players: []
       }));
     });
@@ -369,6 +370,9 @@ export class GameEngine {
             }
             if (tile.trap && idMap[tile.trap.ownerId] !== undefined) {
               tile.trap.ownerId = idMap[tile.trap.ownerId];
+            }
+            if (tile.commandPost && idMap[tile.commandPost.ownerId] !== undefined) {
+              tile.commandPost.ownerId = idMap[tile.commandPost.ownerId];
             }
           });
         }
@@ -1058,51 +1062,6 @@ export class GameEngine {
         }
       }
       this.state.phase = returnPhase;
-    } else if (choiceType === 'strategistTacticalManeuver') {
-      const match = action.match(/^maneuver_([+-]?\d+)$/);
-      if (match) {
-        const delta = parseInt(match[1], 10);
-        const eraBoard = this.state.board[player.currentEra];
-        const numTiles = eraBoard.length;
-
-        // Remove operative from old tile
-        const oldTile = eraBoard[player.tileIndex];
-        if (oldTile && Array.isArray(oldTile.players)) {
-          oldTile.players = oldTile.players.filter(id => id !== player.id);
-        }
-
-        const newTileIndex = (player.tileIndex + delta + numTiles) % numTiles;
-        player.tileIndex = newTileIndex;
-        const newTile = eraBoard[newTileIndex];
-        if (newTile && Array.isArray(newTile.players)) {
-          if (!newTile.players.includes(player.id)) {
-            newTile.players.push(player.id);
-          }
-        }
-
-        const dirStr = delta > 0 ? `+${delta}` : `${delta}`;
-        this.addLog('ability', `♟️ Tactical Maneuver: ${player.name} repositioned ${dirStr} spaces to Space #${newTileIndex + 1} (${(newTile.type || 'standard').toUpperCase()})!`);
-
-        this.state.pendingModal = {
-          type: 'abilityActivate',
-          abilityKey: 'TACTICAL_MANEUVER',
-          playerId: player.id,
-          playerName: player.name,
-          playerRole: 'The Strategist',
-          playerAvatar: player.role?.avatar || 'assets/Characters/Copy of strategist.png',
-          playerColor: player.color || '#F39C12',
-          tileIndex: player.tileIndex,
-          era: player.currentEra,
-          title: 'TACTICAL MANEUVER EXECUTED!',
-          subtitle: 'STRATEGIST ACTIVE ABILITY',
-          description: `${player.name} repositioned ${dirStr} spaces to Space #${newTileIndex + 1} (${(newTile.type || 'standard').toUpperCase()})! Securing strategic board advantage!`
-        };
-
-        this.state.pendingChoice = null;
-        this.resolveTile(player, newTile);
-        return;
-      }
-      this.state.phase = returnPhase;
     } else if (choiceType === 'clueHandLimit') {
       const drawnCard = choice.drawnCard;
 
@@ -1254,10 +1213,29 @@ export class GameEngine {
 
     this.state.phase = 'cardResolution';
 
-    // Strategist Passive: Mastermind (Gain +1 Energy when securing strategic Clue, Event, or Time Gate ground)
-    if (player.roleKey === 'STRATEGIST' && [TILE_TYPES.CLUE, TILE_TYPES.EVENT, TILE_TYPES.TIMEGATE].includes(tile.type)) {
-      this.modifyEnergy(player, 1);
-      this.addLog('ability', `♟️ Mastermind: ${player.name} gained +1 Energy from securing strategic ${tile.type.toUpperCase()} ground! (Now: ${player.energy}/${GAME_CONSTANTS.MAX_ENERGY})`);
+    // Command Post (Strategist Active & Passive Territory Control)
+    if (tile.commandPost) {
+      const isOwner = player.id === tile.commandPost.ownerId || String(player.id) === String(tile.commandPost.ownerId);
+      if (isOwner) {
+        // Safe haven: restore +2 Chrono Energy
+        this.modifyEnergy(player, 2);
+        this.addLog('ability', `🚩 Command Post: ${player.name} rested at their fortified Command Post, recovering +2 Energy! (Now: ${player.energy}/${GAME_CONSTANTS.MAX_ENERGY})`);
+      } else {
+        // Rival operative pays 1 Energy toll to the owner
+        const owner = this.state.players.find(p => p.id === tile.commandPost.ownerId || String(p.id) === String(tile.commandPost.ownerId));
+        const toll = Math.min(1, player.energy || 0);
+        if (toll > 0) {
+          this.modifyEnergy(player, -toll);
+          if (owner) {
+            this.modifyEnergy(owner, toll);
+            this.addLog('ability', `🚩 Command Post Toll: ${player.name} entered ${tile.commandPost.ownerName}'s Command Post and paid a 1 Energy toll to ${owner.name}!`);
+          } else {
+            this.addLog('ability', `🚩 Command Post Toll: ${player.name} entered a fortified Command Post and lost 1 Energy!`);
+          }
+        } else {
+          this.addLog('info', `🚩 Command Post: ${player.name} entered ${tile.commandPost.ownerName}'s Command Post, but had 0 Energy to pay toll!`);
+        }
+      }
     }
 
     try {
@@ -1632,6 +1610,8 @@ export class GameEngine {
         vfxTag: 'sanctuary_shield',
         sfxTag: 'cathedralChime'
       };
+      // Strategist passive: negated hazards still count as surviving the Danger Card
+      this.grantSupplyLine(player);
       this.state.phase = 'action';
       this.notify();
       return;
@@ -1686,6 +1666,20 @@ export class GameEngine {
     this.notify();
   }
 
+  // Strategist passive: Supply Line
+  // Grants +1 Energy to an operative who survives a Danger Card while a Strategist is in play.
+  grantSupplyLine(survivor) {
+    if (!survivor) return false;
+    const strategist = this.state.players.find(p => p.roleKey === 'STRATEGIST');
+    if (!strategist) return false;
+    this.modifyEnergy(survivor, 1);
+    this.addLog(
+      'ability',
+      `⚡ ${strategist.name}'s Supply Line grants ${survivor.name} +1 Energy for surviving a Danger Card! (Now: ${survivor.energy}/${GAME_CONSTANTS.MAX_ENERGY})`
+    );
+    return true;
+  }
+
   // --- Interactive Danger Die Roll ---
   rollDangerDie(playerIdx, explicitRoll = null, explicitGroupRolls = null) {
     const modal = this.state.pendingModal;
@@ -1702,14 +1696,7 @@ export class GameEngine {
                  Object.values(DANGER_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.cardName);
     if (!card) return null;
 
-    let diceRoll = explicitRoll ?? rollDie();
-    if (player.roleKey === 'STRATEGIST') {
-      const bonusRoll = Math.min(6, diceRoll + 1);
-      if (bonusRoll !== diceRoll) {
-        this.addLog('ability', `♟️ Mastermind: ${player.name} calculated risk (+1 to Danger check: ${diceRoll} ➔ ${bonusRoll})!`);
-        diceRoll = bonusRoll;
-      }
-    }
+    const diceRoll = explicitRoll ?? rollDie();
 
     // Group Hazard check (Spanish Danger 1: Bulkang galit)
     if (modal.isGroupHazard || card.isGroupHazard) {
@@ -1757,6 +1744,7 @@ export class GameEngine {
       };
       this.state.pendingModal = updatedModal;
       this.addLog('danger', `Volcano Eruption resolved! Group rolls: ${groupResults.map(r => `${r.playerName}: [${r.roll}] ${r.safe ? 'Safe' : `-${r.energyLoss}⚡`}`).join(', ')}`);
+      groupResults.filter(r => r.safe).forEach(r => this.grantSupplyLine(this.state.players[r.playerId]));
       this.notify();
       return { diceRoll, success, groupResults };
     }
@@ -1781,6 +1769,7 @@ export class GameEngine {
 
     if (success) {
       this.addLog('danger', `${player.name}: ${card.name} — Rolled ${diceRoll}! ${card.successMsg}`);
+      this.grantSupplyLine(player);
     } else {
       if (typeof card.failEffect === 'function') {
         card.failEffect(player, this, guardianReduction);
@@ -1807,14 +1796,7 @@ export class GameEngine {
                  (EVENT_CARDS[player.currentEra] || []).find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName) ||
                  Object.values(EVENT_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName);
 
-    let diceRoll = explicitRoll ?? rollDie();
-    if (player.roleKey === 'STRATEGIST') {
-      const bonusRoll = Math.min(6, diceRoll + 1);
-      if (bonusRoll !== diceRoll) {
-        this.addLog('ability', `♟️ Mastermind: ${player.name} calculated risk (+1 to Event check: ${diceRoll} ➔ ${bonusRoll})!`);
-        diceRoll = bonusRoll;
-      }
-    }
+    const diceRoll = explicitRoll ?? rollDie();
     const success = (card && typeof card.check === 'function')
       ? card.check(diceRoll)
       : (diceRoll >= 4);
@@ -2710,48 +2692,44 @@ export class GameEngine {
         break;
 
       case 'STRATEGIST': {
-        // Tactical Maneuver: Reposition 1 to 3 spaces forward or backward (2 Turn CD, 2 Energy Cost)
+        // Command Post: Fortify current tile with a Command Post (2 Turn CD, 2 Energy Cost)
         if (player.energy < 2) {
-          this.addLog('warning', 'Not enough Energy for Tactical Maneuver! Requires 2 Energy.');
+          this.addLog('warning', 'Not enough Energy for Command Post! Requires 2 Energy.');
           return false;
         }
 
-        const eraBoard = this.state.board[player.currentEra];
-        const numTiles = eraBoard.length;
-
-        // Vector options: Advance +1, +2, +3, Retreat -1, -2, -3
-        const deltas = [1, 2, 3, -1, -2, -3];
-        const options = deltas.map(delta => {
-          const targetIdx = (player.tileIndex + delta + numTiles) % numTiles;
-          const targetTile = eraBoard[targetIdx];
-          const dir = delta > 0 ? `Advance +${delta}` : `Retreat ${delta}`;
-          const typeName = (targetTile.type || 'standard').toUpperCase();
-          const tileGlyph = targetTile.type === 'clue' ? '🔍' :
-                            targetTile.type === 'artifact' ? '🏆' :
-                            targetTile.type === 'timeGate' ? '🌀' :
-                            targetTile.type === 'event' ? '📜' :
-                            targetTile.type === 'danger' ? '⚠️' : '📍';
-          return {
-            label: `${dir} ➔ Space #${targetIdx + 1} (${tileGlyph} ${typeName})`,
-            action: `maneuver_${delta}`,
-            delta,
-            targetIdx,
-            tileType: targetTile.type
-          };
-        });
+        const currentTile = this.state.board[player.currentEra][player.tileIndex];
+        if (currentTile.commandPost && (currentTile.commandPost.ownerId === player.id || String(currentTile.commandPost.ownerId) === String(player.id))) {
+          this.addLog('warning', 'You already have an established Command Post on this space!');
+          return false;
+        }
 
         this.modifyEnergy(player, -2);
+        currentTile.commandPost = {
+          ownerId: player.id,
+          ownerName: player.name,
+          ownerRole: player.roleKey,
+          era: player.currentEra,
+          tileIndex: player.tileIndex
+        };
         player.usedAbilityThisTurn = true;
         player.activeCooldown = ROLES.STRATEGIST.active.cooldown;
 
-        this.state.pendingChoice = {
-          type: 'strategistTacticalManeuver',
-          returnPhase: this.state.phase,
-          title: '♟️ Tactical Maneuver (Strategist)',
-          message: 'Select your tactical repositioning vector:',
-          options
+        this.state.pendingModal = {
+          type: 'abilityActivate',
+          abilityKey: 'COMMAND_POST',
+          playerId: player.id,
+          playerName: player.name,
+          playerRole: 'The Strategist',
+          playerAvatar: player.role?.avatar || 'assets/Characters/Copy of strategist.png',
+          playerColor: player.color || '#F39C12',
+          tileIndex: player.tileIndex,
+          era: player.currentEra,
+          title: 'COMMAND POST ESTABLISHED!',
+          subtitle: 'STRATEGIST ACTIVE ABILITY',
+          description: `${player.name} fortified Space #${player.tileIndex + 1} with a strategic Command Post! Safe haven grants +2 Energy to ${player.name}, while extracting a 1 Energy toll from any rival entering it!`
         };
-        this.addLog('ability', `♟️ ${player.name} calculates optimal trajectory and initiates Tactical Maneuver!`);
+        this.addLog('ability', `🚩 ${player.name} fortified Space #${player.tileIndex + 1} with a Command Post!`);
         break;
       }
 
@@ -2933,8 +2911,9 @@ export class GameEngine {
       return false;
     }
 
-    this.modifyEnergy(player, 3);
-    this.addLog('action', `${player.name} rested and recovered 3 Energy.`);
+    const recoverAmount = 3;
+    this.modifyEnergy(player, recoverAmount);
+    this.addLog('action', `${player.name} rested and recovered ${recoverAmount} Energy.`);
     this.endTurn();
     return true;
   }

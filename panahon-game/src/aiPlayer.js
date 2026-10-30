@@ -356,15 +356,11 @@ class AiController {
               shouldCast = true;
             }
           } else if (player.roleKey === 'STRATEGIST') {
-            // Strategist Tactical Maneuver: scan for high value tile within 3 spaces ahead or behind
-            const eraBoard = state.board[player.currentEra];
-            const numTiles = eraBoard?.length || 16;
-            const deltas = [1, 2, 3, -1, -2, -3];
-            for (const d of deltas) {
-              const targetTile = eraBoard[(player.tileIndex + d + numTiles) % numTiles];
-              if (targetTile && (targetTile.type === TILE_TYPES.CLUE || targetTile.type === TILE_TYPES.ARTIFACT || targetTile.type === TILE_TYPES.TIMEGATE)) {
+            // Strategist Command Post: fortify high-value or current tile if not already fortified
+            const currentTile = state.board[player.currentEra][player.tileIndex];
+            if (!currentTile.commandPost && player.energy >= 2) {
+              if ([TILE_TYPES.CLUE, TILE_TYPES.ARTIFACT, TILE_TYPES.TIMEGATE].includes(currentTile.type) || player.energy >= 4) {
                 shouldCast = true;
-                break;
               }
             }
           } else if (player.roleKey === 'ROGUE') {
@@ -579,30 +575,6 @@ class AiController {
     if (choiceType === 'guardianRepair') {
       // Repair paradox if high, otherwise recover energy
       const action = player.paradox >= 2 ? 'reduceEnergy' : 'restoreEnergy';
-      engine.resolveChoice(action);
-      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
-      this.scheduleAiStep(engine, network, 650);
-      return;
-    }
-
-    if (choiceType === 'strategistTacticalManeuver') {
-      const options = choice.options || [];
-      const hasRelic = (player.artifactCards?.length || 0) > 0;
-      let chosenOpt = null;
-      if (hasRelic) {
-        chosenOpt = options.find(o => o.tileType === 'artifact');
-      }
-      if (!chosenOpt) {
-        chosenOpt = options.find(o => o.tileType === 'clue');
-      }
-      if (!chosenOpt) {
-        chosenOpt = options.find(o => o.tileType === 'timeGate');
-      }
-      if (!chosenOpt) {
-        const safeOptions = options.filter(o => o.tileType !== 'danger');
-        chosenOpt = safeOptions.find(o => o.delta === 3) || safeOptions[0] || options[0];
-      }
-      const action = chosenOpt ? chosenOpt.action : (options[0]?.action || 'maneuver_1');
       engine.resolveChoice(action);
       network?.sendAction({ type: 'RESOLVE_CHOICE', action });
       this.scheduleAiStep(engine, network, 650);

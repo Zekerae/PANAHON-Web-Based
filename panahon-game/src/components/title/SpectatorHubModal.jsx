@@ -25,7 +25,7 @@ export default function SpectatorHubModal({ onClose, onStartSpectatorSimulation,
     { key: 'HISTORIAN', name: 'The Historian', role: ROLES.HISTORIAN, color: '#E74C3C', perk: 'Clue Decipher & Decoy Discard' },
     { key: 'EXPLORER', name: 'The Explorer', role: ROLES.EXPLORER, color: '#3498DB', perk: 'Momentum & Chrono-Stride' },
     { key: 'GUARDIAN', name: 'The Guardian', role: ROLES.GUARDIAN, color: '#2ECC71', perk: 'Temporal Repair & Aegis Shield' },
-    { key: 'STRATEGIST', name: 'The Strategist', role: ROLES.STRATEGIST, color: '#F39C12', perk: 'Tactical Maneuver & Mastermind' },
+    { key: 'STRATEGIST', name: 'The Strategist', role: ROLES.STRATEGIST, color: '#F39C12', perk: 'Command Post & Supply Line' },
     { key: 'ROGUE', name: 'The Rogue', role: ROLES.ROGUE, color: '#9B59B6', perk: 'Temporal Trap & Trap Mastery' },
     { key: 'CHRONOMANCER', name: 'The Chronomancer', role: ROLES.CHRONOMANCER, color: '#1ABC9C', perk: 'Temporal Foresight & Time Stop' }
   ];

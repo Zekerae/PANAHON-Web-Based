@@ -11532,105 +11532,21 @@ html, body, #app, .app-root {
   margin: 4px 0;
 }
 
-/* 11. Strategist Tactical Maneuver Grid & Vector Cards */
-.strategist-options-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+/* 11. Command Post Tile & Modal Indicators */
+.tile-command-post-indicator {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  font-size: 1.05rem;
+  z-index: 6;
+  filter: drop-shadow(0 0 6px #F59E0B);
+  animation: pulse 2s infinite ease-in-out;
 }
 
-@media (max-width: 600px) {
-  .strategist-options-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.strategist-maneuver-card {
-  background: #19120D !important;
-  border: 1.5px solid #4D3826 !important;
-  border-radius: 4px !important;
-  box-shadow: inset 1px 1px 0 #0F0A07, inset -1px -1px 0 #3D2F23, 0 3px 6px rgba(0, 0, 0, 0.6) !important;
-  padding: 10px 8px !important;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 4px;
-  cursor: pointer;
-  transition: all 0.12s ease-in-out;
-}
-
-.strategist-maneuver-card:hover:not(:disabled) {
-  background: #2A1D13 !important;
-  border-color: #F59E0B !important;
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.55), inset 0 0 4px rgba(245, 158, 11, 0.25) !important;
-  transform: translateY(-2px) !important;
-}
-
-.strategist-maneuver-card.highlight-clue {
-  border-color: #38BDF8 !important;
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.35) !important;
-}
-
-.strategist-maneuver-card.highlight-artifact {
-  border-color: #FACC15 !important;
-  box-shadow: 0 0 8px rgba(250, 204, 21, 0.45) !important;
-}
-
-.maneuver-card-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.maneuver-dir-badge {
-  font-family: var(--font-display);
-  font-size: 0.62rem;
-  font-weight: 800;
-  color: #F59E0B;
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid #784C0B;
-  padding: 1px 5px;
-  border-radius: 3px;
-}
-
-.card-retreat .maneuver-dir-badge {
-  color: #94A3B8;
-  background: rgba(148, 163, 184, 0.12);
-  border-color: #475569;
-}
-
-.maneuver-tile-glyph {
-  font-size: 1.1rem;
-}
-
-.maneuver-space-label {
-  font-family: var(--font-display);
-  font-size: 0.76rem;
-  font-weight: 800;
-  color: #F8FAFC;
-  margin-top: 2px;
-}
-
-.maneuver-type-name {
-  font-family: var(--font-display);
-  font-size: 0.62rem;
-  color: #CBD5E1;
-  letter-spacing: 0.5px;
-}
-
-.maneuver-btn-tag {
-  font-family: var(--font-display);
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: #FCD34D;
-  background: linear-gradient(180deg, #3B2A1C 0%, #251810 100%);
-  border: 1px solid #784C0B;
-  border-radius: 2px;
-  padding: 3px 6px;
-  margin-top: 4px;
-  width: 100%;
+.theme-command-post .ability-header-badge {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #F59E0B;
+  color: #FDE68A;
 }
 
 /* ==========================================================================

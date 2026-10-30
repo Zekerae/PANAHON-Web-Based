@@ -15,7 +15,7 @@ export function MaximizedCardPreview({ data, onClose }) {
     const abilityKey = data.abilityKey || 'GENERIC';
     const isMomentum = abilityKey === 'MOMENTUM';
     const isTrap = abilityKey === 'TEMPORAL_TRAP';
-    const isTactical = abilityKey === 'TACTICAL_MANEUVER';
+    const isCommandPost = abilityKey === 'COMMAND_POST';
     const isRepair = abilityKey === 'TEMPORAL_REPAIR';
     const isPickpocket = abilityKey === 'PICKPOCKET' || abilityKey === 'SHADOW_POCKETS';
     const isDecoyDiscard = abilityKey === 'DECOY_DISCARD';
@@ -26,8 +26,8 @@ export function MaximizedCardPreview({ data, onClose }) {
       ? 'theme-momentum'
       : (isTrap
         ? 'theme-trap'
-        : (isTactical
-          ? 'theme-tactical'
+        : (isCommandPost
+          ? 'theme-command-post'
           : (isRepair
             ? 'theme-repair'
             : (isPickpocket
@@ -42,8 +42,8 @@ export function MaximizedCardPreview({ data, onClose }) {
       ? '⚡'
       : (isTrap
         ? '🕸️'
-        : (isTactical
-          ? '♟️'
+        : (isCommandPost
+          ? '🚩'
           : (isRepair
             ? '✨'
             : (isPickpocket
@@ -983,7 +983,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         case 'TEMPORAL_TRAP':
           sounds.trapPlant?.();
           break;
-        case 'TACTICAL_MANEUVER':
+        case 'COMMAND_POST':
           sounds.btnClick?.();
           break;
         case 'TEMPORAL_REPAIR':
@@ -1720,7 +1720,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     const abilityKey = modal.abilityKey || 'GENERIC';
     const isMomentum = abilityKey === 'MOMENTUM';
     const isTrap = abilityKey === 'TEMPORAL_TRAP';
-    const isTactical = abilityKey === 'TACTICAL_MANEUVER';
+    const isCommandPost = abilityKey === 'COMMAND_POST';
     const isRepair = abilityKey === 'TEMPORAL_REPAIR';
     const isPickpocket = abilityKey === 'PICKPOCKET' || abilityKey === 'SHADOW_POCKETS';
     const isDecoyDiscard = abilityKey === 'DECOY_DISCARD';
@@ -1731,8 +1731,8 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
       ? 'theme-momentum'
       : (isTrap
         ? 'theme-trap'
-        : (isTactical
-          ? 'theme-tactical'
+        : (isCommandPost
+          ? 'theme-command-post'
           : (isRepair
             ? 'theme-repair'
             : (isPickpocket
@@ -1747,8 +1747,8 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
       ? '⚡'
       : (isTrap
         ? '🕸️'
-        : (isTactical
-          ? '♟️'
+        : (isCommandPost
+          ? '🚩'
           : (isRepair
             ? '✨'
             : (isPickpocket
@@ -4034,62 +4034,6 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
                     </div>
                     <div className="rogue-card-label">{opt.label}</div>
                     <div className="rogue-swipe-tag">EXECUTE THEFT ➔</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (choice.type === 'strategistTacticalManeuver') {
-    return (
-      <div className="modal-overlay strategist-tactical-overlay" id="active-modal">
-        <div className="strategist-tactical-backdrop" />
-        <div className="modal strategist-tactical-modal" role="dialog" aria-label="Strategist Tactical Maneuver" style={{ maxWidth: '680px', width: '92%' }}>
-          <div className="strategist-tactical-header">
-            <div className="strategist-header-badge">
-              <span>♟️</span>
-              <span>STRATEGIC COMMAND</span>
-              <span>♟️</span>
-            </div>
-            <div className="strategist-title">♟️ TACTICAL MANEUVER ♟️</div>
-            <div className="strategist-subtitle">REPOSITION OPERATIVE TO SECURE STRATEGIC GROUND</div>
-          </div>
-
-          <div className="modal-body strategist-tactical-body">
-            <p style={{ fontSize: '0.82rem', color: '#E2E8F0', textAlign: 'center', marginBottom: '14px', lineHeight: 1.4 }}>
-              Execute tactical calculations to reposition forward or backward up to 3 spaces. The destination tile will immediately resolve upon arrival.
-            </p>
-            <div className="strategist-options-grid">
-              {choice.options.map((opt, i) => {
-                const isAdvance = (opt.delta || 0) > 0;
-                const isClue = opt.tileType === 'clue';
-                const isArtifact = opt.tileType === 'artifact';
-                const isGate = opt.tileType === 'timeGate';
-                const isDanger = opt.tileType === 'danger';
-                const isEvent = opt.tileType === 'event';
-
-                const glyph = isClue ? '🔍' : isArtifact ? '🏆' : isGate ? '🌀' : isDanger ? '⚠️' : isEvent ? '📜' : '📍';
-                const tag = isAdvance ? `ADVANCE +${opt.delta}` : `RETREAT ${opt.delta}`;
-
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    className={`strategist-maneuver-card ${isAdvance ? 'card-advance' : 'card-retreat'} ${isClue ? 'highlight-clue' : ''} ${isArtifact ? 'highlight-artifact' : ''}`}
-                    disabled={!isMyTurn && network.mode === 'online'}
-                    onClick={() => { sounds.btnClick?.(); handleSelect(opt.action); }}
-                  >
-                    <div className="maneuver-card-top">
-                      <span className="maneuver-dir-badge">{tag}</span>
-                      <span className="maneuver-tile-glyph">{glyph}</span>
-                    </div>
-                    <div className="maneuver-space-label">Space #{opt.targetIdx + 1}</div>
-                    <div className="maneuver-type-name">{(opt.tileType || 'standard').toUpperCase()} TILE</div>
-                    <div className="maneuver-btn-tag">RELOCATE HERE ➔</div>
                   </button>
                 );
               })}

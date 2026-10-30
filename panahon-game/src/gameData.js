@@ -512,17 +512,17 @@ export const ROLES = {
   STRATEGIST: {
     id: 'strategist',
     name: 'The Strategist',
-    description: 'Master of tactical foresight, positioning, and resource orchestration',
+    description: 'Controls tactical territory and orchestrates supply lines',
     avatar: 'assets/Characters/Copy of strategist.png',
     color: '#F39C12',
     passive: {
-      name: 'Mastermind',
-      description: '+1 to all Event and Danger check rolls. Gain +1 Chrono Energy when landing on a Clue, Event, or Time Gate tile',
+      name: 'Supply Line',
+      description: 'Grants +1 Energy whenever any operative survives a Danger Card',
       cooldown: 0
     },
     active: {
-      name: 'Tactical Maneuver',
-      description: 'Reposition 1 to 3 spaces forward or backward to claim strategic tiles (2 Turn CD, 2 Energy Cost)',
+      name: 'Command Post',
+      description: 'Fortify current tile with a Command Post: Safe haven restoring +2 Energy for you, and charges rivals a 1 Energy toll (2 Turn CD, 2 Energy Cost)',
       cooldown: 2,
       energyCost: 2
     }

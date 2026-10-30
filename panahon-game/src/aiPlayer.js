@@ -356,13 +356,21 @@ class AiController {
               shouldCast = true;
             }
           } else if (player.roleKey === 'STRATEGIST') {
-            const currentTile = state.board[player.currentEra][player.tileIndex];
-            if (currentTile.type === TILE_TYPES.CLUE || currentTile.type === TILE_TYPES.ARTIFACT) {
-              shouldCast = true;
+            // Strategist Tactical Maneuver: scan for high value tile within 3 spaces ahead or behind
+            const eraBoard = state.board[player.currentEra];
+            const numTiles = eraBoard?.length || 16;
+            const deltas = [1, 2, 3, -1, -2, -3];
+            for (const d of deltas) {
+              const targetTile = eraBoard[(player.tileIndex + d + numTiles) % numTiles];
+              if (targetTile && (targetTile.type === TILE_TYPES.CLUE || targetTile.type === TILE_TYPES.ARTIFACT || targetTile.type === TILE_TYPES.TIMEGATE)) {
+                shouldCast = true;
+                break;
+              }
             }
           } else if (player.roleKey === 'ROGUE') {
-            const targets = state.players.filter(p => p.id !== player.id && p.currentEra === player.currentEra && Math.abs(p.tileIndex - player.tileIndex) <= 2);
-            if (targets.length > 0 && player.energy >= 2) {
+            // Rogue Temporal Trap: plant traps on high traffic or objective tiles
+            const currentTile = state.board[player.currentEra][player.tileIndex];
+            if (currentTile.type === TILE_TYPES.CLUE || currentTile.type === TILE_TYPES.ARTIFACT || currentTile.type === TILE_TYPES.TIMEGATE) {
               shouldCast = true;
             }
           } else if (player.roleKey === 'CHRONOMANCER') {
@@ -571,6 +579,30 @@ class AiController {
     if (choiceType === 'guardianRepair') {
       // Repair paradox if high, otherwise recover energy
       const action = player.paradox >= 2 ? 'reduceEnergy' : 'restoreEnergy';
+      engine.resolveChoice(action);
+      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
+      this.scheduleAiStep(engine, network, 650);
+      return;
+    }
+
+    if (choiceType === 'strategistTacticalManeuver') {
+      const options = choice.options || [];
+      const hasRelic = (player.artifactCards?.length || 0) > 0;
+      let chosenOpt = null;
+      if (hasRelic) {
+        chosenOpt = options.find(o => o.tileType === 'artifact');
+      }
+      if (!chosenOpt) {
+        chosenOpt = options.find(o => o.tileType === 'clue');
+      }
+      if (!chosenOpt) {
+        chosenOpt = options.find(o => o.tileType === 'timeGate');
+      }
+      if (!chosenOpt) {
+        const safeOptions = options.filter(o => o.tileType !== 'danger');
+        chosenOpt = safeOptions.find(o => o.delta === 3) || safeOptions[0] || options[0];
+      }
+      const action = chosenOpt ? chosenOpt.action : (options[0]?.action || 'maneuver_1');
       engine.resolveChoice(action);
       network?.sendAction({ type: 'RESOLVE_CHOICE', action });
       this.scheduleAiStep(engine, network, 650);

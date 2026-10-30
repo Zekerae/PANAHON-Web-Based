@@ -1058,6 +1058,51 @@ export class GameEngine {
         }
       }
       this.state.phase = returnPhase;
+    } else if (choiceType === 'strategistTacticalManeuver') {
+      const match = action.match(/^maneuver_([+-]?\d+)$/);
+      if (match) {
+        const delta = parseInt(match[1], 10);
+        const eraBoard = this.state.board[player.currentEra];
+        const numTiles = eraBoard.length;
+
+        // Remove operative from old tile
+        const oldTile = eraBoard[player.tileIndex];
+        if (oldTile && Array.isArray(oldTile.players)) {
+          oldTile.players = oldTile.players.filter(id => id !== player.id);
+        }
+
+        const newTileIndex = (player.tileIndex + delta + numTiles) % numTiles;
+        player.tileIndex = newTileIndex;
+        const newTile = eraBoard[newTileIndex];
+        if (newTile && Array.isArray(newTile.players)) {
+          if (!newTile.players.includes(player.id)) {
+            newTile.players.push(player.id);
+          }
+        }
+
+        const dirStr = delta > 0 ? `+${delta}` : `${delta}`;
+        this.addLog('ability', `♟️ Tactical Maneuver: ${player.name} repositioned ${dirStr} spaces to Space #${newTileIndex + 1} (${(newTile.type || 'standard').toUpperCase()})!`);
+
+        this.state.pendingModal = {
+          type: 'abilityActivate',
+          abilityKey: 'TACTICAL_MANEUVER',
+          playerId: player.id,
+          playerName: player.name,
+          playerRole: 'The Strategist',
+          playerAvatar: player.role?.avatar || 'assets/Characters/Copy of strategist.png',
+          playerColor: player.color || '#F39C12',
+          tileIndex: player.tileIndex,
+          era: player.currentEra,
+          title: 'TACTICAL MANEUVER EXECUTED!',
+          subtitle: 'STRATEGIST ACTIVE ABILITY',
+          description: `${player.name} repositioned ${dirStr} spaces to Space #${newTileIndex + 1} (${(newTile.type || 'standard').toUpperCase()})! Securing strategic board advantage!`
+        };
+
+        this.state.pendingChoice = null;
+        this.resolveTile(player, newTile);
+        return;
+      }
+      this.state.phase = returnPhase;
     } else if (choiceType === 'clueHandLimit') {
       const drawnCard = choice.drawnCard;
 
@@ -1208,6 +1253,12 @@ export class GameEngine {
     }
 
     this.state.phase = 'cardResolution';
+
+    // Strategist Passive: Mastermind (Gain +1 Energy when securing strategic Clue, Event, or Time Gate ground)
+    if (player.roleKey === 'STRATEGIST' && [TILE_TYPES.CLUE, TILE_TYPES.EVENT, TILE_TYPES.TIMEGATE].includes(tile.type)) {
+      this.modifyEnergy(player, 1);
+      this.addLog('ability', `♟️ Mastermind: ${player.name} gained +1 Energy from securing strategic ${tile.type.toUpperCase()} ground! (Now: ${player.energy}/${GAME_CONSTANTS.MAX_ENERGY})`);
+    }
 
     try {
       switch (tile.type) {
@@ -1651,7 +1702,14 @@ export class GameEngine {
                  Object.values(DANGER_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.cardName);
     if (!card) return null;
 
-    const diceRoll = explicitRoll ?? rollDie();
+    let diceRoll = explicitRoll ?? rollDie();
+    if (player.roleKey === 'STRATEGIST') {
+      const bonusRoll = Math.min(6, diceRoll + 1);
+      if (bonusRoll !== diceRoll) {
+        this.addLog('ability', `♟️ Mastermind: ${player.name} calculated risk (+1 to Danger check: ${diceRoll} ➔ ${bonusRoll})!`);
+        diceRoll = bonusRoll;
+      }
+    }
 
     // Group Hazard check (Spanish Danger 1: Bulkang galit)
     if (modal.isGroupHazard || card.isGroupHazard) {
@@ -1749,7 +1807,14 @@ export class GameEngine {
                  (EVENT_CARDS[player.currentEra] || []).find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName) ||
                  Object.values(EVENT_CARDS).flat().find(c => c.id === modal.cardId || c.name === modal.title || c.name === modal.cardName);
 
-    const diceRoll = explicitRoll ?? rollDie();
+    let diceRoll = explicitRoll ?? rollDie();
+    if (player.roleKey === 'STRATEGIST') {
+      const bonusRoll = Math.min(6, diceRoll + 1);
+      if (bonusRoll !== diceRoll) {
+        this.addLog('ability', `♟️ Mastermind: ${player.name} calculated risk (+1 to Event check: ${diceRoll} ➔ ${bonusRoll})!`);
+        diceRoll = bonusRoll;
+      }
+    }
     const success = (card && typeof card.check === 'function')
       ? card.check(diceRoll)
       : (diceRoll >= 4);
@@ -2101,7 +2166,7 @@ export class GameEngine {
     if (trap.ownerName && player.name === trap.ownerName) {
       return true;
     }
-    if (player.roleKey === 'STRATEGIST' && (!trap.ownerRole || trap.ownerRole === 'STRATEGIST')) {
+    if (player.roleKey === 'ROGUE' && (!trap.ownerRole || trap.ownerRole === 'ROGUE')) {
       return true;
     }
     return false;
@@ -2112,18 +2177,18 @@ export class GameEngine {
     const trap = tile.trap;
     tile.trap = null;
 
-    // Find the trap owner (the Strategist who planted it)
+    // Find the trap owner (the Rogue who planted it)
     const trapOwner = this.state.players.find(
       p => p.id === trap.ownerId ||
            String(p.id) === String(trap.ownerId) ||
            (trap.ownerName && p.name === trap.ownerName) ||
-           p.roleKey === 'STRATEGIST'
+           p.roleKey === 'ROGUE'
     ) || this.state.players[trap.ownerId];
 
-    const ownerName = trapOwner ? trapOwner.name : 'The Strategist';
+    const ownerName = trapOwner ? trapOwner.name : 'The Rogue';
     this.addLog('trap', `🕸️ ${player.name} landed on ${ownerName}'s Temporal Trap!`);
 
-    // Strategist passive: +1 energy to trap owner
+    // Rogue passive: +1 energy to trap owner from Trap Mastery
     if (trapOwner) {
       this.modifyEnergy(trapOwner, 1);
       this.addLog('ability', `⚡ ${trapOwner.name} gained +1 Energy from Trap Mastery! (Now: ${trapOwner.energy}/${GAME_CONSTANTS.MAX_ENERGY})`);
@@ -2644,10 +2709,56 @@ export class GameEngine {
         };
         break;
 
-      case 'STRATEGIST':
-        // Temporal Trap
+      case 'STRATEGIST': {
+        // Tactical Maneuver: Reposition 1 to 3 spaces forward or backward (2 Turn CD, 2 Energy Cost)
         if (player.energy < 2) {
-          this.addLog('warning', 'Not enough Energy for Temporal Trap!');
+          this.addLog('warning', 'Not enough Energy for Tactical Maneuver! Requires 2 Energy.');
+          return false;
+        }
+
+        const eraBoard = this.state.board[player.currentEra];
+        const numTiles = eraBoard.length;
+
+        // Vector options: Advance +1, +2, +3, Retreat -1, -2, -3
+        const deltas = [1, 2, 3, -1, -2, -3];
+        const options = deltas.map(delta => {
+          const targetIdx = (player.tileIndex + delta + numTiles) % numTiles;
+          const targetTile = eraBoard[targetIdx];
+          const dir = delta > 0 ? `Advance +${delta}` : `Retreat ${delta}`;
+          const typeName = (targetTile.type || 'standard').toUpperCase();
+          const tileGlyph = targetTile.type === 'clue' ? '🔍' :
+                            targetTile.type === 'artifact' ? '🏆' :
+                            targetTile.type === 'timeGate' ? '🌀' :
+                            targetTile.type === 'event' ? '📜' :
+                            targetTile.type === 'danger' ? '⚠️' : '📍';
+          return {
+            label: `${dir} ➔ Space #${targetIdx + 1} (${tileGlyph} ${typeName})`,
+            action: `maneuver_${delta}`,
+            delta,
+            targetIdx,
+            tileType: targetTile.type
+          };
+        });
+
+        this.modifyEnergy(player, -2);
+        player.usedAbilityThisTurn = true;
+        player.activeCooldown = ROLES.STRATEGIST.active.cooldown;
+
+        this.state.pendingChoice = {
+          type: 'strategistTacticalManeuver',
+          returnPhase: this.state.phase,
+          title: '♟️ Tactical Maneuver (Strategist)',
+          message: 'Select your tactical repositioning vector:',
+          options
+        };
+        this.addLog('ability', `♟️ ${player.name} calculates optimal trajectory and initiates Tactical Maneuver!`);
+        break;
+      }
+
+      case 'ROGUE': {
+        // Temporal Trap: Arm a hidden Danger Trap on your current tile (2 Turn CD, 2 Energy Cost)
+        if (player.energy < 2) {
+          this.addLog('warning', 'Not enough Energy for Temporal Trap! Requires 2 Energy.');
           return false;
         }
         this.modifyEnergy(player, -2);
@@ -2660,76 +2771,22 @@ export class GameEngine {
           tileIndex: player.tileIndex
         };
         player.usedAbilityThisTurn = true;
-        player.activeCooldown = ROLES.STRATEGIST.active.cooldown;
+        player.activeCooldown = ROLES.ROGUE.active.cooldown;
         this.state.pendingModal = {
           type: 'abilityActivate',
           abilityKey: 'TEMPORAL_TRAP',
           playerId: player.id,
           playerName: player.name,
-          playerRole: 'The Strategist',
-          playerAvatar: player.role?.avatar || 'assets/Characters/Copy of strategist.png',
-          playerColor: player.color || '#F39C12',
+          playerRole: 'The Rogue',
+          playerAvatar: player.role?.avatar || 'assets/Characters/rogue_128x128.png',
+          playerColor: player.color || '#9B59B6',
           tileIndex: player.tileIndex,
           era: player.currentEra,
           title: 'TEMPORAL TRAP ARMED!',
-          subtitle: 'STRATEGIST ACTIVE ABILITY',
+          subtitle: 'ROGUE ACTIVE ABILITY',
           description: `${player.name} armed a lethal Temporal Trap on Space #${player.tileIndex + 1}! Any rival operative landing here will trigger a Hazard penalty and grant +1 Energy to ${player.name}!`
         };
         this.addLog('ability', `🕸️ ${player.name} planted a Temporal Trap on Space #${player.tileIndex + 1}!`);
-        break;
-
-      case 'ROGUE': {
-        // Pickpocket / Swipe: Target a player within 2 tiles to steal 1 Clue Card or 2 Energy (3 Turn CD, 2 Energy Cost)
-        if (player.energy < 2) {
-          this.addLog('warning', 'Not enough Energy for Pickpocket! Requires 2 Energy.');
-          return false;
-        }
-
-        const targets = this.state.players.filter(p => 
-          p.id !== player.id && 
-          p.currentEra === player.currentEra && 
-          Math.abs(p.tileIndex - player.tileIndex) <= 2
-        );
-
-        if (targets.length === 0) {
-          this.addLog('warning', 'No operatives within 2 tiles to Pickpocket!');
-          return false;
-        }
-
-        this.modifyEnergy(player, -2);
-        player.usedAbilityThisTurn = true;
-        player.activeCooldown = ROLES.ROGUE.active.cooldown;
-
-        const options = [];
-        targets.forEach(tgt => {
-          if (tgt.clueCards && tgt.clueCards.length > 0) {
-            options.push({
-              label: `🔍 Steal 1 Clue Card from ${tgt.name} (${tgt.clueCards.length} held)`,
-              action: `steal_clue_${tgt.id}`
-            });
-          }
-          if (tgt.energy > 0) {
-            const stealAmount = Math.min(2, tgt.energy);
-            options.push({
-              label: `⚡ Steal ${stealAmount} Energy from ${tgt.name} (${tgt.energy} En held)`,
-              action: `steal_energy_${tgt.id}`
-            });
-          }
-        });
-
-        if (options.length === 0) {
-          this.addLog('info', `${player.name} scanned nearby operatives, but their pockets are completely barren!`);
-          break;
-        }
-
-        this.state.pendingChoice = {
-          type: 'roguePickpocket',
-          returnPhase: this.state.phase,
-          title: '🗡️ Pickpocket / Swipe (Rogue)',
-          message: 'Choose an operative within 2 tiles to pickpocket:',
-          options
-        };
-        this.addLog('ability', `🗡️ ${player.name} targets nearby operatives with Pickpocket!`);
         break;
       }
 

@@ -9314,6 +9314,164 @@ html, body, #app, .app-root {
   border: 2px solid #c2974d !important;
   box-shadow: inset 1px 1px 0 #ebd07d, inset -1px -1px 0 #5c3e16 !important;
   border-radius: 4px !important;
+  padding: 5px 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.hand-tab-body.tab-body-mission {
+  overflow-y: hidden !important;
+}
+
+.mission-compact-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.mission-era-pill {
+  font-size: 0.65rem;
+  background: #140e0a;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid #5a422d;
+  color: #e5c58a;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mission-lock-pill {
+  font-size: 0.65rem;
+  font-weight: 800;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid #5a422d;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+.mission-desc-inline {
+  font-size: 0.67rem;
+  color: #bca380;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 48%;
+  line-height: 1.2;
+}
+
+.mission-triangulation-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.mission-step-chips {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.mission-step-chip {
+  padding: 3px 7px;
+  height: 22px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #140e0a;
+  border: 1px dashed #5a422d;
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: #8c7662;
+  white-space: nowrap;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.mission-step-chip.step-done {
+  background: linear-gradient(180deg, #4d3826 0%, #352518 100%);
+  border: 1.5px solid #f5c442;
+  box-shadow: inset 1px 1px 0 #ebd07d;
+  color: #ffd700;
+}
+
+.mission-step-chip .step-icon {
+  font-size: 0.7rem;
+}
+
+.mission-directive-pill {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3px 8px;
+  height: 22px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid #4d3826;
+  border-left: 3px solid #f59e0b;
+  border-radius: 4px;
+  font-size: 0.67rem;
+  color: #fde68a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+}
+
+.mission-phase-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mission-phase-row.phase-retrieve {
+  background: linear-gradient(90deg, #422006 0%, #1e120a 100%);
+  border: 1px solid #f59e0b;
+}
+
+.mission-phase-row.phase-return {
+  background: linear-gradient(90deg, #1b3834 0%, #1a120b 100%);
+  border: 1px solid #5eead4;
+}
+
+.mission-completed-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #3a2e1e 0%, #20170e 100%);
+  border: 1.5px solid #c2974d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mission-phase-tag {
+  font-weight: 800;
+  font-size: 0.68rem;
+  color: #ffd700;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .mission-desc-inline {
+    display: none;
+  }
 }
 
 /* 9. Header Bar (Top Carved Lintel) */
@@ -10658,7 +10816,8 @@ html, body, #app, .app-root {
 .timestop-modal-overlay,
 .ability-immersion-overlay,
 .guardian-sanctum-overlay,
-.rogue-shadow-overlay {
+.rogue-shadow-overlay,
+.strategist-tactical-overlay {
   position: fixed;
   inset: 0;
   z-index: 10050;
@@ -10675,7 +10834,8 @@ html, body, #app, .app-root {
 .timestop-frost-vignette,
 .ability-vignette-backdrop,
 .guardian-sanctum-backdrop,
-.rogue-shadow-backdrop {
+.rogue-shadow-backdrop,
+.strategist-tactical-backdrop {
   position: absolute;
   inset: 0;
   background: radial-gradient(circle at center, rgba(40, 32, 26, 0.85) 0%, rgba(20, 14, 10, 0.95) 75%, #0a0705 100%);
@@ -10783,7 +10943,8 @@ html, body, #app, .app-root {
 .modal.timestop-card-modal,
 .modal.ability-immersion-modal,
 .modal.guardian-sanctum-modal,
-.modal.rogue-shadow-modal {
+.modal.rogue-shadow-modal,
+.modal.strategist-tactical-modal {
   position: relative;
   z-index: 2;
   max-width: 530px;
@@ -10803,7 +10964,8 @@ html, body, #app, .app-root {
 .timestop-header,
 .ability-modal-header,
 .guardian-sanctum-header,
-.rogue-header {
+.rogue-header,
+.strategist-tactical-header {
   margin-bottom: 14px;
   display: flex;
   flex-direction: column;
@@ -10813,7 +10975,8 @@ html, body, #app, .app-root {
 .timestop-header-badge,
 .ability-header-badge,
 .guardian-header-badge,
-.rogue-header-badge {
+.rogue-header-badge,
+.strategist-header-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -10834,7 +10997,8 @@ html, body, #app, .app-root {
 .timestop-title,
 .ability-modal-title,
 .guardian-title,
-.rogue-title {
+.rogue-title,
+.strategist-title {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -10857,7 +11021,8 @@ html, body, #app, .app-root {
 .timestop-subtitle,
 .ability-hero-caption .hero-class,
 .guardian-subtitle,
-.rogue-subtitle {
+.rogue-subtitle,
+.strategist-subtitle {
   font-family: var(--font-body);
   font-size: 0.8rem;
   font-weight: 700;
@@ -11365,6 +11530,107 @@ html, body, #app, .app-root {
   font-size: 0.8rem;
   color: #E6D5B8;
   margin: 4px 0;
+}
+
+/* 11. Strategist Tactical Maneuver Grid & Vector Cards */
+.strategist-options-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .strategist-options-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.strategist-maneuver-card {
+  background: #19120D !important;
+  border: 1.5px solid #4D3826 !important;
+  border-radius: 4px !important;
+  box-shadow: inset 1px 1px 0 #0F0A07, inset -1px -1px 0 #3D2F23, 0 3px 6px rgba(0, 0, 0, 0.6) !important;
+  padding: 10px 8px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease-in-out;
+}
+
+.strategist-maneuver-card:hover:not(:disabled) {
+  background: #2A1D13 !important;
+  border-color: #F59E0B !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.55), inset 0 0 4px rgba(245, 158, 11, 0.25) !important;
+  transform: translateY(-2px) !important;
+}
+
+.strategist-maneuver-card.highlight-clue {
+  border-color: #38BDF8 !important;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.35) !important;
+}
+
+.strategist-maneuver-card.highlight-artifact {
+  border-color: #FACC15 !important;
+  box-shadow: 0 0 8px rgba(250, 204, 21, 0.45) !important;
+}
+
+.maneuver-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.maneuver-dir-badge {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #F59E0B;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid #784C0B;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.card-retreat .maneuver-dir-badge {
+  color: #94A3B8;
+  background: rgba(148, 163, 184, 0.12);
+  border-color: #475569;
+}
+
+.maneuver-tile-glyph {
+  font-size: 1.1rem;
+}
+
+.maneuver-space-label {
+  font-family: var(--font-display);
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #F8FAFC;
+  margin-top: 2px;
+}
+
+.maneuver-type-name {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  color: #CBD5E1;
+  letter-spacing: 0.5px;
+}
+
+.maneuver-btn-tag {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #FCD34D;
+  background: linear-gradient(180deg, #3B2A1C 0%, #251810 100%);
+  border: 1px solid #784C0B;
+  border-radius: 2px;
+  padding: 3px 6px;
+  margin-top: 4px;
+  width: 100%;
 }
 
 /* ==========================================================================

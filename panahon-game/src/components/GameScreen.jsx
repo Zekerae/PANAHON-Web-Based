@@ -6,10 +6,11 @@ import GameHeader from './game/GameHeader.jsx';
 import PlayerSidebar from './game/PlayerSidebar.jsx';
 import GameBoard from './game/GameBoard.jsx';
 import GameActions from './game/GameActions.jsx';
+import TurnActionModal from './game/TurnActionModal.jsx';
+import Dice from './game/Dice.jsx';
 import PlayerHand from './game/PlayerHand.jsx';
 import PauseModal from './PauseModal.jsx';
 import GameIntroModal from './game/GameIntroModal.jsx';
-import Dice from './game/Dice.jsx';
 
 function GameScreen({
   state,
@@ -32,7 +33,8 @@ function GameScreen({
 }) {
   const [activeHandTab, setActiveHandTab] = useState('mission');
   const [inspectedPlayerId, setInspectedPlayerId] = useState(null);
-  const [showMobileDice, setShowMobileDice] = useState(false);
+  const [rollResultVisible, setRollResultVisible] = useState(false);
+  const [diceHandoffPhase, setDiceHandoffPhase] = useState('idle');
   const [isRolling, setIsRolling] = useState(false);
   const [mobileGameTab, setMobileGameTab] = useState("board");
   const [isPaused, setIsPaused] = useState(false);
@@ -40,6 +42,19 @@ function GameScreen({
   const [omniscientIntel, setOmniscientIntel] = useState(false);
   const [showIntro, setShowIntro] = useState(() => !state?.hasCompletedIntro);
   const [showDebugModal, setShowDebugModal] = useState(false);
+  const rollTimerRef = useRef(null);
+  const rollResultTimerRef = useRef(null);
+  const resultDiceRef = useRef(null);
+  const trajectoryDiceRef = useRef(null);
+  const diceGhostRef = useRef(null);
+  const diceGhostAnimationRef = useRef(null);
+
+  useEffect(() => () => {
+    if (rollTimerRef.current) clearTimeout(rollTimerRef.current);
+    if (rollResultTimerRef.current) clearTimeout(rollResultTimerRef.current);
+    diceGhostAnimationRef.current?.cancel();
+    diceGhostRef.current?.remove();
+  }, []);
 
   const effectiveIsSpectator = Boolean(
     isSpectator ||
@@ -196,6 +211,20 @@ function GameScreen({
     prevIsMyTurnRef.current = isMyTurn;
   }, [isMyTurn]);
 
+  // Keep the board as the visual context behind turn prompts on mobile.
+  useEffect(() => {
+    if (
+      isMyTurn &&
+      (state?.phase === 'rolling' || state?.phase === 'action') &&
+      !state?.pendingModal &&
+      !state?.pendingChoice &&
+      !showIntro &&
+      !isPaused
+    ) {
+      setMobileGameTab('board');
+    }
+  }, [isMyTurn, state?.phase, state?.pendingModal, state?.pendingChoice, showIntro, isPaused]);
+
   let timelineClass = 'safe';
   if (timelineLevel >= 4) timelineClass = 'danger';
   else if (timelineLevel >= 2) timelineClass = 'warning';
@@ -222,6 +251,69 @@ function GameScreen({
     network.sendAction({ type: 'SKIP_TURN', playerIdx: state.currentPlayerIndex });
   }, [isMyTurn, isRolling, state.currentPlayerIndex, engine, network]);
 
+  const runDiceHandoff = useCallback(() => {
+    const source = resultDiceRef.current?.querySelector('.pixel-dice-container');
+    const target = trajectoryDiceRef.current?.querySelector('.pixel-dice-container');
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+    const revealDestination = () => {
+      if (trajectoryDiceRef.current) trajectoryDiceRef.current.style.visibility = '';
+      diceGhostRef.current?.remove();
+      diceGhostRef.current = null;
+      diceGhostAnimationRef.current = null;
+      setDiceHandoffPhase('settled');
+    };
+
+    if (!source || !target || prefersReducedMotion || typeof source.animate !== 'function') {
+      setRollResultVisible(false);
+      revealDestination();
+      return;
+    }
+
+    const sourceRect = source.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const ghost = source.cloneNode(true);
+    const scale = targetRect.width / sourceRect.width;
+
+    Object.assign(ghost.style, {
+      position: 'fixed',
+      left: `${sourceRect.left}px`,
+      top: `${sourceRect.top}px`,
+      width: `${sourceRect.width}px`,
+      height: `${sourceRect.height}px`,
+      margin: '0',
+      zIndex: '12050',
+      pointerEvents: 'none',
+      transformOrigin: 'top left'
+    });
+    ghost.classList.add('dice-handoff-ghost');
+    document.body.appendChild(ghost);
+    diceGhostRef.current = ghost;
+    source.style.visibility = 'hidden';
+    trajectoryDiceRef.current.style.visibility = 'hidden';
+    setDiceHandoffPhase('active');
+    setRollResultVisible(false);
+
+    const animation = ghost.animate([
+      {
+        transform: 'translate3d(0, 0, 0) scale(1) rotate(0deg)',
+        filter: 'drop-shadow(0 0 18px rgba(245, 196, 66, 0.72))',
+        opacity: 1
+      },
+      {
+        transform: `translate3d(${targetRect.left - sourceRect.left}px, ${targetRect.top - sourceRect.top}px, 0) scale(${scale}) rotate(-2deg)`,
+        filter: 'drop-shadow(0 0 8px rgba(34, 211, 238, 0.58))',
+        opacity: 1
+      }
+    ], {
+      duration: 560,
+      easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+      fill: 'forwards'
+    });
+    diceGhostAnimationRef.current = animation;
+    animation.finished.then(revealDestination).catch(() => revealDestination());
+  }, []);
+
   const handleRollDice = useCallback(() => {
     if (isRolling || state.phase !== 'rolling' || !isMyTurn) return;
     if (currentPlayer && ((currentPlayer.energy <= 0 && !state.momentumActive) || currentPlayer.skipNextTurn)) {
@@ -229,23 +321,28 @@ function GameScreen({
       return;
     }
     setIsRolling(true);
-    setShowMobileDice(true);
+    setRollResultVisible(false);
+    setDiceHandoffPhase('idle');
     sounds.diceRoll();
 
-    setTimeout(() => {
+    if (rollTimerRef.current) clearTimeout(rollTimerRef.current);
+    rollTimerRef.current = setTimeout(() => {
       if (engine.state.phase === 'rolling') {
         const result = engine.rollDice();
         if (result) {
           network.sendAction({ type: 'ROLL_DICE', result });
+          setRollResultVisible(true);
+          if (rollResultTimerRef.current) clearTimeout(rollResultTimerRef.current);
+          rollResultTimerRef.current = setTimeout(() => {
+            runDiceHandoff();
+            rollResultTimerRef.current = null;
+          }, 550);
         }
       }
       setIsRolling(false);
-      // Auto-hide mobile dice after displaying result so player sees the roll
-      setTimeout(() => {
-        setShowMobileDice(false);
-      }, 950);
+      rollTimerRef.current = null;
     }, 650);
-  }, [isRolling, state.phase, isMyTurn, currentPlayer, engine, network]);
+  }, [isRolling, state.phase, isMyTurn, currentPlayer, engine, network, runDiceHandoff]);
 
   const handleStepMove = useCallback(() => {
     if (state.phase !== 'moving' || state.movesRemaining <= 0 || !isMyTurn) return;
@@ -352,7 +449,8 @@ function GameScreen({
   }, [isMyTurn, currentPlayer, engine, state?.currentPlayerIndex, network]);
 
   const handleEndTurn = useCallback(() => {
-    if (state.phase !== 'action' || !isMyTurn) {
+    const canEndTurn = state.phase === 'action' || (currentPlayer?.completed && state.phase === 'rolling');
+    if (!canEndTurn || !isMyTurn) {
       gameLogger.warn(LOG_CATEGORIES.TURN, `handleEndTurn blocked: phase="${state.phase}", isMyTurn=${isMyTurn}, movesRemaining=${state.movesRemaining}`);
       return;
     }
@@ -578,44 +676,30 @@ function GameScreen({
         onMoveToTile={handleMoveToTile}
       />
 
-      {/* MOBILE DICE ROLL OVERLAY */}
-      {showMobileDice && (
-        <div
-          className="mobile-dice-overlay"
-          onClick={() => setShowMobileDice(false)}
-          role="dialog"
-          aria-label="Dice Roll Animation"
-        >
-          <div className="mobile-dice-card" onClick={(e) => e.stopPropagation()}>
-            <div className="mobile-dice-header">
-              {isRolling ? 'ROLLING CHRONO DIE...' : `ROLLED ${state.diceResult || 1}!`}
-            </div>
-            <div className="mobile-dice-stage">
-              <Dice
-                value={state.diceResult}
-                isRolling={isRolling}
-                size="lg"
-                theme="chrono"
-                isInteractive={false}
-              />
-            </div>
-            <div className="mobile-dice-footer">
-              {isRolling ? (
-                <span className="mobile-dice-status-rolling">⚡ Quantum flux spinning...</span>
-              ) : (
-                <span className="mobile-dice-status-landed">
-                  {state.movementDirection === 'backward' ? '⏪' : '🚶'} <strong>{state.movesRemaining || state.diceResult || 1}</strong> Moves Granted
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* TURN DECISION MODAL: hidden during movement so the board stays unobstructed */}
+      <TurnActionModal
+        state={state}
+        currentPlayer={currentPlayer}
+        isMyTurn={isMyTurn}
+        isRolling={isRolling}
+        rollResultVisible={rollResultVisible}
+        resultDiceRef={resultDiceRef}
+        blocked={Boolean(showIntro || isPaused || showDebugModal || state.pendingModal || state.pendingChoice)}
+        onRollDice={handleRollDice}
+        onRest={handleRest}
+        onAcknowledgeSkip={handleAcknowledgeSkip}
+        onUseSkill={handleUseSkill}
+        onReturnArtifact={handleReturnArtifact}
+        onCoopStabilizeTimeline={handleCoopStabilizeTimeline}
+        onCoopTransferEnergy={handleCoopTransferEnergy}
+        onEndTurn={handleEndTurn}
+        onTimeWarp={handleTimeWarp}
+      />
 
       {/* MOBILE BOARD QUICK ACTION DOCK (Floating on map in mobile view) */}
-      <div className="mobile-board-quick-dock">
-        {isMyTurn ? (
-          <div className="mobile-dock-inner">
+      <div className={`mobile-board-quick-dock ${rollResultVisible ? 'trajectory-handoff-pending' : ''} ${diceHandoffPhase === 'settled' ? 'trajectory-handoff-settled' : ''}`}>
+        {isMyTurn && state.phase === 'moving' && (hasPreMovementDecision || state.momentumActive) ? (
+          <div className={`mobile-dock-inner ${hasPreMovementDecision ? 'trajectory-control-overlay' : 'momentum-control-overlay'}`}>
             {state.phase === 'rolling' && (
               <div className="mobile-dock-roll-group" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {currentPlayer?.skipNextTurn ? (
@@ -678,17 +762,35 @@ function GameScreen({
 
             {state.phase === 'moving' && (
               <div className="mobile-dock-moving-group">
-                <span className="mobile-dock-moves-badge">
-                  🎲 <strong>{state.diceResult || state.movesRemaining}</strong> &bull; {state.movementDirection === 'backward' ? '⏪' : '🚶'} Moves: <strong>{state.movesRemaining}</strong>
-                </span>
+                {hasPreMovementDecision && (
+                  <div
+                    ref={trajectoryDiceRef}
+                    key={`${state.currentPlayerIndex}-${state.initialRoll || state.diceResult}`}
+                    className="trajectory-dice-chip"
+                    aria-label={`Rolled ${state.initialRoll || state.diceResult}; ${state.movesRemaining} movement spaces`}
+                  >
+                    <Dice
+                      value={state.initialRoll || state.diceResult}
+                      size="sm"
+                      theme="chrono"
+                      isInteractive={false}
+                    />
+                    <span className="trajectory-dice-result">
+                      <strong>{state.initialRoll || state.diceResult}</strong>
+                      {state.movesRemaining !== (state.initialRoll || state.diceResult) && (
+                        <small>→ {state.movesRemaining} spaces</small>
+                      )}
+                    </span>
+                  </div>
+                )}
 
                 {canReverseTime && (
                   <button
                     type="button"
-                    className="btn btn-warning mobile-dock-btn"
+                    className="btn mobile-dock-btn trajectory-reverse-btn"
                     onClick={handleReverseTime}
                   >
-                    ⏪ Reverse (-3 En)
+                    ⏪ Reverse · -3 EN
                   </button>
                 )}
 
@@ -696,31 +798,21 @@ function GameScreen({
                   <>
                     <button
                       type="button"
-                      className="btn mobile-dock-btn"
+                      className="btn mobile-dock-btn trajectory-foresight-btn"
                       disabled={state.movesRemaining <= 1}
                       onClick={() => handleAdjustForesight(-1)}
-                      style={{
-                        background: state.movesRemaining > 1 ? '#13352F' : '#221913',
-                        border: '1.5px solid #1ABC9C',
-                        color: state.movesRemaining > 1 ? '#5EEAD4' : '#6B7280'
-                      }}
                       title="Temporal Foresight: -1 Space"
                     >
-                      ⏳ -1 Sp
+                      −1 Space
                     </button>
                     <button
                       type="button"
-                      className="btn mobile-dock-btn"
+                      className="btn mobile-dock-btn trajectory-foresight-btn"
                       disabled={state.movesRemaining >= 6}
                       onClick={() => handleAdjustForesight(1)}
-                      style={{
-                        background: state.movesRemaining < 6 ? '#13352F' : '#221913',
-                        border: '1.5px solid #1ABC9C',
-                        color: state.movesRemaining < 6 ? '#5EEAD4' : '#6B7280'
-                      }}
                       title="Temporal Foresight: +1 Space"
                     >
-                      ⏳ +1 Sp
+                      +1 Space
                     </button>
                   </>
                 )}
@@ -737,16 +829,13 @@ function GameScreen({
 
                 <button
                   type="button"
-                  className="btn btn-primary mobile-dock-btn mobile-dock-move-btn"
+                  className={`btn mobile-dock-btn mobile-dock-move-btn ${hasPreMovementDecision ? 'trajectory-confirm-btn' : ''}`}
                   onClick={handleStepMove}
-                  style={hasPreMovementDecision ? {
-                    borderColor: '#5EEAD4',
-                    color: '#5EEAD4',
-                    boxShadow: '0 0 10px rgba(94, 234, 212, 0.4)'
-                  } : undefined}
                 >
                   {hasPreMovementDecision
-                    ? (state.movementDirection === 'backward' ? '⬅️ Confirm Back' : '➡️ Confirm Move')
+                    ? (state.movementDirection === 'backward'
+                      ? `⬅️ Confirm Back · ${state.movesRemaining} ${state.movesRemaining === 1 ? 'Space' : 'Spaces'}`
+                      : `➡️ Confirm Move · ${state.movesRemaining} ${state.movesRemaining === 1 ? 'Space' : 'Spaces'}`)
                     : (state.movementDirection === 'backward' ? '⬅️ Step Back' : '➡️ Step Forward')}
                 </button>
               </div>
@@ -820,18 +909,7 @@ function GameScreen({
               </div>
             )}
           </div>
-        ) : (
-          <div className="mobile-dock-turn-banner" style={{ borderLeft: `3px solid ${currentPlayer?.color || '#38BDF8'}` }}>
-            <span>Turn: <strong style={{ color: currentPlayer?.color }}>{currentPlayer?.name}</strong> {isAiCurrent ? '🤖' : '👤'}</span>
-            <button
-              type="button"
-              className="btn btn-secondary mobile-dock-btn"
-              onClick={() => setMobileGameTab("actions")}
-            >
-              Chronicle →
-            </button>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* 4. RIGHT PANEL: ACTIONS & CHRONICLE */}
@@ -864,6 +942,8 @@ function GameScreen({
         onToggleOmniscientIntel={(val) => setOmniscientIntel(val)}
         simulationSpeed={simulationSpeed}
         onChangeSimulationSpeed={onChangeSimulationSpeed}
+        showTurnControls={false}
+        replaceChronicle={false}
       />
 
       {/* 5. BOTTOM PANEL: HAND & MISSIONS */}

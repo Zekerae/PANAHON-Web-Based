@@ -1,7 +1,32 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import sounds from '../sound.js';
 import { ERA_NAMES, ARTIFACTS, GAME_CONSTANTS } from '../gameData.js';
+import { getBoardCardPreviewImage } from '../utils/cardPreview.js';
 import Dice from './game/Dice';
+
+function SideCardPlacement({ children, mapImage = null }) {
+  const [targets, setTargets] = useState(null);
+
+  useLayoutEffect(() => {
+    const desktop = window.matchMedia('(min-width: 921px) and (min-height: 551px)');
+    const updateTargets = () => {
+      const dock = desktop.matches ? document.getElementById('side-card-dock') : null;
+      const map = desktop.matches ? document.getElementById('board-card-image-dock') : null;
+      setTargets(dock && map ? { dock, map } : null);
+    };
+    updateTargets();
+    desktop.addEventListener('change', updateTargets);
+    return () => desktop.removeEventListener('change', updateTargets);
+  }, []);
+
+  return targets ? (
+    <>
+      {createPortal(children, targets.dock)}
+      {mapImage && createPortal(mapImage, targets.map)}
+    </>
+  ) : children;
+}
 
 export function MaximizedCardPreview({ data, onClose }) {
   if (!data) return null;
@@ -301,7 +326,7 @@ export function MaximizedCardPreview({ data, onClose }) {
     return (
       <div className="modal-overlay danger-modal-overlay" style={{ zIndex: 10000 }}>
         <div className="danger-vignette-backdrop" />
-        <div className="modal danger-card-modal card-preview-modal" style={{ maxWidth: "530px", width: "94%", animation: "modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+        <div className="modal danger-card-modal danger-split-modal card-preview-modal" style={{ animation: "modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
           <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
 
           <div className="danger-header">
@@ -322,9 +347,9 @@ export function MaximizedCardPreview({ data, onClose }) {
             )}
           </div>
 
-          <div className="modal-body danger-modal-body">
-            <div className="danger-chamber-stage">
-              <div className="danger-card-frame">
+          <div className="modal-body danger-modal-body danger-split-layout">
+            <div className="danger-visual-column">
+              <div className="danger-card-frame danger-card-frame-large">
                 {data.image ? (
                   <img src={data.image} alt={data.title} className="danger-card-img" />
                 ) : (
@@ -343,38 +368,40 @@ export function MaximizedCardPreview({ data, onClose }) {
               </div>
             </div>
 
-            <div className="danger-lore-box">
-              <div className="danger-lore-title">HAZARD REPORT</div>
-              <div className="danger-lore-desc">{data.description}</div>
-            </div>
-
-            {data.diceRoll !== null && data.diceRoll !== undefined && (
-              <div className={`danger-outcome-plaque ${data.success ? 'outcome-evaded' : 'outcome-failed'}`}>
-                <div className="outcome-dice-wrap">
-                  <Dice value={data.diceRoll} size="sm" theme={data.success ? 'success' : 'hazard'} isInteractive={false} />
-                </div>
-                <div className="outcome-details">
-                  <div className="outcome-verdict">
-                    {data.success ? '✓ HAZARD EVADED!' : '✗ HAZARD TRIGGERED!'}
-                    <span className="outcome-roll-val">(Rolled {data.diceRoll})</span>
-                  </div>
-                  <div className="outcome-msg">
-                    {data.success ? (data.successMsg || 'Survival check passed!') : (data.failMsg || 'Hazard penalty suffered!')}
-                  </div>
-                  {data.guardianReduction && (
-                    <div className="guardian-relief-tag">
-                      🛡️ GUARDIAN MASTERY: Hazard penalty reduced by 1!
-                    </div>
-                  )}
-                </div>
+            <div className="danger-details-column">
+              <div className="danger-lore-box">
+                <div className="danger-lore-title">HAZARD REPORT</div>
+                <div className="danger-lore-desc">{data.description}</div>
               </div>
-            )}
-          </div>
 
-          <div className="modal-actions danger-modal-actions">
-            <button className="btn btn-primary danger-continue-btn" onClick={() => { sounds.btnClick(); onClose(); }}>
-              Close Inspection
-            </button>
+              {data.diceRoll !== null && data.diceRoll !== undefined && (
+                <div className={`danger-outcome-plaque ${data.success ? 'outcome-evaded' : 'outcome-failed'}`}>
+                  <div className="outcome-dice-wrap">
+                    <Dice value={data.diceRoll} size="sm" theme={data.success ? 'success' : 'hazard'} isInteractive={false} />
+                  </div>
+                  <div className="outcome-details">
+                    <div className="outcome-verdict">
+                      {data.success ? '✓ HAZARD EVADED!' : '✗ HAZARD TRIGGERED!'}
+                      <span className="outcome-roll-val">(Rolled {data.diceRoll})</span>
+                    </div>
+                    <div className="outcome-msg">
+                      {data.success ? (data.successMsg || 'Survival check passed!') : (data.failMsg || 'Hazard penalty suffered!')}
+                    </div>
+                    {data.guardianReduction && (
+                      <div className="guardian-relief-tag">
+                        🛡️ GUARDIAN MASTERY: Hazard penalty reduced by 1!
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="modal-actions danger-modal-actions danger-details-actions">
+                <button className="btn btn-primary danger-continue-btn" onClick={() => { sounds.btnClick(); onClose(); }}>
+                  Close Inspection
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -385,7 +412,7 @@ export function MaximizedCardPreview({ data, onClose }) {
     return (
       <div className="modal-overlay event-modal-overlay" style={{ zIndex: 10000 }}>
         <div className="event-vignette-backdrop" />
-        <div className="modal event-card-modal card-preview-modal" style={{ maxWidth: "530px", width: "94%", animation: "modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+        <div className="modal event-card-modal event-split-modal card-preview-modal" style={{ animation: "modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)" }}>
           <button className="modal-close" onClick={() => { sounds.btnClick(); onClose(); }}>&times;</button>
 
           <div className="event-header">
@@ -406,9 +433,9 @@ export function MaximizedCardPreview({ data, onClose }) {
             )}
           </div>
 
-          <div className="modal-body event-modal-body">
-            <div className="event-chamber-stage">
-              <div className="event-card-frame">
+          <div className="modal-body event-modal-body danger-split-layout event-split-layout">
+            <div className="danger-visual-column event-visual-column">
+              <div className="event-card-frame danger-card-frame-large event-card-frame-large">
                 {data.image ? (
                   <img src={data.image} alt={data.title} className="event-card-img" />
                 ) : (
@@ -434,13 +461,14 @@ export function MaximizedCardPreview({ data, onClose }) {
               )}
             </div>
 
-            <div className="event-lore-box">
-              <div className="event-lore-title">HISTORICAL DIVERGENCE REPORT</div>
-              <div className="event-lore-desc">{data.description}</div>
-            </div>
+            <div className="danger-details-column event-details-column">
+              <div className="event-lore-box">
+                <div className="event-lore-title">HISTORICAL DIVERGENCE REPORT</div>
+                <div className="event-lore-desc">{data.description}</div>
+              </div>
 
-            {data.diceRoll !== null && data.diceRoll !== undefined && (
-              <div className={`danger-outcome-plaque ${data.success ? 'outcome-evaded' : 'outcome-failed'}`}>
+              {data.diceRoll !== null && data.diceRoll !== undefined && (
+                <div className={`danger-outcome-plaque ${data.success ? 'outcome-evaded' : 'outcome-failed'}`}>
                 <div className="outcome-dice-wrap">
                   <Dice value={data.diceRoll} size="sm" theme={data.success ? 'success' : 'hazard'} isInteractive={false} />
                 </div>
@@ -455,21 +483,22 @@ export function MaximizedCardPreview({ data, onClose }) {
                       : (data.failMsg || 'Rolled 1-3. The heavens were silent. Nothing happened.')}
                   </div>
                 </div>
-              </div>
-            )}
+                </div>
+              )}
 
-            {data.resultText && !data.diceRoll && (
-              <div className="event-consequence-plaque">
-                <div className="consequence-label">CHRONO RESOLUTION RESULT</div>
-                <div className="consequence-text">⚡ {data.resultText}</div>
-              </div>
-            )}
-          </div>
+              {data.resultText && !data.diceRoll && (
+                <div className="event-consequence-plaque">
+                  <div className="consequence-label">CHRONO RESOLUTION RESULT</div>
+                  <div className="consequence-text">⚡ {data.resultText}</div>
+                </div>
+              )}
 
-          <div className="modal-actions event-modal-actions">
-            <button className="btn btn-primary event-confirm-btn" onClick={() => { sounds.btnClick(); onClose(); }}>
-              Close Inspection
-            </button>
+              <div className="modal-actions event-modal-actions danger-details-actions">
+                <button className="btn btn-primary event-confirm-btn" onClick={() => { sounds.btnClick(); onClose(); }}>
+                  Close Inspection
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1220,7 +1249,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
     const previewDesc = isSecretClue
       ? `${drawingPlayer?.name || modal.playerName || 'A Castaway'} excavated a secret Clue Card in ${ERA_NAMES[modal.era] || 'the timeline'}.`
       : (modal.description || '');
-    const previewImage = isSecretClue ? null : modal.image;
+    const previewImage = isSecretClue ? null : getBoardCardPreviewImage(modal);
 
     const handlePreviewClick = () => {
       sounds.btnClick();
@@ -1270,17 +1299,23 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
       });
     };
 
-    return (
+    return <SideCardPlacement mapImage={previewImage && (
+      <button
+        type="button"
+        className="board-card-image"
+        onClick={handlePreviewClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        aria-label={`Expand ${previewTitle}`}
+        title="View card in full screen"
+      >
+        <img src={previewImage} alt={previewTitle} />
+      </button>
+    )}>{(
       <div
         className={`side-card-overlay ${cardClass} ${isHovered ? 'paused' : ''}`}
         id="active-modal"
-        style={{
-          position: 'fixed',
-          top: '74px',
-          right: '255px',
-          zIndex: 9999,
-          '--timer-duration': `${durationMs}ms`
-        }}
+        style={{ '--timer-duration': `${durationMs}ms` }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -1317,6 +1352,64 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
             </button>
           </div>
         </div>
+
+        {(isDanger || isEvent) && !modal.needsRoll && modal.diceRoll !== null && modal.diceRoll !== undefined && (
+          <div className="hazard-result-summary" style={{
+            marginBottom: '8px',
+            padding: '7px 8px',
+            background: modal.success ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
+            border: `1.5px solid ${modal.success ? '#10B981' : '#EF4444'}`,
+            borderRadius: '6px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '9px',
+            boxShadow: modal.success
+              ? '0 0 14px rgba(16, 185, 129, 0.3), inset 0 0 6px rgba(16, 185, 129, 0.15)'
+              : '0 0 14px rgba(239, 68, 68, 0.3), inset 0 0 6px rgba(239, 68, 68, 0.15)'
+          }}>
+            <Dice value={modal.diceRoll} size="sm" theme={modal.success ? 'success' : 'hazard'} isInteractive={false} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: modal.success ? '#34D399' : '#FCA5A5', letterSpacing: '0.35px' }}>
+                {modal.success ? (isEvent ? '✓ RUNE RESONATED' : '✓ HAZARD EVADED') : (isEvent ? '✗ RUNES SILENT' : '✗ HAZARD TRIGGERED')}
+                <span style={{ fontSize: '0.66rem', color: '#CBD5E1', fontWeight: 600 }}> (Rolled {modal.diceRoll})</span>
+              </div>
+              <div style={{ fontSize: '0.68rem', color: '#E2E8F0', marginTop: '2px', lineHeight: 1.3 }}>
+                {modal.success ? (modal.successMsg || (isEvent ? 'Rune resonance achieved!' : 'Survival check passed!')) : (modal.failMsg || (isEvent ? 'The runes remained silent.' : 'Hazard triggered!'))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(isDanger || isEvent) && modal.needsRoll && (
+          <div className="hazard-roll-summary" style={{
+            marginBottom: '8px',
+            padding: '7px 8px',
+            background: isEvent ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+            border: `1px solid ${isEvent ? 'rgba(245, 158, 11, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+            borderRadius: '7px',
+            fontSize: '0.7rem',
+            color: isEvent ? '#FDE047' : '#FCA5A5',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <Dice size="sm" isRolling={true} theme={isEvent ? 'chrono' : 'hazard'} />
+            <div>
+              <strong style={{ color: '#FFF', fontSize: '0.7rem' }}>
+                {isEvent
+                  ? 'Celestial Rune Check'
+                  : (modal.isGroupHazard ? `Group Hazard — ${modal.currentRollerName || 'Operative'}'s Roll` : 'Survival Hazard Check')}
+              </strong>
+              <div style={{ fontSize: '0.66rem', color: '#CBD5E1', marginTop: '1px', lineHeight: 1.25 }}>
+                {isEvent
+                  ? 'Rolling D6 for rune resonance (4-6)...'
+                  : (modal.isGroupHazard
+                    ? `Waiting for ${modal.currentRollerName || 'the next operative'} to roll a D6 (6 escapes safely)...`
+                    : 'Rolling survival die to determine fate...')}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="side-card-body">
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1383,79 +1476,6 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
 
           <GroupHazardTracker modal={modal} players={engine?.state?.players || []} />
 
-          {(isDanger || isEvent) && modal.needsRoll && (
-            <div style={{
-              marginTop: '8px',
-              padding: '8px 10px',
-              background: isEvent ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-              border: `1px solid ${isEvent ? 'rgba(245, 158, 11, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
-              borderRadius: '8px',
-              fontSize: '0.75rem',
-              color: isEvent ? '#FDE047' : '#FCA5A5',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px'
-            }}>
-              <Dice size="sm" isRolling={true} theme={isEvent ? 'chrono' : 'hazard'} />
-              <div>
-                <strong style={{ color: '#FFF' }}>
-                  {isEvent
-                    ? 'Celestial Rune Check'
-                    : (modal.isGroupHazard ? `Group Hazard — ${modal.currentRollerName || 'Operative'}'s Roll` : 'Survival Hazard Check')}
-                </strong>
-                <div style={{ fontSize: '0.7rem', color: '#CBD5E1', marginTop: '1px' }}>
-                  {isEvent
-                    ? 'Rolling D6 for rune resonance (4-6)...'
-                    : (modal.isGroupHazard
-                      ? `Waiting for ${modal.currentRollerName || 'the next operative'} to roll a D6 (6 escapes safely)...`
-                      : 'Rolling survival die to determine fate...')}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {(isDanger || isEvent) && !modal.needsRoll && modal.diceRoll !== null && modal.diceRoll !== undefined && (
-            <div style={{
-              marginTop: '8px',
-              padding: '8px 10px',
-              background: modal.success ? 'rgba(16, 185, 129, 0.14)' : (isEvent ? 'rgba(239, 68, 68, 0.14)' : 'rgba(239, 68, 68, 0.14)'),
-              border: `1.5px solid ${modal.success ? '#10B981' : (isEvent ? '#EF4444' : '#EF4444')}`,
-              borderRadius: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              boxShadow: modal.success
-                ? '0 0 14px rgba(16, 185, 129, 0.3), inset 0 0 6px rgba(16, 185, 129, 0.15)'
-                : '0 0 14px rgba(239, 68, 68, 0.3), inset 0 0 6px rgba(239, 68, 68, 0.15)'
-            }}>
-              <Dice
-                value={modal.diceRoll}
-                size="sm"
-                theme={modal.success ? 'success' : 'hazard'}
-                isInteractive={false}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: '0.8rem',
-                  fontWeight: 800,
-                  color: modal.success ? '#34D399' : '#FCA5A5',
-                  letterSpacing: '0.5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <span>{modal.success ? (isEvent ? '✓ RUNE RESONATED' : '✓ HAZARD EVADED') : (isEvent ? '✗ RUNES SILENT' : '✗ HAZARD TRIGGERED')}</span>
-                  <span style={{ fontSize: '0.72rem', color: '#CBD5E1', fontWeight: 600 }}>
-                    (Rolled {modal.diceRoll})
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#E2E8F0', marginTop: '2px', lineHeight: 1.35 }}>
-                  {modal.success ? (modal.successMsg || (isEvent ? 'Rune resonance achieved!' : 'Survival check passed!')) : (modal.failMsg || (isEvent ? 'The runes remained silent.' : 'Hazard triggered!'))}
-                </div>
-              </div>
-            </div>
-          )}
-
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.68rem' }}>
             {!isSecretClue ? (
               <span
@@ -1504,7 +1524,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
           </div>
         )}
       </div>
-    );
+    )}</SideCardPlacement>;
   }
 
   if (isPeekClues) {
@@ -2220,7 +2240,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         <div className="danger-shockwave-ring ring-2" />
         {modal.vfxTag && <CardVFXOverlay vfxTag={modal.vfxTag} isFailure={!modal.success && modal.needsRoll === false} />}
 
-        <div className="modal danger-card-modal" role="dialog" aria-label="Hazard Anomaly Strike">
+        <div className="modal danger-card-modal danger-split-modal" role="dialog" aria-label="Hazard Anomaly Strike">
           {!modal.needsRoll && (
             <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
           )}
@@ -2243,9 +2263,9 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
             )}
           </div>
 
-          <div className="modal-body danger-modal-body">
-            <div className="danger-chamber-stage">
-              <div className="danger-card-frame">
+          <div className="modal-body danger-modal-body danger-split-layout">
+            <div className="danger-visual-column">
+              <div className="danger-card-frame danger-card-frame-large">
                 {modal.image ? (
                   <img src={modal.image} alt={modal.title} className="danger-card-img" />
                 ) : (
@@ -2271,106 +2291,111 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               </div>
             </div>
 
-            <div className="danger-lore-box">
-              <div className="danger-lore-title">HAZARD REPORT</div>
-              <div className="danger-lore-desc">{modal.description}</div>
-            </div>
+            <div className="danger-details-column">
+              <div className="danger-lore-box">
+                <div className="danger-lore-title">HAZARD REPORT</div>
+                <div className="danger-lore-desc">{modal.description}</div>
+              </div>
 
-            <GroupHazardTracker modal={modal} players={engine?.state?.players || []} />
+              <GroupHazardTracker modal={modal} players={engine?.state?.players || []} />
 
-            {modal.needsRoll ? (
-              <div className="danger-survival-stage">
-                <div className="survival-rule-banner">
-                  <span className="rule-icon">🎲</span>
-                  <span className="rule-text">
-                    {modal.isGroupHazard
-                      ? `${(modal.currentRollerName || 'OPERATIVE').toUpperCase()}: TUMBLE YOUR SURVIVAL DIE`
-                      : 'TUMBLE THE SURVIVAL DIE TO DETERMINE YOUR FATE'}
-                  </span>
-                </div>
-                <div className="danger-dice-roll-area">
-                  <Dice
-                    value={modal.diceRoll}
-                    isRolling={isRollingDanger}
-                    size="md"
-                    theme="hazard"
+              {modal.needsRoll ? (
+                <div className="danger-survival-stage">
+                  <div className="survival-rule-banner">
+                    <span className="rule-icon">🎲</span>
+                    <span className="rule-text">
+                      {modal.isGroupHazard
+                        ? `${(modal.currentRollerName || 'OPERATIVE').toUpperCase()}: TUMBLE YOUR SURVIVAL DIE`
+                        : 'TUMBLE THE SURVIVAL DIE TO DETERMINE YOUR FATE'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="danger-dice-roll-area danger-dice-roll-control"
                     onClick={handleRollDanger}
                     disabled={isRollingDanger}
-                    isInteractive={!isRollingDanger}
-                    showLabel={false}
-                  />
-                  <div className="dice-action-caption">
-                    <div className="caption-bold">
-                      {isRollingDanger
-                        ? 'Tumbling Survival Die...'
-                        : (modal.isGroupHazard ? `${modal.currentRollerName || 'Your'} Roll to Survive!` : 'Roll to Survive!')}
+                    aria-label={isRollingDanger ? 'Rolling survival die' : 'Roll survival die'}
+                  >
+                    <Dice
+                      value={modal.diceRoll}
+                      isRolling={isRollingDanger}
+                      size="md"
+                      theme="hazard"
+                      disabled={isRollingDanger}
+                      isInteractive={false}
+                      showLabel={false}
+                    />
+                    <div className="dice-action-caption">
+                      <div className="caption-bold">
+                        {isRollingDanger
+                          ? 'Tumbling Survival Die...'
+                          : (modal.isGroupHazard ? `${modal.currentRollerName || 'Your'} Roll to Survive!` : 'Roll to Survive!')}
+                      </div>
+                      <div className="caption-sub">
+                        {modal.isGroupHazard ? 'Roll a 6 to escape safely (this die is only for your operative)' : 'Press Space or click anywhere in this row'}
+                      </div>
                     </div>
-                    <div className="caption-sub">
-                      {modal.isGroupHazard ? 'Roll a 6 to escape safely (this die is only for your operative)' : 'Press Space or click the die'}
+                  </button>
+                </div>
+              ) : (
+                <div className={`danger-outcome-plaque ${modal.success ? 'outcome-evaded' : 'outcome-failed'}`}>
+                  <div className="outcome-dice-wrap">
+                    <Dice value={modal.diceRoll} size="sm" theme={modal.success ? 'success' : 'hazard'} isInteractive={false} />
+                  </div>
+                  <div className="outcome-details">
+                    <div className="outcome-verdict">
+                      {modal.isGroupHazard
+                        ? (modal.success
+                          ? `✓ ${modal.playerName || 'TRIGGERING OPERATIVE'} EVADED!`
+                          : `✗ ${modal.playerName || 'TRIGGERING OPERATIVE'} WAS HIT!`)
+                        : (modal.success ? '✓ HAZARD EVADED!' : '✗ HAZARD TRIGGERED!')}
+                      <span className="outcome-roll-val">(Rolled {modal.diceRoll})</span>
                     </div>
+                    <div className="outcome-msg">
+                      {modal.success ? (modal.successMsg || 'Survival check passed!') : (modal.failMsg || 'Hazard penalty suffered!')}
+                    </div>
+                    {modal.guardianReduction && (
+                      <div className="guardian-relief-tag">
+                        🛡️ GUARDIAN MASTERY: Hazard penalty reduced by 1!
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            ) : (
-              <>
-              <div className={`danger-outcome-plaque ${modal.success ? 'outcome-evaded' : 'outcome-failed'}`}>
-                <div className="outcome-dice-wrap">
-                  <Dice value={modal.diceRoll} size="sm" theme={modal.success ? 'success' : 'hazard'} isInteractive={false} />
-                </div>
-                <div className="outcome-details">
-                  <div className="outcome-verdict">
-                    {modal.isGroupHazard
-                      ? (modal.success
-                        ? `✓ ${modal.playerName || 'TRIGGERING OPERATIVE'} EVADED!`
-                        : `✗ ${modal.playerName || 'TRIGGERING OPERATIVE'} WAS HIT!`)
-                      : (modal.success ? '✓ HAZARD EVADED!' : '✗ HAZARD TRIGGERED!')}
-                    <span className="outcome-roll-val">(Rolled {modal.diceRoll})</span>
-                  </div>
-                  <div className="outcome-msg">
-                    {modal.success ? (modal.successMsg || 'Survival check passed!') : (modal.failMsg || 'Hazard penalty suffered!')}
-                  </div>
-                  {modal.guardianReduction && (
-                    <div className="guardian-relief-tag">
-                      🛡️ GUARDIAN MASTERY: Hazard penalty reduced by 1!
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-            )}
-          </div>
+              )}
 
-          <div className="modal-actions danger-modal-actions">
-            {modal.needsRoll ? (
-              <button
-                type="button"
-                className="btn btn-primary danger-roll-btn"
-                disabled={isRollingDanger}
-                onClick={handleRollDanger}
-                autoFocus
-              >
-                <span>🎲</span>
-                <span>
-                  {isRollingDanger
-                    ? 'TUMBLING DIE...'
-                    : (modal.isGroupHazard
-                      ? `ROLL FOR ${(modal.currentRollerName || 'YOUR OPERATIVE').toUpperCase()}`
-                      : 'ROLL SURVIVAL DIE')}
-                </span>
-                <kbd className="danger-kbd">[ SPACE ]</kbd>
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn btn-primary danger-continue-btn"
-                onClick={handleDismiss}
-                autoFocus
-              >
-                <span>🛡️</span>
-                <span>CONTINUE</span>
-                <kbd className="danger-kbd">[ SPACE ]</kbd>
-              </button>
-            )}
+              <div className="modal-actions danger-modal-actions danger-details-actions">
+                {modal.needsRoll ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary danger-roll-btn"
+                    disabled={isRollingDanger}
+                    onClick={handleRollDanger}
+                    autoFocus
+                  >
+                    <span>🎲</span>
+                    <span>
+                      {isRollingDanger
+                        ? 'TUMBLING DIE...'
+                        : (modal.isGroupHazard
+                          ? `ROLL FOR ${(modal.currentRollerName || 'YOUR OPERATIVE').toUpperCase()}`
+                          : 'ROLL SURVIVAL DIE')}
+                    </span>
+                    <kbd className="danger-kbd">[ SPACE ]</kbd>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-primary danger-continue-btn"
+                    onClick={handleDismiss}
+                    autoFocus
+                  >
+                    <span>🛡️</span>
+                    <span>CONTINUE</span>
+                    <kbd className="danger-kbd">[ SPACE ]</kbd>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2386,7 +2411,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
         <div className="event-ripple-ring ring-2" />
         {modal.vfxTag && <CardVFXOverlay vfxTag={modal.vfxTag} />}
 
-        <div className="modal event-card-modal" role="dialog" aria-label="Chronal Timeline Event">
+        <div className="modal event-card-modal event-split-modal" role="dialog" aria-label="Chronal Timeline Event">
           {!modal.needsRoll && (
             <button className="modal-close" onClick={handleDismiss} title="Close">&times;</button>
           )}
@@ -2409,9 +2434,9 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
             )}
           </div>
 
-          <div className="modal-body event-modal-body">
-            <div className="event-chamber-stage">
-              <div className="event-card-frame">
+          <div className="modal-body event-modal-body danger-split-layout event-split-layout">
+            <div className="danger-visual-column event-visual-column">
+              <div className="event-card-frame danger-card-frame-large event-card-frame-large">
                 {modal.image ? (
                   <img src={modal.image} alt={modal.title} className="event-card-img" />
                 ) : (
@@ -2440,37 +2465,43 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
               )}
             </div>
 
-            <div className="event-lore-box">
-              <div className="event-lore-title">HISTORICAL DIVERGENCE REPORT</div>
-              <div className="event-lore-desc">{modal.description}</div>
-            </div>
+            <div className="danger-details-column event-details-column">
+              <div className="event-lore-box">
+                <div className="event-lore-title">HISTORICAL DIVERGENCE REPORT</div>
+                <div className="event-lore-desc">{modal.description}</div>
+              </div>
 
-            {modal.needsRoll ? (
-              <div className="event-roll-stage">
+              {modal.needsRoll ? (
+                <div className="event-roll-stage">
                 <div className="survival-rule-banner" style={{ color: '#FDE047' }}>
                   <span className="rule-icon">🎲</span>
                   <span className="rule-text">TUMBLE THE RUNE DIE TO CAST TOWARDS THE HEAVENS</span>
                 </div>
-                <div className="danger-dice-roll-area">
+                <button
+                  type="button"
+                  className="danger-dice-roll-area danger-dice-roll-control event-dice-roll-control"
+                  onClick={handleRollEvent}
+                  disabled={isRollingEvent}
+                  aria-label={isRollingEvent ? 'Casting event die' : 'Roll event die'}
+                >
                   <Dice
                     value={modal.diceRoll}
                     isRolling={isRollingEvent}
                     size="md"
                     theme="chrono"
-                    onClick={handleRollEvent}
                     disabled={isRollingEvent}
-                    isInteractive={!isRollingEvent}
+                    isInteractive={false}
                     showLabel={false}
                   />
                   <div className="dice-action-caption">
                     <div className="caption-bold" style={{ color: '#FFD700' }}>
                       {isRollingEvent ? 'Casting Celestial Die...' : 'Roll the Die!'}
                     </div>
-                    <div className="caption-sub">Press Space or click the die (Need 4, 5, or 6)</div>
+                    <div className="caption-sub">Press Space or click anywhere in this row (Need 4, 5, or 6)</div>
                   </div>
-                </div>
+                </button>
               </div>
-            ) : modal.diceRoll !== null && modal.diceRoll !== undefined ? (
+              ) : modal.diceRoll !== null && modal.diceRoll !== undefined ? (
               <div className={`danger-outcome-plaque ${modal.success ? 'outcome-evaded' : 'outcome-failed'}`}>
                 <div className="outcome-dice-wrap">
                   <Dice value={modal.diceRoll} size="sm" theme={modal.success ? 'success' : 'hazard'} isInteractive={false} />
@@ -2487,18 +2518,17 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                   </div>
                 </div>
               </div>
-            ) : (
+              ) : (
               modal.resultText && (
                 <div className="event-consequence-plaque">
                   <div className="consequence-label">CHRONO RESOLUTION RESULT</div>
                   <div className="consequence-text">⚡ {modal.resultText}</div>
                 </div>
               )
-            )}
-          </div>
+              )}
 
-          <div className="modal-actions event-modal-actions">
-            {modal.needsRoll ? (
+              <div className="modal-actions event-modal-actions danger-details-actions">
+                {modal.needsRoll ? (
               <button
                 type="button"
                 className="btn btn-primary event-roll-btn"
@@ -2520,7 +2550,7 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                 <span>{isRollingEvent ? 'CASTING DIE...' : 'ROLL EVENT DIE'}</span>
                 <kbd className="event-kbd" style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.72rem' }}>[ SPACE ]</kbd>
               </button>
-            ) : (
+                ) : (
               <button
                 type="button"
                 className="btn btn-primary event-confirm-btn"
@@ -2531,7 +2561,9 @@ export function CardModal({ modal, engine, network, onDismiss, onMaximize }) {
                 <span>{modal.success && modal.cardId === 'evt_my_4' ? 'CHOOSE ERA DECK ➔' : 'ACKNOWLEDGE EVENT'}</span>
                 <kbd className="event-kbd">[ SPACE ]</kbd>
               </button>
-            )}
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2803,7 +2835,31 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
 
   if (isAi) {
     const targetCard = (isDecipher && choice.drawnCards) ? choice.drawnCards[0] : (isClueHandLimit && choice.drawnCard) ? choice.drawnCard : null;
-    return (
+    const visibleTargetImage = isSpectator && targetCard ? (targetCard.cardImage || targetCard.image) : null;
+    const handleTargetCardPreview = () => {
+      if (!targetCard) return;
+      sounds.btnClick();
+      onMaximize({
+        title: targetCard.title || (targetCard.isDecoy ? 'Decoy Card' : 'Clue Card'),
+        cardType: targetCard.isDecoy ? 'Decoy Card' : 'Clue Card',
+        description: targetCard.description || targetCard.hint,
+        image: targetCard.cardImage || targetCard.image,
+        era: targetCard.era
+      });
+    };
+    return <SideCardPlacement mapImage={visibleTargetImage && (
+      <button
+        type="button"
+        className="board-card-image"
+        onClick={handleTargetCardPreview}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        aria-label={`Expand ${targetCard.title || 'Clue Card'}`}
+        title="View card in full screen"
+      >
+        <img src={visibleTargetImage} alt={targetCard.title || 'Clue Card'} />
+      </button>
+    )}>{(
       <div
         className={`side-card-overlay ${isHovered ? 'paused' : ''}`}
         id="active-modal"
@@ -2821,16 +2877,7 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
               <button
                 className="side-card-maximize"
                 title="Click to view card in full screen"
-                onClick={() => {
-                  sounds.btnClick();
-                  onMaximize({
-                    title: targetCard.title || (targetCard.isDecoy ? 'Decoy Card' : 'Clue Card'),
-                    cardType: targetCard.isDecoy ? 'Decoy Card' : 'Clue Card',
-                    description: targetCard.description || targetCard.hint,
-                    image: targetCard.image || targetCard.cardImage,
-                    era: targetCard.era
-                  });
-                }}
+                onClick={handleTargetCardPreview}
               >
                 🔍
               </button>
@@ -2953,7 +3000,7 @@ export function ChoiceModal({ choice, engine, network, onDismiss, onMaximize }) 
           ></div>
         </div>
       </div>
-    );
+    )}</SideCardPlacement>;
   }
 
   if (isClueHandLimit && choice.drawnCard) {

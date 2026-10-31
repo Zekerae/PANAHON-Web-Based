@@ -435,6 +435,8 @@ function GameActions({
           </div>
         </div>
 
+        <div id="side-card-dock" className="side-card-dock" aria-label="Current game activity" />
+
         {/* TIMELINE CHRONICLE */}
         <div className="panel-section timeline-chronicle-section" style={{
           flex: 1,
@@ -531,6 +533,8 @@ function GameActions({
           </div>
         )}
       </div>
+
+      <div id="side-card-dock" className="side-card-dock" aria-label="Current game activity" />
 
       {/* ============================================================== */}
       {/* PHASE 1: ROLL PHASE                                            */}

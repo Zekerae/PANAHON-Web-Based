@@ -13798,3 +13798,574 @@ html, body, #app, .app-root {
   font-size: 0.68rem !important;
   letter-spacing: 0.5px !important;
 }
+/* ========================================================================== */
+/* TURN DECISION MODAL                                                       */
+/* Keeps decisions centered, then clears the board while movement animates.  */
+/* ========================================================================== */
+.turn-action-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 940;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow: auto;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(194, 151, 77, 0.12), transparent 40%),
+    rgba(8, 5, 3, 0.72);
+  animation: turnOverlayIn 180ms ease-out;
+}
+
+.turn-action-modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(760px, calc(100vh - 32px));
+  overflow: auto;
+  color: #f3e8d0;
+  background: linear-gradient(165deg, #2d2016 0%, #17100b 62%, #0d0906 100%);
+  border: 2px solid #c2974d;
+  border-radius: 12px;
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 226, 145, 0.24),
+    0 24px 80px rgba(0, 0, 0, 0.78),
+    0 0 28px rgba(194, 151, 77, 0.18);
+  animation: turnModalIn 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.turn-action-header {
+  --turn-color: #c2974d;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(194, 151, 77, 0.4);
+  border-left: 5px solid var(--turn-color);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--turn-color) 14%, #1a120b), #1a120b 62%);
+}
+
+.turn-action-avatar {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  border: 2px solid var(--turn-color);
+  border-radius: 8px;
+  background: #0d0906;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--turn-color) 35%, transparent);
+}
+
+.turn-action-eyebrow {
+  margin-bottom: 3px;
+  color: #c8b293;
+  font-family: var(--font-display);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.turn-action-header h2 {
+  margin: 0;
+  color: #ffd96a;
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 2.6vw, 1.28rem);
+  line-height: 1.2;
+}
+
+.turn-action-location {
+  margin-top: 4px;
+  color: #a9947c;
+  font-size: 0.7rem;
+}
+
+.turn-action-energy {
+  align-self: start;
+  padding: 5px 8px;
+  white-space: nowrap;
+  color: #fde047;
+  font-size: 0.68rem;
+  font-weight: 900;
+  background: #140e0a;
+  border: 1px solid #735e4e;
+  border-radius: 999px;
+}
+
+.turn-action-body {
+  padding: 18px;
+}
+
+.turn-action-copy {
+  margin: 0 0 14px;
+  color: #c8b293;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.turn-action-dice-stage {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 138px;
+  padding: 16px 20px;
+  background: radial-gradient(circle at 24% 50%, rgba(245, 196, 66, 0.14), transparent 34%), #100b08;
+  border: 1px solid #5a422d;
+  border-radius: 9px;
+}
+
+.turn-action-result-dice-source {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.turn-action-dice-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.turn-action-dice-copy strong {
+  color: #ffd700;
+  font-family: var(--font-display);
+  font-size: 0.94rem;
+}
+
+.turn-action-dice-copy span,
+.turn-action-ability-row span,
+.turn-trajectory-choice span {
+  color: #a9947c;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.turn-action-footer-actions,
+.turn-action-stack,
+.turn-trajectory-buttons {
+  display: flex;
+  gap: 9px;
+}
+
+.turn-action-footer-actions {
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.turn-action-stack {
+  flex-direction: column;
+}
+
+.turn-action-btn {
+  min-height: 42px;
+  padding: 10px 14px;
+  color: #f3e8d0;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.2;
+  border: 1.5px solid #735e4e;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.turn-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #f5c442;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.4);
+}
+
+.turn-action-btn:focus-visible {
+  outline: 3px solid rgba(56, 189, 248, 0.85);
+  outline-offset: 2px;
+}
+
+.turn-action-btn:disabled {
+  color: #735e4e;
+  background: #1b1511;
+  border-color: #3c2d23;
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.turn-action-btn.primary {
+  color: #fff4c2;
+  background: linear-gradient(180deg, #5a422d, #382719);
+  border-color: #f5c442;
+  box-shadow: inset 1px 1px 0 rgba(255, 232, 157, 0.35), 0 3px 0 #0d0906;
+}
+
+.turn-action-btn.secondary {
+  color: #f5c442;
+  background: linear-gradient(180deg, #2d2118, #18110c);
+}
+
+.turn-action-btn.ghost {
+  color: #c8b293;
+  background: #140e0a;
+}
+
+.turn-action-btn.compact {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.turn-action-btn small {
+  margin-left: 6px;
+  color: #c8b293;
+  font-size: 0.64rem;
+}
+
+.turn-action-btn.end-turn {
+  margin-top: 4px;
+  font-size: 0.84rem;
+  letter-spacing: 0.4px;
+}
+
+.turn-action-ability-row,
+.turn-trajectory-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 12px 0;
+  padding: 12px;
+  background: #120d09;
+  border: 1px solid #4a3423;
+  border-radius: 8px;
+}
+
+.turn-action-ability-row.available {
+  border-color: #c2974d;
+  box-shadow: 0 0 12px rgba(194, 151, 77, 0.12);
+}
+
+.turn-action-ability-row > div,
+.turn-trajectory-choice > div:first-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.turn-action-ability-row strong,
+.turn-trajectory-choice strong {
+  color: #f5c442;
+  font-size: 0.78rem;
+}
+
+.turn-action-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.turn-action-notice.danger {
+  color: #fecdd3;
+  background: #310e18;
+  border: 1px solid #f43f5e;
+}
+
+.turn-action-notice.stasis {
+  color: #cffafe;
+  background: #083344;
+  border: 1px solid #22d3ee;
+}
+
+.turn-action-notice span {
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+/* The movement dock is intentionally compact and non-modal on larger screens. */
+.mobile-board-quick-dock:not(:empty) {
+  display: block;
+  grid-area: board;
+  position: relative;
+  align-self: end;
+  justify-self: center;
+  z-index: 110;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  margin-bottom: 18px;
+}
+
+.mobile-board-quick-dock .mobile-dock-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  overflow-x: auto;
+  color: #f3e8d0;
+  background: rgba(20, 14, 10, 0.96);
+  border: 1.5px solid #c2974d;
+  border-radius: 999px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.7);
+}
+
+.mobile-board-quick-dock .mobile-dock-moving-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Spatial choices use a distinct temporal palette so they do not blend into the hand panel. */
+.mobile-board-quick-dock .trajectory-control-overlay {
+  position: relative !important;
+  gap: 6px !important;
+  padding: 7px 9px !important;
+  background: linear-gradient(135deg, rgba(8, 30, 52, 0.97), rgba(20, 15, 55, 0.97)) !important;
+  border: 1.5px solid #38bdf8 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.72), 0 0 20px rgba(56, 189, 248, 0.34) !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+}
+
+.mobile-board-quick-dock .trajectory-control-overlay::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.mobile-board-quick-dock.trajectory-handoff-pending {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.mobile-board-quick-dock.trajectory-handoff-settled .trajectory-control-overlay {
+  animation: none;
+}
+
+.mobile-board-quick-dock .trajectory-control-overlay::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  background: #67e8f9;
+  border-radius: 50%;
+  box-shadow: 0 0 9px #22d3ee;
+}
+
+.mobile-board-quick-dock.trajectory-handoff-settled .trajectory-control-overlay::before {
+  animation: trajectoryDecisionDot 680ms ease-in-out 2;
+}
+
+.mobile-board-quick-dock.trajectory-handoff-settled .trajectory-control-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  pointer-events: none;
+  border: 2px solid #a5f3fc;
+  border-radius: 12px;
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.78);
+  animation: trajectoryBorderBlink 900ms steps(1, end) 1 both;
+}
+
+.trajectory-control-overlay .mobile-dock-moving-group {
+  gap: 6px !important;
+}
+
+.trajectory-control-overlay .mobile-dock-btn {
+  width: auto !important;
+  min-width: 0 !important;
+  padding: 7px 10px !important;
+  font-size: 0.69rem !important;
+  line-height: 1.1 !important;
+  border-radius: 7px !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+}
+
+.trajectory-control-overlay .trajectory-reverse-btn {
+  color: #f5d0fe !important;
+  background: linear-gradient(180deg, #6b21a8, #3b0764) !important;
+  border: 1.5px solid #d946ef !important;
+}
+
+.trajectory-control-overlay .trajectory-foresight-btn {
+  color: #ccfbf1 !important;
+  background: linear-gradient(180deg, #0f766e, #134e4a) !important;
+  border: 1.5px solid #2dd4bf !important;
+}
+
+.trajectory-control-overlay .trajectory-confirm-btn {
+  color: #eff6ff !important;
+  background: linear-gradient(180deg, #0284c7, #075985) !important;
+  border: 1.5px solid #7dd3fc !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35) !important;
+}
+
+.trajectory-control-overlay .mobile-dock-btn:disabled {
+  color: #64748b !important;
+  background: #172033 !important;
+  border-color: #334155 !important;
+  opacity: 0.72 !important;
+}
+
+.trajectory-dice-chip {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 5px;
+  min-height: 40px;
+  padding: 3px 8px 3px 5px;
+  color: #fef3c7;
+  background: linear-gradient(180deg, #422006, #1c1208);
+  border: 1.5px solid #f59e0b;
+  border-radius: 8px;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.26);
+  transform-origin: center;
+}
+
+.trajectory-dice-chip .pixel-dice-container {
+  flex: 0 0 auto;
+  transform: scale(0.78);
+  margin: -3px;
+}
+
+.trajectory-dice-result {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  white-space: nowrap;
+  line-height: 1.05;
+}
+
+.trajectory-dice-result strong {
+  color: #fde68a;
+  font-family: "Segoe UI", Arial, sans-serif !important;
+  font-size: 1.12rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.4px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 0 #2a1607, 0 0 8px rgba(245, 196, 66, 0.32);
+}
+
+.trajectory-dice-result small {
+  color: #7dd3fc;
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+@keyframes trajectoryAttention {
+  0%, 100% {
+    filter: brightness(1) drop-shadow(0 0 0 rgba(34, 211, 238, 0));
+  }
+  50% {
+    filter: brightness(1.14) drop-shadow(0 0 10px rgba(34, 211, 238, 0.62));
+  }
+}
+
+@keyframes trajectoryBorderBlink {
+  0%, 22%, 44%, 66%, 100% {
+    opacity: 0;
+  }
+  11%, 33%, 55% {
+    opacity: 1;
+  }
+}
+
+@keyframes trajectoryDecisionDot {
+  0%, 100% {
+    opacity: 0.55;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes turnOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes turnModalIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 920px), (max-height: 550px) {
+  .turn-action-modal {
+    max-height: calc(100dvh - 20px);
+  }
+}
+
+@media (max-width: 620px) {
+  .turn-action-overlay {
+    padding: 10px;
+  }
+
+  .turn-action-modal {
+    width: min(100%, 520px);
+    max-height: calc(100dvh - 20px);
+  }
+
+  .turn-action-header {
+    grid-template-columns: 44px minmax(0, 1fr);
+    padding: 12px;
+  }
+
+  .turn-action-avatar {
+    width: 44px;
+    height: 44px;
+  }
+
+  .turn-action-energy {
+    display: none;
+  }
+
+  .turn-action-body {
+    padding: 14px;
+  }
+
+  .turn-action-dice-stage {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .turn-action-footer-actions,
+  .turn-action-ability-row,
+  .turn-trajectory-choice {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .turn-action-footer-actions .turn-action-btn,
+  .turn-action-ability-row .turn-action-btn,
+  .turn-trajectory-choice .turn-action-btn {
+    width: 100%;
+  }
+
+  .turn-trajectory-buttons {
+    width: 100%;
+  }
+
+  .turn-trajectory-buttons .turn-action-btn {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-action-overlay,
+  .turn-action-modal,
+  .trajectory-control-overlay,
+  .trajectory-control-overlay::before,
+  .trajectory-control-overlay::after,
+  .trajectory-dice-chip {
+    animation: none;
+  }
+}

@@ -31,7 +31,9 @@ function GameActions({
   omniscientIntel = true,
   onToggleOmniscientIntel = null,
   simulationSpeed = 1,
-  onChangeSimulationSpeed = null
+  onChangeSimulationSpeed = null,
+  showTurnControls = false,
+  replaceChronicle = false
 }) {
   if (!state || !currentPlayer) return null;
 
@@ -533,7 +535,7 @@ function GameActions({
       {/* ============================================================== */}
       {/* PHASE 1: ROLL PHASE                                            */}
       {/* ============================================================== */}
-      {state.phase === "rolling" && (
+      {showTurnControls && state.phase === "rolling" && (
         <div className="panel-section phase-card phase-roll-card" style={{
           border: "2px solid #5A422D",
           borderLeft: "4px solid #C2974D",
@@ -1012,7 +1014,7 @@ function GameActions({
       {/* ============================================================== */}
       {/* MOVEMENT IN PROGRESS                                           */}
       {/* ============================================================== */}
-      {state.phase === "moving" && (
+      {showTurnControls && state.phase === "moving" && (
         <div className="panel-section phase-card phase-moving-card" style={{
           border: "2px solid #5A422D",
           borderLeft: "4px solid #F5C442",
@@ -1318,7 +1320,7 @@ function GameActions({
       {/* ============================================================== */}
       {/* PHASE 2: ACTION PHASE                                          */}
       {/* ============================================================== */}
-      {state.phase === "action" && (
+      {showTurnControls && state.phase === "action" && (
         <div className="panel-section phase-card phase-action-card" style={{
           border: "2px solid #5A422D",
           borderLeft: "4px solid #C2974D",
@@ -1549,7 +1551,7 @@ function GameActions({
       )}
 
       {/* TIMELINE CHRONICLE LOG FEED */}
-      <div className="panel-section timeline-chronicle-section" style={{ flex: 1, minHeight: '160px', display: 'flex', flexDirection: 'column', marginBottom: 0 }}>
+      {!replaceChronicle && <div className="panel-section timeline-chronicle-section" style={{ flex: 1, minHeight: '160px', display: 'flex', flexDirection: 'column', marginBottom: 0 }}>
         <div className="panel-section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
           <span>Timeline Chronicle</span>
           <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'none', fontWeight: 500 }}>
@@ -1563,7 +1565,7 @@ function GameActions({
             </div>
           ))}
         </div>
-      </div>
+      </div>}
     </aside>
   );
 }

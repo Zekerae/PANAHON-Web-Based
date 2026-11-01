@@ -602,56 +602,6 @@ export class GameEngine {
     this.notify();
     return true;
   }
-
-  // Rogue Passive: Shadow Pockets
-  checkShadowPockets(player, targetIdx) {
-    if (player.roleKey !== 'ROGUE') return;
-    const eraTiles = this.state.board[player.currentEra];
-    const tile = eraTiles?.[targetIdx];
-    if (!tile || !tile.players || tile.players.length === 0) return;
-
-    if (!player.shadowPocketsTriggered) player.shadowPocketsTriggered = [];
-
-    const otherPlayerIds = tile.players.filter(id => id !== player.id);
-    for (const victimId of otherPlayerIds) {
-      if (player.shadowPocketsTriggered.includes(victimId)) continue;
-
-      const victim = this.state.players.find(p => p.id === victimId);
-      if (!victim) continue;
-
-      player.shadowPocketsTriggered.push(victimId);
-
-      // Steal 1 Clue Card or 1 Energy (if available)
-      if (victim.clueCards && victim.clueCards.length > 0) {
-        const stolenCard = victim.clueCards.pop();
-        if (stolenCard.artifactId && victim.clueProgress?.[stolenCard.artifactId] > 0) {
-          const minMilestones = this.getTriangulationCount(victim);
-          victim.clueProgress[stolenCard.artifactId] = Math.max(
-            victim.mission?.artifactId === stolenCard.artifactId ? minMilestones : 0,
-            victim.clueProgress[stolenCard.artifactId] - 1
-          );
-        }
-
-        if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
-          this.returnClueToDeck(stolenCard);
-          this.addLog('ability', `🥷 Shadow Pockets: ${player.name} pickpocketed a Clue Card (${stolenCard.hint || stolenCard.description}) from ${victim.name}, but inventory was full so it dissolved back to timeline!`);
-        } else {
-          player.clueCards.push(stolenCard);
-          if (stolenCard.artifactId && !stolenCard.isDecoy) {
-            player.clueProgress[stolenCard.artifactId] = (player.clueProgress[stolenCard.artifactId] || 0) + 1;
-          }
-          this.addLog('ability', `🥷 Shadow Pockets: ${player.name} silently pickpocketed a Clue Card (${stolenCard.hint || stolenCard.description}) from ${victim.name}!`);
-        }
-      } else if (victim.energy > 0) {
-        this.modifyEnergy(victim, -1);
-        this.modifyEnergy(player, 1);
-        this.addLog('ability', `🥷 Shadow Pockets: ${player.name} slipped past ${victim.name} and swiped 1 Chrono Energy!`);
-      } else {
-        this.addLog('ability', `🥷 Shadow Pockets: ${player.name} brushed past ${victim.name}, but their pockets were empty!`);
-      }
-    }
-  }
-
   // Chronomancer Passive: Temporal Foresight
   adjustTemporalForesight(playerIdx, delta) {
     const player = this.state.players[playerIdx];

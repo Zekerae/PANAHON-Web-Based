@@ -287,7 +287,6 @@ export class GameEngine {
         reverseTimeCooldown: 0,
         temporalForesightCooldown: 0,
         hasUsedForesightThisTurn: false,
-        shadowPocketsTriggered: [],
         usedAbilityThisTurn: false,
 
         // Clue tracking: how many clues collected per artifact
@@ -540,7 +539,6 @@ export class GameEngine {
     player.previousTileIndex = currentIdx;
     player.tileIndex = targetIdx;
     eraTiles[targetIdx].players.push(player.id);
-    this.checkShadowPockets(player, targetIdx);
     this.state.movesRemaining--;
     this.state.stepsTakenThisTurn = (this.state.stepsTakenThisTurn || 0) + 1;
     this.state.hasMovedThisTurn = true;
@@ -678,7 +676,6 @@ export class GameEngine {
     player.previousTileIndex = currentIdx;
     player.tileIndex = newIdx;
     eraTiles[newIdx].players.push(player.id);
-    this.checkShadowPockets(player, newIdx);
     this.state.movesRemaining--;
     this.state.stepsTakenThisTurn = (this.state.stepsTakenThisTurn || 0) + 1;
     this.state.hasMovedThisTurn = true;
@@ -905,78 +902,6 @@ export class GameEngine {
         this._receiveClueCard(player, chosenCard, player.currentEra);
         this.state.phase = returnPhase;
       }
-    } else if (choiceType === 'roguePickpocket') {
-      if (action.startsWith('steal_clue_')) {
-        const victimId = parseInt(action.replace('steal_clue_', ''), 10);
-        const victim = this.state.players.find(p => p.id === victimId);
-        if (victim && victim.clueCards && victim.clueCards.length > 0) {
-          const stolenCard = victim.clueCards.pop();
-          if (stolenCard.artifactId && victim.clueProgress?.[stolenCard.artifactId] > 0) {
-            const minMilestones = this.getTriangulationCount(victim);
-            victim.clueProgress[stolenCard.artifactId] = Math.max(
-              victim.mission?.artifactId === stolenCard.artifactId ? minMilestones : 0,
-              victim.clueProgress[stolenCard.artifactId] - 1
-            );
-          }
-          if (player.clueCards.length >= (GAME_CONSTANTS.MAX_CLUE_CARDS || 3)) {
-            this.promptClueHandLimit(player, stolenCard, returnPhase);
-            return;
-          } else {
-            player.clueCards.push(stolenCard);
-            if (stolenCard.artifactId && !stolenCard.isDecoy) {
-              player.clueProgress[stolenCard.artifactId] = (player.clueProgress[stolenCard.artifactId] || 0) + 1;
-            }
-            this.state.pendingModal = {
-              type: 'abilityActivate',
-              abilityKey: 'PICKPOCKET',
-              playerId: player.id,
-              playerName: player.name,
-              playerRole: 'The Rogue',
-              playerAvatar: player.role?.avatar || 'assets/Characters/rogue_128x128.png',
-              playerColor: player.color || '#9B59B6',
-              victimId: victim.id,
-              victimName: victim.name,
-              victimAvatar: victim.role?.avatar,
-              victimColor: victim.color,
-              stolenType: 'clue',
-              stolenCardName: stolenCard.hint || stolenCard.description || 'Clue Card',
-              stolenAmount: 1,
-              title: 'SHADOW PICKPOCKET!',
-              subtitle: 'ROGUE ACTIVE ABILITY',
-              description: `${player.name} emerged from the shadows and swiped a secret Clue Card (${stolenCard.hint || stolenCard.description}) from ${victim.name}!`
-            };
-            this.addLog('ability', `🗡️ Pickpocket Success: ${player.name} swiped a Clue Card (${stolenCard.hint || stolenCard.description}) from ${victim.name}!`);
-          }
-        }
-      } else if (action.startsWith('steal_energy_')) {
-        const victimId = parseInt(action.replace('steal_energy_', ''), 10);
-        const victim = this.state.players.find(p => p.id === victimId);
-        if (victim && victim.energy > 0) {
-          const amount = Math.min(2, victim.energy);
-          this.modifyEnergy(victim, -amount);
-          this.modifyEnergy(player, amount);
-          this.state.pendingModal = {
-            type: 'abilityActivate',
-            abilityKey: 'PICKPOCKET',
-            playerId: player.id,
-            playerName: player.name,
-            playerRole: 'The Rogue',
-            playerAvatar: player.role?.avatar || 'assets/Characters/rogue_128x128.png',
-            playerColor: player.color || '#9B59B6',
-            victimId: victim.id,
-            victimName: victim.name,
-            victimAvatar: victim.role?.avatar,
-            victimColor: victim.color,
-            stolenType: 'energy',
-            stolenAmount: amount,
-            title: 'SHADOW PICKPOCKET!',
-            subtitle: 'ROGUE ACTIVE ABILITY',
-            description: `${player.name} struck from the shadows, siphoning ${amount} Chrono Energy from ${victim.name}!`
-          };
-          this.addLog('ability', `🗡️ Pickpocket Success: ${player.name} siphoned ${amount} Chrono Energy from ${victim.name}!`);
-        }
-      }
-      this.state.phase = returnPhase;
     } else if (choiceType === 'chronomancerTimeStop') {
       if (action.startsWith('freeze_')) {
         const victimId = parseInt(action.replace('freeze_', ''), 10);
@@ -3238,7 +3163,6 @@ export class GameEngine {
     const nextPlayer = this.getCurrentPlayer();
     nextPlayer.usedAbilityThisTurn = false;
     nextPlayer.hasUsedForesightThisTurn = false;
-    nextPlayer.shadowPocketsTriggered = [];
     if (nextPlayer.passiveCooldown > 0) nextPlayer.passiveCooldown--;
     if (nextPlayer.activeCooldown > 0) nextPlayer.activeCooldown--;
     if (nextPlayer.reverseTimeCooldown > 0) nextPlayer.reverseTimeCooldown--;

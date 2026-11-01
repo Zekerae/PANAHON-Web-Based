@@ -568,16 +568,6 @@ class AiController {
       return;
     }
 
-    if (choiceType === 'roguePickpocket') {
-      const options = choice.options || [];
-      const clueOption = options.find(o => o.action.startsWith('steal_clue_'));
-      const action = clueOption ? clueOption.action : (options[0]?.action || 'continue');
-      engine.resolveChoice(action);
-      network?.sendAction({ type: 'RESOLVE_CHOICE', action });
-      this.scheduleAiStep(engine, network, 650);
-      return;
-    }
-
     if (choiceType === 'chronomancerTimeStop') {
       const options = choice.options || [];
       const action = options[0]?.action || 'continue';

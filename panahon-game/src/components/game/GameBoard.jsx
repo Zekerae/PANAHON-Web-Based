@@ -706,6 +706,8 @@ function GameBoard({
         </>
       )}
 
+      <div id="board-card-image-dock" className="board-card-image-dock" />
+
       {/* Interactive Clash-of-Clans Pan & Zoom Viewport */}
       <div
         ref={viewportRef}

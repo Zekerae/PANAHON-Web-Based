@@ -669,6 +669,7 @@ function GameScreen({
         phase={state.phase}
         movesRemaining={state.movesRemaining}
         movementDirection={state.movementDirection}
+        stepsTakenThisTurn={state.stepsTakenThisTurn}
         temporalOccurrence={state.temporalOccurrence}
         temporalOccurrenceId={state.temporalOccurrenceId}
         hasPendingModal={Boolean(state.pendingModal)}

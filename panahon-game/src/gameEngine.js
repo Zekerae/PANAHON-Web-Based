@@ -20,12 +20,13 @@ function rollDie() {
   return Math.floor(Math.random() * 6) + 1;
 }
 
-export function getNextTileIndex(player, era, currentIdx, dir = 1, total = 25) {
+export function getNextTileIndex(player, era, currentIdx, dir = 1, total = 25, stepsTaken = null) {
   const connections = (typeof getActivePathConnections === 'function') ? getActivePathConnections() : {};
   const junctionRules = (typeof getActiveJunctionRules === 'function') ? getActiveJunctionRules() : {};
   const eraConnections = connections[era];
   const eraRules = junctionRules[era] || {};
   const prev = player?.previousTileIndex;
+  const steps = stepsTaken !== null && stepsTaken !== undefined ? stepsTaken : (player?.stepsTakenThisTurn ?? 0);
   if (dir < 0) {
     if (eraConnections) {
       const incoming = [];
@@ -34,12 +35,35 @@ export function getNextTileIndex(player, era, currentIdx, dir = 1, total = 25) {
           incoming.push(parseInt(sourceStr, 10));
         }
       }
-      if (incoming.length > 0) {
-        if (prev !== undefined && incoming.includes(prev)) {
-          return prev;
-        }
+      if (incoming.length === 0) {
+        return (currentIdx - 1 + total) % total;
+      }
+      if (incoming.length === 1) {
         return incoming[0];
       }
+
+      // Multi-incoming branch:
+      // 1. At start of turn/step sequence (steps === 0), retrace past arrival tile if it's an incoming connection
+      if (steps === 0 && prev !== undefined && prev !== null && incoming.includes(prev)) {
+        return prev;
+      }
+
+      // 2. Reverse junction rules: derive inverse mapping from forward rules
+      if (prev !== undefined && prev !== null) {
+        for (const [key, target] of Object.entries(eraRules)) {
+          const [nodeStr, fromStr] = key.split(':');
+          const node = parseInt(nodeStr, 10);
+          const from = parseInt(fromStr, 10);
+          if (node === currentIdx && target === prev && incoming.includes(from)) {
+            return from;
+          }
+        }
+      }
+
+      // 3. Filter out the space we just arrived from (prev) to avoid bouncing / immediate U-turn
+      let candidates = incoming.filter(t => t !== prev);
+      if (candidates.length === 0) candidates = incoming;
+      return candidates[0] !== undefined ? candidates[0] : incoming[0];
     }
     return (currentIdx - 1 + total) % total;
   }
@@ -492,6 +516,7 @@ export class GameEngine {
     this.state.diceResult = result;
     this.state.initialRoll = result;
     this.state.stepsTakenThisTurn = 0;
+    player.stepsTakenThisTurn = 0;
     this.state.hasMovedThisTurn = false;
 
     const bonus = player.bonusMoves || 0;
@@ -541,6 +566,7 @@ export class GameEngine {
     eraTiles[targetIdx].players.push(player.id);
     this.state.movesRemaining--;
     this.state.stepsTakenThisTurn = (this.state.stepsTakenThisTurn || 0) + 1;
+    player.stepsTakenThisTurn = this.state.stepsTakenThisTurn;
     this.state.hasMovedThisTurn = true;
 
     // Check tile interaction
@@ -655,9 +681,10 @@ export class GameEngine {
   }
 
   // Determine next tile index using custom node-graph connections and approach routing rules
-  getNextTileIndex(player, era, currentIdx, dir = 1) {
+  getNextTileIndex(player, era, currentIdx, dir = 1, stepsTaken = null) {
     const total = this.state?.board?.[era]?.length || 25;
-    return getNextTileIndex(player, era, currentIdx, dir, total);
+    const steps = stepsTaken !== null && stepsTaken !== undefined ? stepsTaken : this.state?.stepsTakenThisTurn;
+    return getNextTileIndex(player, era, currentIdx, dir, total, steps);
   }
 
   // Move forward/backward in the era path
@@ -678,6 +705,7 @@ export class GameEngine {
     eraTiles[newIdx].players.push(player.id);
     this.state.movesRemaining--;
     this.state.stepsTakenThisTurn = (this.state.stepsTakenThisTurn || 0) + 1;
+    player.stepsTakenThisTurn = this.state.stepsTakenThisTurn;
     this.state.hasMovedThisTurn = true;
 
     const tile = eraTiles[newIdx];
@@ -3110,11 +3138,13 @@ export class GameEngine {
     let cur = player.tileIndex;
     const step = spaces >= 0 ? 1 : -1;
     let count = Math.abs(spaces);
+    let stepCount = 0;
     while (count > 0) {
-      const next = this.getNextTileIndex(player, player.currentEra, cur, step);
+      const next = this.getNextTileIndex(player, player.currentEra, cur, step, stepCount);
       player.previousTileIndex = cur;
       cur = next;
       count--;
+      stepCount++;
     }
     player.tileIndex = cur;
     tiles[cur].players.push(player.id);

@@ -28,6 +28,7 @@ function GameBoard({
   phase,
   movesRemaining,
   movementDirection,
+  stepsTakenThisTurn,
   temporalOccurrence,
   temporalOccurrenceId,
   hasPendingModal = false,
@@ -522,7 +523,7 @@ function GameBoard({
       const dir = movementDirection === "backward" ? -1 : 1;
       const tiles = board?.[era] || [];
       const totalTiles = Array.isArray(tiles) ? tiles.length : 25;
-      const target = getNextTileIndex(currentPlayer, era, cIdx, dir, totalTiles);
+      const target = getNextTileIndex(currentPlayer, era, cIdx, dir, totalTiles, stepsTakenThisTurn);
       if (target !== null && target !== undefined) {
         return `${era}_${target}`;
       }
@@ -535,6 +536,8 @@ function GameBoard({
     currentPlayer?.currentEra,
     currentPlayer?.tileIndex,
     currentPlayer?.previousTileIndex,
+    currentPlayer?.stepsTakenThisTurn,
+    stepsTakenThisTurn,
     movementDirection,
     board
   ]);

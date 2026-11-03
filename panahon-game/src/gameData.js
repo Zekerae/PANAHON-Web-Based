@@ -577,7 +577,7 @@ export const ARTIFACTS = {
       category: 'Currency',
       era: ERAS.SPANISH,
       image: 'assets/Artifacts/Png/spanish_coin.png',
-      cardImage: 'assets/Cards/Artifact Card/1.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/1.png'
     },
     {
       id: 'sp_map',
@@ -586,7 +586,7 @@ export const ARTIFACTS = {
       category: 'Map',
       era: ERAS.SPANISH,
       image: 'assets/Artifacts/Png/spanish_murillo_map.png',
-      cardImage: 'assets/Cards/Artifact Card/2.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/3.png'
     },
     {
       id: 'sp_vase',
@@ -595,7 +595,7 @@ export const ARTIFACTS = {
       category: 'Vessel',
       era: ERAS.SPANISH,
       image: 'assets/Artifacts/Png/spanish_porcelain_Vase.png',
-      cardImage: 'assets/Cards/Artifact Card/3.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/2.png'
     },
     {
       id: 'sp_medallion',
@@ -604,7 +604,7 @@ export const ARTIFACTS = {
       category: 'Medallion',
       era: ERAS.SPANISH,
       image: 'assets/Artifacts/Png/spanish_medallion.png',
-      cardImage: 'assets/Cards/Artifact Card/4.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/4.png'
     }
   ],
   [ERAS.AMERICAN]: [
@@ -615,7 +615,7 @@ export const ARTIFACTS = {
       category: 'Device',
       era: ERAS.AMERICAN,
       image: 'assets/Artifacts/Png/english_typewritter.png',
-      cardImage: 'assets/Cards/Artifact Card/5.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/5.png'
     },
     {
       id: 'am_paper',
@@ -624,7 +624,7 @@ export const ARTIFACTS = {
       category: 'Document',
       era: ERAS.AMERICAN,
       image: 'assets/Artifacts/Png/english_renacimiento_paper.png',
-      cardImage: 'assets/Cards/Artifact Card/6.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/6.png'
     },
     {
       id: 'am_telephone',
@@ -633,7 +633,7 @@ export const ARTIFACTS = {
       category: 'Communication',
       era: ERAS.AMERICAN,
       image: 'assets/Artifacts/Png/english_telephone.png',
-      cardImage: 'assets/Cards/Artifact Card/7.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/7.png'
     },
     {
       id: 'am_cargo',
@@ -642,7 +642,7 @@ export const ARTIFACTS = {
       category: 'Cargo',
       era: ERAS.AMERICAN,
       image: 'assets/Artifacts/Png/englisg_ratified_draft.png',
-      cardImage: 'assets/Cards/Artifact Card/8.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/8.png'
     }
   ],
   [ERAS.JAPANESE]: [
@@ -653,7 +653,7 @@ export const ARTIFACTS = {
       category: 'Memorial',
       era: ERAS.JAPANESE,
       image: 'assets/Artifacts/Png/japanese_wooden_marker.png',
-      cardImage: 'assets/Cards/Artifact Card/9.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/10.png'
     },
     {
       id: 'jp_belt',
@@ -662,7 +662,7 @@ export const ARTIFACTS = {
       category: 'Wearable',
       era: ERAS.JAPANESE,
       image: 'assets/Artifacts/Png/japanese_beltnijester.png',
-      cardImage: 'assets/Cards/Artifact Card/10.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/9.png'
     },
     {
       id: 'jp_radio',
@@ -671,7 +671,7 @@ export const ARTIFACTS = {
       category: 'Device',
       era: ERAS.JAPANESE,
       image: 'assets/Artifacts/Png/japanese_guerrilla_backpack.png',
-      cardImage: 'assets/Cards/Artifact Card/11.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/11.png'
     },
     {
       id: 'jp_litter',
@@ -680,7 +680,7 @@ export const ARTIFACTS = {
       category: 'Transport',
       era: ERAS.JAPANESE,
       image: 'assets/Artifacts/Png/japanese_doongan_litter.png',
-      cardImage: 'assets/Cards/Artifact Card/12.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/12.png'
     }
   ],
   [ERAS.MYTH]: [
@@ -691,7 +691,7 @@ export const ARTIFACTS = {
       category: 'Idol',
       era: ERAS.MYTH,
       image: 'assets/Artifacts/Png/myth_cordillera_bulul.png',
-      cardImage: 'assets/Cards/Artifact Card/13.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/13.png'
     },
     {
       id: 'my_agimat',
@@ -700,7 +700,7 @@ export const ARTIFACTS = {
       category: 'Amulet',
       era: ERAS.MYTH,
       image: 'assets/Artifacts/Png/myth_batubalani_agimat.png',
-      cardImage: 'assets/Cards/Artifact Card/14.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/14.png'
     },
     {
       id: 'my_comb',
@@ -709,16 +709,16 @@ export const ARTIFACTS = {
       category: 'Enchanted Item',
       era: ERAS.MYTH,
       image: 'assets/Artifacts/Png/myth_kamagong_comb.png',
-      cardImage: 'assets/Cards/Artifact Card/15.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/15.png'
     },
     {
       id: 'my_kris',
       name: 'Kris ng Datu',
-      nickname: "Lothar's Edge",
+      nickname: 'Lothar\'s Edge',
       category: 'Weapon',
       era: ERAS.MYTH,
       image: 'assets/Artifacts/Png/myth_knife.png',
-      cardImage: 'assets/Cards/Artifact Card/16.png'
+      cardImage: 'assets/Cards/UPDATED_ARTIFACT_CARDS/16.png'
     }
   ]
 };
@@ -726,11 +726,10 @@ export const ARTIFACTS = {
 // All artifacts flattened
 export const ALL_ARTIFACTS = Object.values(ARTIFACTS).flat();
 
-// Clue card images mapping: 48 clue cards + 20 decoy cards = 68 total
+// Clue card images mapping: 48 clue cards + 16 decoy cards = 64 total
 // Cards 1-48 are clue cards (organized: 1-12 Spanish, 13-24 American, 25-36 Japanese, 37-48 Myth)
-// Decoy cards use remaining numbers
 export function getClueCardImage(cardIndex) {
-  return `assets/Cards/Clue Cards/${cardIndex}.png`;
+  return `assets/Cards/UPDATED_CLUE_CARDS/${cardIndex}.png`;
 }
 
 // Generate clue cards data
@@ -760,10 +759,10 @@ export function generateClueCards() {
       }
     });
 
-    // 5 decoy cards per era
-    for (let d = 0; d < 5; d++) {
+    // 4 decoy cards per era (16 total matching UPDATED_DECOY_CARD 1.png-16.png)
+    for (let d = 0; d < 4; d++) {
       const decoyNum = d + 1;
-      const decoyImg = `assets/Cards/Decoy Cards/${eraIdx * 4 + decoyNum}.png`;
+      const decoyImg = `assets/Cards/UPDATED_DECOY_CARD/${eraIdx * 4 + decoyNum}.png`;
       clueCards.push({
         id: `decoy_${era}_${d}`,
         type: 'decoy',

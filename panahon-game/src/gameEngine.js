@@ -203,8 +203,9 @@ export class GameEngine {
       clueDecks[era] = shuffle(allClueCards.filter(c => c.era === era));
       eventDecks[era] = shuffle([...EVENT_CARDS[era]]);
       dangerDecks[era] = shuffle([...DANGER_CARDS[era]]);
-      // Deal 3 face-up cards from each era's shuffled deck
-      faceUpCards[era] = clueDecks[era].splice(0, 3);
+      // The face-up row is a view over the era deck. Displaying a card must
+      // not remove it from the pool until a player claims it.
+      faceUpCards[era] = clueDecks[era].slice(0, 3);
     });
 
     // Build board: tiles per era
@@ -862,10 +863,15 @@ export class GameEngine {
         const idx = faceUp.findIndex(c => c.id === chosenCardId);
         if (idx >= 0) {
           const [pickedCard] = faceUp.splice(idx, 1);
+          const deck = this.state.clueDecks[era] || [];
+          const deckIdx = deck.findIndex(c => c.id === chosenCardId);
+          if (deckIdx >= 0) {
+            deck.splice(deckIdx, 1);
+          }
           this._replenishFaceUp(era); // Flip up a new card to fill the slot
           this._receiveClueCard(player, pickedCard, era);
         } else {
-          // Card no longer available (edge case) — draw blind as fallback
+          // Card no longer available (edge case) — draw blind from the same era
           this._drawBlindClueCard(player, era);
         }
       }
@@ -1054,19 +1060,29 @@ export class GameEngine {
     if (!this.state.clueDecks[era]) {
       this.state.clueDecks[era] = [];
     }
-    // Prevent duplicate object entry
-    this.state.clueDecks[era].push(card);
+    // Prevent duplicate entries when a card is returned after a hand-limit
+    // decision or when rehydrating an older state.
+    const alreadyInDeck = this.state.clueDecks[era].some(deckCard => deckCard.id === card.id);
+    const alreadyFaceUp = (this.state.faceUpCards?.[era] || []).some(faceUpCard => faceUpCard.id === card.id);
+    if (!alreadyInDeck && !alreadyFaceUp) {
+      this.state.clueDecks[era].push(card);
+    }
     this.state.clueDecks[era] = shuffle(this.state.clueDecks[era]);
+    this._replenishFaceUp(era);
   }
 
-  // Face-Up Display: replenish one slot in the face-up row after a card is taken.
-  // Draws the next card from the era deck. If the deck is empty, the slot stays empty.
+  // Face-Up Display: replenish one slot after a displayed card is claimed or
+  // drawn blind. Unpicked cards remain in the era deck and stay visible.
   _replenishFaceUp(era) {
     if (!this.state.faceUpCards) return;
     if (!this.state.faceUpCards[era]) this.state.faceUpCards[era] = [];
     const deck = this.state.clueDecks[era];
-    if (deck && deck.length > 0) {
-      this.state.faceUpCards[era].push(deck.shift());
+    if (deck && deck.length > 0 && this.state.faceUpCards[era].length < 3) {
+      const displayedIds = new Set(this.state.faceUpCards[era].map(card => card.id));
+      const nextCard = deck.find(card => !displayedIds.has(card.id));
+      if (nextCard) {
+        this.state.faceUpCards[era].push(nextCard);
+      }
     }
   }
 
@@ -1192,9 +1208,16 @@ export class GameEngine {
   drawClueCard(player, options = {}) {
     let era = options.era || player.currentEra;
     const fromTile = options.fromTile !== undefined ? Boolean(options.fromTile) : true;
+    const temporalDisturbanceActive = this.state.temporalGlitchTurns > 0 || this.state.temporalOccurrence > 0;
+
+    // A normal clue tile is always bound to the quadrant where the player
+    // stands. Only an active temporal disturbance may override that era.
+    if (fromTile && !temporalDisturbanceActive) {
+      era = player.currentEra;
+    }
 
     // Temporal Occurrence: draw from random era
-    if (this.state.temporalGlitchTurns > 0 || this.state.temporalOccurrence > 0) {
+    if (temporalDisturbanceActive) {
       era = ERA_ORDER[Math.floor(Math.random() * ERA_ORDER.length)];
       this.addLog('temporal', `Temporal Disturbance! Drawing Clue from ${ERA_NAMES[era]} instead!`);
     }
@@ -1248,6 +1271,12 @@ export class GameEngine {
       return;
     }
     const card = deck.shift();
+    const faceUp = this.state.faceUpCards?.[era] || [];
+    const faceUpIdx = faceUp.findIndex(displayedCard => displayedCard.id === card.id);
+    if (faceUpIdx >= 0) {
+      faceUp.splice(faceUpIdx, 1);
+    }
+    this._replenishFaceUp(era);
     this._receiveClueCard(player, card, era);
   }
 

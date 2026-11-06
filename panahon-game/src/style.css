@@ -7393,6 +7393,18 @@ body {
 
 @media (max-width: 920px), (max-height: 550px) {
   /* MOBILE HIGH-PERFORMANCE RENDERING OPTIMIZATIONS */
+  /* Keep the existing tile hit area while reducing only the visible board piece. */
+  .mario-party-space > .space-disc,
+  .mario-party-space > .space-tile-image {
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+  }
+
+  .mario-party-space .space-icon {
+    font-size: 0.66rem;
+  }
+
   .chrono-particles-overlay {
     display: none !important;
   }

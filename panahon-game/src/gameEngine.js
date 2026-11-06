@@ -578,7 +578,7 @@ export class GameEngine {
           options.push({ label: `🌀 Warp to ${ERA_NAMES[era]} (-${cost} Energy)`, action: `warp_${era}` });
         });
       }
-      options.push({ label: `➡️ Continue Moving (${this.state.movesRemaining} spaces left)`, action: 'continueMoving' });
+      options.push({ label: `Continue Moving (${this.state.movesRemaining} spaces left)`, action: 'continueMoving' });
       this.state.pendingChoice = {
         type: 'timeGatePass',
         title: 'Time Gate Portal!',
@@ -765,7 +765,7 @@ export class GameEngine {
           options.push({ label: `🌀 Warp to ${ERA_NAMES[era]} (-${cost} Energy)`, action: `warp_${era}` });
         });
       }
-      options.push({ label: `➡️ Continue Moving (${this.state.movesRemaining} spaces left)`, action: 'continueMoving' });
+      options.push({ label: `Continue Moving (${this.state.movesRemaining} spaces left)`, action: 'continueMoving' });
       this.state.pendingChoice = {
         type: 'timeGatePass',
         title: 'Time Gate Portal!',

@@ -3,10 +3,10 @@ import sounds from '../../sound.js';
 import { ERA_NAMES } from '../../gameData.js';
 
 const ERA_HISTORICAL_SUBTITLES = {
-  spanish: 'Colonial Timeline (1565–1898)',
-  american: 'Industrial Era (1898–1946)',
-  japanese: 'Wartime Resistance (1942–1945)',
-  myth: 'Pre-Colonial & Anito Lore'
+  spanish: '',
+  american: '',
+  japanese: '',
+  myth: ''
 };
 
 const ERA_ICONS = {

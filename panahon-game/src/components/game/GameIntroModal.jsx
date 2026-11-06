@@ -671,7 +671,9 @@ export default function GameIntroModal({
 
   return (
     <div className="modal-overlay game-intro-overlay" style={{ zIndex: 11500 }}>
-      <div className="modal game-intro-modal animate-scale-up">
+      <div
+        className={`modal game-intro-modal animate-scale-up ${stage === STAGE_CEREMONY ? "is-ceremony-stage" : ""}`}
+      >
         {/* HEADER */}
         <div className="intro-header">
           <div className="intro-badge">

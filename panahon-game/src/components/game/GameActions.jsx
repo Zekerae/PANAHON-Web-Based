@@ -1237,7 +1237,7 @@ function GameActions({
                 disabled={!isMyTurn}
                 onClick={() => { sounds.stepHop?.(); onStepMove(); }}
               >
-                {isMovingBackward ? "Step Backward ⬅️" : "Step Forward ➡️"} ({state.movesRemaining} left)
+                {isMovingBackward ? "Step Backward" : "Step Forward"} ({state.movesRemaining} left)
               </button>
             </div>
           ) : (
@@ -1301,8 +1301,8 @@ function GameActions({
               >
                 <span>
                   {hasPreMovementDecision
-                    ? (isMovingBackward ? "⬅️ Confirm & Step Backward" : "➡️ Confirm & Move Forward")
-                    : (isMovingBackward ? "⬅️ Step Backward" : "➡️ Move Forward")}
+                    ? (isMovingBackward ? "Confirm & Step Backward" : "Confirm & Move Forward")
+                    : (isMovingBackward ? "Step Backward" : "Move Forward")}
                 </span>
                 <span style={{ fontSize: "0.68rem", background: "#251B12", border: "1px solid #8C6239", color: "#F5C442", padding: "2px 6px", borderRadius: "3px", fontWeight: 700 }}>
                   {state.movesRemaining} {state.movesRemaining === 1 ? "step left" : "steps left"}

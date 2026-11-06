@@ -10,6 +10,8 @@ function PlayerHand({
   onChangeTab,
   onViewMyHand,
   onInspectCard,
+  missionTabRef,
+  missionAttention = false,
   isSpectator = false,
   omniscientIntel = false
 }) {
@@ -18,24 +20,65 @@ function PlayerHand({
   const canReveal = isViewingSelf || (isSpectator && omniscientIntel);
   const clueCards = Array.isArray(viewedPlayer.clueCards) ? viewedPlayer.clueCards : [];
   const artifactCards = Array.isArray(viewedPlayer.artifactCards) ? viewedPlayer.artifactCards : [];
+  const mission = viewedPlayer.mission;
+  const triangulationSteps = [
+    !!viewedPlayer.triangulation?.originAnchor,
+    !!viewedPlayer.triangulation?.riftVector,
+    !!viewedPlayer.triangulation?.impactSighting
+  ];
+  const verifiedStepCount = triangulationSteps.filter(Boolean).length;
+
+  const nextDirective = !viewedPlayer.triangulation?.originAnchor
+    ? {
+        icon: '🔍',
+        title: 'Secure the artifact clue',
+        detail: <>Land on a Clue Tile in <strong>{ERA_NAMES[mission?.originEra]}</strong> to find intel for <strong>{mission?.artifactNickname || 'your mission artifact'}</strong>.</>
+      }
+    : !viewedPlayer.triangulation?.riftVector
+      ? {
+          icon: '🌀',
+          title: 'Lock the rift vector',
+          detail: <>Pass or land on a <strong>Time Gate</strong> to scan its vortex discharge.</>
+        }
+      : !viewedPlayer.triangulation?.impactSighting
+        ? {
+            icon: '👁️',
+            title: 'Confirm ground intel',
+            detail: <>Warp to <strong>{ERA_NAMES[mission?.displacedEra]}</strong> and land on a Clue Tile.</>
+          }
+        : {
+            icon: '🏺',
+            title: 'Retrieve the relic',
+            detail: <>Land on the Artifact Tile in <strong>{ERA_NAMES[mission?.displacedEra]}</strong> to recover <strong>{mission?.artifactNickname || 'the relic'}</strong>.</>
+          };
 
   return (
-    <section className="bottom-panel">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
-        <div className="tab-nav" style={{ margin: 0 }}>
+    <section className={`bottom-panel ${missionAttention ? 'mission-attention-active' : ''}`}>
+      <div className="hand-panel-header">
+        <div className="tab-nav hand-tab-nav" role="tablist" aria-label="Player hand sections">
           <button
-            className={`tab-btn ${activeHandTab === 'mission' ? 'active' : ''}`}
+            ref={missionTabRef}
+            type="button"
+            role="tab"
+            aria-selected={activeHandTab === 'mission'}
+            className={`tab-btn ${activeHandTab === 'mission' ? 'active' : ''} ${missionAttention ? 'mission-tab-attention' : ''}`}
             onClick={() => { sounds.btnClick(); onChangeTab('mission'); }}
           >
             📜 Mission Dossier
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeHandTab === 'clues'}
             className={`tab-btn ${activeHandTab === 'clues' ? 'active' : ''}`}
             onClick={() => { sounds.btnClick(); onChangeTab('clues'); }}
           >
             🔍 Clues ({clueCards.length}/{GAME_CONSTANTS.MAX_CLUE_CARDS || 3})
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeHandTab === 'artifacts'}
             className={`tab-btn ${activeHandTab === 'artifacts' ? 'active' : ''}`}
             onClick={() => { sounds.btnClick(); onChangeTab('artifacts'); }}
           >
@@ -43,7 +86,7 @@ function PlayerHand({
           </button>
         </div>
 
-        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="hand-viewing-status">
           <span>
             Viewing: <strong style={{ color: viewedPlayer.color }}>{viewedPlayer.name}{isViewingSelf ? ' (You)' : ''}</strong>'s Hand
             {isSpectator && <span style={{ color: '#E5C58A', fontWeight: 700, marginLeft: '4px' }}>[OBSERVER]</span>}
@@ -62,34 +105,34 @@ function PlayerHand({
 
       {/* Tab Contents */}
       <div className={`hand-tab-body ${activeHandTab === 'mission' ? 'tab-body-mission' : ''}`}>
-        {activeHandTab === 'mission' && viewedPlayer.mission && (
+        {activeHandTab === 'mission' && mission && (
           <div className="mission-display mission-compact">
             {/* Row 1: Mission Header & Identity */}
             <div className="mission-compact-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 0 }}>
-                <span className="mission-title" style={{ fontSize: '0.74rem', margin: 0, whiteSpace: 'nowrap' }}>
+              <div className="mission-identity">
+                <span className="mission-title">
                   {canReveal
-                    ? `MISSION: RETRIEVE ${viewedPlayer.mission.artifactNickname || viewedPlayer.mission.artifactName || 'RELIC'}`
+                    ? `MISSION: RETRIEVE ${mission.artifactNickname || mission.artifactName || 'RELIC'}`
                     : `MISSION: CLASSIFIED OBJECTIVE (${viewedPlayer.name})`}
                 </span>
                 <span className="mission-era-pill">
-                  🏛️ {ERA_NAMES[viewedPlayer.mission.originEra || viewedPlayer.mission.targetEra]}
+                  🏛️ {ERA_NAMES[mission.originEra || mission.targetEra]}
                 </span>
                 <span
                   className="mission-lock-pill"
                   style={{
-                    color: ((viewedPlayer.triangulation?.originAnchor ? 1 : 0) + (viewedPlayer.triangulation?.riftVector ? 1 : 0) + (viewedPlayer.triangulation?.impactSighting ? 1 : 0)) === 3 ? '#4ADE80' : '#FACC15',
-                    borderColor: ((viewedPlayer.triangulation?.originAnchor ? 1 : 0) + (viewedPlayer.triangulation?.riftVector ? 1 : 0) + (viewedPlayer.triangulation?.impactSighting ? 1 : 0)) === 3 ? 'rgba(74, 222, 128, 0.4)' : '#5A422D'
+                    color: verifiedStepCount === 3 ? '#86EFAC' : '#FDE047',
+                    borderColor: verifiedStepCount === 3 ? 'rgba(134, 239, 172, 0.65)' : '#8C6527'
                   }}
                 >
                   {isViewingSelf
-                    ? `🔒 ${(viewedPlayer.triangulation?.originAnchor ? 1 : 0) + (viewedPlayer.triangulation?.riftVector ? 1 : 0) + (viewedPlayer.triangulation?.impactSighting ? 1 : 0)}/3 LOCKED`
+                    ? `🔒 ${verifiedStepCount}/3 VERIFIED`
                     : `📜 ${clueCards.length} CLUES`}
                 </span>
               </div>
-              <div className="mission-desc-inline" title={canReveal ? viewedPlayer.mission.description : ''}>
+              <div className="mission-desc-inline" title={canReveal ? mission.description : ''}>
                 {canReveal
-                  ? viewedPlayer.mission.description
+                  ? mission.description
                   : `Historical mission details and clues are classified to ${viewedPlayer.name}.`}
               </div>
             </div>
@@ -97,64 +140,56 @@ function PlayerHand({
             {/* Row 2: Status & Directives */}
             {viewedPlayer.completed ? (
               <div className="mission-completed-row">
-                <span style={{ color: '#FFD700', fontWeight: 800, fontSize: '0.78rem' }}>
+                <span className="mission-completed-title">
                   🏆 {viewedPlayer.placementRank === 1 ? '1ST' : viewedPlayer.placementRank === 2 ? '2ND' : viewedPlayer.placementRank === 3 ? '3RD' : `${viewedPlayer.placementRank}TH`} PLACE LOCKED IN!
                 </span>
-                <span style={{ fontSize: '0.7rem', color: '#FDE047', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  Relic returned to {ERA_NAMES[viewedPlayer.mission.originEra || viewedPlayer.mission.targetEra]}. Assist allies before Timeline breaches!
+                <span className="mission-completed-copy">
+                  Relic returned to {ERA_NAMES[mission.originEra || mission.targetEra]}. Assist allies before Timeline breaches!
                 </span>
               </div>
-            ) : artifactCards.some(a => a.id === viewedPlayer.mission.artifactId) ? (
+            ) : artifactCards.some(a => a.id === mission.artifactId) ? (
               <div className="mission-phase-row phase-return">
                 <span className="mission-phase-tag">📦 PHASE 3: RETURN TO ORIGIN</span>
-                <span style={{ fontSize: '0.7rem', color: '#FDE68A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  You hold <strong>{viewedPlayer.mission.artifactNickname}</strong>! Travel back to native <strong>{ERA_NAMES[viewedPlayer.mission.originEra || viewedPlayer.mission.targetEra]}</strong> and land on the Artifact Tile to restore history!
+                <span className="mission-phase-copy">
+                  You hold <strong>{mission.artifactNickname}</strong>! Travel back to native <strong>{ERA_NAMES[mission.originEra || mission.targetEra]}</strong> and land on the Artifact Tile to restore history!
                 </span>
               </div>
-            ) : (viewedPlayer.clueProgress?.[viewedPlayer.mission?.artifactId] || 0) >= 3 ? (
+            ) : (viewedPlayer.clueProgress?.[mission.artifactId] || 0) >= 3 ? (
               <div className="mission-phase-row phase-retrieve">
                 <span className="mission-phase-tag">📍 PHASE 2: DISPLACED RETRIEVAL</span>
-                <span style={{ fontSize: '0.7rem', color: '#FEF08A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  Research complete! Materialized in <strong>{ERA_NAMES[viewedPlayer.mission.displacedEra]}</strong>! Travel there via Time Gate & land on the Artifact Tile to claim it!
+                <span className="mission-phase-copy">
+                  Research complete! Materialized in <strong>{ERA_NAMES[mission.displacedEra]}</strong>! Travel there via Time Gate & land on the Artifact Tile to claim it!
                 </span>
               </div>
             ) : (
               <div className="mission-triangulation-row">
-                {/* 3 Step Badges */}
-                <div className="mission-step-chips">
-                  {[
-                    {
-                      step: 1,
-                      label: "1. Artifact Clue",
-                      icon: "🔍",
-                      done: !!viewedPlayer.triangulation?.originAnchor,
-                      desc: `Find a Clue for ${viewedPlayer.mission?.artifactNickname || 'your mission artifact'} in ${ERA_NAMES[viewedPlayer.mission?.originEra]}`
-                    },
-                    { step: 2, label: "2. Rift Vector", icon: "🌀", done: !!viewedPlayer.triangulation?.riftVector, desc: "Scan vortex discharge at a Time Gate" },
-                    { step: 3, label: "3. Ground Intel", icon: "👁️", done: !!viewedPlayer.triangulation?.impactSighting, desc: `Confirm ground sightings in ${ERA_NAMES[viewedPlayer.mission?.displacedEra]}` }
-                  ].map((s) => (
-                    <div
-                      key={s.step}
-                      className={`mission-step-chip ${s.done ? 'step-done' : ''}`}
-                      title={`${s.label}: ${s.desc} - ${s.done ? "VERIFIED ✅" : "PENDING ⏳"}`}
-                    >
-                      <span className="step-icon">{s.done ? "✅" : s.icon}</span>
-                      <span className="step-label">{s.label}</span>
-                    </div>
-                  ))}
-                </div>
-
                 {/* Directive Banner */}
                 <div className="mission-directive-pill">
-                  {!viewedPlayer.triangulation?.originAnchor ? (
-                    <span>🎯 <strong>Next Directive:</strong> Land on a Clue Tile (🔍) in <strong>{ERA_NAMES[viewedPlayer.mission?.originEra]}</strong> to find a Clue for <strong>{viewedPlayer.mission?.artifactNickname || 'your mission artifact'}</strong>.</span>
-                  ) : !viewedPlayer.triangulation?.riftVector ? (
-                    <span>🎯 <strong>Next Directive:</strong> Pass or land on a <strong>Time Gate (🌀)</strong> to scan & lock Rift Vector!</span>
-                  ) : !viewedPlayer.triangulation?.impactSighting ? (
-                    <span>🎯 <strong>Next Directive:</strong> Warp to <strong>{ERA_NAMES[viewedPlayer.mission?.displacedEra]}</strong> & land on Clue Tile (🔍) for Ground Intel.</span>
-                  ) : (
-                    <span>🎯 <strong>Triangulation Complete!</strong> Land on Artifact Tile (🏺) in <strong>{ERA_NAMES[viewedPlayer.mission?.displacedEra]}</strong> to retrieve {viewedPlayer.mission?.artifactNickname}!</span>
-                  )}
+                  <span className="mission-directive-icon" aria-hidden="true">{nextDirective.icon}</span>
+                  <span className="mission-directive-content">
+                    <span className="mission-directive-label">NEXT DIRECTIVE</span>
+                    <strong className="mission-directive-title">{nextDirective.title}</strong>
+                    <span className="mission-directive-copy">{nextDirective.detail}</span>
+                  </span>
+                </div>
+
+                <div
+                  className="mission-progress-summary"
+                  role="progressbar"
+                  aria-label="Triangulation progress"
+                  aria-valuemin="0"
+                  aria-valuemax="3"
+                  aria-valuenow={verifiedStepCount}
+                >
+                  <div className="mission-progress-heading">
+                    <span>TRIANGULATION</span>
+                    <strong>{verifiedStepCount}/3</strong>
+                  </div>
+                  <div className="mission-progress-segments" aria-hidden="true">
+                    {triangulationSteps.map((done, index) => (
+                      <span key={index} className={done ? 'is-verified' : index === verifiedStepCount ? 'is-current' : ''} />
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

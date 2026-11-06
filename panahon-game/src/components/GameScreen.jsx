@@ -11,6 +11,7 @@ import Dice from './game/Dice.jsx';
 import PlayerHand from './game/PlayerHand.jsx';
 import PauseModal from './PauseModal.jsx';
 import GameIntroModal from './game/GameIntroModal.jsx';
+import MissionRevealModal from './game/MissionRevealModal.jsx';
 
 function GameScreen({
   state,
@@ -41,6 +42,11 @@ function GameScreen({
   const [autoFollow, setAutoFollow] = useState(true);
   const [omniscientIntel, setOmniscientIntel] = useState(false);
   const [showIntro, setShowIntro] = useState(() => !state?.hasCompletedIntro);
+  const [showMissionReveal, setShowMissionReveal] = useState(false);
+  const [missionRevealPlayers, setMissionRevealPlayers] = useState([]);
+  const [missionRevealIndex, setMissionRevealIndex] = useState(0);
+  const [missionAttention, setMissionAttention] = useState(false);
+  const [missionAttentionGate, setMissionAttentionGate] = useState(false);
   const [showDebugModal, setShowDebugModal] = useState(false);
   const rollTimerRef = useRef(null);
   const rollResultTimerRef = useRef(null);
@@ -48,12 +54,17 @@ function GameScreen({
   const trajectoryDiceRef = useRef(null);
   const diceGhostRef = useRef(null);
   const diceGhostAnimationRef = useRef(null);
+  const missionDossierTabRef = useRef(null);
+  const mobileHandTabRef = useRef(null);
+  const missionAttentionTimerRef = useRef(null);
+  const missionBriefingStartedRef = useRef(false);
 
   useEffect(() => () => {
     if (rollTimerRef.current) clearTimeout(rollTimerRef.current);
     if (rollResultTimerRef.current) clearTimeout(rollResultTimerRef.current);
     diceGhostAnimationRef.current?.cancel();
     diceGhostRef.current?.remove();
+    if (missionAttentionTimerRef.current) clearTimeout(missionAttentionTimerRef.current);
   }, []);
 
   const effectiveIsSpectator = Boolean(
@@ -61,6 +72,51 @@ function GameScreen({
     network?.isSpectator ||
     (state?.players?.length > 0 && state.players.every(p => p.isAi))
   );
+
+  const getMissionRevealPlayers = useCallback(() => {
+    const orderedPlayers = engine?.state?.players || state?.players || [];
+    if (effectiveIsSpectator) return [];
+
+    if (network?.mode === 'online') {
+      const localPlayer = orderedPlayers.find((player) =>
+        player.isLocal ||
+        (network?.myPlayerName && player.name === network.myPlayerName) ||
+        (network?.playerId !== null && network?.playerId !== undefined && String(player.id) === String(network.playerId))
+      );
+      return localPlayer?.mission ? [localPlayer] : [];
+    }
+
+    // Offline and pass-and-play: reveal every human assignment in sequence.
+    return orderedPlayers.filter(player => !player.isAi && player.mission);
+  }, [engine, state?.players, effectiveIsSpectator, network]);
+
+  const releasePreTurnGate = useCallback(() => {
+    if (!engine) return;
+    engine.isPaused = false;
+    if (engine.state) engine.state.isPaused = false;
+    engine.startTimer();
+  }, [engine]);
+
+  const beginMissionBriefing = useCallback(() => {
+    if (missionBriefingStartedRef.current) return;
+    missionBriefingStartedRef.current = true;
+    const revealPlayers = getMissionRevealPlayers();
+    if (!revealPlayers.length) {
+      setShowMissionReveal(false);
+      releasePreTurnGate();
+      return;
+    }
+
+    if (engine) {
+      engine.isPaused = true;
+      if (engine.state) engine.state.isPaused = true;
+      engine.stopTimer();
+    }
+    setMissionRevealPlayers(revealPlayers);
+    setMissionRevealIndex(0);
+    setMissionAttention(false);
+    setShowMissionReveal(true);
+  }, [engine, getMissionRevealPlayers, releasePreTurnGate]);
 
   const handleIntroComplete = useCallback((orderedPlayers) => {
     setShowIntro(false);
@@ -81,30 +137,26 @@ function GameScreen({
         }
         network.sendAction({ type: 'SET_TURN_ORDER', orderedPlayers });
       }
-      engine.isPaused = false;
-      engine.startTimer();
+      beginMissionBriefing();
     }
-  }, [engine, network, effectiveIsSpectator]);
+  }, [engine, network, effectiveIsSpectator, beginMissionBriefing]);
 
   useEffect(() => {
     if (network) {
       network.onTurnOrderSet = () => {
         setShowIntro(false);
-        if (engine) {
-          engine.isPaused = false;
-          engine.startTimer();
-        }
+        beginMissionBriefing();
       };
     }
     return () => {
       if (network) network.onTurnOrderSet = null;
     };
-  }, [network, engine]);
+  }, [network, beginMissionBriefing]);
 
   // Lifecycle Timer Manager: Keep timer running while in-game and not paused
   useEffect(() => {
     if (!engine) return;
-    if (!showIntro && !isPaused && !state?.gameOver) {
+    if (!showIntro && !showMissionReveal && !missionAttentionGate && !isPaused && !state?.gameOver) {
       engine.isPaused = false;
       if (engine.state) engine.state.isPaused = false;
       engine.startTimer();
@@ -116,7 +168,46 @@ function GameScreen({
     return () => {
       if (engine) engine.stopTimer();
     };
-  }, [showIntro, isPaused, engine, state?.gameOver]);
+  }, [showIntro, showMissionReveal, missionAttentionGate, isPaused, engine, state?.gameOver]);
+
+  const handleMissionArchiveStart = useCallback((player) => {
+    setActiveHandTab('mission');
+    setMobileGameTab('board');
+    if (player?.id !== undefined && player?.id !== null) {
+      setInspectedPlayerId(player.id);
+    }
+  }, []);
+
+  const handleMissionArchived = useCallback(() => {
+    const hasAnotherReveal = missionRevealIndex < missionRevealPlayers.length - 1;
+    if (hasAnotherReveal) {
+      setMissionRevealIndex(index => index + 1);
+      return;
+    }
+
+    setShowMissionReveal(false);
+    setMissionRevealPlayers([]);
+    setMissionRevealIndex(0);
+    setActiveHandTab('mission');
+    setMissionAttention(true);
+    setMissionAttentionGate(true);
+    window.requestAnimationFrame(() => {
+      const isCompactLayout = window.matchMedia?.('(max-width: 920px), (max-height: 550px)').matches;
+      const attentionTarget = isCompactLayout ? mobileHandTabRef.current : missionDossierTabRef.current;
+      attentionTarget?.focus();
+    });
+
+    if (missionAttentionTimerRef.current) clearTimeout(missionAttentionTimerRef.current);
+    const attentionDuration = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      ? 850
+      : 3800;
+    missionAttentionTimerRef.current = setTimeout(() => {
+      setMissionAttention(false);
+      setMissionAttentionGate(false);
+      releasePreTurnGate();
+      missionAttentionTimerRef.current = null;
+    }, attentionDuration);
+  }, [missionRevealIndex, missionRevealPlayers.length, releasePreTurnGate]);
 
   const handleResume = useCallback(() => {
     setIsPaused(false);
@@ -152,7 +243,7 @@ function GameScreen({
         setShowDebugModal(prev => !prev);
         return;
       }
-      if (showIntro) return;
+      if (showIntro || showMissionReveal || missionAttentionGate) return;
       if (e.key === 'Escape') {
         if (showDebugModal) {
           setShowDebugModal(false);
@@ -165,7 +256,7 @@ function GameScreen({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showIntro, isPaused, showDebugModal, handleResume, handleOpenPause]);
+  }, [showIntro, showMissionReveal, missionAttentionGate, isPaused, showDebugModal, handleResume, handleOpenPause]);
 
   // Auto-follow current turn operative in spectator mode
   React.useEffect(() => {
@@ -219,11 +310,13 @@ function GameScreen({
       !state?.pendingModal &&
       !state?.pendingChoice &&
       !showIntro &&
+      !showMissionReveal &&
+      !missionAttentionGate &&
       !isPaused
     ) {
       setMobileGameTab('board');
     }
-  }, [isMyTurn, state?.phase, state?.pendingModal, state?.pendingChoice, showIntro, isPaused]);
+  }, [isMyTurn, state?.phase, state?.pendingModal, state?.pendingChoice, showIntro, showMissionReveal, missionAttentionGate, isPaused]);
 
   let timelineClass = 'safe';
   if (timelineLevel >= 4) timelineClass = 'danger';
@@ -315,7 +408,7 @@ function GameScreen({
   }, []);
 
   const handleRollDice = useCallback(() => {
-    if (isRolling || state.phase !== 'rolling' || !isMyTurn) return;
+    if (showIntro || showMissionReveal || missionAttentionGate || isRolling || state.phase !== 'rolling' || !isMyTurn) return;
     if (currentPlayer && ((currentPlayer.energy <= 0 && !state.momentumActive) || currentPlayer.skipNextTurn)) {
       sounds.danger?.();
       return;
@@ -342,7 +435,7 @@ function GameScreen({
       setIsRolling(false);
       rollTimerRef.current = null;
     }, 650);
-  }, [isRolling, state.phase, isMyTurn, currentPlayer, engine, network, runDiceHandoff]);
+  }, [showIntro, showMissionReveal, missionAttentionGate, isRolling, state.phase, isMyTurn, currentPlayer, engine, network, runDiceHandoff]);
 
   const handleStepMove = useCallback(() => {
     if (state.phase !== 'moving' || state.movesRemaining <= 0 || !isMyTurn) return;
@@ -513,7 +606,7 @@ function GameScreen({
   // --- Comprehensive Keyboard Shortcuts (Roll, Step Move, Skill [Q/S], End Turn [E/T/Space/Enter]) ---
   React.useEffect(() => {
     const handleKeyDown = (e) => {
-      if (showIntro || isPaused || showDebugModal || state?.pendingModal || state?.pendingChoice) return;
+      if (showIntro || showMissionReveal || missionAttentionGate || isPaused || showDebugModal || state?.pendingModal || state?.pendingChoice) return;
       const tag = e.target?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) {
         return;
@@ -576,6 +669,8 @@ function GameScreen({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     showIntro,
+    showMissionReveal,
+    missionAttentionGate,
     isPaused,
     showDebugModal,
     state?.pendingModal,
@@ -637,8 +732,9 @@ function GameScreen({
           👥 Castaways ({state.players?.length || 0})
         </button>
         <button
+          ref={mobileHandTabRef}
           type="button"
-          className={`mobile-game-tab ${mobileGameTab === "hand" ? "active" : ""}`}
+          className={`mobile-game-tab ${mobileGameTab === "hand" ? "active" : ""} ${missionAttention ? "mobile-hand-attention" : ""}`}
           onClick={() => { sounds.btnClick(); setMobileGameTab("hand"); }}
         >
           📜 Hand
@@ -685,7 +781,7 @@ function GameScreen({
         isRolling={isRolling}
         rollResultVisible={rollResultVisible}
         resultDiceRef={resultDiceRef}
-        blocked={Boolean(showIntro || isPaused || showDebugModal || state.pendingModal || state.pendingChoice)}
+        blocked={Boolean(showIntro || showMissionReveal || missionAttentionGate || isPaused || showDebugModal || state.pendingModal || state.pendingChoice)}
         onRollDice={handleRollDice}
         onRest={handleRest}
         onAcknowledgeSkip={handleAcknowledgeSkip}
@@ -791,7 +887,7 @@ function GameScreen({
                     className="btn mobile-dock-btn trajectory-reverse-btn"
                     onClick={handleReverseTime}
                   >
-                    ⏪ Reverse · -3 EN
+                    Reverse · -3 EN
                   </button>
                 )}
 
@@ -832,12 +928,17 @@ function GameScreen({
                   type="button"
                   className={`btn mobile-dock-btn mobile-dock-move-btn ${hasPreMovementDecision ? 'trajectory-confirm-btn' : ''}`}
                   onClick={handleStepMove}
+                  aria-label={hasPreMovementDecision
+                    ? (state.movementDirection === 'backward'
+                      ? `Confirm backward movement by ${state.movesRemaining} ${state.movesRemaining === 1 ? 'space' : 'spaces'}`
+                      : `Confirm forward movement by ${state.movesRemaining} ${state.movesRemaining === 1 ? 'space' : 'spaces'}`)
+                    : undefined}
                 >
                   {hasPreMovementDecision
                     ? (state.movementDirection === 'backward'
-                      ? `⬅️ Confirm Back · ${state.movesRemaining} ${state.movesRemaining === 1 ? 'Space' : 'Spaces'}`
-                      : `➡️ Confirm Move · ${state.movesRemaining} ${state.movesRemaining === 1 ? 'Space' : 'Spaces'}`)
-                    : (state.movementDirection === 'backward' ? '⬅️ Step Back' : '➡️ Step Forward')}
+                      ? `Back · ${state.movesRemaining}`
+                      : `Confirm · ${state.movesRemaining}`)
+                    : (state.movementDirection === 'backward' ? 'Step Back' : 'Step Forward')}
                 </button>
               </div>
             )}
@@ -956,6 +1057,8 @@ function GameScreen({
         onChangeTab={(tab) => setActiveHandTab(tab)}
         onViewMyHand={() => setInspectedPlayerId(null)}
         onInspectCard={onInspectCard}
+        missionTabRef={missionDossierTabRef}
+        missionAttention={missionAttention}
         isSpectator={effectiveIsSpectator}
         omniscientIntel={omniscientIntel}
       />
@@ -970,6 +1073,19 @@ function GameScreen({
         isSpectator={effectiveIsSpectator}
         onComplete={handleIntroComplete}
         onSkip={() => handleIntroComplete(state?.players || [])}
+      />
+
+      {/* 6B. PERSONAL MISSION REVEAL — gates the first movement roll */}
+      <MissionRevealModal
+        key={missionRevealPlayers[missionRevealIndex]?.id ?? 'mission-reveal'}
+        isOpen={showMissionReveal}
+        player={missionRevealPlayers[missionRevealIndex]}
+        targetRef={missionDossierTabRef}
+        mobileTargetRef={mobileHandTabRef}
+        sequencePosition={missionRevealIndex + 1}
+        sequenceTotal={missionRevealPlayers.length}
+        onArchiveStart={handleMissionArchiveStart}
+        onArchived={handleMissionArchived}
       />
 
       {/* 7. PAUSE MENU MODAL */}

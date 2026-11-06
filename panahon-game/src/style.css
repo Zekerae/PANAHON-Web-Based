@@ -2321,7 +2321,7 @@ body {
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.7);
 }
 
-/* Strategist Trap indicator (Skull on top-left of tile) */
+/* Rogue Trap indicator (Skull on top-left of tile) */
 .tile-trap-indicator {
   position: absolute;
   top: -6px;
@@ -2342,6 +2342,41 @@ body {
   cursor: help;
   animation: trapPulse 1.2s ease-in-out infinite alternate;
   user-select: none;
+}
+
+/* Strategist Command Post indicator (Flag on top-right of tile) */
+.tile-command-post-indicator {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  line-height: 1;
+  background: radial-gradient(circle at 35% 30%, #fff4b8 0%, #f59e0b 58%, #78350f 100%);
+  border: 1.5px solid #fde68a;
+  border-radius: 50%;
+  box-shadow: 0 0 9px rgba(245, 158, 11, 0.95), inset 0 0 4px rgba(120, 53, 15, 0.65);
+  z-index: 36;
+  pointer-events: auto;
+  cursor: help;
+  animation: commandPostPulse 1.4s ease-in-out infinite alternate;
+  user-select: none;
+}
+
+@keyframes commandPostPulse {
+  from {
+    transform: scale(0.96);
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.72), inset 0 0 4px rgba(120, 53, 15, 0.65);
+  }
+
+  to {
+    transform: scale(1.12);
+    box-shadow: 0 0 13px rgba(251, 191, 36, 1), 0 0 5px #fff4b8, inset 0 0 4px rgba(120, 53, 15, 0.65);
+  }
 }
 
 @keyframes trapPulse {
@@ -3734,7 +3769,7 @@ body {
   }
 }
 
-/* Trap indicator on smaller screens */
+/* Ability markers on smaller screens */
 @media (max-width: 600px) {
   .tile-trap-indicator {
     top: -5px;
@@ -3742,6 +3777,14 @@ body {
     width: 15px;
     height: 15px;
     font-size: 0.62rem;
+  }
+
+  .tile-command-post-indicator {
+    top: -6px;
+    right: -6px;
+    width: 17px;
+    height: 17px;
+    font-size: 0.68rem;
   }
 }
 

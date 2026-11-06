@@ -735,6 +735,10 @@ export class GameEngine {
 
     const tile = eraTiles[newIdx];
 
+    // Command Posts control territory on entry, even when the operative still has
+    // movement remaining. resolveTile() safely de-duplicates the final step.
+    this.resolveCommandPost(player, tile);
+
     // Artifact stop option
     if (tile.type === TILE_TYPES.ARTIFACT && this.state.movesRemaining > 0) {
       this.state.pendingChoice = {
@@ -1203,6 +1207,46 @@ export class GameEngine {
   }
 
   // --- Tile Resolution ---
+  resolveCommandPost(player, tile) {
+    if (!tile?.commandPost || !player) return false;
+
+    // A final movement step is also passed to resolveTile(). Track the concrete
+    // entry so that one step can never charge (or heal) twice.
+    const isCurrentMover = this.state?.phase === 'moving'
+      && String(this.getCurrentPlayer()?.id) === String(player.id)
+      && (this.state.stepsTakenThisTurn || 0) > 0;
+    const entryKey = isCurrentMover
+      ? `${this.state.turnNumber || 0}:${player.id}:${this.state.stepsTakenThisTurn}:${tile.id}`
+      : null;
+
+    if (entryKey && player.lastCommandPostEntryKey === entryKey) return false;
+    if (entryKey) player.lastCommandPostEntryKey = entryKey;
+
+    const isOwner = player.id === tile.commandPost.ownerId || String(player.id) === String(tile.commandPost.ownerId);
+    if (isOwner) {
+      // Safe haven: restore +2 Chrono Energy
+      this.modifyEnergy(player, 2);
+      this.addLog('ability', `🚩 Command Post: ${player.name} rested at their fortified Command Post, recovering +2 Energy! (Now: ${player.energy}/${GAME_CONSTANTS.MAX_ENERGY})`);
+      return true;
+    }
+
+    // Rival operative pays 1 Energy toll to the owner
+    const owner = this.state.players.find(p => p.id === tile.commandPost.ownerId || String(p.id) === String(tile.commandPost.ownerId));
+    const toll = Math.min(1, player.energy || 0);
+    if (toll > 0) {
+      this.modifyEnergy(player, -toll);
+      if (owner) {
+        this.modifyEnergy(owner, toll);
+        this.addLog('ability', `🚩 Command Post Toll: ${player.name} entered ${tile.commandPost.ownerName}'s Command Post and paid a 1 Energy toll to ${owner.name}!`);
+      } else {
+        this.addLog('ability', `🚩 Command Post Toll: ${player.name} entered a fortified Command Post and lost 1 Energy!`);
+      }
+    } else {
+      this.addLog('info', `🚩 Command Post: ${player.name} entered ${tile.commandPost.ownerName}'s Command Post, but had 0 Energy to pay toll!`);
+    }
+    return true;
+  }
+
   resolveTile(player, tile) {
     // If landing on an armed enemy trap, trigger it immediately (planter is immune)
     if (tile.trap && !this.isTrapImmune(player, tile.trap)) {
@@ -1210,32 +1254,8 @@ export class GameEngine {
       return;
     }
 
+    this.resolveCommandPost(player, tile);
     this.state.phase = 'cardResolution';
-
-    // Command Post (Strategist Active & Passive Territory Control)
-    if (tile.commandPost) {
-      const isOwner = player.id === tile.commandPost.ownerId || String(player.id) === String(tile.commandPost.ownerId);
-      if (isOwner) {
-        // Safe haven: restore +2 Chrono Energy
-        this.modifyEnergy(player, 2);
-        this.addLog('ability', `🚩 Command Post: ${player.name} rested at their fortified Command Post, recovering +2 Energy! (Now: ${player.energy}/${GAME_CONSTANTS.MAX_ENERGY})`);
-      } else {
-        // Rival operative pays 1 Energy toll to the owner
-        const owner = this.state.players.find(p => p.id === tile.commandPost.ownerId || String(p.id) === String(tile.commandPost.ownerId));
-        const toll = Math.min(1, player.energy || 0);
-        if (toll > 0) {
-          this.modifyEnergy(player, -toll);
-          if (owner) {
-            this.modifyEnergy(owner, toll);
-            this.addLog('ability', `🚩 Command Post Toll: ${player.name} entered ${tile.commandPost.ownerName}'s Command Post and paid a 1 Energy toll to ${owner.name}!`);
-          } else {
-            this.addLog('ability', `🚩 Command Post Toll: ${player.name} entered a fortified Command Post and lost 1 Energy!`);
-          }
-        } else {
-          this.addLog('info', `🚩 Command Post: ${player.name} entered ${tile.commandPost.ownerName}'s Command Post, but had 0 Energy to pay toll!`);
-        }
-      }
-    }
 
     try {
       switch (tile.type) {

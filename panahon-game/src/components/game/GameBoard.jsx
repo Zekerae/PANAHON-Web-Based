@@ -919,6 +919,19 @@ function GameBoard({
                         💀
                       </span>
                     )}
+                    {t.commandPost && (
+                      <span
+                        className="tile-command-post-indicator"
+                        title={`Command Post (Established by ${
+                          players?.find(player => String(player.id) === String(t.commandPost.ownerId))?.name
+                          || t.commandPost.ownerName
+                          || 'the Strategist'
+                        })`}
+                        aria-label="Strategist Command Post"
+                      >
+                        🚩
+                      </span>
+                    )}
 
                     {tileType === "paradox" && playersOnTile.length > 0 && (
                       <div className="paradox-anomaly-presence" aria-hidden="true">

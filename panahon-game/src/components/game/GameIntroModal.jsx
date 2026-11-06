@@ -33,6 +33,12 @@ export default function GameIntroModal({
   const [tieNotice, setTieNotice] = useState(null);
   const [lockedRanks, setLockedRanks] = useState({}); // { [playerId]: rankNumber }
   const [finalTurnOrder, setFinalTurnOrder] = useState([]);
+  const [ceremonyView, setCeremonyView] = useState(() => {
+    if (typeof window === "undefined") return "all";
+    return window.matchMedia("(max-width: 768px), (max-height: 620px) and (max-width: 950px)").matches
+      ? "winner"
+      : "all";
+  });
 
   // Auto-roll timers ref
   const rollTimeoutsRef = useRef([]);
@@ -46,6 +52,33 @@ export default function GameIntroModal({
   useEffect(() => {
     return () => clearAllTimeouts();
   }, []);
+
+  // On compact screens, present the winner first, then replace it with the
+  // turn sequence so both result panels remain readable without scrolling.
+  useEffect(() => {
+    if (stage !== STAGE_CEREMONY) return undefined;
+
+    const isCompact = typeof window !== "undefined" && window
+      .matchMedia("(max-width: 768px), (max-height: 620px) and (max-width: 950px)")
+      .matches;
+
+    if (!isCompact) {
+      setCeremonyView("all");
+      return undefined;
+    }
+
+    if (!Array.isArray(finalTurnOrder) || finalTurnOrder.length === 0) {
+      setCeremonyView("sequence");
+      return undefined;
+    }
+
+    setCeremonyView("winner");
+    const revealSequenceTimer = window.setTimeout(() => {
+      setCeremonyView("sequence");
+    }, 3000);
+
+    return () => window.clearTimeout(revealSequenceTimer);
+  }, [stage, finalTurnOrder]);
 
   // Sync initial groups when modal opens or players change
   useEffect(() => {
@@ -604,7 +637,7 @@ export default function GameIntroModal({
             handleHumanRoll(myLocalPlayer.id);
           }
         } else if (stage === STAGE_CEREMONY) {
-          if (!isOnline || isHost) {
+          if (ceremonyView !== "winner" && (!isOnline || isHost)) {
             e.preventDefault();
             handleCommence();
           }
@@ -614,7 +647,7 @@ export default function GameIntroModal({
           e.preventDefault();
           handleProceedToInitiative();
         } else if (stage === STAGE_CEREMONY) {
-          if (!isOnline || isHost) {
+          if (ceremonyView !== "winner" && (!isOnline || isHost)) {
             e.preventDefault();
             handleCommence();
           }
@@ -629,6 +662,7 @@ export default function GameIntroModal({
     canMyPlayerRoll,
     isOnline,
     isHost,
+    ceremonyView,
     handleHumanRoll,
     handleCommence
   ]);
@@ -967,10 +1001,10 @@ export default function GameIntroModal({
 
         {/* STAGE 3: CEREMONY */}
         {stage === STAGE_CEREMONY && (
-          <div className="intro-stage-content intro-ceremony-stage">
+          <div className="intro-stage-content intro-ceremony-stage" aria-live="polite">
             {/* FIRST PLACE CELEBRATION */}
-            {(finalTurnOrder || []).length > 0 && (
-              <div className="ceremony-winner-card">
+            {ceremonyView !== "sequence" && (finalTurnOrder || []).length > 0 && (
+              <div className="ceremony-winner-card animate-scale-up">
                 <div className="ceremony-crown">👑</div>
                 <div className="ceremony-winner-badge">FIRST TURN INITIATIVE WINNER</div>
                 <div className="ceremony-winner-profile">
@@ -989,72 +1023,94 @@ export default function GameIntroModal({
                     </p>
                   </div>
                 </div>
+                {ceremonyView === "winner" && (
+                  <div className="ceremony-sequence-loader">
+                    <div className="ceremony-sequence-loader-label">
+                      <span>CALCULATING TURN SEQUENCE...</span>
+                      <span>3 SEC</span>
+                    </div>
+                    <div
+                      className="ceremony-sequence-loader-track"
+                      role="progressbar"
+                      aria-label="Turn sequence loading"
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      aria-valuetext="The turn sequence will appear in three seconds"
+                    >
+                      <span className="ceremony-sequence-loader-fill" />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* FULL STANDINGS TABLE */}
-            <div className="ceremony-standings-box">
-              <div className="ceremony-standings-title">OFFICIAL EXPEDITION TURN SEQUENCE</div>
-              <div className="ceremony-standings-list">
-                {finalTurnOrder.map((p, idx) => {
-                  const role = ROLES[p.roleKey] || {};
-                  const isFirst = idx === 0;
-                  const isLast = idx === (finalTurnOrder?.length || 1) - 1;
+            {ceremonyView !== "winner" && (
+              <div className="ceremony-sequence-view animate-scale-up">
+                {/* FULL STANDINGS TABLE */}
+                <div className="ceremony-standings-box">
+                  <div className="ceremony-standings-title">OFFICIAL EXPEDITION TURN SEQUENCE</div>
+                  <div className="ceremony-standings-list">
+                    {finalTurnOrder.map((p, idx) => {
+                      const role = ROLES[p.roleKey] || {};
+                      const isFirst = idx === 0;
+                      const isLast = idx === (finalTurnOrder?.length || 1) - 1;
 
-                  return (
-                    <div key={p.id ?? idx} className={`ceremony-standing-row ${isFirst ? "standing-first" : ""}`}>
-                      <div className="standing-rank-badge">
-                        {isFirst ? "🥇 1ST" : idx === 1 ? "🥈 2ND" : idx === 2 ? "🥉 3RD" : `4TH`}
-                      </div>
-                      <img
-                        src={role.avatar || "assets/Characters/Copy of librarian.png"}
-                        alt={p.name}
-                        className="standing-avatar"
-                      />
-                      <div className="standing-details">
-                        <span className="standing-name">{p.name}</span>
-                        <span className="standing-role" style={{ color: p.color || role.color }}>
-                          ({role.name || p.roleKey})
-                        </span>
-                      </div>
-                      <div className="standing-extra">
-                        {isFirst && <span className="standing-tag-first">Opening Turn 🚀</span>}
-                        {isLast && <span className="standing-tag-last">Rearguard 🛡️</span>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* COMMENCE BUTTON */}
-            <div className="ceremony-actions-bar">
-              {(!isOnline || isHost) ? (
-                <button
-                  type="button"
-                  className="btn btn-primary ceremony-commence-btn animate-glow"
-                  onClick={handleCommence}
-                >
-                  🚀 COMMENCE EXPEDITION → <span className="key-hint">ENTER / SPACE</span>
-                </button>
-              ) : (
-                <div
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontSize: "0.82rem",
-                    color: "#FCD34D",
-                    letterSpacing: "1px",
-                    padding: "10px 20px",
-                    background: "rgba(26, 18, 11, 0.85)",
-                    border: "1.5px solid #C2974D",
-                    borderRadius: "6px"
-                  }}
-                  className="animate-pulse"
-                >
-                  ⏳ Expedition Host is finalizing launch...
+                      return (
+                        <div key={p.id ?? idx} className={`ceremony-standing-row ${isFirst ? "standing-first" : ""}`}>
+                          <div className="standing-rank-badge">
+                            {isFirst ? "🥇 1ST" : idx === 1 ? "🥈 2ND" : idx === 2 ? "🥉 3RD" : `4TH`}
+                          </div>
+                          <img
+                            src={role.avatar || "assets/Characters/Copy of librarian.png"}
+                            alt={p.name}
+                            className="standing-avatar"
+                          />
+                          <div className="standing-details">
+                            <span className="standing-name">{p.name}</span>
+                            <span className="standing-role" style={{ color: p.color || role.color }}>
+                              ({role.name || p.roleKey})
+                            </span>
+                          </div>
+                          <div className="standing-extra">
+                            {isFirst && <span className="standing-tag-first">Opening Turn 🚀</span>}
+                            {isLast && <span className="standing-tag-last">Rearguard 🛡️</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {/* COMMENCE BUTTON */}
+                <div className="ceremony-actions-bar">
+                  {(!isOnline || isHost) ? (
+                    <button
+                      type="button"
+                      className="btn btn-primary ceremony-commence-btn animate-glow"
+                      onClick={handleCommence}
+                    >
+                      🚀 COMMENCE EXPEDITION → <span className="key-hint">ENTER / SPACE</span>
+                    </button>
+                  ) : (
+                    <div
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontSize: "0.82rem",
+                        color: "#FCD34D",
+                        letterSpacing: "1px",
+                        padding: "10px 20px",
+                        background: "rgba(26, 18, 11, 0.85)",
+                        border: "1.5px solid #C2974D",
+                        borderRadius: "6px"
+                      }}
+                      className="ceremony-host-status animate-pulse"
+                    >
+                      ⏳ Expedition Host is finalizing launch...
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

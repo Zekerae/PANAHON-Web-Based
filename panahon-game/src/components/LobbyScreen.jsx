@@ -338,8 +338,8 @@ export default function LobbyScreen({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Top Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", paddingBottom: "12px", borderBottom: "2px solid #5A422D" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div className="lobby-staging-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px", paddingBottom: "12px", borderBottom: "2px solid #5A422D" }}>
+          <div className="lobby-staging-identity" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <div style={{
               width: "42px",
               height: "42px",
@@ -355,7 +355,7 @@ export default function LobbyScreen({
               {lobbyMode === "online" ? "🌐" : "⚔️"}
             </div>
             <div>
-              <h2 style={{
+              <h2 className="lobby-staging-title" style={{
                 margin: 0,
                 fontSize: "1.25rem",
                 fontFamily: "var(--font-display)",
@@ -364,14 +364,15 @@ export default function LobbyScreen({
               }}>
                 CHRONO EXPEDITION STAGING
               </h2>
-              <div style={{ fontSize: "0.74rem", color: "#C8B293", marginTop: "2px" }}>
+              <div className="lobby-staging-subtitle" style={{ fontSize: "0.74rem", color: "#C8B293", marginTop: "2px" }}>
                 Operative Cadre Configuration & Spacetime Timeline Synchronization
               </div>
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div className="lobby-staging-header-controls" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <button
+              className="lobby-staging-status"
               type="button"
               onClick={isRoomActive ? handleCopyCode : undefined}
               title={isRoomActive ? "Click to copy room code" : undefined}
@@ -418,6 +419,7 @@ export default function LobbyScreen({
         {/* Mode Switcher Tabs (Only shown when not in an active room) */}
         {!isRoomActive && (
           <div
+            className="lobby-mode-switcher"
             style={{
               display: "flex",
               gap: "10px",
@@ -426,6 +428,7 @@ export default function LobbyScreen({
             }}
           >
             <button
+              className="lobby-mode-button"
               onClick={() => { sounds.btnClick(); setLobbyMode("local"); }}
               style={{
                 flex: 1,
@@ -450,6 +453,7 @@ export default function LobbyScreen({
             </button>
 
             <button
+              className="lobby-mode-button"
               onClick={() => { sounds.btnClick(); setLobbyMode("online"); }}
               style={{
                 flex: 1,
@@ -476,7 +480,7 @@ export default function LobbyScreen({
         )}
 
         {/* Scrollable Content Body */}
-        <div style={{ flex: 1, overflowY: "auto", paddingRight: "6px", minHeight: 0 }}>
+        <div className="lobby-scroll-body" style={{ flex: 1, overflowY: "auto", paddingRight: "6px", minHeight: 0 }}>
           {lobbyMode === "local" ? (
             <div
               className="lobby-dossier-card"
@@ -488,7 +492,7 @@ export default function LobbyScreen({
                 width: "100%"
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <div className="lobby-dossier-heading-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
                 <div style={{ display: "inline-flex", alignItems: "center", background: "#32261D", border: "2px solid #C2974D", boxShadow: "inset 1px 1px 0 #EBD07D, inset -1px -1px 0 #5C3E16", borderRadius: "4px", padding: "4px 14px", fontFamily: "var(--font-display)", fontSize: "0.78rem", color: "#FCD34D", letterSpacing: "1px" }}>
                   OPERATIVE CADRE DOSSIER
                 </div>
@@ -502,7 +506,7 @@ export default function LobbyScreen({
               </p>
 
               {/* Tactical Preset Bar */}
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+              <div className="lobby-preset-bar" style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
                 {[
                   { label: "⚔️ Solo (1 Human + 3 AI)", fn: applyPreset1v3 },
                   { label: "🗡️ Rogue & Chronomancer", fn: applyPresetRogueChrono },
@@ -512,6 +516,7 @@ export default function LobbyScreen({
                   { label: "🎲 Rebalance Roles", fn: applyPresetRandom }
                 ].map((p, i) => (
                   <button
+                    className="lobby-preset-button"
                     key={i}
                     onClick={p.fn}
                     style={{
@@ -546,6 +551,7 @@ export default function LobbyScreen({
                   if (isClosed) {
                     return (
                       <div
+                        className="lobby-slot-card lobby-slot-card-closed"
                         key={idx}
                         style={{
                           background: "#16100C",
@@ -557,7 +563,7 @@ export default function LobbyScreen({
                           justifyContent: "space-between"
                         }}
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div className="lobby-slot-closed-summary" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                           <div style={{ width: "38px", height: "38px", borderRadius: "6px", background: "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}>
                             🚫
                           </div>
@@ -572,6 +578,7 @@ export default function LobbyScreen({
                         </div>
 
                         <select
+                          className="lobby-slot-type-select"
                           style={{
                             background: "#140E0A",
                             color: "#F5EEDC",
@@ -595,6 +602,7 @@ export default function LobbyScreen({
 
                   return (
                     <div
+                      className="lobby-slot-card"
                       key={idx}
                       style={{
                         background: "#1C1510",
@@ -609,6 +617,7 @@ export default function LobbyScreen({
                       }}
                     >
                       <img
+                        className="lobby-slot-avatar"
                         src={role.avatar}
                         alt={role.name}
                         style={{
@@ -621,9 +630,9 @@ export default function LobbyScreen({
                         onError={(e) => { e.currentTarget.style.display = "none"; }}
                       />
 
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div className="lobby-slot-content" style={{ flex: 1 }}>
+                        <div className="lobby-slot-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                          <div className="lobby-slot-meta" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                             <span style={{ fontSize: "0.74rem", color, fontWeight: 900, letterSpacing: "0.5px" }}>
                               SLOT {idx + 1}
                             </span>
@@ -643,6 +652,7 @@ export default function LobbyScreen({
                           </div>
 
                           <select
+                            className="lobby-slot-type-select"
                             style={{
                               background: "#3A2C21",
                               color: "#FEF3C7",
@@ -666,8 +676,9 @@ export default function LobbyScreen({
                         </div>
 
                         {/* Inputs Row */}
-                        <div style={{ display: "flex", gap: "8px", marginBottom: "6px" }}>
+                        <div className={`lobby-slot-fields ${isAi ? "is-ai" : "is-human"}`} style={{ display: "flex", gap: "8px", marginBottom: "6px" }}>
                           <input
+                            className="lobby-slot-name-input"
                             type="text"
                             value={player.name}
                             placeholder={isAi ? "AI Construct Name" : (idx === 0 ? "Operative Callsign" : "Operative Name")}
@@ -686,6 +697,7 @@ export default function LobbyScreen({
 
                           {isAi && (
                             <select
+                              className="lobby-slot-difficulty-select"
                               style={{
                                 background: "#3A2C21",
                                 color: "#FEF3C7",
@@ -709,6 +721,7 @@ export default function LobbyScreen({
                           )}
 
                           <select
+                            className="lobby-slot-role-select"
                             style={{
                               background: "#3A2C21",
                               color: "#FFD700",
@@ -736,7 +749,7 @@ export default function LobbyScreen({
                           </select>
                         </div>
 
-                        <div style={{ fontSize: "0.72rem", color: "#C4B39E", fontFamily: "var(--font-body)" }}>
+                        <div className="lobby-slot-ability-copy" style={{ fontSize: "0.72rem", color: "#C4B39E", fontFamily: "var(--font-body)" }}>
                           <strong style={{ color: "#FCD34D" }}>Passive:</strong> {role.passive.name} ({role.passive.description}) &bull; <strong style={{ color: "#67E8F9" }}>Active:</strong> {role.active.name}
                         </div>
                       </div>
@@ -746,7 +759,7 @@ export default function LobbyScreen({
               </div>
 
               {/* Action Row */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "14px", borderTop: "2px solid #5A422D" }}>
+              <div className="lobby-footer-actions" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "14px", borderTop: "2px solid #5A422D" }}>
                 <button
                   className="btn btn-secondary"
                   onClick={onBack}
@@ -820,7 +833,7 @@ export default function LobbyScreen({
                       {canSpectatePrompt.message || "This match is ongoing or full. You can join the observatory deck to watch!"}
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: "8px" }}>
+                  <div className="lobby-inline-actions" style={{ display: "flex", gap: "8px" }}>
                     <button
                       className="btn"
                       onClick={onAcceptCanSpectate}
@@ -849,8 +862,9 @@ export default function LobbyScreen({
               )}
 
               {!isRoomActive && (
-                <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+                <div className="lobby-online-mode-switcher" style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
                   <button
+                    className="lobby-online-mode-button"
                     onClick={() => { sounds.btnClick(); setOnlineSubMode("create"); }}
                     style={{
                       flex: 1,
@@ -869,6 +883,7 @@ export default function LobbyScreen({
                     🚀 HOST ROOM
                   </button>
                   <button
+                    className="lobby-online-mode-button"
                     onClick={() => { sounds.btnClick(); setOnlineSubMode("join"); }}
                     style={{
                       flex: 1,
@@ -887,6 +902,7 @@ export default function LobbyScreen({
                     🚪 JOIN AS PLAYER
                   </button>
                   <button
+                    className="lobby-online-mode-button"
                     onClick={() => { sounds.btnClick(); setOnlineSubMode("spectate"); }}
                     style={{
                       flex: 1,
@@ -1094,7 +1110,7 @@ export default function LobbyScreen({
                   </div>
 
                   {/* Action Buttons */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "12px", borderTop: "2px solid #5A422D" }}>
+                  <div className="lobby-footer-actions" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "12px", borderTop: "2px solid #5A422D" }}>
                     <button className="btn btn-secondary" onClick={onBack} style={{ padding: "10px 20px", fontSize: "0.82rem" }}>
                       ← Return
                     </button>
@@ -1174,6 +1190,7 @@ export default function LobbyScreen({
                           </div>
 
                           <button
+                            className="lobby-share-button"
                             type="button"
                             onClick={handleShare}
                             title="Forward room invite link and code to friends"
@@ -1312,7 +1329,7 @@ export default function LobbyScreen({
                   )}
 
                   {/* Waiting Room Action Bar */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "14px", borderTop: "2px solid #5A422D" }}>
+                  <div className="lobby-footer-actions" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "14px", borderTop: "2px solid #5A422D" }}>
                     <button className="btn btn-secondary" onClick={onLeaveRoom} style={{ padding: "10px 20px", fontSize: "0.82rem" }}>
                       {isSpectator ? "Leave Observatory" : "Leave Anomaly Room"}
                     </button>

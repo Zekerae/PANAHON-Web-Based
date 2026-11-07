@@ -7396,8 +7396,8 @@ body {
   /* Keep the existing tile hit area while reducing only the visible board piece. */
   .mario-party-space > .space-disc,
   .mario-party-space > .space-tile-image {
-    width: 24px;
-    height: 24px;
+    width: 15px;
+    height: 15px;
     flex: 0 0 24px;
   }
 

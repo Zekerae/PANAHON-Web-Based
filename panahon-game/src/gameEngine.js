@@ -2374,10 +2374,13 @@ export class GameEngine {
   // --- Temporal Occurrence ---
   // --- Global Temporal Disturbance ("Ay nag-glitch") ---
   activateTemporalGlitch(turns = 2) {
+    const playerCount = this.state.players?.length || 4;
     this.state.temporalGlitchTurns = turns;
-    this.state.temporalOccurrence = turns;
+    this.state.temporalOccurrence = turns * playerCount;
     this.state.temporalOccurrenceAnnounced = false;
     this.state.temporalOccurrenceId = 'glitch_' + Date.now();
+    this.state.temporalOccurrenceRounds = turns;
+    this.state.temporalOccurrenceInitialTurns = turns * playerCount;
     this.addLog('temporal', `🌀 Global Temporal Disturbance activated! All card draws randomized across eras for ${turns} rounds.`);
   }
 

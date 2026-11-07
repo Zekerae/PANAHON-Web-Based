@@ -845,14 +845,14 @@ export const EVENT_CARDS = {
     {
       id: 'evt_sp_5',
       name: 'Ay nag-glitch',
-      description: 'Global Temporal Disturbance! For the next 2 turns, drawing on Clue, Event, or Danger tiles pulls from a random Era deck.',
+      description: 'Global Temporal Disturbance! For the next 2 rounds, drawing on Clue, Event, or Danger tiles pulls from a random Era deck.',
       era: ERAS.SPANISH,
       image: 'assets/Cards/Event Cards/5.png',
       vfxTag: 'rgb_chromatic_split',
       sfxTag: 'crtDistortion',
       effect: (player, game) => {
         game.activateTemporalGlitch(2);
-        return 'Global Temporal Disturbance! All card draws randomized across eras for 2 turns.';
+        return 'Global Temporal Disturbance! All card draws randomized across eras for 2 rounds.';
       }
     }
   ],
@@ -916,14 +916,14 @@ export const EVENT_CARDS = {
     {
       id: 'evt_am_5',
       name: 'Ay nag-glitch',
-      description: 'Global Temporal Disturbance! For the next 2 turns, drawing on Clue, Event, or Danger tiles pulls from a random Era deck.',
+      description: 'Global Temporal Disturbance! For the next 2 rounds, drawing on Clue, Event, or Danger tiles pulls from a random Era deck.',
       era: ERAS.AMERICAN,
       image: 'assets/Cards/Event Cards/6.png',
       vfxTag: 'rgb_chromatic_split',
       sfxTag: 'crtDistortion',
       effect: (player, game) => {
         game.activateTemporalGlitch(2);
-        return 'Global Temporal Disturbance! All card draws randomized across eras for 2 turns.';
+        return 'Global Temporal Disturbance! All card draws randomized across eras for 2 rounds.';
       }
     }
   ],
@@ -989,14 +989,14 @@ export const EVENT_CARDS = {
     {
       id: 'evt_jp_5',
       name: 'Ay nag-glitch',
-      description: 'Global Temporal Disturbance! For the next 2 turns, drawing on Clue, Event, or Danger tiles pulls from a random Era deck.',
+      description: 'Global Temporal Disturbance! For the next 2 rounds, drawing on Clue, Event, or Danger tiles pulls from a random Era deck.',
       era: ERAS.JAPANESE,
       image: 'assets/Cards/Event Cards/11.png',
       vfxTag: 'rgb_chromatic_split',
       sfxTag: 'crtDistortion',
       effect: (player, game) => {
         game.activateTemporalGlitch(2);
-        return 'Global Temporal Disturbance! All card draws randomized across eras for 2 turns.';
+        return 'Global Temporal Disturbance! All card draws randomized across eras for 2 rounds.';
       }
     }
   ],
@@ -1069,14 +1069,14 @@ export const EVENT_CARDS = {
     {
       id: 'evt_my_5',
       name: 'Ay nag-glitch',
-      description: 'Global Temporal Disturbance! For the next 2 turns, drawing on Clue, Event, or Danger tiles pulls from a random Era deck.',
+      description: 'Global Temporal Disturbance! For the next 2 rounds, drawing on Clue, Event, or Danger tiles pulls from a random Era deck.',
       era: ERAS.MYTH,
       image: 'assets/Cards/Event Cards/16.png',
       vfxTag: 'rgb_chromatic_split',
       sfxTag: 'crtDistortion',
       effect: (player, game) => {
         game.activateTemporalGlitch(2);
-        return 'Global Temporal Disturbance! All card draws randomized across eras for 2 turns.';
+        return 'Global Temporal Disturbance! All card draws randomized across eras for 2 rounds.';
       }
     }
   ]
